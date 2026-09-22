@@ -1,4 +1,5 @@
 from datetime import UTC, datetime, timedelta
+import uuid
 
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -25,6 +26,11 @@ def _get_account(db: Session, account_id: int) -> AwsAccount:
     if account is None:
         raise HTTPException(status_code=404, detail="AWS account not found")
     return account
+
+
+@router.get("/external-id")
+def generate_external_id() -> dict[str, str]:
+    return {"external_id": f"nuvemiq-{uuid.uuid4()}"}
 
 
 @router.get("", response_model=list[AccountRead])
