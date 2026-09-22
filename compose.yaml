@@ -1,0 +1,73 @@
+name: nuvemiq
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-nuvemiq}
+      POSTGRES_USER: ${POSTGRES_USER:-nuvemiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nuvemiq} -d ${POSTGRES_DB:-nuvemiq}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  worker:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    env_file: .env
+    command: ["python", "-m", "app.worker"]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  web:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+    restart: unless-stopped
+    environment:
+      NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api/v1}
+    depends_on:
+      api:
+        condition: service_healthy
+
+  proxy:
+    image: caddy:2.9-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+volumes:
+  postgres_data:
+  caddy_data:
+  caddy_config:

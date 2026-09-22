@@ -1,0 +1,68 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: >-
+  Creates the IAM role and instance profile for the EC2 instance hosting NuvemIQ.
+
+Parameters:
+  RoleName:
+    Type: String
+    Default: NuvemIQCentralRole
+  TargetRoleName:
+    Type: String
+    Default: NuvemIQReadOnly
+    Description: Role name deployed in each target account.
+  EnableBedrock:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Allow the central instance to generate explanations using Bedrock.
+
+Conditions:
+  UseBedrock: !Equals [!Ref EnableBedrock, "true"]
+
+Resources:
+  CentralRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Ref RoleName
+      Description: Base identity for the NuvemIQ EC2 application.
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ec2.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore
+      Policies:
+        - PolicyName: AssumeNuvemIQTargetRoles
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: sts:AssumeRole
+                Resource: !Sub arn:${AWS::Partition}:iam::*:role/${TargetRoleName}
+        - !If
+          - UseBedrock
+          - PolicyName: InvokeBedrockModels
+            PolicyDocument:
+              Version: "2012-10-17"
+              Statement:
+                - Effect: Allow
+                  Action: bedrock:InvokeModel
+                  Resource: "*"
+          - !Ref AWS::NoValue
+
+  CentralInstanceProfile:
+    Type: AWS::IAM::InstanceProfile
+    Properties:
+      InstanceProfileName: !Ref RoleName
+      Roles: [!Ref CentralRole]
+
+Outputs:
+  CentralRoleArn:
+    Value: !GetAtt CentralRole.Arn
+    Description: Use this ARN as CentralRoleArn in every target-account stack.
+  InstanceProfileName:
+    Value: !Ref CentralInstanceProfile
+    Description: Attach this instance profile to the NuvemIQ EC2 instance.
