@@ -18,28 +18,6 @@ const emptyForm = {
   scan_interval_hours: 24,
 };
 
-function generateExternalId() {
-  if (typeof crypto.randomUUID === "function") {
-    return `nuvemiq-${crypto.randomUUID()}`;
-  }
-
-  const bytes = new Uint8Array(16);
-  crypto.getRandomValues(bytes);
-  bytes[6] = (bytes[6] & 0x0f) | 0x40;
-  bytes[8] = (bytes[8] & 0x3f) | 0x80;
-
-  const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
-  const uuid = [
-    hex.slice(0, 8),
-    hex.slice(8, 12),
-    hex.slice(12, 16),
-    hex.slice(16, 20),
-    hex.slice(20),
-  ].join("-");
-
-  return `nuvemiq-${uuid}`;
-}
-
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<AwsAccount[]>([]);
   const [showForm, setShowForm] = useState(false);
@@ -53,6 +31,17 @@ export default function AccountsPage() {
     catch (err) { setError(err instanceof Error ? err.message : "Falha ao carregar contas"); }
   }
   useEffect(() => { void load(); }, []);
+
+  async function openCreateForm() {
+    setError("");
+    try {
+      const generated = await api<{ external_id: string }>("/accounts/external-id");
+      setForm({ ...emptyForm, external_id: generated.external_id });
+      setShowForm(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao gerar External ID");
+    }
+  }
 
   async function createAccount(event: FormEvent) {
     event.preventDefault(); setBusy("create"); setError("");
@@ -95,7 +84,7 @@ export default function AccountsPage() {
         eyebrow="MULTI-ACCOUNT"
         title="Contas AWS"
         description="Acesso temporário e somente leitura por STS AssumeRole."
-        actions={<button className="button primary" onClick={() => { setShowForm(true); setForm({ ...emptyForm, external_id: generateExternalId() }); }}><Plus size={17} /> Adicionar conta</button>}
+        actions={<button className="button primary" onClick={() => void openCreateForm()}><Plus size={17} /> Adicionar conta</button>}
       />
       {error && <div className="alert error"><X size={17} />{error}</div>}
       {message && <div className="alert success"><Check size={17} />{message}</div>}
@@ -126,7 +115,7 @@ export default function AccountsPage() {
             <div className="account-actions"><button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button><button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button></div>
           </article>
         ))}
-        {!accounts.length && !showForm && <button className="account-card add-account" onClick={() => { setShowForm(true); setForm({ ...emptyForm, external_id: generateExternalId() }); }}><Plus size={25} /><strong>Adicionar a primeira conta</strong><span>Configure uma role somente leitura.</span></button>}
+        {!accounts.length && !showForm && <button className="account-card add-account" onClick={() => void openCreateForm()}><Plus size={25} /><strong>Adicionar a primeira conta</strong><span>Configure uma role somente leitura.</span></button>}
       </section>
     </>
   );
