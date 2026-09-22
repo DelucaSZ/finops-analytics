@@ -33,7 +33,7 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-visual">
-        <div className="login-brand"><CloudCog size={28} /><span><strong>Nuvem</strong>IQ</span></div>
+        <div className="login-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
         <div className="login-copy">
           <span className="eyebrow">AWS FINOPS INTELLIGENCE</span>
           <h1>Encontre desperdícios.<br /><em>Decida com confiança.</em></h1>
@@ -43,6 +43,7 @@ export default function LoginPage() {
       </section>
       <section className="login-form-area">
         <form className="login-card" onSubmit={submit}>
+          <div className="login-brand login-mobile-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
           <div className="login-icon"><LockKeyhole size={23} /></div>
           <h2>Acessar plataforma</h2>
           <p>Use as credenciais administrativas configuradas no servidor.</p>

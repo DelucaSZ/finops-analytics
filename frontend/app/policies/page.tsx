@@ -80,7 +80,7 @@ function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; sco
       <div className="policy-summary">
         <span className="policy-icon"><SlidersHorizontal size={19} /></span>
         <div><div className="policy-title-line"><h3>{policy.name}</h3>{!policy.implemented && <span className="coming-soon">Próxima etapa</span>}{scope === "account" && policy.inherited && <span className="inherited">Herdada</span>}</div><p>{policy.description}</p></div>
-        <label className="switch"><input type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); if (scope === "account") setOverrides(new Set([...overrides, "enabled"])); }} disabled={!policy.implemented} /><span /></label>
+        <label className="switch"><input aria-label={`Ativar política ${policy.name}`} type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); if (scope === "account") setOverrides(new Set([...overrides, "enabled"])); }} disabled={!policy.implemented} /><span /></label>
         <button className="button small ghost" onClick={() => setOpen(!open)}>{open ? "Fechar" : "Configurar"}</button>
       </div>
       {open && (

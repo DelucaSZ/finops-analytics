@@ -2,7 +2,7 @@
 
 ## Authentication model
 
-NuvemIQ uses two role layers:
+DeepOps uses two role layers:
 
 1. `NuvemIQCentralRole` is attached to the EC2 instance through an instance
    profile.
@@ -29,21 +29,21 @@ Attach the stack's `InstanceProfileName` output to the EC2 instance. Keep the
 
 For each AWS account:
 
-1. Generate or copy the External ID from the NuvemIQ account form.
+1. Generate or copy the External ID from the DeepOps account form.
 2. Deploy `infrastructure/cloudformation/nuvemiq-readonly-role.yaml`.
 3. Supply the central role ARN and that account's External ID.
-4. Copy the target stack's `RoleArn` output to NuvemIQ.
+4. Copy the target stack's `RoleArn` output to DeepOps.
 5. Select the regions that should be inventoried.
 6. Save and run **Test connection**.
 
-The Account ID entered in NuvemIQ must match the account contained in the Role
+The Account ID entered in DeepOps must match the account contained in the Role
 ARN. The API rejects mismatched values.
 
 ## 3. Cost data
 
 Cost Explorer must be enabled before the cost-growth detector can return data.
 For organization-wide consolidated analysis, register the management/payer
-account and mark it accordingly in NuvemIQ.
+account and mark it accordingly in DeepOps.
 
 Some billing APIs can require explicit console settings in addition to IAM
 permissions. A failure in one collector is recorded as a warning and does not

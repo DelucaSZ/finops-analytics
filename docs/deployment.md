@@ -1,4 +1,4 @@
-# Deploying NuvemIQ on Linux
+# Deploying DeepOps on Linux
 
 The recommended first deployment is one Ubuntu 24.04 LTS EC2 instance running
 Docker Compose. PostgreSQL is containerized for the MVP; moving it to RDS is a

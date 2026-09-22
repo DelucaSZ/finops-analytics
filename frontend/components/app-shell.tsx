@@ -35,23 +35,24 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     setReady(true);
   }, [isLogin, router]);
 
-  if (!ready) return <div className="boot-screen">Inicializando NuvemIQ…</div>;
+  if (!ready) return <div className="boot-screen">Inicializando DeepOps…</div>;
   if (isLogin) return <>{children}</>;
 
   return (
     <div className="app-shell">
+      <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
       <aside className="sidebar">
         <div className="brand">
           <span className="brand-mark"><CloudCog size={23} /></span>
-          <span><strong>Nuvem</strong>IQ</span>
+          <span><strong>Deep</strong>Ops</span>
         </div>
         <div className="product-tag">FINOPS INTELLIGENCE</div>
-        <nav className="main-nav">
+        <nav className="main-nav" aria-label="Navegação principal">
           {nav.map((item) => {
             const Icon = item.icon;
             const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
             return (
-              <Link className={active ? "nav-item active" : "nav-item"} href={item.href} key={item.href}>
+              <Link className={active ? "nav-item active" : "nav-item"} href={item.href} key={item.href} title={item.label} aria-label={item.label} aria-current={active ? "page" : undefined}>
                 <Icon size={18} />
                 <span>{item.label}</span>
               </Link>
@@ -62,16 +63,17 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="environment-pill"><span /> Ambiente protegido</div>
           <button
             className="nav-item logout"
+            aria-label="Sair" title="Sair"
             onClick={() => {
               clearToken();
               router.push("/login");
             }}
           >
-            <LogOut size={18} /> Sair
+            <LogOut size={18} /> <span>Sair</span>
           </button>
         </div>
       </aside>
-      <main className="main-content">{children}</main>
+      <main id="main-content" tabIndex={-1} className="main-content">{children}</main>
     </div>
   );
 }

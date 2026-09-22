@@ -46,20 +46,20 @@ export default function OpportunitiesPage() {
   return (
     <>
       <PageHeader eyebrow="ANÁLISES" title="Oportunidades" description="Evidências técnicas e economia estimada por recurso." />
-      {error && <div className="alert error">{error}</div>}
-      {aiInsight && <section className="ai-insight"><div className="ai-insight-heading"><span><BrainCircuit size={18} /> Análise por IA · {aiInsight.title}</span><button onClick={() => setAiInsight(null)}><X size={16} /></button></div><div className="ai-insight-body">{aiInsight.text}</div></section>}
+      {error && <div className="alert error" role="alert">{error}</div>}
+      {aiInsight && <section className="ai-insight"><div className="ai-insight-heading"><span><BrainCircuit size={18} /> Análise por IA · {aiInsight.title}</span><button aria-label="Fechar análise por IA" onClick={() => setAiInsight(null)}><X size={16} /></button></div><div className="ai-insight-body">{aiInsight.text}</div></section>}
       <section className="summary-strip">
         <div><WalletCards size={20} /><span>Economia exibida</span><strong>{usd(total)}/mês</strong></div>
         <div><span>Resultados</span><strong>{filtered.length}</strong></div>
       </section>
       <section className="panel table-panel">
         <div className="toolbar">
-          <label className="search-field"><Search size={16} /><input placeholder="Buscar recurso ou oportunidade" value={query} onChange={(e) => setQuery(e.target.value)} /></label>
-          <label className="select-field"><Filter size={16} /><select value={severity} onChange={(e) => setSeverity(e.target.value)}><option value="all">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></label>
+          <label className="search-field"><Search size={16} /><input aria-label="Buscar recurso ou oportunidade" placeholder="Buscar recurso ou oportunidade" value={query} onChange={(e) => setQuery(e.target.value)} /></label>
+          <label className="select-field"><Filter size={16} /><select aria-label="Filtrar por prioridade" value={severity} onChange={(e) => setSeverity(e.target.value)}><option value="all">Todas as prioridades</option><option value="high">Alta</option><option value="medium">Média</option><option value="low">Baixa</option></select></label>
         </div>
-        <div className="data-table-wrap">
-          <table className="data-table">
-            <thead><tr><th>Oportunidade</th><th>Conta / Região</th><th>Prioridade</th><th>Economia</th><th>Última validação</th><th /></tr></thead>
+        <div className="data-table-wrap" role="region" aria-label="Oportunidades encontradas" tabIndex={0}>
+          <table className="data-table" aria-label="Oportunidades de economia">
+            <thead><tr><th scope="col">Oportunidade</th><th scope="col">Conta / Região</th><th scope="col">Prioridade</th><th scope="col">Economia</th><th scope="col">Última validação</th><th scope="col">Ações</th></tr></thead>
             <tbody>
               {filtered.map((finding) => (
                 <tr key={finding.id}>
@@ -67,7 +67,7 @@ export default function OpportunitiesPage() {
                   <td><strong>{accountNames[finding.account_id] || `Conta ${finding.account_id}`}</strong><span>{finding.region} · {finding.service}</span></td>
                   <td><StatusBadge value={finding.severity} /></td>
                   <td className="money-cell">{usd(finding.estimated_monthly_savings)}<span>/mês</span></td>
-                  <td>{formatDate(finding.last_seen_at)}</td>
+                  <td className="date-cell">{formatDate(finding.last_seen_at)}</td>
                   <td><div className="row-actions"><button onClick={() => void explain(finding)} disabled={aiLoading === finding.id}>{aiLoading === finding.id ? "Analisando…" : "Analisar IA"}</button><button onClick={() => void changeStatus(finding.id, "accepted")}>Aceitar</button><button onClick={() => void changeStatus(finding.id, "dismissed")}>Ignorar</button></div></td>
                 </tr>
               ))}

@@ -1,6 +1,23 @@
-# NuvemIQ — Estado do projeto
+# DeepOps — Estado do projeto
 
 Atualizado em: 2026-09-22 (UTC)
+
+## Atualização — 2026-09-22: DeepOps e legibilidade
+
+Esta atualização prevalece sobre os registros históricos abaixo.
+
+- Nome do produto alterado de NuvemIQ para DeepOps no menu, login, inicialização, título da aba, API, prompt de IA e documentação.
+- Paleta escura/verde preservada. Texto padrão de 16 px, textos de apoio de 13–14 px e etiquetas/cabeçalhos de no mínimo 12 px, em unidades rem.
+- Cores de texto secundário mais claras, botões maiores, foco de teclado visível e tabelas com rolagem acessível.
+- Corrigida a regra genérica de spans das tabelas que sobrescrevia cores e formato das etiquetas de prioridade/status.
+- Corrigido o botão Sair em telas estreitas e adicionada a marca ao login móvel.
+- Compatibilidade preservada: variáveis NUVEMIQ_*, credenciais, banco/volumes, localStorage, External IDs e roles IAM existentes. Não renomear esses identificadores na EC2 para aplicar esta atualização.
+- Base remota utilizada: b398911bcefdbab5a10ab540b85fc7546c0c6b2b, incluindo a geração de External ID pelo backend.
+- Validação: build de produção Next.js e tipos aprovados; git diff --check aprovado; cores principais de texto com contraste mínimo de 7,13:1 nas quatro superfícies sólidas do tema.
+- Limitações: navegador remoto bloqueou o acesso ao localhost, então a renderização visual não foi verificada. Pytest não pôde concluir devido a falha na dependência binária pydantic_core do ambiente local; as mudanças no backend são apenas textos de marca.
+- Aplicação na EC2: git pull --ff-only origin main, seguido de docker compose up -d --build web api worker. Não exige migração de dados.
+
+## Registro anterior
 
 ## Objetivo
 
@@ -141,3 +158,4 @@ git diff --check
 ## Regra de continuidade
 
 Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. Não refazer a arquitetura nem trocar o modelo de autenticação sem uma nova decisão explícita.
+

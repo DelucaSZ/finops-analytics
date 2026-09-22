@@ -1,1 +1,1 @@
-"""NuvemIQ API and worker package."""
+"""DeepOps API and worker package."""

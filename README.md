@@ -1,6 +1,10 @@
-# NuvemIQ
+# DeepOps
 
-NuvemIQ is a self-hosted, multi-account AWS FinOps platform focused on finding
+Formerly NuvemIQ. Existing `NUVEMIQ_*` environment variables, database names,
+login credentials, browser sessions and IAM role names remain compatible.
+The rebrand does not require an infrastructure or data migration.
+
+DeepOps is a self-hosted, multi-account AWS FinOps platform focused on finding
 waste, explaining evidence and prioritizing savings opportunities.
 
 ## Current milestone
@@ -29,7 +33,7 @@ Browser -> Caddy -> Next.js / FastAPI -> PostgreSQL
 ```
 
 The EC2 instance receives temporary base credentials from its IAM instance
-profile. For each registered AWS account, NuvemIQ calls STS `AssumeRole` with a
+profile. For each registered AWS account, DeepOps calls STS `AssumeRole` with a
 unique External ID. No AWS access key is stored by the application.
 
 ## Quick start
@@ -56,12 +60,12 @@ before the first start. Demo data is never loaded when the option is false.
 
 ## AWS setup
 
-1. Attach an IAM role to the EC2 instance hosting NuvemIQ.
+1. Attach an IAM role to the EC2 instance hosting DeepOps.
 2. Allow that central role to call `sts:AssumeRole` on the account roles.
 3. Deploy
    `infrastructure/cloudformation/nuvemiq-readonly-role.yaml` in every target
    account.
-4. Register the resulting Role ARN and the matching External ID in NuvemIQ.
+4. Register the resulting Role ARN and the matching External ID in DeepOps.
 5. Use **Test connection** before running the first scan.
 
 The central instance role can be created with

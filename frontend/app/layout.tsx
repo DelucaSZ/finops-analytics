@@ -3,7 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "NuvemIQ | FinOps Intelligence",
+  title: "DeepOps | FinOps Intelligence",
   description: "Eficiência e inteligência de custos para ambientes AWS",
 };
 
