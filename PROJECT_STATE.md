@@ -159,3 +159,14 @@ git diff --check
 
 Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. Não refazer a arquitetura nem trocar o modelo de autenticação sem uma nova decisão explícita.
 
+
+## DeepOps — oportunidades e navegação por prioridade (22/09/2026)
+
+- Oportunidades: caixas de seleção individuais e seleção de todos os resultados filtrados; ações de aceitar/ignorar em lote com contador e retorno de sucesso/erro.
+- Filtros combináveis de conta AWS, prioridade e tipo de oportunidade, além da busca textual. Para tags, usar “Recursos sem tags obrigatórias”. Alterar um filtro limpa a seleção.
+- Visão geral: as linhas Alta/Média/Baixa em Risco e impacto levam a `/opportunities?severity=high|medium|low`. Filtros estruturados são preservados na URL.
+- A lista carrega todas as páginas de achados abertos, em lotes de 500; removida a limitação visual silenciosa de 100 achados.
+- API: `PATCH /api/v1/findings/bulk/status` recebe `finding_ids` e `status` (`accepted` ou `dismissed`). Exige autenticação; valida todo o lote antes do commit e recusa IDs ausentes ou achados já tratados, sem aplicar mudanças parciais.
+- Verificações: build de produção e tipos do frontend aprovados; 18 testes Python aprovados, incluindo 8 novos casos de paginação, escopo do lote, duplicatas, autenticação, validação e conflitos; Ruff aprovado. Ajustada também a ordem de imports em `accounts.py`, que falhava no CI.
+- Validação visual pendente: o navegador remoto bloqueou o acesso a localhost neste ambiente.
+- Atualização na EC2: `git pull --ff-only origin main` e `docker compose up -d --build web api`. Sem migração de banco ou alteração de credenciais.

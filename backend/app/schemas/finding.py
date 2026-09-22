@@ -1,7 +1,8 @@
 from datetime import datetime
 from decimal import Decimal
+from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class FindingRead(BaseModel):
@@ -28,3 +29,8 @@ class FindingRead(BaseModel):
 
 class FindingStatusUpdate(BaseModel):
     status: str
+
+
+class FindingBulkStatusUpdate(BaseModel):
+    finding_ids: list[str] = Field(min_length=1)
+    status: Literal["accepted", "dismissed"]

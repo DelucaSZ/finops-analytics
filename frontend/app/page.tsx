@@ -125,10 +125,10 @@ export default function DashboardPage() {
               const value = summary?.by_severity?.[item.key] || 0;
               const total = Math.max(summary?.open_findings || 1, 1);
               return (
-                <div className="severity-line" key={item.key}>
+                <Link className="severity-line severity-link" key={item.key} href={`/opportunities?severity=${item.key}`} aria-label={`Ver ${value} oportunidades de prioridade ${item.label.toLowerCase()}`}>
                   <div><span>{item.label}</span><strong>{value}</strong></div>
                   <div className="bar-track"><div style={{ width: `${Math.max(value ? 8 : 0, (value / total) * 100)}%`, background: item.color }} /></div>
-                </div>
+                </Link>
               );
             })}
           </div>
