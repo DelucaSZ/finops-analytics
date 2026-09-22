@@ -88,6 +88,10 @@ cost analysis should be performed through the management/payer account.
 Detailed instructions are available in [AWS onboarding](docs/aws-onboarding.md)
 and [Linux deployment](docs/deployment.md).
 
+For automatic EC2 updates from `main`, health validation and image-based rollback,
+see [Automatic deployment](docs/auto-deploy.md). Install once with
+`sudo bash scripts/install-auto-deploy.sh` after pulling the repository.
+
 ## Development
 
 Backend:

@@ -170,3 +170,14 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
 - Verificações: build de produção e tipos do frontend aprovados; 18 testes Python aprovados, incluindo 8 novos casos de paginação, escopo do lote, duplicatas, autenticação, validação e conflitos; Ruff aprovado. Ajustada também a ordem de imports em `accounts.py`, que falhava no CI.
 - Validação visual pendente: o navegador remoto bloqueou o acesso a localhost neste ambiente.
 - Atualização na EC2: `git pull --ff-only origin main` e `docker compose up -d --build web api`. Sem migração de banco ou alteração de credenciais.
+
+
+## DeepOps — deploy automático com rollback (22/09/2026)
+
+- Implementados `scripts/auto_deploy.py`, instalador systemd e guia `docs/auto-deploy.md`.
+- Timer consulta `origin/main` a cada minuto; usa fetch + releases isoladas, sem modificar o checkout original. Estado e imagens reais preservados antes de recriar `api`, `worker`, `web` e `proxy`; mantém `db` e volumes.
+- Valida containers, reinícios, SQL e HTTP interno API/web/proxy por uma janela estável de 30 segundos. Falhas de ativação restauram a última release saudável; falhas de build preservam containers. Commit malsucedido bloqueado até novo commit ou retry explícito.
+- Estado persistente e lock permitem recuperação após interrupção. Rollback não desfaz alterações no banco; mudança de infraestrutura/banco no Compose exige deploy manual. Não é blue/green e não substitui testes funcionais.
+- Validação: 13 testes de deploy aprovados (falhas, rollback, recuperação, preservação de checkout/env e imagens), sintaxe Python/Bash verificada. Docker e acesso à EC2 indisponíveis nesta sessão; teste integral ocorrerá na instalação.
+- Ativação na EC2 ainda necessária: em `/opt/finops-analytics`, `git pull --ff-only origin main` e `sudo bash scripts/install-auto-deploy.sh`. Consultar `sudo deepops-deploy status` e `sudo journalctl -u deepops-deploy.service -f`.
+- Após habilitar, operar pelo controlador; não misturar deploy manual via Compose no checkout original com o timer. O SHA em produção fica no status do controlador. A primeira adoção é um baseline das imagens reais (commit delas desconhecido), seguido do primeiro deploy da main.
