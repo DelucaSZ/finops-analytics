@@ -1,6 +1,7 @@
 import re
 from collections import defaultdict
-from datetime import UTC, datetime, timedelta
+from copy import deepcopy
+from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -483,6 +484,7 @@ def collect_load_balancers_no_traffic(
                         "type": lb_type,
                         "metric": metric_name,
                         "metric_total": total,
+                        "datapoint_count": len(values),
                         "lookback_days": lookback_days,
                         "created_at": load_balancer["CreatedTime"].isoformat(),
                         "tags": tags,
@@ -531,6 +533,7 @@ def collect_load_balancers_no_traffic(
                         "type": "classic",
                         "metric": "RequestCount",
                         "metric_total": total,
+                        "datapoint_count": len(values),
                         "lookback_days": lookback_days,
                         "created_at": load_balancer["CreatedTime"].isoformat(),
                         "tags": tags,
@@ -737,6 +740,76 @@ def collect_missing_tags(
     return findings
 
 
+def _cost_results(client: Any, **request: Any) -> list[dict]:
+    """Read every Cost Explorer page, preserving the request across tokens."""
+    results: list[dict] = []
+    while True:
+        response = client.get_cost_and_usage(**request)
+        results.extend(response.get("ResultsByTime", []))
+        token = response.get("NextPageToken")
+        if not token:
+            return results
+        request["NextPageToken"] = token
+
+
+def _cost_contributors(
+    client: Any,
+    service: str,
+    aws_region: str,
+    baseline_start: date,
+    recent_start: date,
+    end: date,
+    baseline_days: int,
+    comparison_days: int,
+) -> dict:
+    """Explain cost increases by billing usage type, without inferring resource causes."""
+    try:
+        results = _cost_results(
+            client,
+            TimePeriod={"Start": baseline_start.isoformat(), "End": end.isoformat()},
+            Granularity="DAILY",
+            Metrics=["UnblendedCost"],
+            Filter={
+                "And": [
+                    {"Dimensions": {"Key": "SERVICE", "Values": [service]}},
+                    {"Dimensions": {"Key": "REGION", "Values": [aws_region]}},
+                ]
+            },
+            GroupBy=[{"Type": "DIMENSION", "Key": "USAGE_TYPE"}],
+        )
+    except (BotoCoreError, ClientError):
+        # The primary comparison is still valid if this optional query fails.
+        return {"breakdown_status": "unavailable", "cost_contributors": []}
+
+    baseline: dict[str, Decimal] = defaultdict(Decimal)
+    recent: dict[str, Decimal] = defaultdict(Decimal)
+    for result in results:
+        destination = (
+            recent if result["TimePeriod"]["Start"] >= recent_start.isoformat() else baseline
+        )
+        for group in result.get("Groups", []):
+            destination[group["Keys"][0]] += Decimal(group["Metrics"]["UnblendedCost"]["Amount"])
+    changes = []
+    for usage_type in baseline.keys() | recent.keys():
+        expected = baseline[usage_type] / Decimal(baseline_days) * Decimal(comparison_days)
+        changes.append((recent[usage_type] - expected, usage_type, expected, recent[usage_type]))
+    positive = sorted((item for item in changes if item[0] > 0), reverse=True)
+    return {
+        "breakdown_status": "available",
+        "breakdown_estimated": any(result.get("Estimated", False) for result in results),
+        "positive_contributor_count": len(positive),
+        "cost_contributors": [
+            {
+                "usage_type": usage_type,
+                "baseline_equivalent_usd": float(_money(expected)),
+                "current_spend_usd": float(_money(current)),
+                "delta_usd": float(_money(delta)),
+            }
+            for delta, usage_type, expected, current in positive[:5]
+        ],
+    }
+
+
 def collect_cost_growth_anomalies(
     session: boto3.Session, _: str, config: dict[str, Any]
 ) -> list[CollectedFinding]:
@@ -749,7 +822,8 @@ def collect_cost_growth_anomalies(
     end = datetime.now(UTC).date()
     recent_start = end - timedelta(days=comparison_days)
     baseline_start = recent_start - timedelta(days=baseline_days)
-    response = client.get_cost_and_usage(
+    results = _cost_results(
+        client,
         TimePeriod={"Start": baseline_start.isoformat(), "End": end.isoformat()},
         Granularity="DAILY",
         Metrics=["UnblendedCost"],
@@ -761,13 +835,13 @@ def collect_cost_growth_anomalies(
 
     baseline: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
     recent: dict[tuple[str, str], Decimal] = defaultdict(Decimal)
-    for result in response.get("ResultsByTime", []):
+    for result in results:
         result_date = datetime.fromisoformat(result["TimePeriod"]["Start"]).date()
         destination = recent if result_date >= recent_start else baseline
         for group in result.get("Groups", []):
             service, aws_region = group.get("Keys", ["Unknown", "global"])
             amount = Decimal(group["Metrics"]["UnblendedCost"]["Amount"])
-            destination[(service, aws_region or "global")] += amount
+            destination[(service, aws_region)] += amount
 
     findings: list[CollectedFinding] = []
     for key, current_spend in recent.items():
@@ -780,11 +854,27 @@ def collect_cost_growth_anomalies(
         if delta < minimum_delta:
             continue
         growth_percent = (
-            float(delta / baseline_equivalent * 100) if baseline_equivalent > 0 else 999.0
+            float(delta / baseline_equivalent * 100) if baseline_equivalent > 0 else None
         )
-        if growth_percent < minimum_growth:
+        if growth_percent is not None and growth_percent < minimum_growth:
             continue
-        service, aws_region = key
+        service, raw_region = key
+        aws_region = raw_region or "global"
+        comparison = (
+            f"Alta de {growth_percent:.1f}% sobre a média diária histórica."
+            if growth_percent is not None
+            else "Base histórica zero ou negativa; variação percentual não aplicável."
+        )
+        breakdown = _cost_contributors(
+            client,
+            service,
+            raw_region,
+            baseline_start,
+            recent_start,
+            end,
+            baseline_days,
+            comparison_days,
+        )
         findings.append(
             CollectedFinding(
                 rule_key="cost_growth_anomaly",
@@ -794,8 +884,9 @@ def collect_cost_growth_anomalies(
                 resource_name=service,
                 title="Crescimento anormal de custo",
                 description=(
-                    f"O custo de {service} em {aws_region} cresceu "
-                    f"{growth_percent:.1f}% em relação à linha de base."
+                    f"{service} em {aws_region}: US$ {current_spend:.2f} nos últimos "
+                    f"{comparison_days} dias, contra US$ {baseline_equivalent:.2f} esperados "
+                    f"para o mesmo intervalo (aumento de US$ {delta:.2f}). {comparison}"
                 ),
                 evidence={
                     "baseline_period_days": baseline_days,
@@ -803,7 +894,21 @@ def collect_cost_growth_anomalies(
                     "baseline_equivalent_usd": float(_money(baseline_equivalent)),
                     "current_spend_usd": float(_money(current_spend)),
                     "delta_usd": float(_money(delta)),
-                    "growth_percent": round(growth_percent, 2),
+                    "growth_percent": round(growth_percent, 2)
+                    if growth_percent is not None
+                    else None,
+                    "baseline_start": baseline_start.isoformat(),
+                    "baseline_end_exclusive": recent_start.isoformat(),
+                    "comparison_start": recent_start.isoformat(),
+                    "comparison_end_exclusive": end.isoformat(),
+                    "baseline_total_usd": float(_money(baseline[key])),
+                    "minimum_growth_percent": minimum_growth,
+                    "minimum_delta_usd": float(minimum_delta),
+                    "minimum_current_spend_usd": float(minimum_spend),
+                    "source": "AWS Cost Explorer",
+                    "metric": "UnblendedCost",
+                    "estimated": any(result.get("Estimated", False) for result in results),
+                    **breakdown,
                 },
                 current_monthly_cost=_money(
                     current_spend / Decimal(str(comparison_days)) * Decimal("30")
@@ -844,7 +949,11 @@ def run_collectors(
         collector_regions = ["global"] if policy["rule_key"] in GLOBAL_COLLECTORS else regions
         for region in collector_regions:
             try:
-                findings.extend(collector(session, region, policy["config"]))
+                collected = collector(session, region, policy["config"])
+                for finding in collected:
+                    finding.evidence["policy_config"] = deepcopy(policy["config"])
+                    finding.evidence["evaluated_at"] = datetime.now(UTC).isoformat()
+                findings.extend(collected)
             except (BotoCoreError, ClientError) as exc:
                 errors.append(f"{policy['rule_key']}@{region}: {exc}")
                 failed_rule_keys.add(policy["rule_key"])

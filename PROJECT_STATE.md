@@ -159,6 +159,16 @@ git diff --check
 
 Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. Não refazer a arquitetura nem trocar o modelo de autenticação sem uma nova decisão explícita.
 
+## DeepOps — justificativas das oportunidades (22/09/2026)
+
+- Cada oportunidade exibe um resumo determinístico e “Ver evidências”, com dados observados, critérios e limitações, sem depender de Bedrock.
+- Crescimento de custo: datas UTC (fim exclusivo apresentado como último dia incluído), custo esperado normalizado pela média diária, custo recente, delta e percentual. Base zero/negativa não usa mais o percentual artificial de 999%.
+- O Cost Explorer é consultado com paginação completa. Para cada anomalia, uma consulta adicional por serviço/região identifica até 5 tipos de uso com maior aumento, usando as mesmas janelas e `UnblendedCost`. O detalhe pode falhar sem descartar o alerta principal. Há chamadas adicionais de API sujeitas à cobrança normal da AWS.
+- Novas coletas salvam a configuração efetiva da política e horário da avaliação no JSON de evidências. Registros antigos continuam legíveis, sem inventar datas ou limites; uma nova varredura preenche os dados novos. Sem migração de banco ou novas permissões IAM.
+- Alertas financeiros mostram economia “Não estimada”. A interface distingue crescimento de custo, consumo e causa raiz, e informa dados estimados, ausência de métricas CloudWatch e limites das estimativas de economia.
+- Validação: 27 testes backend, Ruff e build de produção/tipos frontend aprovados; verificações adicionais de compatibilidade com evidências antigas, datas inclusivas, base zero, tags e ausência de métricas passaram. Validação visual indisponível: navegador remoto bloqueia localhost. AWS/EC2 não foram acessadas para teste real.
+- Deploy requer web e worker atualizados; se o timer já estiver ativo, aguardar o deploy da main. Executar nova varredura nas contas para atualizar as evidências.
+
 
 ## DeepOps — oportunidades e navegação por prioridade (22/09/2026)
 

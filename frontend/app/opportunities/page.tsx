@@ -1,10 +1,12 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { BrainCircuit, Building2, Filter, Search, Tags, WalletCards, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
+import { FindingEvidence } from "@/components/finding-evidence";
+import { findingExplanation } from "@/lib/finding-explanation";
 import { api, formatDate, usd } from "@/lib/api";
 import type { AwsAccount, Finding } from "@/lib/types";
 
@@ -25,6 +27,7 @@ function OpportunitiesContent() {
   const accountId = searchParams.get("account_id") || "all";
   const ruleKey = searchParams.get("rule_key") || "all";
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
@@ -147,15 +150,25 @@ function OpportunitiesContent() {
             <thead><tr><th scope="col" className="selection-cell">Seleção</th><th scope="col">Oportunidade</th><th scope="col">Conta / Região</th><th scope="col">Prioridade</th><th scope="col">Economia</th><th scope="col">Última validação</th><th scope="col">Ações</th></tr></thead>
             <tbody>
               {filtered.map((finding) => (
-                <tr key={finding.id} className={selectedIds.has(finding.id) ? "selected-row" : undefined}>
+                <Fragment key={finding.id}>
+                <tr className={selectedIds.has(finding.id) ? "selected-row" : undefined}>
                   <td className="selection-cell"><label className="selection-control"><input type="checkbox" aria-label={`Selecionar ${finding.title} · ${finding.resource_id}`} checked={selectedIds.has(finding.id)} disabled={saving} onChange={() => toggleSelection(finding.id)} /></label></td>
-                  <td><strong>{finding.title}</strong><span>{finding.resource_name || finding.resource_id}</span></td>
+                  <td><strong>{finding.title}</strong><span>{finding.resource_name || finding.resource_id}</span>
+                    <p className="finding-reason">{findingExplanation(finding).summary}</p>
+                    <button className="evidence-toggle" aria-expanded={expandedIds.has(finding.id)} aria-controls={`evidence-${finding.id}`} aria-label={`${expandedIds.has(finding.id) ? "Ocultar" : "Ver"} evidências de ${finding.title} · ${finding.resource_id}`} onClick={() => setExpandedIds((current) => {
+                      const next = new Set(current);
+                      if (next.has(finding.id)) next.delete(finding.id); else next.add(finding.id);
+                      return next;
+                    })}>{expandedIds.has(finding.id) ? "Ocultar evidências" : "Ver evidências"}</button>
+                  </td>
                   <td><strong>{accountNames[finding.account_id] || `Conta ${finding.account_id}`}</strong><span>{finding.region} · {finding.service}</span></td>
                   <td><StatusBadge value={finding.severity} /></td>
-                  <td className="money-cell">{usd(finding.estimated_monthly_savings)}<span>/mês</span></td>
+                  <td className="money-cell">{finding.rule_key === "cost_growth_anomaly" ? <><span>Não estimada</span></> : <>{usd(finding.estimated_monthly_savings)}<span>/mês</span></>}</td>
                   <td className="date-cell">{formatDate(finding.last_seen_at)}</td>
                   <td><div className="row-actions"><button onClick={() => void explain(finding)} disabled={saving || aiLoading !== null}>{aiLoading === finding.id ? "Analisando…" : "Analisar IA"}</button><button disabled={saving} onClick={() => void changeStatus([finding.id], "accepted")}>Aceitar</button><button disabled={saving} onClick={() => void changeStatus([finding.id], "dismissed")}>Ignorar</button></div></td>
                 </tr>
+                {expandedIds.has(finding.id) && <tr className="evidence-row" id={`evidence-${finding.id}`}><td colSpan={7}><FindingEvidence finding={finding} /></td></tr>}
+                </Fragment>
               ))}
             </tbody>
           </table>

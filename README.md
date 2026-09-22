@@ -19,10 +19,20 @@ This repository contains the first functional foundation of the MVP:
 - global policies with account-level overrides;
 - account onboarding and connection validation;
 - nine configurable efficiency and waste detectors;
+- evidence summaries on every opportunity, with expandable observations and policy criteria;
+- cost growth comparisons with dates, normalized baseline, and top billing usage-type increases;
 - optional AI explanations through Amazon Bedrock;
 - Docker Compose deployment for Linux.
 
 The application is read-only. It does not stop, resize or delete AWS resources.
+
+Opportunity evidence is explained without requiring Bedrock. Existing findings use
+their stored evidence; run a new scan after updating to capture policy snapshots,
+exact cost periods, and usage-type breakdowns. Cost breakdowns add a paginated
+Cost Explorer query per detected service/region anomaly (normal AWS API charges
+apply), using the existing `ce:GetCostAndUsage` permission. If this optional query
+fails, the primary comparison is retained and the UI reports missing detail.
+Billing growth is not proof of higher consumption or a specific resource change.
 
 ## Architecture
 
