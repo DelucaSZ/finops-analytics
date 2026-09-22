@@ -1,7 +1,8 @@
 from functools import lru_cache
+from typing import Annotated
 
 from pydantic import Field, field_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
 class Settings(BaseSettings):
@@ -20,7 +21,7 @@ class Settings(BaseSettings):
     admin_email: str = Field("admin@nuvemiq.local", alias="NUVEMIQ_ADMIN_EMAIL")
     admin_password: str = Field("change-me", alias="NUVEMIQ_ADMIN_PASSWORD")
     access_token_minutes: int = Field(480, alias="NUVEMIQ_ACCESS_TOKEN_MINUTES")
-    cors_origins: list[str] = Field(
+    cors_origins: Annotated[list[str], NoDecode] = Field(
         default_factory=lambda: ["http://localhost:3000", "http://localhost"],
         alias="NUVEMIQ_CORS_ORIGINS",
     )
