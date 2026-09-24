@@ -141,13 +141,17 @@ class TlsManager:
         strict_transport = (
             '\n\t\tStrict-Transport-Security "max-age=31536000"' if https else ""
         )
+        content_security = (
+            "\\t\\tContent-Security-Policy "
+            "\"frame-ancestors 'none'; base-uri 'self'; object-src 'none'\""
+        )
         return f"""\theader {{
 \t\t-Server
 \t\tX-Content-Type-Options "nosniff"
 \t\tX-Frame-Options "DENY"
 \t\tReferrer-Policy "no-referrer"
 \t\tPermissions-Policy "camera=(), microphone=(), geolocation=()"
-\t\tContent-Security-Policy "frame-ancestors 'none'; base-uri 'self'; object-src 'none'"{strict_transport}
+{content_security}{strict_transport}
 \t}}
 
 \tencode zstd gzip
