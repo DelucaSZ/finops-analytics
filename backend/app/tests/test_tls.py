@@ -72,9 +72,7 @@ def test_domain_validation_rejects_non_dns_origins(domain):
         TlsManager.normalize_domain(domain)
 
 
-def test_failed_handshake_restores_previous_runtime_and_discards_private_key(
-    tmp_path, monkeypatch
-):
+def test_failed_handshake_restores_previous_runtime_and_discards_private_key(tmp_path, monkeypatch):
     manager = TlsManager(storage=tmp_path, verify_timeout=0)
     previous = manager.baseline_caddyfile()
     loaded = []
@@ -96,9 +94,7 @@ def test_failed_handshake_restores_previous_runtime_and_discards_private_key(
     assert not manager.certs_path.exists() or not list(manager.certs_path.iterdir())
 
 
-def test_success_persists_only_after_tls_probe_and_status_observes_renewal(
-    tmp_path, monkeypatch
-):
+def test_success_persists_only_after_tls_probe_and_status_observes_renewal(tmp_path, monkeypatch):
     manager = TlsManager(storage=tmp_path)
     loaded = []
     old_certificate = {
@@ -171,8 +167,7 @@ def test_apply_requires_recent_admin_and_validation_does_not_echo_private_key(
     monkeypatch.setattr(tls, "manager", fake)
     payload = {"mode": "automatic", "domain": "deepops.example.com"}
     assert (
-        client.post("/api/v1/tls/apply", headers=headers(tokens), json=payload).status_code
-        == 403
+        client.post("/api/v1/tls/apply", headers=headers(tokens), json=payload).status_code == 403
     )
     assert (
         client.post(
