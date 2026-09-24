@@ -63,6 +63,10 @@ def login(
     rate_limit(db, request, "login", payload.email.strip().lower())
     user = authenticate_user(db, payload.email, payload.password.get_secret_value())
     if user is None:
+        known = db.scalar(select(User).where(User.email == payload.email.strip().lower()))
+        if known:
+            mfa.event(db, known.id, "auth.login_failed", None)
+            db.commit()
         raise HTTPException(401, "Invalid email or password")
     version = user.token_version
     lock_user_changes(db)
@@ -82,6 +86,7 @@ def login(
         db.commit()
         clear_session_cookie(response)
         return {"mfa_required": True, "challenge": challenge, "expires_in": 300}
+    mfa.event(db, user.id, "auth.login", user.id)
     _, raw = new_session(db, user, request.headers.get("user-agent", ""))
     db.commit()
     set_session_cookie(response, raw)
@@ -111,6 +116,7 @@ def logout(
     db.execute(
         update(LoginSession).where(LoginSession.id == session.id).values(revoked_at=utcnow())
     )
+    mfa.event(db, session.user_id, "auth.logout", session.user_id)
     db.commit()
     clear_session_cookie(response)
 
@@ -124,6 +130,7 @@ def logout_all(
 ) -> None:
     _locked_user(db, user, session)
     revoke_sessions(db, user.id)
+    mfa.event(db, user.id, "auth.logout_all", user.id)
     db.commit()
     clear_session_cookie(response)
 
@@ -162,6 +169,7 @@ def revoke_session(
     ).rowcount
     if not changed:
         raise HTTPException(404, "Sessão não encontrada")
+    mfa.event(db, user.id, "auth.session_revoked", user.id)
     db.commit()
     if session_id == current.id:
         clear_session_cookie(response)
@@ -180,6 +188,7 @@ def reauthenticate(
     if not verify_password(payload.password.get_secret_value(), user.password_hash):
         raise HTTPException(400, "Senha incorreta")
     mfa.require_factor(db, user, payload.code.get_secret_value())
+    mfa.event(db, user.id, "auth.reauthenticated", user.id)
     session.reauthenticated_at = utcnow()
     db.commit()
 
@@ -198,6 +207,7 @@ def change_password(
     if not verify_password(payload.current_password.get_secret_value(), user.password_hash):
         raise HTTPException(400, "Senha atual incorreta")
     mfa.require_factor(db, user, payload.code.get_secret_value())
+    mfa.event(db, user.id, "auth.password_changed", user.id)
     user.password_hash = hash_password(payload.new_password.get_secret_value())
     user.token_version += 1
     revoke_sessions(db, user.id)
@@ -246,6 +256,12 @@ def _complete_access(
         or (purpose == "reset" and not user.password_set)
     ):
         raise HTTPException(400, "Link inválido, expirado ou já utilizado. Solicite um novo link.")
+    mfa.event(
+        db,
+        user.id,
+        "auth.invitation_accepted" if purpose == "invite" else "auth.password_reset",
+        user.id,
+    )
     user.password_hash = hash_password(payload.password.get_secret_value())
     user.password_set = True
     user.token_version += 1

@@ -82,3 +82,8 @@ class UserInvite(BaseModel):
         if not value:
             raise ValueError("Value cannot be blank")
         return value.lower() if info.field_name == "email" else value
+
+
+class UserAdminRead(UserRead):
+    mfa_enabled: bool
+    mfa_reset_required: bool

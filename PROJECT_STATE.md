@@ -278,3 +278,25 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
   validação visual não realizada (navegador remoto bloqueou localhost nesta sessão).
 - Validação local: 119 testes backend aprovados, 11 casos PostgreSQL destinados à
   CI; Ruff e build/tipos de produção frontend aprovados.
+
+## DeepOps — Configurações, etapa 4 (24/09/2026)
+
+- Etapa 3 publicada pelo PR #3 na main (`4a5c688`), 130 testes aprovados na CI.
+- Menu Configurações com Minha segurança e Sessões para todos; Usuários e Auditoria
+  apenas para administradores. /security redireciona para /settings/security.
+- Usuários: convite ou criação direta, busca/situação/paginação, status MFA, edição
+  de nome/e-mail/perfil, desativação/reativação, renovação de convite, recuperação
+  de senha e MFA, lista/revogação individual/global de sessões. Reautenticação no
+  próprio fluxo; backend mantém proteção do último admin e permissões existentes.
+- Links de acesso somente em memória, copiáveis/ocultáveis; nenhuma mensagem ou
+  convite real foi enviado por esta entrega. Recuperação MFA pede senha/segundo
+  fator do administrador e motivo, revoga acessos e exige novo cadastro.
+- Auditoria administrativa com filtro de categoria/conta e paginação; eventos
+  administrativos atômicos e novos eventos de acesso/senha, além dos eventos MFA.
+  Sem credenciais nos registros; nomes/e-mails exibidos refletem o cadastro atual.
+  Histórico não é retroativo e tentativas de contas inexistentes não geram evento.
+- Sem nova migração; reutiliza security_events. Guia em docs/settings.md.
+  Certificados/HTTPS permanecem na etapa 5 e liberação externa na etapa 6.
+- Validação local: 126 testes aprovados, 11 PostgreSQL destinados à CI; Ruff e
+  build/tipos frontend. EC2 não acessada; inspeção visual em navegador indisponível
+  nesta sessão (acesso remoto a localhost bloqueado nas etapas anteriores).

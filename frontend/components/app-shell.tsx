@@ -20,7 +20,7 @@ const nav = [
   { href: "/accounts", label: "Contas AWS", icon: Building2 },
   { href: "/policies", label: "Políticas", icon: Settings2 },
   { href: "/scans", label: "Execuções", icon: Activity },
-  { href: "/security", label: "Minha segurança", icon: Settings2 },
+  { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
