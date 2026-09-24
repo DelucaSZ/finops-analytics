@@ -54,7 +54,7 @@ services:
         condition: service_healthy
 
   proxy:
-    image: caddy:2.9-alpine
+    image: caddy:2.11.4-alpine
     restart: unless-stopped
     ports:
       - "80:80"
