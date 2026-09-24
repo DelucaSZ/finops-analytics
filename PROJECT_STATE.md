@@ -300,3 +300,28 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
 - Validação local: 126 testes aprovados, 11 PostgreSQL destinados à CI; Ruff e
   build/tipos frontend. EC2 não acessada; inspeção visual em navegador indisponível
   nesta sessão (acesso remoto a localhost bloqueado nas etapas anteriores).
+
+
+## DeepOps — HTTPS e certificados, etapa 5 (24/09/2026)
+
+- Etapa 4 publicada pelo PR #4 na main (7c6209d).
+- Nova aba Configurações > HTTPS exclusiva para administradores, com consulta do
+  estado atual, validação e aplicação de certificado automático ou próprio.
+- Automático: Caddy/ACME gerencia emissão e renovação. Próprio: valida PEM, SAN,
+  validade e correspondência criptográfica entre certificado e chave privada.
+- Aplicação transacional: Caddy tenta carregar a configuração candidata; o backend
+  executa handshake TLS com SNI e trust store antes de persistir. Falha de load,
+  cadeia/hostname ou handshake restaura a configuração anterior e descarta material
+  candidato.
+- Chave privada não é devolvida pela API nem gravada no banco; fica somente no
+  volume caddy_config, em arquivo 0600. Endpoint usa SecretStr e respostas TLS têm
+  Cache-Control no-store.
+- API administrativa do Caddy disponível apenas na rede interna do Compose, sem
+  publicação da porta 2019, docker.sock ou execução de comandos arbitrários. Origin
+  interno obrigatório. Caddy atualizado para 2.11.4.
+- Caddy usa persist_config off; o arquivo gerenciado pelo DeepOps é a fonte de verdade
+  após restart. http://proxy permanece como rota interna para health check/auto-deploy.
+- Documentação operacional em docs/https.md. Exposição externa, Security Group e
+  validação pública permanecem para a etapa 6.
+- CI da implementação: Auto deploy tests aprovado; frontend build aprovado; backend
+  Ruff/format aprovado e 149 testes aprovados.

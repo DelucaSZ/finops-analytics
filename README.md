@@ -16,6 +16,7 @@ This repository contains the first functional foundation of the MVP:
 - PostgreSQL persistence with versioned Alembic migrations;
 - individual users with Argon2id passwords and admin/operator/viewer permissions;
 - revocable cookie sessions, invitations, password recovery and personal security screens;
+- TOTP MFA, administrative settings and HTTPS/certificate management;
 - durable scan worker;
 - EC2 instance-profile + cross-account `AssumeRole` authentication;
 - global policies with account-level overrides;
@@ -73,8 +74,9 @@ before the first start. Demo data is never loaded when the option is false.
 See [Users and permissions](docs/users-and-permissions.md) for the migration,
 API administration and rollback limits. [Authentication lifecycle](docs/authentication-lifecycle.md)
 covers the current cookie API, invitations, recovery and personal security screens.
-Administrative settings screens, MFA and HTTPS management remain upcoming stages;
-keep access restricted to the controlled network.
+Administrators can manage users, MFA and HTTPS from **Configurações**. External
+exposure hardening remains part of the next deployment stage; keep access restricted
+until that review is complete. See [HTTPS and certificates](docs/https.md).
 
 ## AWS setup
 
@@ -152,4 +154,5 @@ Consulte [MFA e recuperação](docs/mfa-totp.md) para chaves, operação e migra
 
 O menu **Configurações** reúne Minha segurança e Sessões para todos os usuários.
 Administradores também acessam Usuários (cadastro, convites, recuperação, perfis e
-sessões) e Auditoria. Veja o [guia de administração](docs/settings.md).
+sessões), Auditoria e HTTPS. Veja o [guia de administração](docs/settings.md) e
+[HTTPS e certificados](docs/https.md).
