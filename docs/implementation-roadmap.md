@@ -4,7 +4,7 @@ Este documento registra o estado real das etapas estruturais do DeepOps para que
 
 ## Etapa 1 — CollectionRun
 
-**Status:** implementada em branch de validação; publicar na `main` somente após CI aprovado.
+**Status:** implementação concluída e validada no PR #7; aguardando publicação na `main`.
 
 ### Resumo
 
@@ -42,16 +42,25 @@ A estrutura é provider-neutral no histórico: `provider` é texto e `account_id
 - `backend/app/tests/test_collection_runs.py`
 - `backend/app/tests/test_migrations.py`
 
-### Validações previstas/automatizadas
+### Testes e validações executados
 
-- migration em SQLite e PostgreSQL pelos testes existentes de migrations;
-- metadata SQLAlchemy idêntica ao schema migrado;
-- criação de `RUNNING` no claim;
-- finalização `SUCCESS` em coleta bem-sucedida;
-- finalização `FAILED` com erro persistido;
-- confirmação de que exceção tratada não deixa run em `RUNNING`;
-- suite backend completa, Ruff e format check pelo CI;
-- build frontend e verificações de segurança existentes pelo CI.
+- GitHub Actions CI do PR #7, run `36055122427`: aprovado.
+- Backend: `ruff check .` aprovado; `ruff format --check .` aprovado.
+- Backend: `pytest -q` com **153 testes aprovados** e 1 warning em 28,57 s.
+- A suite de migrations executou SQLite e PostgreSQL 17 real, confirmou a revisão
+  `0005_collection_runs` e `compare_metadata(...) == []`.
+- Teste novo confirmou criação de `CollectionRun=RUNNING` no claim do scan.
+- Teste novo confirmou finalização `SUCCESS`, `finished_at` e contagem de
+  oportunidades em uma coleta simulada bem-sucedida.
+- Teste novo confirmou finalização `FAILED`, persistência do erro e
+  `finished_at`, sem deixar o run em `RUNNING` após exceção tratada.
+- Os testes existentes de findings/oportunidades permaneceram verdes na mesma suite.
+- Frontend build aprovado; job de segurança aprovado.
+- Auto deploy tests aprovado para o head validado.
+- A inicialização de banco/API e a prontidão do worker continuam cobertas pelos
+  testes existentes de migrations. Logs dos containers da EC2 de produção não
+  foram inspecionados nesta etapa porque a execução foi feita via repositório/CI,
+  sem sessão operacional no host.
 
 ### Pendências conhecidas
 
@@ -61,4 +70,6 @@ A estrutura é provider-neutral no histórico: `provider` é texto e `account_id
 
 ### Commit
 
-Hash final: a preencher após publicação validada.
+Head de implementação validado antes do merge: `491118e39a26ea1c954684f92f9d1aeb9fb540bd`.
+
+O hash publicado na `main` deve ser registrado após o merge do PR #7.
