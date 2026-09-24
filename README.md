@@ -1,8 +1,8 @@
 # DeepOps
 
 Formerly NuvemIQ. Existing `NUVEMIQ_*` environment variables, database names,
-login credentials, browser sessions and IAM role names remain compatible.
-The rebrand does not require an infrastructure or data migration.
+and IAM role names remain compatible. The users migration imports the existing
+admin credentials once; old browser tokens require a new login.
 
 DeepOps is a self-hosted, multi-account AWS FinOps platform focused on finding
 waste, explaining evidence and prioritizing savings opportunities.
@@ -13,7 +13,8 @@ This repository contains the first functional foundation of the MVP:
 
 - Next.js dashboard;
 - FastAPI API;
-- PostgreSQL persistence;
+- PostgreSQL persistence with versioned Alembic migrations;
+- individual users with Argon2id passwords and admin/operator/viewer permissions;
 - durable scan worker;
 - EC2 instance-profile + cross-account `AssumeRole` authentication;
 - global policies with account-level overrides;
@@ -63,10 +64,14 @@ unique External ID. No AWS access key is stored by the application.
    ```
 
 4. Open `http://SERVER_IP` and sign in with the admin credentials configured in
-   `.env`.
+   `.env` (imported once into the database on the first startup).
 
 For a UI-only evaluation without connecting AWS, set `NUVEMIQ_DEMO_MODE=true`
 before the first start. Demo data is never loaded when the option is false.
+
+See [Users and permissions](docs/users-and-permissions.md) for the migration,
+API administration and rollback limits. Settings screens, MFA and HTTPS management
+are separate upcoming stages; keep access restricted to the controlled network.
 
 ## AWS setup
 

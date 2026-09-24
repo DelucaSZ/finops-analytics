@@ -41,6 +41,13 @@ validation. Before exposing the service beyond a controlled network, configure a
 DNS name, replace `proxy/Caddyfile` with the HTTPS example and restrict the EC2
 security group.
 
+## Users and database initialization
+
+The API runs versioned Alembic migrations and imports the configured administrator
+once before accepting requests. The worker waits for initialization. Existing
+FinOps tables and data are preserved. See [Users and permissions](users-and-permissions.md)
+for backup, first-login and rollback details.
+
 ## Updating
 
 ```bash

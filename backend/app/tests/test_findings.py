@@ -15,6 +15,7 @@ from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.models.finding import Finding
 from app.models.scan import Scan
+from app.models.user import User
 
 
 @pytest.fixture
@@ -60,6 +61,13 @@ def client():
                 )
             )
         db.commit()
+    with Session(engine) as db:
+        admin = User(
+            name="Test admin", email="test@example.com", password_hash="unused", role="admin"
+        )
+        db.add(admin)
+        db.commit()
+        token = create_access_token(admin)
     app = FastAPI()
     app.include_router(router)
 
@@ -69,7 +77,7 @@ def client():
 
     app.dependency_overrides[get_db] = database
     with TestClient(app) as test_client:
-        test_client.headers["Authorization"] = f"Bearer {create_access_token('test-admin')}"
+        test_client.headers["Authorization"] = f"Bearer {token}"
         yield test_client, engine
     engine.dispose()
 

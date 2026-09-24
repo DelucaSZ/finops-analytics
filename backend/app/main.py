@@ -1,19 +1,21 @@
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 import app.models  # noqa: F401
-from app.api.routes import accounts, auth, dashboard, findings, policies, scans
+from app.api.routes import accounts, auth, dashboard, findings, policies, scans, users
 from app.core.config import settings
-from app.db.base import Base
+from app.db.migrations import initialize_database
 from app.db.session import SessionLocal, engine
 from app.services.demo import seed_demo_data
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    Base.metadata.create_all(bind=engine)
+    initialize_database(engine)
     if settings.demo_mode:
         with SessionLocal() as db:
             seed_demo_data(db)
@@ -27,6 +29,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+@app.exception_handler(RequestValidationError)
+async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
+    # Pydantic errors can otherwise echo the submitted password/input in a 422 response.
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": [
+                {"loc": error["loc"], "msg": error["msg"], "type": error["type"]}
+                for error in exc.errors()
+            ]
+        },
+    )
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
@@ -36,6 +53,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")

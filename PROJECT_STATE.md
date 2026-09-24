@@ -191,3 +191,26 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
 - Validação: 13 testes de deploy aprovados (falhas, rollback, recuperação, preservação de checkout/env e imagens), sintaxe Python/Bash verificada. Docker e acesso à EC2 indisponíveis nesta sessão; teste integral ocorrerá na instalação.
 - Ativação na EC2 ainda necessária: em `/opt/finops-analytics`, `git pull --ff-only origin main` e `sudo bash scripts/install-auto-deploy.sh`. Consultar `sudo deepops-deploy status` e `sudo journalctl -u deepops-deploy.service -f`.
 - Após habilitar, operar pelo controlador; não misturar deploy manual via Compose no checkout original com o timer. O SHA em produção fica no status do controlador. A primeira adoção é um baseline das imagens reais (commit delas desconhecido), seguido do primeiro deploy da main.
+
+## DeepOps — usuários e permissões, etapa 1 (23/09/2026)
+
+- Autorizada e implementada a etapa 1 do plano de segurança: base de usuários,
+  perfis `admin`/`operator`/`viewer`, Alembic e migração única do administrador.
+- API inicializa o schema e o admin em transação antes de servir; worker aguarda.
+  Tabelas antigas preservadas, sem alteração no Compose/volumes. Credenciais do
+  `.env` servem somente ao primeiro bootstrap e não sobrescrevem usuários depois.
+- Senhas Argon2id, UUID no JWT e consulta de usuário/perfil no banco a cada chamada.
+  Tokens antigos rejeitados; mudanças de perfil/e-mail/status invalidam tokens.
+- Endpoints `/auth/me` e `/users` (listar/criar/editar/desativar), com proteção do
+  último admin ativo serializada no banco. Sem exclusão definitiva ou cadastro público.
+- Leituras liberadas aos três perfis; scans/ações de oportunidades/IA para operador
+  e admin; usuários, contas AWS e alterações de políticas apenas para admin.
+- Escopo seguinte: etapa 2 sessões/convites/recuperação; etapa 3 TOTP; etapa 4 telas;
+  etapa 5 HTTPS; etapa 6 liberação externa. A aba de configurações ainda não existe.
+- Guia de migração/API/rollback em `docs/users-and-permissions.md`. Rollback da
+  imagem preserva dados, mas uma imagem antiga restaura a autenticação antiga.
+  EC2 não foi acessada; implantação deve ser acompanhada pelo controlador existente.
+- Validação local: 62 testes backend, Ruff e build de produção/tipos frontend
+  aprovados. Os 6 testes específicos PostgreSQL aguardam CI (serviço PostgreSQL 17
+  incluído no workflow). Publicação bloqueada pela revisão automática por exigir
+  autorização explícita para push; branch local `feature/users-foundation` pronta.

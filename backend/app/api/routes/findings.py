@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_admin
+from app.core.security import require_operator, require_user
 from app.db.session import get_db
 from app.models.finding import Finding
 from app.schemas.finding import FindingBulkStatusUpdate, FindingRead, FindingStatusUpdate
 from app.services.ai import AIProviderError, explain_finding
 
-router = APIRouter(prefix="/findings", tags=["findings"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/findings", tags=["findings"], dependencies=[Depends(require_user)])
 
 ALLOWED_STATUSES = {"open", "accepted", "dismissed", "resolved"}
 
@@ -34,7 +34,7 @@ def list_findings(
     return list(db.scalars(statement.offset(offset).limit(limit)))
 
 
-@router.patch("/bulk/status")
+@router.patch("/bulk/status", dependencies=[Depends(require_operator)])
 def update_findings_status(payload: FindingBulkStatusUpdate, db: Session = Depends(get_db)) -> dict:
     finding_ids = list(dict.fromkeys(payload.finding_ids))
     findings = list(
@@ -60,7 +60,9 @@ def update_findings_status(payload: FindingBulkStatusUpdate, db: Session = Depen
     return {"updated_ids": finding_ids, "updated_count": len(finding_ids)}
 
 
-@router.patch("/{finding_id}/status", response_model=FindingRead)
+@router.patch(
+    "/{finding_id}/status", response_model=FindingRead, dependencies=[Depends(require_operator)]
+)
 def update_finding_status(
     finding_id: str, payload: FindingStatusUpdate, db: Session = Depends(get_db)
 ) -> Finding:
@@ -75,7 +77,7 @@ def update_finding_status(
     return finding
 
 
-@router.post("/{finding_id}/explain")
+@router.post("/{finding_id}/explain", dependencies=[Depends(require_operator)])
 def explain_finding_with_ai(finding_id: str, db: Session = Depends(get_db)) -> dict:
     finding = db.get(Finding, finding_id)
     if finding is None:

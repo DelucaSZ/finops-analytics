@@ -2,13 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.security import require_admin
+from app.core.security import require_operator, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.models.scan import Scan
 from app.schemas.scan import ScanCreate, ScanRead
 
-router = APIRouter(prefix="/scans", tags=["scans"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/scans", tags=["scans"], dependencies=[Depends(require_user)])
 
 
 @router.get("", response_model=list[ScanRead])
@@ -23,7 +23,12 @@ def list_scans(
     return list(db.scalars(statement))
 
 
-@router.post("", response_model=ScanRead, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "",
+    response_model=ScanRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_operator)],
+)
 def create_scan(payload: ScanCreate, db: Session = Depends(get_db)) -> Scan:
     account = db.get(AwsAccount, payload.account_id)
     if account is None:

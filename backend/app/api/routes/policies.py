@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.core.security import require_admin
+from app.core.security import require_admin, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.schemas.policy import PolicyRead, PolicyUpdate
@@ -13,7 +13,7 @@ from app.services.policies import (
     upsert_policy,
 )
 
-router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(require_user)])
 
 
 def _validate_rule(rule_key: str) -> None:
@@ -31,7 +31,7 @@ def global_policies(db: Session = Depends(get_db)) -> list[dict]:
     return list_effective_policies(db)
 
 
-@router.put("/global/{rule_key}", response_model=PolicyRead)
+@router.put("/global/{rule_key}", response_model=PolicyRead, dependencies=[Depends(require_admin)])
 def update_global_policy(
     rule_key: str, payload: PolicyUpdate, db: Session = Depends(get_db)
 ) -> dict:
@@ -47,7 +47,11 @@ def update_global_policy(
     return get_effective_policy(db, rule_key)
 
 
-@router.delete("/global/{rule_key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/global/{rule_key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin)],
+)
 def reset_global_policy(rule_key: str, db: Session = Depends(get_db)) -> None:
     _validate_rule(rule_key)
     row = get_policy_row(db, rule_key, "global")
@@ -62,7 +66,11 @@ def account_policies(account_id: int, db: Session = Depends(get_db)) -> list[dic
     return list_effective_policies(db, account_id)
 
 
-@router.put("/accounts/{account_id}/{rule_key}", response_model=PolicyRead)
+@router.put(
+    "/accounts/{account_id}/{rule_key}",
+    response_model=PolicyRead,
+    dependencies=[Depends(require_admin)],
+)
 def update_account_policy(
     account_id: int,
     rule_key: str,
@@ -82,7 +90,11 @@ def update_account_policy(
     return get_effective_policy(db, rule_key, account_id)
 
 
-@router.delete("/accounts/{account_id}/{rule_key}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/accounts/{account_id}/{rule_key}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_admin)],
+)
 def reset_account_policy(account_id: int, rule_key: str, db: Session = Depends(get_db)) -> None:
     _validate_rule(rule_key)
     _validate_account(db, account_id)

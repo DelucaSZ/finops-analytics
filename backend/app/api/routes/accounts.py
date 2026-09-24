@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.core.security import require_admin
+from app.core.security import require_admin, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.schemas.account import (
@@ -18,7 +18,7 @@ from app.schemas.account import (
 )
 from app.services.aws_auth import assume_account_session, get_caller_identity
 
-router = APIRouter(prefix="/accounts", tags=["accounts"], dependencies=[Depends(require_admin)])
+router = APIRouter(prefix="/accounts", tags=["accounts"], dependencies=[Depends(require_user)])
 
 
 def _get_account(db: Session, account_id: int) -> AwsAccount:
@@ -28,7 +28,7 @@ def _get_account(db: Session, account_id: int) -> AwsAccount:
     return account
 
 
-@router.get("/external-id")
+@router.get("/external-id", dependencies=[Depends(require_admin)])
 def generate_external_id() -> dict[str, str]:
     return {"external_id": f"nuvemiq-{uuid.uuid4()}"}
 
@@ -38,7 +38,12 @@ def list_accounts(db: Session = Depends(get_db)) -> list[AwsAccount]:
     return list(db.scalars(select(AwsAccount).order_by(AwsAccount.name)))
 
 
-@router.post("", response_model=AccountRead, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "",
+    response_model=AccountRead,
+    status_code=status.HTTP_201_CREATED,
+    dependencies=[Depends(require_admin)],
+)
 def create_account(payload: AccountCreate, db: Session = Depends(get_db)) -> AwsAccount:
     role_account_id = payload.role_arn.split(":")[4]
     if role_account_id != payload.aws_account_id:
@@ -61,7 +66,7 @@ def get_account(account_id: int, db: Session = Depends(get_db)) -> AwsAccount:
     return _get_account(db, account_id)
 
 
-@router.patch("/{account_id}", response_model=AccountRead)
+@router.patch("/{account_id}", response_model=AccountRead, dependencies=[Depends(require_admin)])
 def update_account(
     account_id: int, payload: AccountUpdate, db: Session = Depends(get_db)
 ) -> AwsAccount:
@@ -83,14 +88,20 @@ def update_account(
     return account
 
 
-@router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{account_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(require_admin)]
+)
 def delete_account(account_id: int, db: Session = Depends(get_db)) -> None:
     account = _get_account(db, account_id)
     db.delete(account)
     db.commit()
 
 
-@router.post("/{account_id}/test-connection", response_model=ConnectionTestResult)
+@router.post(
+    "/{account_id}/test-connection",
+    response_model=ConnectionTestResult,
+    dependencies=[Depends(require_admin)],
+)
 def test_connection(account_id: int, db: Session = Depends(get_db)) -> ConnectionTestResult:
     account = _get_account(db, account_id)
     account.last_connection_test_at = datetime.now(UTC)

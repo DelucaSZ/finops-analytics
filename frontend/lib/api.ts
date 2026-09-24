@@ -20,7 +20,7 @@ export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
   const response = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
-  if (response.status === 401) {
+  if (response.status === 401 && path !== "/auth/login") {
     clearToken();
     if (typeof window !== "undefined") window.location.assign("/login");
     throw new Error("Sessão expirada");
