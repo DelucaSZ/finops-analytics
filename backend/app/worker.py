@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
 from app.models.account import AwsAccount
+from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
@@ -66,9 +67,25 @@ def claim_scan(db: Session) -> Scan | None:
     with db.begin():
         scan = db.scalar(statement)
         if scan:
+            started_at = datetime.now(UTC)
             scan.status = "running"
-            scan.started_at = datetime.now(UTC)
+            scan.started_at = started_at
+            account = db.get(AwsAccount, scan.account_id)
+            account_id = account.aws_account_id if account else f"legacy:{scan.account_id}"
+            db.add(
+                CollectionRun(
+                    scan_id=scan.id,
+                    provider="aws",
+                    account_id=account_id,
+                    started_at=started_at,
+                    status=CollectionRunStatus.RUNNING,
+                )
+            )
     return scan
+
+
+def collection_run_for_scan(db: Session, scan_id: str) -> CollectionRun | None:
+    return db.scalar(select(CollectionRun).where(CollectionRun.scan_id == scan_id))
 
 
 def persist_findings(db: Session, scan: Scan, collected: list, active_rule_keys: list[str]) -> int:
@@ -138,6 +155,10 @@ def execute_scan(db: Session, scan: Scan) -> None:
     if account is None or not account.enabled:
         raise RuntimeError("AWS account was removed or disabled")
 
+    run = collection_run_for_scan(db, scan.id)
+    if run is None:
+        raise RuntimeError("CollectionRun missing for claimed scan")
+
     aws_session = assume_account_session(account)
     identity = get_caller_identity(aws_session)
     if identity.account_id != account.aws_account_id:
@@ -158,8 +179,42 @@ def execute_scan(db: Session, scan: Scan) -> None:
     scan.status = "completed_with_warnings" if collector_errors else "completed"
     scan.completed_at = datetime.now(UTC)
     scan.error = "\n".join(collector_errors)[:4000] if collector_errors else None
+
+    run.status = CollectionRunStatus.SUCCESS
+    run.finished_at = scan.completed_at
+    run.opportunities_found = len(collected)
+    # The current collector contract does not expose total evaluated resources.
+    # Keep this explicit rather than equating resources analyzed with findings.
+    run.resources_analyzed = 0
+    run.error_detail = None
+
     account.connection_status = "connected"
     account.last_error = None
+    db.commit()
+
+
+def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
+    db.rollback()
+    failed_scan = db.get(Scan, scan_id)
+    if failed_scan is None:
+        return
+
+    finished_at = datetime.now(UTC)
+    error = str(exc)
+    failed_scan.status = "failed"
+    failed_scan.completed_at = finished_at
+    failed_scan.error = error[:4000]
+
+    run = collection_run_for_scan(db, scan_id)
+    if run:
+        run.status = CollectionRunStatus.FAILED
+        run.finished_at = finished_at
+        run.error_detail = error[:4000]
+
+    account = db.get(AwsAccount, failed_scan.account_id)
+    if account:
+        account.connection_status = "error"
+        account.last_error = error[:2000]
     db.commit()
 
 
@@ -175,17 +230,7 @@ def process_once() -> bool:
             logger.info("Completed scan %s with %s findings", scan.id, scan.findings_count)
         except Exception as exc:  # worker boundary: persist errors and continue
             logger.exception("Scan %s failed", scan.id)
-            db.rollback()
-            failed_scan = db.get(Scan, scan.id)
-            if failed_scan:
-                failed_scan.status = "failed"
-                failed_scan.completed_at = datetime.now(UTC)
-                failed_scan.error = str(exc)[:4000]
-                account = db.get(AwsAccount, failed_scan.account_id)
-                if account:
-                    account.connection_status = "error"
-                    account.last_error = str(exc)[:2000]
-                db.commit()
+            fail_scan(db, scan.id, exc)
         return True
 
 

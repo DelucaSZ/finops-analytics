@@ -1,5 +1,6 @@
 from app.models.account import AwsAccount
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
+from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
 from app.models.policy import Policy
@@ -15,6 +16,8 @@ __all__ = [
     "AuthRateLimit",
     "LoginSession",
     "AwsAccount",
+    "CollectionRun",
+    "CollectionRunStatus",
     "Finding",
     "Policy",
     "Scan",
