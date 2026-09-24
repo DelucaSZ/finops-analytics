@@ -15,6 +15,7 @@ This repository contains the first functional foundation of the MVP:
 - FastAPI API;
 - PostgreSQL persistence with versioned Alembic migrations;
 - individual users with Argon2id passwords and admin/operator/viewer permissions;
+- revocable cookie sessions, invitations, password recovery and personal security screens;
 - durable scan worker;
 - EC2 instance-profile + cross-account `AssumeRole` authentication;
 - global policies with account-level overrides;
@@ -70,8 +71,10 @@ For a UI-only evaluation without connecting AWS, set `NUVEMIQ_DEMO_MODE=true`
 before the first start. Demo data is never loaded when the option is false.
 
 See [Users and permissions](docs/users-and-permissions.md) for the migration,
-API administration and rollback limits. Settings screens, MFA and HTTPS management
-are separate upcoming stages; keep access restricted to the controlled network.
+API administration and rollback limits. [Authentication lifecycle](docs/authentication-lifecycle.md)
+covers the current cookie API, invitations, recovery and personal security screens.
+Administrative settings screens, MFA and HTTPS management remain upcoming stages;
+keep access restricted to the controlled network.
 
 ## AWS setup
 

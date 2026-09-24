@@ -3,7 +3,8 @@
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight, CloudCog, LockKeyhole } from "lucide-react";
-import { api, setToken } from "@/lib/api";
+import Link from "next/link";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -17,11 +18,10 @@ export default function LoginPage() {
     setLoading(true);
     setError("");
     try {
-      const result = await api<{ access_token: string }>("/auth/login", {
+      await api("/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      setToken(result.access_token);
       router.replace("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível entrar");
@@ -47,8 +47,9 @@ export default function LoginPage() {
           <div className="login-icon"><LockKeyhole size={23} /></div>
           <h2>Acessar plataforma</h2>
           <p>Use o e-mail e a senha da sua conta DeepOps.</p>
-          <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
-          <label>Senha<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+          <label>E-mail<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
+          <label>Senha<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
+          <Link className="auth-link" href="/forgot-password">Esqueci minha senha</Link>
           {error && <div className="form-error">{error}</div>}
           <button className="button primary full" disabled={loading}>
             {loading ? "Entrando…" : "Entrar"} <ArrowRight size={17} />

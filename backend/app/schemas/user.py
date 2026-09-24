@@ -63,5 +63,22 @@ class UserRead(BaseModel):
     email: str
     role: UserRole
     is_active: bool
+    password_set: bool
     created_at: datetime
     updated_at: datetime
+
+
+class UserInvite(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: str = Field(min_length=1, max_length=120)
+    email: EmailStr = Field(max_length=254)
+    role: UserRole = UserRole.VIEWER
+
+    @field_validator("name", "email")
+    @classmethod
+    def clean(cls, value: str, info) -> str:
+        value = value.strip()
+        if not value:
+            raise ValueError("Value cannot be blank")
+        return value.lower() if info.field_name == "email" else value

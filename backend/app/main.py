@@ -44,6 +44,15 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
     )
 
 
+@app.middleware("http")
+async def sensitive_response_headers(request: Request, call_next):
+    response = await call_next(request)
+    if request.url.path.startswith(("/api/v1/auth", "/api/v1/users")):
+        response.headers["Cache-Control"] = "no-store"
+        response.headers["Referrer-Policy"] = "no-referrer"
+    return response
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

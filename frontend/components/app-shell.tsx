@@ -12,7 +12,7 @@ import {
   ScanSearch,
   Settings2,
 } from "lucide-react";
-import { clearToken, getToken } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 
 const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
@@ -20,23 +20,35 @@ const nav = [
   { href: "/accounts", label: "Contas AWS", icon: Building2 },
   { href: "/policies", label: "Políticas", icon: Settings2 },
   { href: "/scans", label: "Execuções", icon: Activity },
+  { href: "/security", label: "Minha segurança", icon: Settings2 },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);
-  const isLogin = pathname === "/login";
+  const [error, setError] = useState("");
+  const [leaving, setLeaving] = useState(false);
+  const [retry, setRetry] = useState(0);
+  const isPublic = ["/login", "/forgot-password", "/reset-password", "/accept-invitation"].includes(pathname);
 
   useEffect(() => {
-    const token = getToken();
-    if (!token && !isLogin) router.replace("/login");
-    if (token && isLogin) router.replace("/");
-    setReady(true);
-  }, [isLogin, router]);
+    let active = true;
+    window.localStorage.removeItem("nuvemiq_token");
+    setReady(false);
+    setError("");
+    if (isPublic) { setReady(true); return; }
+    api("/auth/me", {}, false).then(() => { if (active) setReady(true); }).catch((err) => {
+      if (!active) return;
+      if (err instanceof ApiError && err.status === 401) router.replace("/login");
+      else setError("Não foi possível verificar sua sessão. Tente novamente.");
+    });
+    return () => { active = false; };
+  }, [isPublic, pathname, router, retry]);
 
-  if (!ready) return <div className="boot-screen">Inicializando DeepOps…</div>;
-  if (isLogin) return <>{children}</>;
+  if (error && !ready) return <main className="boot-screen"><p role="alert">{error}</p><button className="button" onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button></main>;
+  if (!ready) return <div className="boot-screen">Verificando acesso…</div>;
+  if (isPublic) return <>{children}</>;
 
   return (
     <div className="app-shell">
@@ -64,16 +76,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <button
             className="nav-item logout"
             aria-label="Sair" title="Sair"
-            onClick={() => {
-              clearToken();
-              router.push("/login");
+            disabled={leaving}
+            onClick={async () => {
+              setLeaving(true);
+              setError("");
+              try { await api("/auth/logout", { method: "POST" }); router.replace("/login"); }
+              catch (err) { setError(err instanceof Error ? err.message : "Não foi possível sair."); }
+              finally { setLeaving(false); }
             }}
           >
-            <LogOut size={18} /> <span>Sair</span>
+            <LogOut size={18} /> <span>{leaving ? "Saindo…" : "Sair"}</span>
           </button>
         </div>
       </aside>
-      <main id="main-content" tabIndex={-1} className="main-content">{children}</main>
+      <main id="main-content" tabIndex={-1} className="main-content">{error && <p className="form-error" role="alert">{error}</p>}{children}</main>
     </div>
   );
 }

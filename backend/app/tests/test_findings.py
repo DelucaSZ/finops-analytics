@@ -9,13 +9,13 @@ from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
 from app.api.routes.findings import router
-from app.core.security import create_access_token
 from app.db.base import Base
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.models.finding import Finding
 from app.models.scan import Scan
 from app.models.user import User
+from app.services.authentication import COOKIE, csrf_token, new_session
 
 
 @pytest.fixture
@@ -67,7 +67,8 @@ def client():
         )
         db.add(admin)
         db.commit()
-        token = create_access_token(admin)
+        _, token = new_session(db, admin)
+        db.commit()
     app = FastAPI()
     app.include_router(router)
 
@@ -77,7 +78,13 @@ def client():
 
     app.dependency_overrides[get_db] = database
     with TestClient(app) as test_client:
-        test_client.headers["Authorization"] = f"Bearer {token}"
+        test_client.headers.update(
+            {
+                "Cookie": f"{COOKIE}={token}",
+                "X-CSRF-Token": csrf_token(token),
+                "X-DeepOps-Request": "1",
+            }
+        )
         yield test_client, engine
     engine.dispose()
 
@@ -157,7 +164,7 @@ def test_invalid_bulk_request(client, payload):
 
 def test_bulk_requires_authentication(client):
     http, _ = client
-    del http.headers["Authorization"]
+    del http.headers["Cookie"]
     assert (
         http.patch(
             "/findings/bulk/status",

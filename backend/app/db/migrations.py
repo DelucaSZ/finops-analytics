@@ -34,6 +34,19 @@ def initialize_database(engine: Engine, config: Settings = settings) -> None:
             raise RuntimeError("Only PostgreSQL and SQLite are supported")
         alembic_config = migration_config()
         alembic_config.attributes["connection"] = connection
+        # Stage 1 images know only alembic_version=0002_users. Preserve that
+        # checkpoint so image rollback can start instead of failing on an unknown
+        # revision. New releases track their migrations in deepops_schema_version.
+        legacy = MigrationContext.configure(connection).get_current_revision()
+        if legacy not in {None, "0001_legacy", "0002_users"}:
+            raise RuntimeError("Unexpected legacy schema revision; inspect before migrating")
+        command.upgrade(alembic_config, "0002_users")
+        alembic_config.attributes["version_table"] = "deepops_schema_version"
+        active = MigrationContext.configure(
+            connection, opts={"version_table": "deepops_schema_version"}
+        ).get_current_revision()
+        if active is None:
+            command.stamp(alembic_config, "0002_users")
         command.upgrade(alembic_config, "head")
         with Session(bind=connection) as db:
             bootstrap_admin(db, config)
@@ -47,7 +60,9 @@ def wait_for_database(engine: Engine, timeout: float = 120) -> None:
     while True:
         try:
             with engine.connect() as connection:
-                current = MigrationContext.configure(connection).get_current_revision()
+                current = MigrationContext.configure(
+                    connection, opts={"version_table": "deepops_schema_version"}
+                ).get_current_revision()
                 if current == expected and connection.scalar(
                     select(AuthState.bootstrap_complete).where(AuthState.id == 1)
                 ):
