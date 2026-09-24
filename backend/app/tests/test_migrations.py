@@ -58,8 +58,23 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     initialize_database(migration_engine, config())
     wait_for_database(migration_engine, timeout=0)
     with migration_engine.connect() as connection:
-        assert connection.scalar(text("SELECT version_num FROM alembic_version")) == "0002_users"
-        assert compare_metadata(MigrationContext.configure(connection), Base.metadata) == []
+        assert (
+            connection.scalar(text("SELECT version_num FROM deepops_schema_version"))
+            == "0003_auth_lifecycle"
+        )
+        assert (
+            compare_metadata(
+                MigrationContext.configure(
+                    connection,
+                    opts={
+                        "version_table": "deepops_schema_version",
+                        "include_object": lambda obj, name, *args: name != "alembic_version",
+                    },
+                ),
+                Base.metadata,
+            )
+            == []
+        )
     with Session(migration_engine) as db:
         user = db.scalar(select(User))
         assert user.role == "admin" and user.is_active
@@ -68,7 +83,9 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
 
 def test_existing_data_survives_migration_and_restart(migration_engine):
     legacy_tables = [
-        table for table in Base.metadata.sorted_tables if table.name not in {"users", "auth_state"}
+        table
+        for table in Base.metadata.sorted_tables
+        if table.name in {"aws_accounts", "findings", "scans", "policies"}
     ]
     Base.metadata.create_all(migration_engine, tables=legacy_tables)
     with Session(migration_engine) as db:
@@ -169,3 +186,86 @@ def test_simultaneous_admin_changes_cannot_remove_all_admins(migration_engine):
             )
             == 1
         )
+
+
+def test_stage_one_users_survive_and_old_image_checkpoint_still_works(migration_engine):
+    from alembic import command
+    from sqlalchemy import MetaData, Table
+
+    from app.db.base import utcnow
+    from app.db.migrations import migration_config
+
+    existing_hash = hash_password(PASSWORD)
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        command.upgrade(cfg, "0002_users")
+        users = Table("users", MetaData(), autoload_with=connection)
+        state = Table("auth_state", MetaData(), autoload_with=connection)
+        connection.execute(
+            users.insert().values(
+                id="existing",
+                name="Existing",
+                email="old@example.com",
+                password_hash=existing_hash,
+                role="admin",
+                is_active=True,
+                token_version=7,
+                created_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        connection.execute(state.update().values(bootstrap_complete=True))
+    initialize_database(migration_engine, config())
+    with Session(migration_engine) as db:
+        user = db.get(User, "existing")
+        assert user.password_set and user.password_hash == existing_hash and user.token_version == 7
+        assert db.scalar(select(func.count()).select_from(User)) == 1
+    with migration_engine.begin() as connection:
+        assert MigrationContext.configure(connection).get_current_revision() == "0002_users"
+        # Exact revision lookup + no-op upgrade used by the previous image.
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        command.upgrade(cfg, "0002_users")
+    initialize_database(migration_engine, config())
+    wait_for_database(migration_engine, timeout=0)
+
+
+def test_one_time_reset_is_atomic_under_concurrency(migration_engine):
+    from fastapi import HTTPException, Request, Response
+
+    from app.api.routes.auth import _complete_access
+    from app.models.auth import AccessToken
+    from app.schemas.auth import CompleteAccess
+    from app.services.authentication import issue_token
+
+    initialize_database(migration_engine, config())
+    with Session(migration_engine) as db:
+        user = db.scalar(select(User))
+        raw, _ = issue_token(db, user, "reset")
+        db.commit()
+    barrier = threading.Barrier(2)
+
+    def consume(_):
+        with Session(migration_engine) as db:
+            barrier.wait(timeout=10)
+            request = Request({"type": "http", "method": "POST", "client": ("127.0.0.1", 1)})
+            try:
+                _complete_access(
+                    CompleteAccess(token=raw, password="Another-password-987!"),
+                    request,
+                    Response(),
+                    db,
+                    "reset",
+                )
+                return 200
+            except HTTPException as exc:
+                db.rollback()
+                return exc.status_code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(consume, [1, 2]))
+    assert sorted(results) == [200, 400]
+    with Session(migration_engine) as db:
+        assert db.scalar(select(User)).token_version == 2
+        assert db.scalar(select(AccessToken)).used_at is not None

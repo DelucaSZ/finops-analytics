@@ -9,13 +9,13 @@ from sqlalchemy.orm import Session
 import app.main as main
 from app.core.config import Settings, settings
 from app.core.passwords import verify_password
-from app.core.security import create_access_token
 from app.db.migrations import initialize_database
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.models.finding import Finding
 from app.models.scan import Scan
 from app.models.user import User
+from app.services.authentication import COOKIE, csrf_token, new_session
 
 PASSWORD = "Test-only-password-482!"
 
@@ -75,8 +75,9 @@ def auth_env(tmp_path, monkeypatch):
         )
         db.commit()
         for user in db.scalars(select(User)):
-            tokens[user.role] = create_access_token(user)
+            _, tokens[user.role] = new_session(db, user)
             ids[user.role] = user.id
+        db.commit()
 
     def database():
         with Session(engine) as db:
@@ -85,13 +86,18 @@ def auth_env(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "engine", engine)
     main.app.dependency_overrides[get_db] = database
     with TestClient(main.app) as client:
+        client.headers["X-DeepOps-Request"] = "1"
         yield client, engine, tokens, ids
     main.app.dependency_overrides.clear()
     engine.dispose()
 
 
 def headers(tokens, role="admin"):
-    return {"Authorization": f"Bearer {tokens[role]}"}
+    return {
+        "Cookie": f"{COOKIE}={tokens[role]}",
+        "X-CSRF-Token": csrf_token(tokens[role]),
+        "X-DeepOps-Request": "1",
+    }
 
 
 def test_login_uses_persisted_user_not_environment(auth_env, monkeypatch):
@@ -101,8 +107,8 @@ def test_login_uses_persisted_user_not_environment(auth_env, monkeypatch):
         "/api/v1/auth/login", json={"email": " ADMIN@EXAMPLE.COM ", "password": PASSWORD}
     )
     assert response.status_code == 200
-    claims = jwt.decode(response.json()["access_token"], settings.secret_key, algorithms=["HS256"])
-    assert claims["sub"] == ids["admin"]
+    assert response.json()["user"]["id"] == ids["admin"]
+    assert "access_token" not in response.json()
     me = client.get("/api/v1/auth/me", headers=headers(tokens)).json()
     assert me["role"] == "admin"
     assert not {"password", "password_hash", "token_version"} & me.keys()
@@ -300,7 +306,8 @@ def test_deactivation_reactivation_and_role_change_revoke_old_tokens(auth_env):
     response = client.post(
         "/api/v1/auth/login", json={"email": "operator@example.com", "password": PASSWORD}
     )
-    fresh = {"Authorization": "Bearer " + response.json()["access_token"]}
+    assert response.status_code == 200
+    fresh = {"Cookie": f"{COOKIE}={client.cookies.get(COOKIE)}"}
     assert client.get("/api/v1/auth/me", headers=fresh).status_code == 200
     assert client.patch(path, json={"role": "viewer"}, headers=headers(tokens)).status_code == 200
     assert client.get("/api/v1/auth/me", headers=fresh).status_code == 401

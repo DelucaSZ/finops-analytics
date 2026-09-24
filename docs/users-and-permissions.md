@@ -1,5 +1,9 @@
 # Usuários e permissões — etapa 1
 
+> Evolução: a [etapa 2](authentication-lifecycle.md) substitui JWT por cookies de
+> sessão e entrega convites, recuperação e telas de segurança pessoal. Os contratos
+> de autenticação abaixo descrevem a etapa 1; consulte o novo guia para uso atual.
+
 Esta entrega implementa a base de autenticação e autorização. O gerenciamento é
 feito pela API nesta etapa. A aba Configurações e a adaptação visual dos botões aos
 perfis pertencem à etapa 4; o backend já rejeita operações sem permissão com 403.

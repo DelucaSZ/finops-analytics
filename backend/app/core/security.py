@@ -1,26 +1,24 @@
-from datetime import UTC, datetime, timedelta
+import secrets
+from datetime import timedelta
 
-import jwt
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
-from sqlalchemy import select
+from fastapi import Depends, HTTPException, Request
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.passwords import hash_password, password_hasher, verify_password
+from app.db.base import utcnow
 from app.db.session import get_db
+from app.models.auth import LoginSession
 from app.models.user import User, UserRole
-
-ALGORITHM = "HS256"
-AUTH_VERSION = 1
-bearer = HTTPBearer(auto_error=False)
+from app.services.authentication import COOKIE, browser_request, csrf_token, digest
 
 
 def authenticate_user(db: Session, email: str, password: str) -> User | None:
     user = db.scalar(select(User).where(User.email == email.strip().lower()))
     if not verify_password(password, user.password_hash if user else None):
         return None
-    if user is None or not user.is_active:
+    if user is None or not user.is_active or not user.password_set:
         return None
     if password_hasher.check_needs_rehash(user.password_hash):
         user.password_hash = hash_password(password)
@@ -28,51 +26,75 @@ def authenticate_user(db: Session, email: str, password: str) -> User | None:
     return user
 
 
-def create_access_token(user: User) -> str:
-    now = datetime.now(UTC)
-    payload = {
-        "sub": user.id,
-        "iat": now,
-        "exp": now + timedelta(minutes=settings.access_token_minutes),
-        "auth_version": AUTH_VERSION,
-        "ver": user.token_version,
-    }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+def require_session(request: Request, db: Session = Depends(get_db)) -> LoginSession:
+    raw = request.cookies.get(COOKIE, "")
+    invalid = HTTPException(401, "Sessão expirada. Entre novamente.")
+    if len(raw) != 43:
+        raise invalid
+    session = db.scalar(select(LoginSession).where(LoginSession.token_hash == digest(raw)))
+    user = db.get(User, session.user_id) if session else None
+    now = utcnow()
+    cutoff = now - timedelta(minutes=settings.session_idle_minutes)
+    if (
+        session is None
+        or user is None
+        or not user.is_active
+        or not user.password_set
+        or user.role not in set(UserRole)
+        or session.user_version != user.token_version
+    ):
+        raise invalid
+    if request.method not in {"GET", "HEAD", "OPTIONS"}:
+        browser_request(request)
+        if not secrets.compare_digest(
+            request.headers.get("x-csrf-token", "").encode(), csrf_token(raw).encode()
+        ):
+            raise HTTPException(403, "csrf_invalid")
+    # Conditional update cannot revive an expired/revoked session, even under concurrency.
+    touched = db.execute(
+        update(LoginSession)
+        .where(
+            LoginSession.id == session.id,
+            LoginSession.revoked_at.is_(None),
+            LoginSession.expires_at > now,
+            LoginSession.last_seen_at > cutoff,
+        )
+        .values(last_seen_at=now)
+        .execution_options(synchronize_session=False)
+    ).rowcount
+    db.commit()
+    if not touched:
+        raise invalid
+    return session
 
 
 def require_user(
-    credentials: HTTPAuthorizationCredentials | None = Depends(bearer),
-    db: Session = Depends(get_db),
+    session: LoginSession = Depends(require_session), db: Session = Depends(get_db)
 ) -> User:
-    invalid = HTTPException(
-        status_code=status.HTTP_401_UNAUTHORIZED,
-        detail="Invalid or expired authentication",
-        headers={"WWW-Authenticate": "Bearer"},
-    )
-    if credentials is None:
-        raise invalid
-    try:
-        payload = jwt.decode(
-            credentials.credentials,
-            settings.secret_key,
-            algorithms=[ALGORITHM],
-            options={"require": ["sub", "iat", "exp", "auth_version", "ver"]},
-        )
-    except jwt.PyJWTError as exc:
-        raise invalid from exc
-    if payload["auth_version"] != AUTH_VERSION or not isinstance(payload["sub"], str):
-        raise invalid
-    user = db.get(User, payload["sub"])
-    if user is None or not user.is_active or payload["ver"] != user.token_version:
-        raise invalid
-    if user.role not in set(UserRole):
-        raise invalid
+    user = db.get(User, session.user_id)
+    if (
+        user is None
+        or not user.is_active
+        or not user.password_set
+        or user.token_version != session.user_version
+    ):
+        raise HTTPException(401, "Sessão expirada. Entre novamente.")
     return user
 
 
 def require_admin(user: User = Depends(require_user)) -> User:
     if user.role != UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="Administrator access required")
+    return user
+
+
+def require_recent_admin(
+    user: User = Depends(require_admin), session: LoginSession = Depends(require_session)
+) -> User:
+    from app.services.authentication import aware
+
+    if aware(session.reauthenticated_at) < utcnow() - timedelta(minutes=5):
+        raise HTTPException(403, "reauthentication_required")
     return user
 
 

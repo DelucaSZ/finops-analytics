@@ -367,3 +367,21 @@ button svg, .toolbar svg, .alert svg { flex-shrink: 0; }
   .bulk-actions { margin-left: 0; width: 100%; }
   .bulk-actions .button { flex: 1 1 auto; }
 }
+
+/* Account access and session management. */
+.access-page { min-height: 100vh; display: grid; place-items: center; padding: 32px 16px; }
+.access-page .login-card { width: 100%; max-width: 480px; }
+.access-page h1 { font-size: 1.65rem; }
+.auth-link { display: inline-block; color: var(--accent); margin-top: 14px; margin-bottom: 14px; text-decoration: underline; text-underline-offset: 3px; }
+.form-success { padding: 14px 18px; border: 1px solid var(--accent); border-radius: 8px; line-height: 1.6; }
+.security-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+.security-card { padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 14px; }
+.security-card h2 { margin-top: 0; font-size: 1.2rem; }
+.security-card p { color: var(--muted); line-height: 1.6; }
+.security-card label { display: grid; gap: 8px; margin: 16px 0; }
+.security-card input { width: 100%; padding: 12px; border: 1px solid var(--border); background: var(--bg); color: var(--text); border-radius: 8px; font: inherit; }
+.session-list { margin-top: 24px; }
+.session-item { display: flex; gap: 24px; justify-content: space-between; align-items: center; padding: 22px 0; border-top: 1px solid var(--border); }
+.session-agent { overflow-wrap: anywhere; max-width: 680px; }
+.security-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
+@media (max-width: 760px) { .security-grid { grid-template-columns: 1fr; } .session-item { align-items: flex-start; flex-direction: column; } }

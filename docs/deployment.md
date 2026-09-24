@@ -46,7 +46,8 @@ security group.
 The API runs versioned Alembic migrations and imports the configured administrator
 once before accepting requests. The worker waits for initialization. Existing
 FinOps tables and data are preserved. See [Users and permissions](users-and-permissions.md)
-for backup, first-login and rollback details.
+for backup and first-login details, and [Authentication lifecycle](authentication-lifecycle.md)
+for cookie, SMTP and current migration/rollback behavior.
 
 ## Updating
 

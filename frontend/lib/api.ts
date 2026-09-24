@@ -1,33 +1,36 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const publicWrites = new Set(["/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return window.localStorage.getItem("nuvemiq_token");
+export class ApiError extends Error {
+  constructor(message: string, public status: number) { super(message); }
 }
 
-export function setToken(token: string): void {
-  window.localStorage.setItem("nuvemiq_token", token);
-}
-
-export function clearToken(): void {
-  window.localStorage.removeItem("nuvemiq_token");
-}
-
-export async function api<T>(path: string, init: RequestInit = {}): Promise<T> {
-  const token = getToken();
+export async function api<T>(path: string, init: RequestInit = {}, redirectOnUnauthorized = true): Promise<T> {
   const headers = new Headers(init.headers);
   if (!headers.has("Content-Type") && init.body) headers.set("Content-Type", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
-
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers, cache: "no-store" });
-  if (response.status === 401 && path !== "/auth/login") {
-    clearToken();
+  const method = (init.method || "GET").toUpperCase();
+  if (!["GET", "HEAD", "OPTIONS"].includes(method)) {
+    headers.set("X-DeepOps-Request", "1");
+    if (!publicWrites.has(path)) {
+      // Fetch for each mutation: no token storage, and another tab's login cannot leave stale CSRF state.
+      const csrf = await api<{ csrf_token: string }>("/auth/csrf", {}, redirectOnUnauthorized);
+      headers.set("X-CSRF-Token", csrf.csrf_token);
+    }
+  }
+  const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include", cache: "no-store" });
+  if (response.status === 401 && !publicWrites.has(path) && redirectOnUnauthorized) {
     if (typeof window !== "undefined") window.location.assign("/login");
-    throw new Error("Sessão expirada");
+    throw new ApiError("Sessão expirada. Entre novamente.", 401);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
-    throw new Error(payload?.detail || `Erro HTTP ${response.status}`);
+    const detail = payload?.detail;
+    const message = detail === "reauthentication_required"
+      ? "Confirme sua senha em Minha segurança antes de continuar."
+      : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
+      : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
+      : detail || `Erro HTTP ${response.status}`;
+    throw new ApiError(message, response.status);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;

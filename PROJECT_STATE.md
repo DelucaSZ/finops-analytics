@@ -214,3 +214,36 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
   aprovados. Os 6 testes específicos PostgreSQL aguardam CI (serviço PostgreSQL 17
   incluído no workflow). Publicação bloqueada pela revisão automática por exigir
   autorização explícita para push; branch local `feature/users-foundation` pronta.
+
+## DeepOps — autenticação, etapa 2 (24/09/2026)
+
+- Etapa 1 publicada pelo PR #1 na main (`f667dcd`), após 68 testes backend,
+  build frontend e testes do auto deploy aprovados.
+- Etapa 2 troca Bearer/JWT por cookie HttpOnly com sessão opaca revogável no banco.
+  Frontend remove o token antigo do localStorage. Login mantém as credenciais,
+  mas requer nova autenticação; API e web precisam ser atualizados juntos.
+- Logout, logout de todos, lista/revogação de sessões próprias, revogação por admin,
+  duração absoluta (480 min por padrão) e inatividade (30 min). CSRF vinculado à
+  sessão e header obrigatório nas alterações. Confirmação de senha por 5 minutos
+  para administração de usuários e emissão de links de acesso.
+- Convites de 24 h, recuperação de 30 min, consumo atômico de uso único, hashes no
+  banco, reemissão invalida link anterior. Pendentes não contam como último admin.
+  Troca de senha encerra sessões. Sem MFA/TOTP ainda (etapa 3).
+- Novas páginas /forgot-password, /reset-password, /accept-invitation e /security
+  (Minha segurança). Aba administrativa completa permanece na etapa 4.
+- SMTP opcional com TLS para recuperação pública, resposta uniforme, limites
+  persistentes por identidade/peer. Sem SMTP, admin gera link privado; recuperação
+  do único admin por operador do host: `python -m app.manage password-reset --email ...`.
+- URLs usam origem configurada e fragmento, removido da página após leitura. Nunca
+  logar links/tokens. Não houve envio real de e-mails nos testes.
+- Migração 0003_auth_lifecycle aditiva; mantém checkpoint alembic_version=0002_users
+  para rollback da imagem da etapa 1. Revisões atuais em deepops_schema_version.
+  Essa compatibilidade é testada, incluindo preservação de usuários e consumo
+  simultâneo de recuperação. Rollback restaura limitações da autenticação antiga.
+- Cookie Secure automático em produção. Desenvolvimento mantém compatibilidade
+  com HTTP privado; configurar HTTPS antes de exposição externa. SMTP e origem
+  ficam no .env; nenhuma credencial real foi adicionada ao código.
+- Guia: docs/authentication-lifecycle.md. Validação visual indisponível: navegador
+  remoto bloqueou localhost. EC2 e SMTP reais não foram acessados nesta entrega.
+- Validação local da etapa 2: 93 testes backend aprovados, 8 casos PostgreSQL
+  destinados ao CI, Ruff e build/tipos de produção do frontend aprovados.
