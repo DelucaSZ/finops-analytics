@@ -139,10 +139,12 @@ class TlsManager:
     @staticmethod
     def _routes(*, https: bool = False) -> str:
         strict_transport = (
-            '\n\t\tStrict-Transport-Security "max-age=31536000"' if https else ""
+            '\n\t\tStrict-Transport-Security "max-age=31536000"'
+            if https
+            else ""
         )
         content_security = (
-            "\\t\\tContent-Security-Policy "
+            "\t\tContent-Security-Policy "
             "\"frame-ancestors 'none'; base-uri 'self'; object-src 'none'\""
         )
         return f"""\theader {{
