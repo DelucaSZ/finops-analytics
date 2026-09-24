@@ -22,6 +22,8 @@ services:
     restart: unless-stopped
     env_file: .env
     command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    volumes:
+      - caddy_config:/var/lib/deepops/caddy
     depends_on:
       db:
         condition: service_healthy
@@ -63,6 +65,18 @@ services:
       - ./proxy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    command:
+      - /bin/sh
+      - -c
+      - |
+        set -eu
+        mkdir -p /config/deepops
+        chown 10001:10001 /config/deepops
+        chmod 700 /config/deepops
+        if [ -s /config/deepops/Caddyfile ]; then
+          exec caddy run --config /config/deepops/Caddyfile --adapter caddyfile
+        fi
+        exec caddy run --config /etc/caddy/Caddyfile --adapter caddyfile
     depends_on:
       - web
       - api
