@@ -1,15 +1,13 @@
-from datetime import UTC, datetime
-
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
+from app import worker
 from app.db.base import Base
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.scan import Scan
 from app.services.collector_types import CollectedFinding
-from app import worker
 
 
 @pytest.fixture

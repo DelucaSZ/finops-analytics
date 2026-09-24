@@ -25,12 +25,12 @@ def upgrade():
         sa.Column("error_detail", sa.Text(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
+        sa.ForeignKeyConstraint(["scan_id"], ["scans.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("scan_id"),
     )
     op.create_index("ix_collection_runs_account_id", "collection_runs", ["account_id"])
     op.create_index("ix_collection_runs_provider", "collection_runs", ["provider"])
-    op.create_index("ix_collection_runs_scan_id", "collection_runs", ["scan_id"], unique=True)
     op.create_index("ix_collection_runs_started_at", "collection_runs", ["started_at"])
     op.create_index("ix_collection_runs_status", "collection_runs", ["status"])
     op.create_index(
