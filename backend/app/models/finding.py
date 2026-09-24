@@ -31,4 +31,6 @@ class Finding(TimestampMixin, Base):
     severity: Mapped[str] = mapped_column(String(16), default="medium")
     status: Mapped[str] = mapped_column(String(24), default="open", index=True)
     first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    last_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=False
+    )

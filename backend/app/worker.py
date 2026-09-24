@@ -1,9 +1,9 @@
-import hashlib
 import logging
 import time
 from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401
@@ -13,9 +13,11 @@ from app.db.session import SessionLocal, engine
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
+from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.collectors import run_collectors
+from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 from app.services.policies import list_effective_policies
 
 logging.basicConfig(
@@ -23,13 +25,6 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
 logger = logging.getLogger("nuvemiq.worker")
-
-
-def _fingerprint(
-    account_id: int, rule_key: str, service: str, region: str, resource_id: str
-) -> str:
-    raw = f"{account_id}|{rule_key}|{service}|{region}|{resource_id}".encode()
-    return hashlib.sha256(raw).hexdigest()
 
 
 def enqueue_due_scans(db: Session) -> None:
@@ -88,48 +83,196 @@ def collection_run_for_scan(db: Session, scan_id: str) -> CollectionRun | None:
     return db.scalar(select(CollectionRun).where(CollectionRun.scan_id == scan_id))
 
 
-def persist_findings(db: Session, scan: Scan, collected: list, active_rule_keys: list[str]) -> int:
-    now = datetime.now(UTC)
-    seen: set[str] = set()
-    for item in collected:
-        fingerprint = _fingerprint(
-            scan.account_id, item.rule_key, item.service, item.region, item.resource_id
+def _finding_by_fingerprint(db: Session, fingerprint: str) -> Finding | None:
+    return db.scalar(select(Finding).where(Finding.fingerprint == fingerprint).with_for_update())
+
+
+def _create_finding_race_safe(
+    db: Session,
+    *,
+    fingerprint: str,
+    scan: Scan,
+    item,
+    observed_at: datetime,
+) -> Finding:
+    candidate = Finding(
+        fingerprint=fingerprint,
+        scan_id=scan.id,
+        account_id=scan.account_id,
+        rule_key=item.rule_key,
+        service=item.service,
+        region=item.region,
+        resource_id=item.resource_id,
+        resource_name=item.resource_name,
+        title=item.title,
+        description=item.description,
+        evidence=dict(item.evidence),
+        current_monthly_cost=item.current_monthly_cost,
+        estimated_monthly_savings=item.estimated_monthly_savings,
+        confidence=item.confidence,
+        severity=item.severity,
+        status="open",
+        first_seen_at=observed_at,
+        last_seen_at=observed_at,
+    )
+    try:
+        with db.begin_nested():
+            db.add(candidate)
+            db.flush()
+        return candidate
+    except IntegrityError:
+        existing = _finding_by_fingerprint(db, fingerprint)
+        if existing is None:
+            raise
+        return existing
+
+
+def _observation_for_run(
+    db: Session, opportunity_id: str, collection_run_id: str
+) -> OpportunityObservation | None:
+    return db.scalar(
+        select(OpportunityObservation)
+        .where(
+            OpportunityObservation.opportunity_id == opportunity_id,
+            OpportunityObservation.collection_run_id == collection_run_id,
         )
-        seen.add(fingerprint)
-        finding = db.scalar(select(Finding).where(Finding.fingerprint == fingerprint))
-        if finding is None:
-            finding = Finding(
-                fingerprint=fingerprint,
-                scan_id=scan.id,
-                account_id=scan.account_id,
-                rule_key=item.rule_key,
-                service=item.service,
-                region=item.region,
-                resource_id=item.resource_id,
-                resource_name=item.resource_name,
-                title=item.title,
-                description=item.description,
-                evidence=item.evidence,
-                current_monthly_cost=item.current_monthly_cost,
-                estimated_monthly_savings=item.estimated_monthly_savings,
-                confidence=item.confidence,
-                severity=item.severity,
-                status="open",
-                first_seen_at=now,
-                last_seen_at=now,
+        .with_for_update()
+    )
+
+
+def _create_observation_race_safe(
+    db: Session,
+    *,
+    finding: Finding,
+    run: CollectionRun,
+    item,
+    observed_at: datetime,
+) -> tuple[OpportunityObservation, bool]:
+    candidate = OpportunityObservation(
+        opportunity_id=finding.id,
+        collection_run_id=run.id,
+        observed_at=observed_at,
+        severity=item.severity,
+        current_monthly_cost=item.current_monthly_cost,
+        estimated_monthly_savings=item.estimated_monthly_savings,
+        confidence=item.confidence,
+        evidence=dict(item.evidence),
+    )
+    try:
+        with db.begin_nested():
+            db.add(candidate)
+            db.flush()
+        return candidate, True
+    except IntegrityError:
+        existing = _observation_for_run(db, finding.id, run.id)
+        if existing is None:
+            raise
+        return existing, False
+
+
+def _refresh_observation(observation: OpportunityObservation, item) -> None:
+    observation.severity = item.severity
+    observation.current_monthly_cost = item.current_monthly_cost
+    observation.estimated_monthly_savings = item.estimated_monthly_savings
+    observation.confidence = item.confidence
+    observation.evidence = dict(item.evidence)
+
+
+def _normalized_utc(value: datetime) -> datetime:
+    return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+
+def _refresh_finding_snapshot(finding: Finding, scan: Scan, item) -> None:
+    finding.scan_id = scan.id
+    finding.resource_name = item.resource_name
+    finding.title = item.title
+    finding.description = item.description
+    finding.evidence = dict(item.evidence)
+    finding.current_monthly_cost = item.current_monthly_cost
+    finding.estimated_monthly_savings = item.estimated_monthly_savings
+    finding.confidence = item.confidence
+    finding.severity = item.severity
+
+
+def persist_findings(
+    db: Session,
+    scan: Scan,
+    run: CollectionRun,
+    collected: list,
+    active_rule_keys: list[str],
+    *,
+    observed_at: datetime | None = None,
+) -> int:
+    observed_at = observed_at or datetime.now(UTC)
+    by_fingerprint = {}
+    for item in collected:
+        fingerprint = build_opportunity_fingerprint(
+            provider=run.provider,
+            account_id=run.account_id,
+            region=item.region,
+            scope=item.service,
+            resource_id=item.resource_id,
+            rule_id=item.rule_key,
+        )
+        by_fingerprint[fingerprint] = item
+
+    findings_by_fingerprint: dict[str, Finding] = {}
+    if by_fingerprint:
+        findings_by_fingerprint = {
+            finding.fingerprint: finding
+            for finding in db.scalars(
+                select(Finding).where(Finding.fingerprint.in_(by_fingerprint)).with_for_update()
             )
-            db.add(finding)
-        else:
-            finding.scan_id = scan.id
-            finding.resource_name = item.resource_name
-            finding.title = item.title
-            finding.description = item.description
-            finding.evidence = item.evidence
-            finding.current_monthly_cost = item.current_monthly_cost
-            finding.estimated_monthly_savings = item.estimated_monthly_savings
-            finding.confidence = item.confidence
-            finding.severity = item.severity
-            finding.last_seen_at = now
+        }
+
+    for fingerprint, item in by_fingerprint.items():
+        if fingerprint not in findings_by_fingerprint:
+            findings_by_fingerprint[fingerprint] = _create_finding_race_safe(
+                db,
+                fingerprint=fingerprint,
+                scan=scan,
+                item=item,
+                observed_at=observed_at,
+            )
+
+    observations_by_opportunity: dict[str, OpportunityObservation] = {}
+    opportunity_ids = [finding.id for finding in findings_by_fingerprint.values()]
+    if opportunity_ids:
+        observations_by_opportunity = {
+            observation.opportunity_id: observation
+            for observation in db.scalars(
+                select(OpportunityObservation)
+                .where(
+                    OpportunityObservation.collection_run_id == run.id,
+                    OpportunityObservation.opportunity_id.in_(opportunity_ids),
+                )
+                .with_for_update()
+            )
+        }
+
+    for fingerprint, item in by_fingerprint.items():
+        finding = findings_by_fingerprint[fingerprint]
+        observation = observations_by_opportunity.get(finding.id)
+        observation_created = False
+        if observation is None:
+            observation, observation_created = _create_observation_race_safe(
+                db,
+                finding=finding,
+                run=run,
+                item=item,
+                observed_at=observed_at,
+            )
+            observations_by_opportunity[finding.id] = observation
+        _refresh_observation(observation, item)
+
+        is_latest_observation = observation_created and (
+            finding.last_seen_at is None
+            or _normalized_utc(observation.observed_at) >= _normalized_utc(finding.last_seen_at)
+        )
+        if finding.scan_id == scan.id or is_latest_observation:
+            _refresh_finding_snapshot(finding, scan, item)
+        if is_latest_observation:
+            finding.last_seen_at = observation.observed_at
             if finding.status == "resolved":
                 finding.status = "open"
 
@@ -144,10 +287,11 @@ def persist_findings(db: Session, scan: Scan, collected: list, active_rule_keys:
             )
         )
         for finding in open_findings:
-            if finding.fingerprint not in seen:
+            if finding.fingerprint not in by_fingerprint:
                 finding.status = "resolved"
+
     db.flush()
-    return len(collected)
+    return len(by_fingerprint)
 
 
 def execute_scan(db: Session, scan: Scan) -> None:
@@ -175,14 +319,15 @@ def execute_scan(db: Session, scan: Scan) -> None:
         aws_session, account.regions, policies
     )
     active_rule_keys = [key for key in active_rule_keys if key not in failed_rule_keys]
-    scan.findings_count = persist_findings(db, scan, collected, active_rule_keys)
+    opportunity_count = persist_findings(db, scan, run, collected, active_rule_keys)
+    scan.findings_count = opportunity_count
     scan.status = "completed_with_warnings" if collector_errors else "completed"
     scan.completed_at = datetime.now(UTC)
     scan.error = "\n".join(collector_errors)[:4000] if collector_errors else None
 
     run.status = CollectionRunStatus.SUCCESS
     run.finished_at = scan.completed_at
-    run.opportunities_found = len(collected)
+    run.opportunities_found = opportunity_count
     # The current collector contract does not expose total evaluated resources.
     # Keep this explicit rather than equating resources analyzed with findings.
     run.resources_analyzed = 0
