@@ -137,20 +137,39 @@ class TlsManager:
         return self._certificate_metadata(leaf)
 
     @staticmethod
-    def _routes() -> str:
-        return """\tencode zstd gzip
+    def _routes(*, https: bool = False) -> str:
+        content_security = (
+            "\t\tContent-Security-Policy "
+            "\"frame-ancestors 'none'; base-uri 'self'; object-src 'none'\""
+        )
+        headers = [
+            "\t\t-Server",
+            '\t\tX-Content-Type-Options "nosniff"',
+            '\t\tX-Frame-Options "DENY"',
+            '\t\tReferrer-Policy "no-referrer"',
+            '\t\tPermissions-Policy "camera=(), microphone=(), geolocation=()"',
+            content_security,
+        ]
+        if https:
+            headers.append('\t\tStrict-Transport-Security "max-age=31536000"')
+        header_block = "\n".join(headers)
+        return f"""\theader {{
+{header_block}
+\t}}
 
-\thandle /api/* {
+\tencode zstd gzip
+
+\thandle /api/* {{
 \t\treverse_proxy api:8000
-\t}
+\t}}
 
-\thandle /health {
+\thandle /health {{
 \t\treverse_proxy api:8000
-\t}
+\t}}
 
-\thandle {
+\thandle {{
 \t\treverse_proxy web:3000
-\t}"""
+\t}}"""
 
     def baseline_caddyfile(self) -> str:
         return f"""{{\n\tauto_https off
@@ -185,7 +204,7 @@ http://proxy {{
 }}
 
 {domain} {{{tls_line}
-{self._routes()}
+{self._routes(https=True)}
 }}
 """
 

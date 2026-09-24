@@ -325,3 +325,33 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
   validação pública permanecem para a etapa 6.
 - CI da implementação: Auto deploy tests aprovado; frontend build aprovado; backend
   Ruff/format aprovado e 149 testes aprovados.
+
+
+## DeepOps — liberação externa, etapa 6 (24/09/2026)
+
+- Etapa 5 publicada pelo PR #5 na main (`7ee0598`).
+- Hardening do Caddy para exposição externa: remoção do header `Server`,
+  `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: no-referrer`, `Permissions-Policy` restritiva e CSP mínima
+  para impedir framing/object/base indevidos. HSTS de 1 ano é enviado somente no
+  endpoint HTTPS público, nunca no fallback HTTP/interno.
+- Novo `scripts/check-external-readiness.py` valida produção antes da abertura:
+  `NUVEMIQ_ENVIRONMENT=production`, origem pública HTTPS, cookie Secure, MFA
+  obrigatório, demo desligado, CORS limitado à própria origem, somente 80/443
+  publicados, TLS persistido, handshake confiável, /health e headers de segurança.
+- Novo template
+  `infrastructure/cloudformation/deepops-public-security-group.yaml`: ingresso
+  TCP somente em 80/443, sem SSH público ou portas internas; IPv6 opcional. Todos
+  os SGs anexados à EC2 precisam ser revisados porque as regras são cumulativas.
+- Guia `docs/external-access.md` cobre DNS/EIP, SG, IMDSv2 para containers,
+  Docker/host, variáveis de produção e validação externa. O Security Group é a
+  borda principal; não confiar em UFW para neutralizar porta publicada pelo Docker.
+- CI ganhou job de segurança que compila o verificador, garante exposição do
+  Compose apenas em 80/443 e executa `cfn-lint` no SG.
+- Validação do PR: auto-deploy tests aprovado; job de segurança aprovado; frontend
+  build aprovado; backend Ruff/format e 150 testes aprovados.
+- A etapa de código está concluída. A liberação real do ambiente exige operação na
+  AWS/EC2: configurar DNS e `.env` de produção, anexar/restringir SGs, recriar os
+  containers, executar o verificador local e confirmar HTTPS/portas a partir de
+  outra rede. Esses passos não foram executados por esta entrega porque não há
+  conexão AWS/EC2 disponível ao assistente.

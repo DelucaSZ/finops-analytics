@@ -1,0 +1,82 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Security Group minimo para publicar DeepOps somente em HTTP/HTTPS.
+
+Parameters:
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+  AllowedIPv4:
+    Type: String
+    Default: 0.0.0.0/0
+    Description: CIDR IPv4 autorizado a acessar 80/443.
+  EnableIPv6:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+  AllowedIPv6:
+    Type: String
+    Default: "::/0"
+    Description: CIDR IPv6 autorizado quando EnableIPv6=true.
+
+Conditions:
+  UseIPv6: !Equals [!Ref EnableIPv6, "true"]
+
+Resources:
+  DeepOpsPublicSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: DeepOps public HTTPS - ports 80 and 443 only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: !Ref AllowedIPv4
+          Description: HTTP for redirect and ACME challenge
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: !Ref AllowedIPv4
+          Description: DeepOps HTTPS
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          CidrIp: 0.0.0.0/0
+          Description: Runtime access to AWS APIs, DNS path and package registries
+      Tags:
+        - Key: Name
+          Value: deepops-public
+
+  DeepOpsHttpIPv6:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseIPv6
+    Properties:
+      GroupId: !GetAtt DeepOpsPublicSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 80
+      ToPort: 80
+      CidrIpv6: !Ref AllowedIPv6
+      Description: HTTP IPv6 for redirect and ACME challenge
+
+  DeepOpsHttpsIPv6:
+    Type: AWS::EC2::SecurityGroupIngress
+    Condition: UseIPv6
+    Properties:
+      GroupId: !GetAtt DeepOpsPublicSecurityGroup.GroupId
+      IpProtocol: tcp
+      FromPort: 443
+      ToPort: 443
+      CidrIpv6: !Ref AllowedIPv6
+      Description: DeepOps HTTPS IPv6
+
+  DeepOpsEgressIPv6:
+    Type: AWS::EC2::SecurityGroupEgress
+    Condition: UseIPv6
+    Properties:
+      GroupId: !GetAtt DeepOpsPublicSecurityGroup.GroupId
+      IpProtocol: "-1"
+      CidrIpv6: "::/0"
+      Description: Runtime IPv6 egress
+
+Outputs:
+  SecurityGroupId:
+    Value: !GetAtt DeepOpsPublicSecurityGroup.GroupId
+    Description: Anexe este SG a EC2 e remova/restrinja SGs antigos que ampliem o ingresso.

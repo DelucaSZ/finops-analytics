@@ -74,9 +74,10 @@ before the first start. Demo data is never loaded when the option is false.
 See [Users and permissions](docs/users-and-permissions.md) for the migration,
 API administration and rollback limits. [Authentication lifecycle](docs/authentication-lifecycle.md)
 covers the current cookie API, invitations, recovery and personal security screens.
-Administrators can manage users, MFA and HTTPS from **Configurações**. External
-exposure hardening remains part of the next deployment stage; keep access restricted
-until that review is complete. See [HTTPS and certificates](docs/https.md).
+Administrators can manage users, MFA and HTTPS from **Configurações**. The external
+exposure stage includes production-mode validation, proxy security headers and a
+minimal 80/443 Security Group. See [HTTPS and certificates](docs/https.md) and
+[External access](docs/external-access.md).
 
 ## AWS setup
 
