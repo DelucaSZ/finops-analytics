@@ -36,9 +36,7 @@ class CollectionRun(TimestampMixin, Base):
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), index=True, nullable=False
     )
-    finished_at: Mapped[datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True
-    )
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     resources_analyzed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     opportunities_found: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
