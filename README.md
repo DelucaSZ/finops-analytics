@@ -147,3 +147,9 @@ Em **Minha segurança**, configure o autenticador pelo QR code ou chave manual e
 salve os dez códigos de recuperação. O login passa a exigir senha + segundo fator.
 Para exigir o cadastro de todos, configure `NUVEMIQ_MFA_REQUIRED=true` no servidor.
 Consulte [MFA e recuperação](docs/mfa-totp.md) para chaves, operação e migração.
+
+### Configurações
+
+O menu **Configurações** reúne Minha segurança e Sessões para todos os usuários.
+Administradores também acessam Usuários (cadastro, convites, recuperação, perfis e
+sessões) e Auditoria. Veja o [guia de administração](docs/settings.md).
