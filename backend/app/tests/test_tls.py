@@ -98,6 +98,19 @@ def test_failed_handshake_restores_previous_runtime_and_discards_private_key(tmp
     assert not manager.certs_path.exists() or not list(manager.certs_path.iterdir())
 
 
+def test_https_config_adds_security_headers_and_hsts_only_to_public_tls():
+    manager = TlsManager(storage="/tmp/not-used")
+    baseline = manager.baseline_caddyfile()
+    managed = manager.managed_caddyfile("deepops.example.com")
+
+    assert 'Strict-Transport-Security "max-age=31536000"' not in baseline
+    assert managed.count('Strict-Transport-Security "max-age=31536000"') == 1
+    assert managed.count('X-Content-Type-Options "nosniff"') == 2
+    assert managed.count('X-Frame-Options "DENY"') == 2
+    assert "frame-ancestors 'none'" in managed
+    assert "-Server" in managed
+
+
 def test_success_persists_only_after_tls_probe_and_status_observes_renewal(tmp_path, monkeypatch):
     manager = TlsManager(storage=tmp_path)
     loaded = []
