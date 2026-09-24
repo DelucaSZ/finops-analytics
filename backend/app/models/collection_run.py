@@ -29,7 +29,9 @@ class CollectionRun(TimestampMixin, Base):
         String(36), primary_key=True, default=lambda: str(uuid.uuid4())
     )
     scan_id: Mapped[str | None] = mapped_column(
-        ForeignKey("scans.id", ondelete="SET NULL"), unique=True, nullable=True
+        ForeignKey("scans.id", ondelete="SET NULL"),
+        unique=True,
+        nullable=True,
     )
     provider: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     account_id: Mapped[str] = mapped_column(String(255), index=True, nullable=False)
