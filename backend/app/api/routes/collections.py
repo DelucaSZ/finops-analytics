@@ -23,9 +23,7 @@ def list_collections(
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> list[CollectionRun]:
-    statement = select(CollectionRun).order_by(
-        CollectionRun.started_at.desc(), CollectionRun.id
-    )
+    statement = select(CollectionRun).order_by(CollectionRun.started_at.desc(), CollectionRun.id)
     if provider:
         statement = statement.where(CollectionRun.provider == provider.lower())
     if account_id:
