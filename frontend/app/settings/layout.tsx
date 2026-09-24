@@ -44,7 +44,8 @@ export default function SettingsLayout({
     ...(role === "admin"
       ? [
           { href: "/settings/users", label: "Usuários" },
-          { href: "/settings/audit", label: "Auditoria" },\n          { href: "/settings/https", label: "HTTPS" },
+          { href: "/settings/audit", label: "Auditoria" },
+          { href: "/settings/https", label: "HTTPS" },
         ]
       : []),
   ];
