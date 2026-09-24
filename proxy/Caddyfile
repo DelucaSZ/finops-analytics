@@ -1,5 +1,10 @@
 {
 	auto_https off
+	persist_config off
+	admin 0.0.0.0:2019 {
+		origins http://api:8000
+		enforce_origin
+	}
 }
 
 :80 {
