@@ -4,7 +4,7 @@ Este documento registra o estado real das etapas estruturais do DeepOps para que
 
 ## Etapa 1 — CollectionRun
 
-**Status:** implementação concluída e validada no PR #7; aguardando publicação na `main`.
+**Status:** concluída, validada e publicada na `main` em 24/09/2026.
 
 ### Resumo
 
@@ -72,4 +72,4 @@ A estrutura é provider-neutral no histórico: `provider` é texto e `account_id
 
 Head de implementação validado antes do merge: `491118e39a26ea1c954684f92f9d1aeb9fb540bd`.
 
-O hash publicado na `main` deve ser registrado após o merge do PR #7.
+PR #7 publicado por squash merge na `main`: `842c75f0ff843fd4075a458d0fea62dab2d8fd6f`.
