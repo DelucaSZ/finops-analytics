@@ -204,7 +204,7 @@ http://proxy {{
 }}
 
 {domain} {{{tls_line}
-{self._routes()}
+{self._routes(https=True)}
 }}
 """
 
