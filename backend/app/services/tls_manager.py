@@ -138,22 +138,23 @@ class TlsManager:
 
     @staticmethod
     def _routes(*, https: bool = False) -> str:
-        strict_transport = (
-            '\n\t\tStrict-Transport-Security "max-age=31536000"'
-            if https
-            else ""
-        )
         content_security = (
             "\t\tContent-Security-Policy "
             "\"frame-ancestors 'none'; base-uri 'self'; object-src 'none'\""
         )
+        headers = [
+            "\t\t-Server",
+            '\t\tX-Content-Type-Options "nosniff"',
+            '\t\tX-Frame-Options "DENY"',
+            '\t\tReferrer-Policy "no-referrer"',
+            '\t\tPermissions-Policy "camera=(), microphone=(), geolocation=()"',
+            content_security,
+        ]
+        if https:
+            headers.append('\t\tStrict-Transport-Security "max-age=31536000"')
+        header_block = "\n".join(headers)
         return f"""\theader {{
-\t\t-Server
-\t\tX-Content-Type-Options "nosniff"
-\t\tX-Frame-Options "DENY"
-\t\tReferrer-Policy "no-referrer"
-\t\tPermissions-Policy "camera=(), microphone=(), geolocation=()"
-{content_security}{strict_transport}
+{header_block}
 \t}}
 
 \tencode zstd gzip
