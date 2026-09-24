@@ -6,8 +6,12 @@ from cryptography import x509
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.x509.oid import NameOID
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from app.api.routes import tls
+from app.models.auth import LoginSession
+from app.services.authentication import digest
 from app.services.tls_manager import TlsManager, TlsOperationError, TlsValidationError
 from app.tests.test_security import PASSWORD, headers
 from app.tests.test_security import auth_env as auth_env
@@ -138,7 +142,7 @@ def test_tls_settings_are_admin_only(auth_env, role):
 def test_apply_requires_recent_admin_and_validation_does_not_echo_private_key(
     auth_env, monkeypatch
 ):
-    client, _, tokens, _ = auth_env
+    client, engine, tokens, _ = auth_env
     chain, private_key = certificate_material("deepops.example.com")
     response = client.post(
         "/api/v1/tls/validate",
@@ -166,6 +170,12 @@ def test_apply_requires_recent_admin_and_validation_does_not_echo_private_key(
     )
     monkeypatch.setattr(tls, "manager", fake)
     payload = {"mode": "automatic", "domain": "deepops.example.com"}
+    with Session(engine) as db:
+        session = db.scalar(
+            select(LoginSession).where(LoginSession.token_hash == digest(tokens["admin"]))
+        )
+        session.reauthenticated_at = datetime.now(UTC) - timedelta(minutes=10)
+        db.commit()
     assert (
         client.post("/api/v1/tls/apply", headers=headers(tokens), json=payload).status_code == 403
     )
