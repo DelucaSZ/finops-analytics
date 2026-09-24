@@ -77,3 +77,14 @@ certificados não são alterados. A instância EC2 não foi acessada nesta entre
 Testes cobrem isolamento por perfil, paginação/filtros, integridade da auditoria,
 proteção de dados sensíveis, reautenticação e revogação de sessão do titular correto,
 além da suíte anterior de MFA, sessões, usuários e migrações.
+
+
+## HTTPS e certificados
+
+Administradores têm uma aba HTTPS para configurar domínio e escolher certificado
+automático pelo Caddy ou certificado próprio. A aplicação valida material, exige
+reautenticação para aplicar, verifica o handshake antes de persistir e restaura a
+configuração anterior em caso de falha. A chave privada não é devolvida pela API.
+
+Consulte docs/https.md para requisitos de DNS, armazenamento, renovação e rollback.
+A liberação externa do host permanece fora desta etapa.
