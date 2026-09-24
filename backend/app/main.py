@@ -6,7 +6,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import app.models  # noqa: F401
-from app.api.routes import accounts, audit, auth, dashboard, findings, mfa, policies, scans, users
+from app.api.routes import (
+    accounts,
+    audit,
+    auth,
+    dashboard,
+    findings,
+    mfa,
+    policies,
+    scans,
+    tls,
+    users,
+)
 from app.core.config import settings
 from app.db.migrations import initialize_database
 from app.db.session import SessionLocal, engine
@@ -47,7 +58,9 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 @app.middleware("http")
 async def sensitive_response_headers(request: Request, call_next):
     response = await call_next(request)
-    if request.url.path.startswith(("/api/v1/auth", "/api/v1/users", "/api/v1/audit")):
+    if request.url.path.startswith(
+        ("/api/v1/auth", "/api/v1/users", "/api/v1/audit", "/api/v1/tls")
+    ):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
     return response
@@ -64,7 +77,7 @@ app.add_middleware(
 app.include_router(audit.router, prefix="/api/v1")
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(mfa.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")\napp.include_router(tls.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
