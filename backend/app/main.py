@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 import app.models  # noqa: F401
-from app.api.routes import accounts, auth, dashboard, findings, policies, scans, users
+from app.api.routes import accounts, auth, dashboard, findings, mfa, policies, scans, users
 from app.core.config import settings
 from app.db.migrations import initialize_database
 from app.db.session import SessionLocal, engine
@@ -62,6 +62,7 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(mfa.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")

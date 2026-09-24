@@ -247,3 +247,34 @@ Ao retomar o projeto, usar este arquivo como fonte de verdade do estado atual. N
   remoto bloqueou localhost. EC2 e SMTP reais não foram acessados nesta entrega.
 - Validação local da etapa 2: 93 testes backend aprovados, 8 casos PostgreSQL
   destinados ao CI, Ruff e build/tipos de produção do frontend aprovados.
+
+## DeepOps — MFA TOTP, etapa 3 (24/09/2026)
+
+- Etapa 2 publicada pelo PR #2 na main (`c9c34ed`), CI aprovado no PR e após merge.
+- Implementados TOTP SHA-1/6 dígitos/30 s, QR gerado pela própria API, chave manual,
+  confirmação antes da ativação e segredo criptografado com Fernet. Configuração
+  expira em dez minutos e vincula o segredo pendente à sessão que a iniciou.
+- Login de conta com MFA entrega desafio de cinco minutos, cinco tentativas, sem
+  sessão completa. Segundo fator válido cria sessão marcada como MFA verificado.
+  Replay bloqueado por passo temporal; consumo serializado com lock no banco.
+- Dez códigos de recuperação de 128 bits, somente hashes no banco, exibidos uma
+  vez. Troca do autenticador/regeneração exigem senha e segundo fator; reset de
+  senha preserva MFA. Troca do autenticador revoga outras sessões e códigos antigos.
+- Recuperação por admin com MFA ou operador do host, com motivo e auditoria,
+  revoga sessões/desafios/códigos e obriga novo cadastro, mesmo no modo opcional.
+- Configuração `NUVEMIQ_MFA_REQUIRED=true` exige cadastro para todos; sem ele só
+  cadastro MFA/logout são permitidos. Default false preserva implantação gradual
+  privada. A variável real da EC2 não foi modificada. Liberação externa continua
+  dependendo das etapas de HTTPS e revisão operacional.
+- Interface em Minha segurança, login com segundo fator/recuperação e /mfa-setup
+  para cadastro obrigatório. Telas administrativas completas continuam na etapa 4.
+- Chave derivada de NUVEMIQ_SECRET_KEY com HKDF, ou chave Fernet dedicada em
+  NUVEMIQ_MFA_ENCRYPTION_KEY. Manter chave estável e backup fora do banco. Exemplos
+  conhecidos de segredo não permitem ativação; descriptografia falha sem bypass.
+- Migração 0004_totp aditiva; novo checkpoint deepops_mfa_schema_version preserva
+  checkpoint da etapa 2 para rollback da primeira implantação. Após cadastrar MFA,
+  não retornar a imagens anteriores à etapa 3, que desconhecem o segundo fator.
+- Guia de operação, recuperação e limitações: docs/mfa-totp.md. EC2 não acessada;
+  validação visual não realizada (navegador remoto bloqueou localhost nesta sessão).
+- Validação local: 119 testes backend aprovados, 11 casos PostgreSQL destinados à
+  CI; Ruff e build/tipos de produção frontend aprovados.

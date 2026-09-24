@@ -140,3 +140,10 @@ npm run dev
   after validating the APIs used by the collectors.
 - Store production secrets in AWS Secrets Manager or SSM Parameter Store.
 - Prefer Session Manager over exposing TCP/22 to the internet.
+
+### MFA TOTP
+
+Em **Minha segurança**, configure o autenticador pelo QR code ou chave manual e
+salve os dez códigos de recuperação. O login passa a exigir senha + segundo fator.
+Para exigir o cadastro de todos, configure `NUVEMIQ_MFA_REQUIRED=true` no servidor.
+Consulte [MFA e recuperação](docs/mfa-totp.md) para chaves, operação e migração.

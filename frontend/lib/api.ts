@@ -1,5 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
-const publicWrites = new Set(["/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
+const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
 export class ApiError extends Error {
   constructor(message: string, public status: number) { super(message); }
@@ -25,8 +25,12 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const detail = payload?.detail;
+    if (detail === "mfa_enrollment_required" && typeof window !== "undefined") {
+      window.location.assign("/mfa-setup");
+      throw new ApiError("Configure o autenticador para continuar.", 403);
+    }
     const message = detail === "reauthentication_required"
-      ? "Confirme sua senha em Minha segurança antes de continuar."
+      ? "Confirme sua identidade em Minha segurança antes de continuar."
       : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
       : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
       : detail || `Erro HTTP ${response.status}`;

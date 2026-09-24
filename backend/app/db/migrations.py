@@ -47,6 +47,14 @@ def initialize_database(engine: Engine, config: Settings = settings) -> None:
         ).get_current_revision()
         if active is None:
             command.stamp(alembic_config, "0002_users")
+        command.upgrade(alembic_config, "0003_auth_lifecycle")
+        # Preserve the stage 2 startup checkpoint for initial deployment rollback.
+        alembic_config.attributes["version_table"] = "deepops_mfa_schema_version"
+        active_mfa = MigrationContext.configure(
+            connection, opts={"version_table": "deepops_mfa_schema_version"}
+        ).get_current_revision()
+        if active_mfa is None:
+            command.stamp(alembic_config, "0003_auth_lifecycle")
         command.upgrade(alembic_config, "head")
         with Session(bind=connection) as db:
             bootstrap_admin(db, config)
@@ -61,7 +69,7 @@ def wait_for_database(engine: Engine, timeout: float = 120) -> None:
         try:
             with engine.connect() as connection:
                 current = MigrationContext.configure(
-                    connection, opts={"version_table": "deepops_schema_version"}
+                    connection, opts={"version_table": "deepops_mfa_schema_version"}
                 ).get_current_revision()
                 if current == expected and connection.scalar(
                     select(AuthState.bootstrap_complete).where(AuthState.id == 1)
