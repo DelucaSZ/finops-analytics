@@ -65,7 +65,9 @@ jobs:
       - name: Validate Python readiness checker
         run: python3 -m py_compile scripts/check-external-readiness.py
       - name: Validate Compose public exposure
-        run: python3 scripts/check-external-readiness.py --repo "$GITHUB_WORKSPACE" --env-file .env.example --static-only
+        run: |
+          cp .env.example .env
+          python3 scripts/check-external-readiness.py --repo "$GITHUB_WORKSPACE" --env-file .env --static-only
       - name: Validate public Security Group template
         run: |
           python3 -m pip install --disable-pip-version-check cfn-lint
