@@ -15,7 +15,7 @@ This repository contains the first functional foundation of the MVP:
 - FastAPI API;
 - PostgreSQL persistence with versioned Alembic migrations;
 - individual users with Argon2id passwords and admin/operator/viewer permissions;
-- revocable cookie sessions, invitations, password recovery and personal security screens;
+- revocable cookie sessions, invitations, password recovery and personal security screens;\n- TOTP MFA, administrative settings and HTTPS/certificate management;
 - durable scan worker;
 - EC2 instance-profile + cross-account `AssumeRole` authentication;
 - global policies with account-level overrides;
@@ -152,4 +152,4 @@ Consulte [MFA e recuperação](docs/mfa-totp.md) para chaves, operação e migra
 
 O menu **Configurações** reúne Minha segurança e Sessões para todos os usuários.
 Administradores também acessam Usuários (cadastro, convites, recuperação, perfis e
-sessões) e Auditoria. Veja o [guia de administração](docs/settings.md).
+sessões), Auditoria e HTTPS. Veja o [guia de administração](docs/settings.md) e\n[HTTPS e certificados](docs/https.md).
