@@ -11,6 +11,22 @@ permissions:
 jobs:
   backend:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: deepops_test
+          POSTGRES_USER: deepops_test
+          POSTGRES_PASSWORD: test-only-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deepops_test -d deepops_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg://deepops_test:test-only-ci-password@localhost:5432/deepops_test
     defaults:
       run:
         working-directory: backend

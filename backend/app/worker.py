@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401
 from app.core.config import settings
-from app.db.base import Base
+from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
 from app.models.account import AwsAccount
 from app.models.finding import Finding
@@ -190,7 +190,7 @@ def process_once() -> bool:
 
 
 def main() -> None:
-    Base.metadata.create_all(bind=engine)
+    wait_for_database(engine)
     logger.info("NuvemIQ worker started")
     while True:
         worked = process_once()

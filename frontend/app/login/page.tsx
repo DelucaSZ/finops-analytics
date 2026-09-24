@@ -46,7 +46,7 @@ export default function LoginPage() {
           <div className="login-brand login-mobile-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
           <div className="login-icon"><LockKeyhole size={23} /></div>
           <h2>Acessar plataforma</h2>
-          <p>Use as credenciais administrativas configuradas no servidor.</p>
+          <p>Use o e-mail e a senha da sua conta DeepOps.</p>
           <label>E-mail<input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
           <label>Senha<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
           {error && <div className="form-error">{error}</div>}
