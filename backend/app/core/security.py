@@ -11,6 +11,7 @@ from app.db.base import utcnow
 from app.db.session import get_db
 from app.models.auth import LoginSession
 from app.models.user import User, UserRole
+from app.services import mfa
 from app.services.authentication import COOKIE, browser_request, csrf_token, digest
 
 
@@ -65,6 +66,19 @@ def require_session(request: Request, db: Session = Depends(get_db)) -> LoginSes
     db.commit()
     if not touched:
         raise invalid
+    item = mfa.credential(db, user.id)
+    if item and item.secret and not session.mfa_verified:
+        raise invalid
+    allowed = {
+        "/api/v1/auth/csrf",
+        "/api/v1/auth/logout",
+        "/api/v1/auth/logout-all",
+        "/api/v1/auth/mfa/status",
+        "/api/v1/auth/mfa/setup",
+        "/api/v1/auth/mfa/confirm",
+    }
+    if mfa.enrollment_required(item) and request.url.path not in allowed:
+        raise HTTPException(403, "mfa_enrollment_required")
     return session
 
 

@@ -19,6 +19,7 @@ from app.schemas.auth import (
     ResetRequest,
 )
 from app.schemas.user import UserRead
+from app.services import mfa
 from app.services.authentication import (
     COOKIE,
     aware,
@@ -75,10 +76,20 @@ def login(
             .where(LoginSession.token_hash == digest(old))
             .values(revoked_at=utcnow())
         )
+    credential = mfa.credential(db, user.id)
+    if credential and credential.secret:
+        challenge = mfa.challenge(db, user)
+        db.commit()
+        clear_session_cookie(response)
+        return {"mfa_required": True, "challenge": challenge, "expires_in": 300}
     _, raw = new_session(db, user, request.headers.get("user-agent", ""))
     db.commit()
     set_session_cookie(response, raw)
-    return {"user": UserRead.model_validate(user), "csrf_token": csrf_token(raw)}
+    return {
+        "user": UserRead.model_validate(user),
+        "csrf_token": csrf_token(raw),
+        "enrollment_required": mfa.enrollment_required(credential),
+    }
 
 
 @router.get("/me", response_model=UserRead)
@@ -168,6 +179,7 @@ def reauthenticate(
     _locked_user(db, user, session)
     if not verify_password(payload.password.get_secret_value(), user.password_hash):
         raise HTTPException(400, "Senha incorreta")
+    mfa.require_factor(db, user, payload.code.get_secret_value())
     session.reauthenticated_at = utcnow()
     db.commit()
 
@@ -185,6 +197,7 @@ def change_password(
     _locked_user(db, user, session)
     if not verify_password(payload.current_password.get_secret_value(), user.password_hash):
         raise HTTPException(400, "Senha atual incorreta")
+    mfa.require_factor(db, user, payload.code.get_secret_value())
     user.password_hash = hash_password(payload.new_password.get_secret_value())
     user.token_version += 1
     revoke_sessions(db, user.id)

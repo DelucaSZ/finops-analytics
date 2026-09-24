@@ -59,16 +59,18 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     wait_for_database(migration_engine, timeout=0)
     with migration_engine.connect() as connection:
         assert (
-            connection.scalar(text("SELECT version_num FROM deepops_schema_version"))
-            == "0003_auth_lifecycle"
+            connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
+            == "0004_totp"
         )
         assert (
             compare_metadata(
                 MigrationContext.configure(
                     connection,
                     opts={
-                        "version_table": "deepops_schema_version",
-                        "include_object": lambda obj, name, *args: name != "alembic_version",
+                        "version_table": "deepops_mfa_schema_version",
+                        "include_object": lambda obj, name, *args: (
+                            name not in {"alembic_version", "deepops_schema_version"}
+                        ),
                     },
                 ),
                 Base.metadata,
@@ -269,3 +271,74 @@ def test_one_time_reset_is_atomic_under_concurrency(migration_engine):
     with Session(migration_engine) as db:
         assert db.scalar(select(User)).token_version == 2
         assert db.scalar(select(AccessToken)).used_at is not None
+
+
+@pytest.mark.parametrize("kind", ["totp", "recovery", "challenge"])
+def test_mfa_proofs_are_atomic_under_concurrency(migration_engine, monkeypatch, kind):
+    import pyotp
+    from fastapi import HTTPException, Request, Response
+
+    from app.api.routes.mfa import verify_login
+    from app.core.config import settings
+    from app.db.base import utcnow
+    from app.models.mfa import MfaCredential, RecoveryCode
+    from app.schemas.auth import MfaLogin
+    from app.services import mfa
+    from app.services.users import lock_user_changes
+
+    monkeypatch.setattr(settings, "secret_key", "Test-only-concurrent-MFA-key-at-least-32-bytes")
+    initialize_database(migration_engine, config())
+    secret = pyotp.random_base32()
+    with Session(migration_engine) as db:
+        user = db.scalar(select(User))
+        user_id = user.id
+        db.add(
+            MfaCredential(
+                user_id=user.id,
+                secret=mfa.cipher().encrypt(secret.encode()).decode(),
+                enabled_at=utcnow(),
+            )
+        )
+        codes = mfa.recovery_codes(db, user.id)
+        pending = mfa.challenge(db, user)
+        db.commit()
+    code = codes[0] if kind == "recovery" else pyotp.TOTP(secret).now()
+    barrier = threading.Barrier(2)
+
+    def consume(_):
+        with Session(migration_engine) as db:
+            barrier.wait(timeout=10)
+            if kind == "challenge":
+                request = Request(
+                    {"type": "http", "method": "POST", "client": ("127.0.0.1", 1), "headers": []}
+                )
+                try:
+                    verify_login(MfaLogin(challenge=pending, code=code), request, Response(), db)
+                    return 200
+                except HTTPException as exc:
+                    db.rollback()
+                    return exc.status_code
+            lock_user_changes(db)
+            accepted = mfa.verify_factor(db, mfa.credential(db, user_id), code)
+            db.commit()
+            return 200 if accepted else 400
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(consume, [1, 2]))
+    assert sorted(results) == [200, 400]
+    if kind == "recovery":
+        with Session(migration_engine) as db:
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(RecoveryCode)
+                    .where(RecoveryCode.used_at.is_not(None))
+                )
+                == 1
+            )
+    with migration_engine.connect() as connection:
+        # Previous image reads this checkpoint, not the new MFA revision.
+        assert (
+            connection.scalar(text("SELECT version_num FROM deepops_schema_version"))
+            == "0003_auth_lifecycle"
+        )

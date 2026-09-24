@@ -30,7 +30,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState("");
   const [leaving, setLeaving] = useState(false);
   const [retry, setRetry] = useState(0);
-  const isPublic = ["/login", "/forgot-password", "/reset-password", "/accept-invitation"].includes(pathname);
+  const isPublic = ["/mfa-setup", "/login", "/forgot-password", "/reset-password", "/accept-invitation"].includes(pathname);
 
   useEffect(() => {
     let active = true;

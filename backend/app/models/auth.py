@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, utcnow
@@ -19,6 +19,7 @@ class LoginSession(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     reauthenticated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
+    mfa_verified: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     user_agent: Mapped[str] = mapped_column(String(255), default="")
 
 

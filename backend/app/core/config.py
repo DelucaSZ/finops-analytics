@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     session_idle_minutes: int = Field(30, ge=1, le=1440, alias="NUVEMIQ_SESSION_IDLE_MINUTES")
     cookie_secure: bool | None = Field(None, alias="NUVEMIQ_COOKIE_SECURE")
     public_url: str = Field("", alias="NUVEMIQ_PUBLIC_URL")
+    mfa_required: bool = Field(False, alias="NUVEMIQ_MFA_REQUIRED")
+    mfa_encryption_key: SecretStr = Field(SecretStr(""), alias="NUVEMIQ_MFA_ENCRYPTION_KEY")
     smtp_host: str = Field("", alias="NUVEMIQ_SMTP_HOST")
     smtp_port: int = Field(587, ge=1, le=65535, alias="NUVEMIQ_SMTP_PORT")
     smtp_username: str = Field("", alias="NUVEMIQ_SMTP_USERNAME")
@@ -64,6 +66,10 @@ class Settings(BaseSettings):
             if self.secure_cookies and parsed.scheme != "https":
                 raise ValueError("Secure cookies require an HTTPS public URL")
             self.public_url = self.public_url.rstrip("/")
+        if self.mfa_encryption_key.get_secret_value():
+            from cryptography.fernet import Fernet
+
+            Fernet(self.mfa_encryption_key.get_secret_value().encode())
         if self.smtp_host and (not self.public_url or not self.smtp_from):
             raise ValueError("SMTP requires NUVEMIQ_PUBLIC_URL and NUVEMIQ_SMTP_FROM")
         return self

@@ -385,3 +385,10 @@ button svg, .toolbar svg, .alert svg { flex-shrink: 0; }
 .session-agent { overflow-wrap: anywhere; max-width: 680px; }
 .security-actions { display: flex; flex-wrap: wrap; gap: 12px; margin: 20px 0; }
 @media (max-width: 760px) { .security-grid { grid-template-columns: 1fr; } .session-item { align-items: flex-start; flex-direction: column; } }
+
+.mfa-card { margin-bottom: 24px; }
+.mfa-qr { display: block; max-width: 100%; height: auto; background: white; border-radius: 8px; margin: 16px 0; }
+.recovery-codes { white-space: pre; overflow-x: auto; padding: 16px; background: #0b1517; border: 1px solid var(--border); border-radius: 8px; line-height: 1.8; font-size: 0.9rem; }
+.mfa-saved { display: flex !important; align-items: center; gap: 10px; margin: 16px 0; }
+.mfa-saved input { width: 20px; height: 20px; flex-shrink: 0; }
+.mfa-enrollment { max-width: 740px; margin: 40px auto; padding: 24px; }
