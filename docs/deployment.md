@@ -37,9 +37,10 @@ docker compose logs -f --tail=200
 ```
 
 The default Caddy configuration serves HTTP on port 80 for initial private-network
-validation. Before exposing the service beyond a controlled network, configure a
-DNS name, replace `proxy/Caddyfile` with the HTTPS example and restrict the EC2
-security group.
+validation. Before external exposure, apply HTTPS from **Configurações > HTTPS**,
+switch the application environment to production and follow
+[External access](external-access.md). Do not publish API, web, PostgreSQL or the
+Caddy admin port directly.
 
 ## Users and database initialization
 
@@ -64,6 +65,10 @@ both periodic `pg_dump` backups to encrypted object storage and EBS snapshots.
 Test restoration before relying on either mechanism.
 
 ## Production hardening backlog
+
+External exposure baseline (MFA, HTTPS, 80/443-only ingress and validation) is
+covered by [External access](external-access.md). Remaining larger architecture
+items include:
 
 - move PostgreSQL to encrypted RDS Multi-AZ;
 - integrate company SSO/OIDC instead of the bootstrap admin login;
