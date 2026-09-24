@@ -80,8 +80,7 @@ class TlsManager:
             return False
         suffix = pattern[2:]
         return (
-            domain.endswith("." + suffix)
-            and len(domain.split(".")) == len(suffix.split(".")) + 1
+            domain.endswith("." + suffix) and len(domain.split(".")) == len(suffix.split(".")) + 1
         )
 
     @staticmethod
@@ -124,9 +123,7 @@ class TlsManager:
                 private_key_pem.encode(), password=None
             )
         except (TypeError, ValueError) as exc:
-            raise TlsValidationError(
-                "Chave privada PEM inválida ou protegida por senha."
-            ) from exc
+            raise TlsValidationError("Chave privada PEM inválida ou protegida por senha.") from exc
         cert_public = leaf.public_key().public_bytes(
             serialization.Encoding.DER,
             serialization.PublicFormat.SubjectPublicKeyInfo,
@@ -175,9 +172,7 @@ class TlsManager:
         certificate_path: str | None = None,
         key_path: str | None = None,
     ) -> str:
-        tls_line = (
-            f"\n\ttls {certificate_path} {key_path}" if certificate_path and key_path else ""
-        )
+        tls_line = f"\n\ttls {certificate_path} {key_path}" if certificate_path and key_path else ""
         return f"""{{\n\tpersist_config off
 \tadmin 0.0.0.0:2019 {{
 \t\torigins http://api:8000
@@ -341,9 +336,7 @@ http://proxy {{
     def _write_custom_files(
         self, metadata: dict[str, str], chain_pem: str, private_key_pem: str
     ) -> tuple[Path, str, str]:
-        reference = (
-            metadata["fingerprint_sha256"].lower()[:16] + "-" + secrets.token_hex(6)
-        )
+        reference = metadata["fingerprint_sha256"].lower()[:16] + "-" + secrets.token_hex(6)
         directory = self.certs_path / reference
         directory.mkdir(parents=True, mode=0o700)
         os.chmod(directory, 0o700)
