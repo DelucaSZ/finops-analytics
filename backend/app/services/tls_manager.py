@@ -272,9 +272,11 @@ http://proxy {{
     def _probe(self, domain: str, timeout: float = 5) -> dict[str, str]:
         context = ssl.create_default_context()
         try:
-            with socket.create_connection((self.probe_host, 443), timeout=timeout) as plain:
-                with context.wrap_socket(plain, server_hostname=domain) as secure:
-                    der = secure.getpeercert(binary_form=True)
+            with (
+                socket.create_connection((self.probe_host, 443), timeout=timeout) as plain,
+                context.wrap_socket(plain, server_hostname=domain) as secure,
+            ):
+                der = secure.getpeercert(binary_form=True)
         except (OSError, ssl.SSLError, TimeoutError) as exc:
             raise TlsOperationError(
                 "O proxy ainda não apresentou um certificado confiável para o domínio."
