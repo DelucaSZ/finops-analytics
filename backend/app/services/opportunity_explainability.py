@@ -151,6 +151,7 @@ def _ebs_unattached(
         finding,
         summary=summary,
         metrics=[
+            _metric("volume_type", "Tipo do volume", volume_type),
             _metric("size", "Capacidade", size_gib, unit="GiB"),
             _metric("age_since_creation", "Idade desde a criação", age_days, unit="days"),
             _estimated_cost(finding),
@@ -210,7 +211,11 @@ def _eip_unassociated(
             f"O custo mensal configurado é estimado em "
             f"US$ {_money(finding.current_monthly_cost):.2f}."
         ),
-        metrics=[_estimated_cost(finding), _estimated_savings(finding)],
+        metrics=[
+            _metric("public_ip", "Elastic IP", raw.get("public_ip")),
+            _estimated_cost(finding),
+            _estimated_savings(finding),
+        ],
         details={
             "public_ip": raw.get("public_ip"),
             "allocation_id": raw.get("allocation_id"),
@@ -410,18 +415,29 @@ def _nonprod_ec2(
     timezone = raw.get("timezone") or config.get("timezone")
     start = raw.get("business_hours_start") or config.get("business_hours_start")
     end = raw.get("business_hours_end") or config.get("business_hours_end")
+    environment = _relevant_tags(tags, environment_keys)
+    environment_display = [f"{key}={value}" for key, value in environment.items()]
     return _payload(
         finding,
         summary=(
             f"A instância não produtiva {finding.resource_id} estava em execução no momento "
             f"da coleta, fora da janela de {start} a {end} ({timezone})."
         ),
-        metrics=[_estimated_cost(finding), _estimated_savings(finding)],
+        metrics=[
+            _metric("environment", "Ambiente observado", environment_display),
+            _metric(
+                "observed_at",
+                "Horário observado",
+                evaluated_at.astimezone(UTC).isoformat(),
+            ),
+            _estimated_cost(finding),
+            _estimated_savings(finding),
+        ],
         details={
             "state": "running",
             "instance_type": raw.get("instance_type"),
             "launched_at": raw.get("launched_at"),
-            "observed_environment_tags": _relevant_tags(tags, environment_keys),
+            "observed_environment_tags": environment,
             "observed_at": evaluated_at.astimezone(UTC).isoformat(),
         },
         criteria=[
@@ -559,6 +575,7 @@ def _rds_idle(
             f"{raw.get('lookback_days')} dias, dentro dos limites aplicados."
         ),
         metrics=[
+            _metric("instance_class", "Classe", raw.get("instance_class")),
             _metric("average_cpu", "CPU média", raw.get("average_cpu_percent"), unit="%"),
             _metric(
                 "maximum_connections",
@@ -630,6 +647,8 @@ def _missing_tags(
     required = [str(key) for key in config.get("required_tags", [])]
     current = raw.get("current_tags") if isinstance(raw.get("current_tags"), dict) else {}
     missing = [str(key) for key in raw.get("missing_tags", [])]
+    found = _relevant_tags(current, required)
+    found_display = [f"{key}={value}" for key, value in found.items()]
     return _payload(
         finding,
         summary=(
@@ -637,6 +656,8 @@ def _missing_tags(
             f"{len(missing)} tag(s) obrigatória(s): {', '.join(missing)}."
         ),
         metrics=[
+            _metric("missing_tags", "Tags ausentes", missing),
+            _metric("found_required_tags", "Tags encontradas", found_display),
             _metric(
                 "missing_tag_count",
                 "Tags obrigatórias ausentes",
@@ -647,7 +668,7 @@ def _missing_tags(
         ],
         details={
             "required_tags": required,
-            "found_required_tags": _relevant_tags(current, required),
+            "found_required_tags": found,
             "missing_tags": missing,
         },
         criteria=[
@@ -677,11 +698,13 @@ def _cost_growth(
     current = _number(raw.get("current_spend_usd"))
     delta = _number(raw.get("delta_usd"))
     growth = _number(raw.get("growth_percent"))
+    is_estimated = raw.get("estimated") is True
     summary = finding.description
     if baseline is not None and current is not None and delta is not None:
         percent = f" ({growth:.1f}%)" if growth is not None else ""
+        cost_label = "O custo estimado" if is_estimated else "O custo"
         summary = (
-            f"O custo de {finding.service} em {finding.region} passou de "
+            f"{cost_label} de {finding.service} em {finding.region} passou de "
             f"US$ {baseline:.2f} esperados para US$ {current:.2f} no período atual, "
             f"uma variação de +US$ {delta:.2f}{percent}."
         )
@@ -715,8 +738,20 @@ def _cost_growth(
         summary=summary,
         metrics=[
             _metric("previous_cost", "Custo esperado no período atual", baseline, currency="USD"),
-            _metric("current_cost", "Custo observado no período atual", current, currency="USD"),
-            _metric("absolute_change", "Variação absoluta", delta, currency="USD"),
+            _metric(
+                "current_cost",
+                "Custo estimado no período atual" if is_estimated else "Custo observado no período atual",
+                current,
+                currency="USD",
+                kind="estimate" if is_estimated else "observed",
+            ),
+            _metric(
+                "absolute_change",
+                "Variação absoluta estimada" if is_estimated else "Variação absoluta",
+                delta,
+                currency="USD",
+                kind="estimate" if is_estimated else "observed",
+            ),
             _metric("percent_change", "Variação percentual", growth, unit="%"),
         ],
         details={
