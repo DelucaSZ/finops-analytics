@@ -165,3 +165,58 @@ PR #7 publicado por squash merge na `main`: `842c75f0ff843fd4075a458d0fea62dab2d
 - Frontend build aprovado no mesmo CI; job de segurança aprovado.
 - Auto deploy tests do PR #8, run `36071610602`: aprovado.
 - Os logs do runner e do PostgreSQL de CI foram revisados durante a validação. Os logs operacionais dos containers da EC2 de produção não foram inspecionados porque esta etapa foi executada pelo repositório/CI, sem sessão operacional no host.
+
+
+## Etapa 3 — Ciclo de vida das oportunidades
+
+**Status:** implementada na `main`; validação de CI pendente no momento deste registro.
+
+### Estados e migração
+
+- Estados correntes: `open`, `treated` e `rejected`.
+- Dados legados são migrados por `0007_opportunity_lifecycle.py`: `accepted -> treated`, `dismissed -> rejected` e o antigo `resolved -> open`.
+- A migração não inventa ator, timestamp ou motivo para decisões legadas; esses novos campos permanecem nulos quando não existe evidência confiável.
+- A resolução automática por ausência em coleta foi removida do worker nesta etapa para separar detecção de decisão humana.
+
+### Decisões humanas e auditoria
+
+- `treated`: registra `treated_at`, `treated_by` e `treatment_note`.
+- `rejected`: registra `rejected_at`, `rejected_by`, `rejection_reason` e `rejection_note`.
+- Motivos estruturados: `FALSE_POSITIVE`, `OPERATIONAL_EXCEPTION`, `ACCEPTABLE_COST`, `RESOURCE_REQUIRED`, `RISK_ACCEPTED` e `OTHER`; `OTHER` exige observação.
+- O ator é obtido exclusivamente do usuário autenticado pelo backend.
+- `OpportunityStatusHistory` registra cada transição manual com origem, destino, ação, motivo, nota, ator e timestamp.
+- Reabertura é permitida somente de `treated` ou `rejected` para `open`; campos históricos de decisões anteriores não são apagados.
+
+### Reaparecimento em coletas
+
+- Fingerprint e `OpportunityObservation` da Etapa 2 permanecem a identidade e o histórico factual.
+- Uma oportunidade `rejected` que reaparece mantém `rejected` e recebe nova observation.
+- Uma oportunidade `treated` que reaparece mantém `treated`, recebe nova observation e marca `needs_review=true` quando a nova detecção é posterior ao tratamento.
+- Nenhuma nova coleta reabre silenciosamente uma decisão humana.
+
+### API e frontend
+
+- `POST /api/v1/findings/{id}/treat`
+- `POST /api/v1/findings/{id}/reject`
+- `POST /api/v1/findings/{id}/reopen`
+- `POST /api/v1/findings/bulk/action` com semântica transacional.
+- `GET /api/v1/findings/{id}/history`.
+- A listagem aceita explicitamente `status=open|treated|rejected`.
+- A tela de oportunidades passa a permitir consultar abertas, tratadas e rejeitadas, tratar/rejeitar abertas e reabrir decisões anteriores. O redesenho amplo da tela permanece fora desta etapa.
+
+### Migration e arquivos principais
+
+- Migration: `backend/app/migrations/versions/0007_opportunity_lifecycle.py`.
+- Modelos: `backend/app/models/finding.py`, `backend/app/models/opportunity_status_history.py`.
+- Serviço: `backend/app/services/opportunity_lifecycle.py`.
+- API/schemas: `backend/app/api/routes/findings.py`, `backend/app/schemas/finding.py`.
+- Worker: `backend/app/worker.py`.
+- Frontend: `frontend/app/opportunities/page.tsx`, `frontend/lib/types.ts`, `frontend/components/status-badge.tsx`, `frontend/app/globals.css`.
+- Testes: `backend/app/tests/test_opportunity_lifecycle.py`, `backend/app/tests/test_findings.py`, `backend/app/tests/test_migrations.py`.
+
+### Testes e pendências
+
+- Foram adicionados testes de tratamento, rejeição, reabertura, auditoria, transições inválidas e atomicidade da ação em massa; a suite de migration foi atualizada para esperar `0007_opportunity_lifecycle`.
+- Os testes existentes de OpportunityObservation continuam responsáveis por deduplicação/fingerprint; o worker foi ajustado para não sobrescrever `treated/rejected`.
+- Validação final de CI, build do frontend e execução em PostgreSQL 17 devem ser confirmadas pelo GitHub Actions após a publicação desta implementação.
+- Não foi implementada comparação heurística de mudança significativa para rejeitados; a arquitetura preserva observations para uma etapa futura.
