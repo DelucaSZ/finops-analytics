@@ -120,9 +120,7 @@ def test_invalid_transitions_are_conflicts(client):
     http, _ = client
     assert http.post("/findings/opp/reopen", json={}).status_code == 409
     assert http.post("/findings/opp/treat", json={}).status_code == 200
-    response = http.post(
-        "/findings/opp/reject", json={"reason": "FALSE_POSITIVE"}
-    )
+    response = http.post("/findings/opp/reject", json={"reason": "FALSE_POSITIVE"})
     assert response.status_code == 409
 
 
