@@ -277,7 +277,6 @@ def test_detail_exposes_latest_evidence_without_loading_full_history(client):
     assert detail["account_id"] == "111111111111"
     assert detail["latest_observation"]["collection_run_id"] == "run-a2"
     assert detail["latest_evidence"]["schema_version"] == 1
-    assert detail["latest_evidence"]["schema_version"] == 1
     assert detail["latest_evidence"]["details"]["missing_tags"] == ["Owner", "CostCenter"]
     assert detail["latest_evidence"]["parameters"]["required_tags"] == [
         "Environment",
