@@ -198,3 +198,46 @@
 }
 .history-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; color: var(--muted); font-size: .8125rem; }
 .history-pagination .button { min-height: 38px; }
+
+
+/* Stage 6 — deterministic opportunity explainability. */
+.evidence-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 10px; }
+.evidence-heading h3 { margin-bottom: 4px; }
+.evidence-heading span { color: var(--muted); font-size: .75rem; }
+.evidence-rule-name { flex: 0 0 auto; max-width: 280px; padding: 5px 9px; border: 1px solid var(--border); border-radius: 99px; text-align: right; }
+.evidence-summary { margin-bottom: 8px!important; font-size: .96rem; }
+.evidence-rule-description { color: var(--muted)!important; font-size: .8125rem; }
+.evidence-metrics { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 10px; margin: 20px 0; }
+.evidence-metric { min-width: 0; padding: 13px 14px; border: 1px solid var(--border); border-radius: 9px; background: rgba(255,255,255,.018); }
+.evidence-metric span, .evidence-metric strong, .evidence-metric small { display: block; overflow-wrap: anywhere; }
+.evidence-metric span { color: var(--muted); font-size: .72rem; }
+.evidence-metric strong { margin-top: 4px; color: var(--text); font-size: 1rem; font-variant-numeric: tabular-nums; }
+.evidence-metric small { margin-top: 3px; color: var(--warning); font-size: .68rem; text-transform: uppercase; }
+.evidence-block { margin: 22px 0; }
+.evidence-technical { margin-top: 20px; border-top: 1px solid var(--border); }
+.evidence-technical summary { padding: 14px 0 5px; color: var(--muted); cursor: pointer; font-weight: 700; }
+.evidence-technical .evidence-columns { margin-top: 14px; }
+.evidence-run-id { color: var(--muted)!important; font-size: .75rem; }
+.evidence-run-id code { overflow-wrap: anywhere; }
+.historical-evidence-banner { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 13px 18px; border-bottom: 1px solid rgba(97,169,255,.2); background: rgba(97,169,255,.06); }
+.historical-evidence-banner strong, .historical-evidence-banner span { display: block; }
+.historical-evidence-banner strong { color: var(--blue); font-size: .8rem; }
+.historical-evidence-banner span { margin-top: 2px; color: var(--muted); font-size: .75rem; }
+.history-item.selected { border-color: rgba(85,229,182,.42); background: rgba(85,229,182,.045); }
+.history-evidence-summary { grid-column: 1 / 4; margin: 0!important; color: var(--muted)!important; font-size: .75rem; line-height: 1.45!important; }
+.history-evidence-button { grid-column: 4; justify-self: end; min-height: 34px!important; font-size: .75rem; }
+.evidence-section .contributors-table th,
+.evidence-section .contributors-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: .78rem; text-align: left; }
+.evidence-section .contributors-table th { color: var(--muted); }
+.evidence-section .contributors-table th[scope="row"] { color: var(--text); font-weight: 650; }
+
+@media (max-width: 980px) {
+  .evidence-metrics { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .history-evidence-summary, .history-evidence-button { grid-column: 1 / -1; }
+  .history-evidence-button { justify-self: start; }
+}
+@media (max-width: 700px) {
+  .evidence-heading, .historical-evidence-banner { align-items: flex-start; flex-direction: column; }
+  .evidence-rule-name { max-width: 100%; text-align: left; }
+  .evidence-metrics { grid-template-columns: 1fr; }
+}

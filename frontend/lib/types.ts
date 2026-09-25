@@ -40,7 +40,6 @@ export type Finding = {
   resource_name: string | null;
   title: string;
   description: string;
-  evidence: Record<string, unknown>;
   current_monthly_cost: string;
   estimated_monthly_savings: string;
   confidence: string;
@@ -59,6 +58,52 @@ export type OpportunityPage = {
   total_pages: number;
 };
 
+export type EvidenceMetric = {
+  key: string;
+  label: string;
+  value: number | string | boolean;
+  unit: string | null;
+  kind: string;
+};
+
+export type EvidenceCriterion = {
+  key: string;
+  label: string;
+  observed_value: number | string | boolean | null;
+  operator: string;
+  threshold_value: number | string | boolean;
+  unit: string | null;
+};
+
+export type EvidenceContributor = {
+  key: string;
+  label: string;
+  previous_value: number | null;
+  current_value: number | null;
+  delta: number;
+  unit: string | null;
+};
+
+export type RuleExplanation = {
+  key: string;
+  name: string;
+  description: string;
+};
+
+export type OpportunityEvidence = {
+  schema_version: number;
+  summary: string;
+  metrics: EvidenceMetric[];
+  criteria: EvidenceCriterion[];
+  details: Record<string, unknown>;
+  parameters: Record<string, unknown>;
+  rule: RuleExplanation;
+  source: string;
+  notes: string[];
+  contributors: EvidenceContributor[];
+  evaluated_at: string | null;
+};
+
 export type OpportunityDetail = Finding & {
   scan_id: string;
   treated_at: string | null;
@@ -68,6 +113,9 @@ export type OpportunityDetail = Finding & {
   rejected_by: string | null;
   rejection_reason: string | null;
   rejection_note: string | null;
+  rule: RuleExplanation;
+  latest_observation: OpportunityObservation | null;
+  latest_evidence: OpportunityEvidence | null;
 };
 
 export type OpportunityStats = {
@@ -84,7 +132,7 @@ export type OpportunityObservation = {
   current_monthly_cost: string;
   estimated_monthly_savings: string;
   confidence: string;
-  evidence: Record<string, unknown>;
+  evidence: OpportunityEvidence;
   collection_provider: string;
   collection_account_id: string;
   collection_started_at: string;

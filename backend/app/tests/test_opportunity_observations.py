@@ -279,3 +279,71 @@ def test_execute_scan_twice_keeps_one_opportunity_and_two_observations(db, monke
         Decimal("35.00"),
     }
     assert all(item.status == CollectionRunStatus.SUCCESS for item in runs)
+
+
+def test_structured_evidence_is_preserved_independently_per_collection_run(db):
+    aws_account = account(db)
+    first_time = datetime(2026, 9, 24, 20, 0, tzinfo=UTC)
+    second_time = first_time + timedelta(days=1)
+    scan_a, run_a = collection_run(db, aws_account, started_at=first_time)
+    scan_b, run_b = collection_run(db, aws_account, started_at=second_time)
+
+    item_a = collected_finding(savings="20.00", stopped_days=14)
+    item_a.evidence = {
+        "schema_version": 1,
+        "summary": "Parada há 14 dias.",
+        "metrics": [
+            {
+                "key": "stopped_days",
+                "label": "Tempo parada",
+                "value": 14,
+                "unit": "days",
+                "kind": "observed",
+            }
+        ],
+        "criteria": [],
+        "details": {"state": "stopped"},
+        "parameters": {"minimum_stopped_days": 7},
+        "rule": {"key": "ec2_stopped", "name": "EC2 parada", "description": "Teste"},
+        "source": "AWS inventory",
+        "notes": [],
+        "contributors": [],
+        "evaluated_at": first_time.isoformat(),
+    }
+    worker.persist_findings(
+        db,
+        scan_a,
+        run_a,
+        [item_a],
+        ["ec2_stopped"],
+        observed_at=first_time,
+    )
+    db.commit()
+
+    item_b = collected_finding(savings="35.00", stopped_days=15)
+    item_b.evidence = {
+        **item_a.evidence,
+        "summary": "Parada há 15 dias.",
+        "metrics": [{**item_a.evidence["metrics"][0], "value": 15}],
+        "evaluated_at": second_time.isoformat(),
+    }
+    worker.persist_findings(
+        db,
+        scan_b,
+        run_b,
+        [item_b],
+        ["ec2_stopped"],
+        observed_at=second_time,
+    )
+    db.commit()
+
+    observations = list(
+        db.scalars(select(OpportunityObservation).order_by(OpportunityObservation.observed_at))
+    )
+    assert len(observations) == 2
+    assert observations[0].collection_run_id == run_a.id
+    assert observations[1].collection_run_id == run_b.id
+    assert observations[0].evidence["summary"] == "Parada há 14 dias."
+    assert observations[0].evidence["metrics"][0]["value"] == 14
+    assert observations[1].evidence["summary"] == "Parada há 15 dias."
+    assert observations[1].evidence["metrics"][0]["value"] == 15

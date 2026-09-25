@@ -1,6 +1,5 @@
 import re
 from collections import defaultdict
-from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -11,6 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from app.services.aws_auth import BOTO_CONFIG
 from app.services.collector_types import CollectedFinding
+from app.services.opportunity_evidence import build_collected_finding_evidence
 
 
 def _tags_to_dict(tags: list[dict] | None) -> dict[str, str]:
@@ -313,6 +313,7 @@ def collect_stopped_ec2_with_ebs(
                     f"{len(attached_volumes)} volume(s) EBS cobrados."
                 ),
                 evidence={
+                    "state": instance.get("State", {}).get("Name"),
                     "instance_type": instance.get("InstanceType"),
                     "state_transition_reason": instance.get("StateTransitionReason"),
                     "stopped_at": stopped_at.isoformat() if stopped_at else None,
@@ -360,6 +361,8 @@ def collect_nonprod_ec2_outside_hours(
 ) -> list[CollectedFinding]:
     if not _outside_business_hours(config):
         return []
+    observed_at = datetime.now(UTC)
+    timezone = ZoneInfo(str(config.get("timezone", "UTC")))
     ec2 = session.client("ec2", region_name=region, config=BOTO_CONFIG)
     hourly_prices = config.get("estimated_hourly_cost_by_instance_type", {})
     findings: list[CollectedFinding] = []
@@ -387,10 +390,13 @@ def collect_nonprod_ec2_outside_hours(
                             "configurada para recursos não produtivos."
                         ),
                         evidence={
+                            "state": instance.get("State", {}).get("Name"),
                             "instance_type": instance_type,
                             "launched_at": instance.get("LaunchTime").isoformat()
                             if instance.get("LaunchTime")
                             else None,
+                            "observed_at": observed_at.isoformat(),
+                            "observed_local_time": observed_at.astimezone(timezone).isoformat(),
                             "timezone": config.get("timezone"),
                             "business_hours_start": config.get("business_hours_start"),
                             "business_hours_end": config.get("business_hours_end"),
@@ -469,6 +475,24 @@ def collect_load_balancers_no_traffic(
             total = sum(values)
             if total > threshold:
                 continue
+            if not values:
+                title = "Load Balancer sem métricas suficientes"
+                description = (
+                    f"O CloudWatch não retornou amostras de {metric_name} nos últimos "
+                    f"{lookback_days} dias; o tráfego precisa ser validado."
+                )
+            elif total == 0:
+                title = "Load Balancer sem tráfego observado"
+                description = (
+                    f"O CloudWatch registrou zero para {metric_name} nos últimos "
+                    f"{lookback_days} dias."
+                )
+            else:
+                title = "Load Balancer com tráfego abaixo do limite"
+                description = (
+                    f"O CloudWatch registrou {total:.2f} para {metric_name}, dentro do "
+                    f"limite configurado de {threshold:.2f} nos últimos {lookback_days} dias."
+                )
             findings.append(
                 CollectedFinding(
                     rule_key="load_balancer_no_traffic",
@@ -476,10 +500,8 @@ def collect_load_balancers_no_traffic(
                     region=region,
                     resource_id=arn,
                     resource_name=load_balancer.get("LoadBalancerName"),
-                    title="Load Balancer sem tráfego",
-                    description=(
-                        f"Nenhum tráfego relevante foi observado nos últimos {lookback_days} dias."
-                    ),
+                    title=title,
+                    description=description,
                     evidence={
                         "type": lb_type,
                         "metric": metric_name,
@@ -518,6 +540,23 @@ def collect_load_balancers_no_traffic(
             total = sum(values)
             if total > maximum_requests:
                 continue
+            if not values:
+                title = "Classic Load Balancer sem métricas suficientes"
+                description = (
+                    f"O CloudWatch não retornou amostras de RequestCount nos últimos "
+                    f"{lookback_days} dias; o tráfego precisa ser validado."
+                )
+            elif total == 0:
+                title = "Classic Load Balancer sem tráfego observado"
+                description = (
+                    f"O CloudWatch registrou zero requisições nos últimos {lookback_days} dias."
+                )
+            else:
+                title = "Classic Load Balancer com tráfego abaixo do limite"
+                description = (
+                    f"O CloudWatch registrou {total:.2f} requisições, dentro do limite "
+                    f"configurado de {maximum_requests:.2f} nos últimos {lookback_days} dias."
+                )
             findings.append(
                 CollectedFinding(
                     rule_key="load_balancer_no_traffic",
@@ -525,10 +564,8 @@ def collect_load_balancers_no_traffic(
                     region=region,
                     resource_id=name,
                     resource_name=name,
-                    title="Classic Load Balancer sem tráfego",
-                    description=(
-                        f"Nenhuma requisição foi observada nos últimos {lookback_days} dias."
-                    ),
+                    title=title,
+                    description=description,
                     evidence={
                         "type": "classic",
                         "metric": "RequestCount",
@@ -600,14 +637,16 @@ def collect_idle_nonprod_rds(
                     resource_name=identifier,
                     title="RDS não produtivo ocioso",
                     description=(
-                        "CPU e conexões permaneceram abaixo dos limites configurados "
-                        f"durante {lookback_days} dias."
+                        "As amostras de CPU e conexões retornadas pelo CloudWatch ficaram "
+                        f"abaixo dos limites na janela de {lookback_days} dias."
                     ),
                     evidence={
                         "engine": instance.get("Engine"),
                         "instance_class": instance_class,
                         "average_cpu_percent": round(average_cpu, 2),
                         "maximum_connections": round(maximum_connections, 2),
+                        "cpu_datapoint_count": len(cpu_values),
+                        "connection_datapoint_count": len(connection_values),
                         "lookback_days": lookback_days,
                         "tags": tags,
                     },
@@ -950,9 +989,13 @@ def run_collectors(
         for region in collector_regions:
             try:
                 collected = collector(session, region, policy["config"])
+                evaluated_at = datetime.now(UTC)
                 for finding in collected:
-                    finding.evidence["policy_config"] = deepcopy(policy["config"])
-                    finding.evidence["evaluated_at"] = datetime.now(UTC).isoformat()
+                    finding.evidence = build_collected_finding_evidence(
+                        finding,
+                        policy,
+                        evaluated_at=evaluated_at,
+                    )
                 findings.extend(collected)
             except (BotoCoreError, ClientError) as exc:
                 errors.append(f"{policy['rule_key']}@{region}: {exc}")
