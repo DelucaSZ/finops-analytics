@@ -295,6 +295,7 @@ def observation_history(
     ]
     return {"items": items, **_page_meta(total, page, page_size)}
 
+
 def status_history(
     db: Session,
     opportunity_id: str,
