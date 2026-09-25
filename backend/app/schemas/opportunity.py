@@ -1,6 +1,6 @@
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -25,6 +25,52 @@ RejectionReason = Literal[
 ]
 
 
+class EvidenceMetric(BaseModel):
+    key: str
+    label: str
+    value: int | float | str | bool
+    unit: str | None = None
+    kind: str = "observed"
+
+
+class EvidenceCriterion(BaseModel):
+    key: str
+    label: str
+    observed_value: int | float | str | bool | None = None
+    operator: str
+    threshold_value: int | float | str | bool
+    unit: str | None = None
+
+
+class EvidenceContributor(BaseModel):
+    key: str
+    label: str
+    previous_value: float | None = None
+    current_value: float | None = None
+    delta: float
+    unit: str | None = None
+
+
+class RuleExplanation(BaseModel):
+    key: str
+    name: str
+    description: str
+
+
+class OpportunityEvidence(BaseModel):
+    schema_version: int = 1
+    summary: str
+    metrics: list[EvidenceMetric] = Field(default_factory=list)
+    criteria: list[EvidenceCriterion] = Field(default_factory=list)
+    details: dict[str, Any] = Field(default_factory=dict)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    rule: RuleExplanation
+    source: str
+    notes: list[str] = Field(default_factory=list)
+    contributors: list[EvidenceContributor] = Field(default_factory=list)
+    evaluated_at: str | None = None
+
+
 class OpportunityListItem(BaseModel):
     id: str
     fingerprint: str
@@ -39,7 +85,6 @@ class OpportunityListItem(BaseModel):
     resource_name: str | None
     title: str
     description: str
-    evidence: dict
     current_monthly_cost: Decimal
     estimated_monthly_savings: Decimal
     confidence: str
@@ -48,6 +93,22 @@ class OpportunityListItem(BaseModel):
     first_seen_at: datetime
     last_seen_at: datetime
     needs_review: bool
+
+
+class ObservationRead(BaseModel):
+    id: str
+    collection_run_id: str
+    observed_at: datetime
+    severity: str
+    current_monthly_cost: Decimal
+    estimated_monthly_savings: Decimal
+    confidence: str
+    evidence: OpportunityEvidence
+    collection_provider: str
+    collection_account_id: str
+    collection_started_at: datetime
+    collection_finished_at: datetime | None
+    collection_status: str
 
 
 class OpportunityDetail(OpportunityListItem):
@@ -59,6 +120,9 @@ class OpportunityDetail(OpportunityListItem):
     rejected_by: str | None = None
     rejection_reason: str | None = None
     rejection_note: str | None = None
+    rule: RuleExplanation
+    latest_observation: ObservationRead | None = None
+    latest_evidence: OpportunityEvidence | None = None
 
 
 class OpportunityPage(BaseModel):
@@ -73,22 +137,6 @@ class OpportunityStats(BaseModel):
     open: int = 0
     treated: int = 0
     rejected: int = 0
-
-
-class ObservationRead(BaseModel):
-    id: str
-    collection_run_id: str
-    observed_at: datetime
-    severity: str
-    current_monthly_cost: Decimal
-    estimated_monthly_savings: Decimal
-    confidence: str
-    evidence: dict
-    collection_provider: str
-    collection_account_id: str
-    collection_started_at: datetime
-    collection_finished_at: datetime | None
-    collection_status: str
 
 
 class ObservationPage(BaseModel):
