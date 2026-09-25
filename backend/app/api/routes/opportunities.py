@@ -19,7 +19,7 @@ from app.schemas.opportunity import (
     SortOrder,
     StatusHistoryPage,
 )
-from app.services.opportunity_lifecycle import bulk_transition, reopen, reject, treat
+from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 from app.services.opportunity_query import (
     OpportunityFilters,
     get_opportunity,
