@@ -6,7 +6,7 @@ export function FindingEvidence({ finding }: { finding: Finding }) {
   const explanation = findingExplanation(finding);
   return (
     <section className="finding-evidence" aria-label={`Evidências de ${finding.title}`}>
-      <h3>Por que esta oportunidade foi identificada?</h3>
+      <h3>Por que o DeepOps chegou nessa conclusão?</h3>
       <p>{explanation.summary}</p>
       <div className="evidence-columns">
         <div>

@@ -59,6 +59,83 @@ export type OpportunityPage = {
   total_pages: number;
 };
 
+export type OpportunityDetail = Finding & {
+  scan_id: string;
+  treated_at: string | null;
+  treated_by: string | null;
+  treatment_note: string | null;
+  rejected_at: string | null;
+  rejected_by: string | null;
+  rejection_reason: string | null;
+  rejection_note: string | null;
+};
+
+export type OpportunityStats = {
+  open: number;
+  treated: number;
+  rejected: number;
+};
+
+export type OpportunityObservation = {
+  id: string;
+  collection_run_id: string;
+  observed_at: string;
+  severity: string;
+  current_monthly_cost: string;
+  estimated_monthly_savings: string;
+  confidence: string;
+  evidence: Record<string, unknown>;
+  collection_provider: string;
+  collection_account_id: string;
+  collection_started_at: string;
+  collection_finished_at: string | null;
+  collection_status: string;
+};
+
+export type OpportunityObservationPage = {
+  items: OpportunityObservation[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
+export type OpportunityStatusHistoryEntry = {
+  id: string;
+  from_status: string;
+  to_status: string;
+  action: string;
+  reason: string | null;
+  note: string | null;
+  changed_by: string | null;
+  changed_by_name: string | null;
+  changed_at: string;
+};
+
+export type OpportunityStatusHistoryPage = {
+  items: OpportunityStatusHistoryEntry[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
+export type CollectionRun = {
+  id: string;
+  scan_id: string | null;
+  provider: string;
+  account_id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  resources_analyzed: number;
+  opportunities_found: number;
+  analyzer_version: string | null;
+  error_detail: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
 export type Scan = {
   id: string;
   account_id: number;

@@ -402,3 +402,96 @@ job backend da `main` falhar no `ruff check` antes da implementação desta etap
 
 Esses itens permanecem para etapas posteriores; nenhuma implementação da Etapa 5 foi
 incluída aqui.
+
+
+## Etapa 5 — Workspace operacional de oportunidades
+
+**Status:** concluída e validada no PR #10. O código funcional foi aprovado pelo CI run #86 antes do merge na `main`.
+
+### Estado anterior
+
+A tela já consumia a API escalável da Etapa 4, mas ainda funcionava como uma listagem de transição: status em select, paginação parcialmente local à sessão, busca fora da URL, decisões via `window.prompt()`, ausência de `/opportunities/stats` e sem uma visão de detalhe que reunisse observações e decisões. Isso dificultava refresh, compartilhamento de links, drill-down futuro da Home e a investigação do motivo de um achado.
+
+### Estrutura final da tela
+
+- abas operacionais `Abertas / Tratadas / Rejeitadas`, mapeadas diretamente para `open / treated / rejected`;
+- contagens das abas obtidas por `GET /api/v1/opportunities/stats`, sem carregar toda a base;
+- filtros combináveis por provider, conta, região, severidade, regra/analyzer, CollectionRun e busca;
+- busca com debounce de 350 ms;
+- conta apresentada em campo pesquisável via `datalist`, mantendo o identificador nativo como valor;
+- provider montado de forma genérica a partir dos CollectionRuns conhecidos, preservando AWS como provider existente;
+- CollectionRun limitado às 100 execuções recentes para montar opções, sem usar esse conjunto para filtrar oportunidades no browser;
+- status, filtros, busca, paginação, tamanho de página, ordenação e detalhe aberto persistidos na query string;
+- filtros restaurados após refresh e preservados ao abrir/fechar detalhe ou usar o histórico do navegador;
+- tabela operacional com título, regra, recurso, provider, conta, região, serviço, severidade, status, impacto, custo atual, primeira e última detecção;
+- paginação server-side por `page/page_size` e ordenação server-side por campos permitidos pela Etapa 4;
+- seleção somente da página carregada, sem representar falsamente uma seleção global do banco.
+
+### Lifecycle e ações
+
+- `OPEN`: ações individuais e em massa de tratar e rejeitar;
+- `TREATED` e `REJECTED`: ação individual e em massa de reabrir;
+- os prompts nativos foram removidos e substituídos por dialog acessível;
+- rejeição usa exclusivamente os motivos reais da API: `FALSE_POSITIVE`, `OPERATIONAL_EXCEPTION`, `ACCEPTABLE_COST`, `RESOURCE_REQUIRED`, `RISK_ACCEPTED` e `OTHER`;
+- `OTHER` exige observação no frontend e continua validado pelo backend;
+- nenhuma transição é otimista: a UI só atualiza lista/contagens depois do sucesso da API;
+- falhas mantêm o contexto visível e informam que a alteração não foi aplicada.
+
+### Detalhe e histórico
+
+O detalhe foi implementado em drawer, identificado por `opportunity_id` na URL. Ele usa:
+
+- `GET /opportunities/{id}`;
+- `GET /opportunities/{id}/history`;
+- `GET /opportunities/{id}/status-history`.
+
+O drawer mostra contexto comum de cloud/conta/região/serviço/recurso/regra, status, severidade, impacto, custo, primeira/última detecção, total real de observações e decisão atual. A seção de evidência foi renomeada para **“Por que o DeepOps chegou nessa conclusão?”** e continua usando somente a evidência real já persistida; nenhuma explicação factual é inventada no frontend.
+
+Histórico de detecção e histórico de decisões permanecem visualmente separados. O histórico técnico carrega inicialmente somente 8 observações; `Ver histórico completo` habilita paginação de 50 itens por página sob demanda. O histórico de decisão continua separado e limitado à página solicitada da API.
+
+### URL, loading e performance percebida
+
+A lógica de query string foi isolada em `frontend/lib/opportunity-query.mjs`, com declaração TypeScript correspondente. Alterar filtro volta para página 1; paginação explícita preserva a página escolhida. Abrir o drawer não altera a query usada na listagem e, portanto, não dispara refetch da tabela apenas por abrir o detalhe.
+
+Durante refetch, filtros/header/sidebar permanecem montados e a tabela anterior é mantida com indicador local. No primeiro carregamento são usados skeletons. Erros possuem retry local e não desmontam a aplicação. Não foi adicionada biblioteca de cache nesta etapa.
+
+### Componentes e arquivos principais
+
+- `frontend/app/opportunities/page.tsx`;
+- `frontend/components/opportunity-detail.tsx`;
+- `frontend/components/opportunity-decision-dialog.tsx`;
+- `frontend/components/finding-evidence.tsx`;
+- `frontend/lib/opportunity-query.mjs`;
+- `frontend/lib/opportunity-query.d.mts`;
+- `frontend/lib/types.ts`;
+- `frontend/app/opportunities-stage5.css`;
+- `frontend/app/layout.tsx`;
+- `frontend/tests/opportunity-query.test.mjs`;
+- `frontend/package.json`;
+- `.github/workflows/ci.yml`.
+
+### Testes e validações
+
+Foi criado um conjunto sem dependência adicional, baseado no `node:test`, cobrindo:
+
+- defaults da aba OPEN;
+- restauração de status/filtros/paginação/ordenação pela URL;
+- contrato exato da query server-side da Etapa 4;
+- stats sem status/paginação;
+- reset de página quando filtros mudam;
+- payloads/endpoints individuais e bulk de treat/reject/reopen;
+- validação de `OTHER`;
+- mapeamento das três abas para os três estados;
+- verificação estática de que a workspace contém stats, detalhe, seleção por página e não voltou a usar `window.prompt()` ou reload completo.
+
+Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falhas**. No PR #10, o CI run **#86** concluiu com sucesso os jobs **frontend**, **backend** e **security**; no frontend, `npm test` e `npm run build` passaram. O workflow separado **Auto deploy tests #79** também concluiu com sucesso.
+
+### Pendências deliberadas
+
+- não foi criada classificação heurística `Nova / Persistente / Recorrente / Alterada`, porque a API atual não expõe um campo confiável para isso;
+- não foi criado filtro de ambiente/categoria, pois a API da Etapa 4 não possui esses filtros;
+- a entidade persistida de conta ainda é AWS-específica; a tela usa conceitos comuns e provider genérico, mas a generalização de contas pertence a etapa posterior;
+- nenhuma tela completa de CollectionRun/comparação entre coletas foi criada;
+- nenhuma explicabilidade avançada da Etapa 6 foi antecipada;
+- o teste integrado manual em browser/host operacional depende de uma sessão de execução da aplicação e não é substituído por suposição no roadmap.
+

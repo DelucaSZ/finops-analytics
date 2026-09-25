@@ -1,0 +1,37 @@
+export type OpportunityStatus = "open" | "treated" | "rejected";
+export type OpportunitySeverity = "high" | "medium" | "low";
+export type OpportunitySort = "created_at" | "first_seen_at" | "last_seen_at" | "severity" | "estimated_savings" | "status";
+export type OpportunityOrder = "asc" | "desc";
+export type OpportunityQueryState = {
+  status: OpportunityStatus;
+  provider: string;
+  accountId: string;
+  region: string;
+  severity: OpportunitySeverity | "";
+  rule: string;
+  collectionRunId: string;
+  resourceId: string;
+  search: string;
+  page: number;
+  pageSize: number;
+  sort: OpportunitySort;
+  order: OpportunityOrder;
+  opportunityId: string;
+};
+export const OPPORTUNITY_STATUSES: OpportunityStatus[];
+export const OPPORTUNITY_SEVERITIES: OpportunitySeverity[];
+export const OPPORTUNITY_SORTS: OpportunitySort[];
+export const OPPORTUNITY_ORDERS: OpportunityOrder[];
+export const OPPORTUNITY_PAGE_SIZES: number[];
+export function parseOpportunitySearchParams(value: string | URLSearchParams): OpportunityQueryState;
+export function buildOpportunityApiQuery(state: OpportunityQueryState): string;
+export function buildOpportunityStatsQuery(state: OpportunityQueryState): string;
+export function patchOpportunityUrl(current: string | URLSearchParams, patch: Record<string, string | number | null | undefined>, options?: { resetPage?: boolean }): URLSearchParams;
+export function buildLifecycleRequest(args: {
+  action: "treat" | "reject" | "reopen";
+  opportunityIds: string[];
+  reason?: string;
+  note?: string;
+  bulk: boolean;
+}): { path: string; body: Record<string, unknown> };
+export function rejectionRequiresNote(reason?: string): boolean;
