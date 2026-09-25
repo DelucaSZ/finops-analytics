@@ -202,9 +202,7 @@ def test_unknown_ec2_stop_time_is_not_invented():
         evaluated_at=NOW,
     )
 
-    stopped_days = next(
-        metric for metric in result["metrics"] if metric["key"] == "stopped_days"
-    )
+    stopped_days = next(metric for metric in result["metrics"] if metric["key"] == "stopped_days")
     assert stopped_days["value"] is None
     assert "não confirmado" in result["summary"]
     assert result["limitations"]
@@ -263,9 +261,7 @@ def test_cost_growth_preserves_periods_thresholds_and_contributors():
     assert result["details"]["baseline_period"]["start"] == "2026-08-21"
     assert result["details"]["current_period"]["spend_usd"] == 4820
     assert result["details"]["contributors"][0]["delta"] == 880
-    assert {
-        criterion["key"] for criterion in result["rule"]["criteria"]
-    } >= {
+    assert {criterion["key"] for criterion in result["rule"]["criteria"]} >= {
         "minimum_growth_percent",
         "minimum_delta_usd",
         "minimum_current_spend_usd",
