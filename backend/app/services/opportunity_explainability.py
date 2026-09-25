@@ -733,6 +733,12 @@ def _cost_growth(
             "O detalhamento por tipo de uso não ficou disponível nesta coleta; a "
             "comparação por serviço e região permanece válida."
         )
+    current_cost_label = (
+        "Custo estimado no período atual"
+        if is_estimated
+        else "Custo observado no período atual"
+    )
+    change_label = "Variação absoluta estimada" if is_estimated else "Variação absoluta"
     return _payload(
         finding,
         summary=summary,
@@ -740,14 +746,14 @@ def _cost_growth(
             _metric("previous_cost", "Custo esperado no período atual", baseline, currency="USD"),
             _metric(
                 "current_cost",
-                "Custo estimado no período atual" if is_estimated else "Custo observado no período atual",
+                current_cost_label,
                 current,
                 currency="USD",
                 kind="estimate" if is_estimated else "observed",
             ),
             _metric(
                 "absolute_change",
-                "Variação absoluta estimada" if is_estimated else "Variação absoluta",
+                change_label,
                 delta,
                 currency="USD",
                 kind="estimate" if is_estimated else "observed",
