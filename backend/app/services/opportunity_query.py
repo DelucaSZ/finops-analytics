@@ -234,9 +234,7 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
     finding, account = row
     latest_observation = _latest_observation(db, opportunity_id)
     latest_evidence = (
-        latest_observation["evidence"]
-        if latest_observation is not None
-        else finding.evidence or {}
+        latest_observation["evidence"] if latest_observation is not None else finding.evidence or {}
     )
     return serialize_list_item(finding, account) | {
         "scan_id": finding.scan_id,
@@ -279,10 +277,7 @@ def observation_history(
         .limit(page_size)
     ).all()
     return {
-        "items": [
-            _serialize_observation(observation, run)
-            for observation, run in rows
-        ],
+        "items": [_serialize_observation(observation, run) for observation, run in rows],
         **_page_meta(total, page, page_size),
     }
 
