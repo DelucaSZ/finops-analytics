@@ -30,7 +30,7 @@ function period(start: unknown, end: unknown): string {
 
 // Explanations use only the evidence from this finding, never today's policy defaults.
 export function findingExplanation(finding: Finding) {
-  const e = finding.evidence || {};
+  const e = record(finding.evidence);
   const policy = record(e.policy_config);
   const facts: EvidenceFact[] = [];
   const criteria: EvidenceFact[] = [];
