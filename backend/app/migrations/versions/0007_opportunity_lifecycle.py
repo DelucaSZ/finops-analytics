@@ -11,18 +11,12 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("findings") as batch:
-        batch.add_column(
-            sa.Column("treated_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch.add_column(sa.Column("treated_at", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("treated_by", sa.String(length=36), nullable=True))
         batch.add_column(sa.Column("treatment_note", sa.Text(), nullable=True))
-        batch.add_column(
-            sa.Column("rejected_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch.add_column(sa.Column("rejected_at", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("rejected_by", sa.String(length=36), nullable=True))
-        batch.add_column(
-            sa.Column("rejection_reason", sa.String(length=32), nullable=True)
-        )
+        batch.add_column(sa.Column("rejection_reason", sa.String(length=32), nullable=True))
         batch.add_column(sa.Column("rejection_note", sa.Text(), nullable=True))
         batch.add_column(
             sa.Column(
@@ -74,9 +68,7 @@ def upgrade():
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(["changed_by"], ["users.id"]),
-        sa.ForeignKeyConstraint(
-            ["opportunity_id"], ["findings.id"], ondelete="CASCADE"
-        ),
+        sa.ForeignKeyConstraint(["opportunity_id"], ["findings.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
