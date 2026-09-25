@@ -220,3 +220,168 @@ PR #7 publicado por squash merge na `main`: `842c75f0ff843fd4075a458d0fea62dab2d
 - Os testes existentes de OpportunityObservation continuam responsáveis por deduplicação/fingerprint; o worker foi ajustado para não sobrescrever `treated/rejected`.
 - Validação final de CI, build do frontend e execução em PostgreSQL 17 devem ser confirmadas pelo GitHub Actions após a publicação desta implementação.
 - Não foi implementada comparação heurística de mudança significativa para rejeitados; a arquitetura preserva observations para uma etapa futura.
+
+
+## Etapa 4 — API escalável de oportunidades
+
+**Status:** implementada na branch de validação; publicação na `main` condicionada ao CI.
+
+### Estado anterior
+
+A API pública de oportunidades era o endpoint legado `GET /api/v1/findings`, com
+`limit/offset`, filtro por ID interno da conta, regra e status. O frontend percorria
+essa rota em blocos de até 500 registros e executava busca, severidade, conta e regra
+em memória. O histórico exposto em `/findings/{id}/history` era somente o histórico
+de decisões humanas da Etapa 3.
+
+### Contrato principal
+
+Foi criada a API `/api/v1/opportunities`, mantendo `/api/v1/findings` como contrato
+legado de compatibilidade.
+
+Endpoints de leitura:
+
+- `GET /api/v1/opportunities`
+- `GET /api/v1/opportunities/stats`
+- `GET /api/v1/opportunities/{id}`
+- `GET /api/v1/opportunities/{id}/history`
+- `GET /api/v1/opportunities/{id}/status-history`
+
+Ações individuais:
+
+- `POST /api/v1/opportunities/{id}/treat`
+- `POST /api/v1/opportunities/{id}/reject`
+- `POST /api/v1/opportunities/{id}/reopen`
+
+Ações em massa, com transação atômica:
+
+- `POST /api/v1/opportunities/bulk/treat`
+- `POST /api/v1/opportunities/bulk/reject`
+- `POST /api/v1/opportunities/bulk/reopen`
+
+### Paginação, filtros e ordenação
+
+A listagem usa paginação server-side por `page/page_size`, com padrão 50 e máximo
+200. A resposta contém `items`, `page`, `page_size`, `total` e `total_pages`.
+
+Filtros implementados:
+
+- `provider`;
+- `account_id` — Account ID nativo do provider; o ID inteiro interno da conta AWS
+  também é aceito temporariamente para compatibilidade;
+- `region`;
+- `status`;
+- `severity`;
+- `rule`;
+- `collection_run_id`;
+- `resource_id`;
+- `search`.
+
+A busca textual é feita no banco sobre `resource_id`, `resource_name`, `title`,
+`description`, `rule_key` e `service`. Nesta etapa usa `ILIKE`; em volumes muito
+maiores poderá evoluir para índice trigram/full-text sem alterar o contrato HTTP.
+
+Campos permitidos para `sort`:
+
+- `created_at`;
+- `first_seen_at`;
+- `last_seen_at`;
+- `severity`;
+- `estimated_savings`;
+- `status`.
+
+A direção é validada por `order=asc|desc`. Nomes arbitrários de colunas não são
+interpolados em `ORDER BY`.
+
+### Histórico
+
+`GET /opportunities/{id}/history` representa exclusivamente o que o scanner viu.
+Ele lê `OpportunityObservation`, inclui o contexto do `CollectionRun`, é paginado e
+ordena da observação mais recente para a mais antiga.
+
+`GET /opportunities/{id}/status-history` representa exclusivamente decisões humanas
+registradas em `OpportunityStatusHistory`, incluindo o ator quando disponível.
+
+O filtro `collection_run_id` também consulta `OpportunityObservation` por
+`EXISTS`; portanto uma coleta antiga continua consultável mesmo depois de novas
+observações da mesma oportunidade.
+
+### Performance e índices
+
+A listagem executa uma contagem e uma query limitada por `LIMIT/OFFSET`; ela não
+carrega todas as oportunidades para paginar em memória. Conta é resolvida no mesmo
+join e históricos não são carregados na listagem, evitando N+1.
+
+A migration `0008_opportunity_api_indexes.py` adiciona somente:
+
+- `ix_findings_account_status_last_seen (account_id, status, last_seen_at)`;
+- `ix_findings_status_severity (status, severity)`.
+
+Os índices de `OpportunityObservation.collection_run_id`,
+`OpportunityObservation.observed_at` e a constraint iniciada por
+`opportunity_id` já existiam desde a Etapa 2 e não foram duplicados.
+
+### Segurança e lifecycle
+
+Todas as leituras seguem `require_user`. Treat/reject/reopen e ações em massa seguem
+`require_operator`; o ator continua vindo da sessão autenticada. A lógica de
+transição permanece centralizada em `opportunity_lifecycle.py`. A ação em massa
+bloqueia as linhas selecionadas em uma única leitura, valida IDs e aplica tudo na
+mesma transação; erro de ID ou transição provoca rollback completo.
+
+### Compatibilidade
+
+- `GET /api/v1/findings` foi preservado.
+- Treat/reject/reopen legados foram preservados.
+- `POST /findings/bulk/action` foi preservado.
+- Os aliases `PATCH /findings/bulk/action` e `PATCH /findings/bulk/status` foram
+  mantidos para consumidores/testes legados.
+- `GET /findings/{id}/history` mantém a semântica legada de histórico de decisões.
+- O endpoint de IA `POST /findings/{id}/explain` permanece disponível.
+- A Home atual continua usando `/dashboard/summary`; não foi redesenhada nesta etapa.
+
+O frontend de oportunidades passou a consumir `/opportunities` com 50 itens por
+página e filtros/busca server-side. A evidência continua presente no item da listagem
+por compatibilidade com a expansão inline atual; uma separação visual maior entre
+lista e detalhe pertence à Etapa 5.
+
+### Principais arquivos alterados
+
+- `backend/app/api/routes/opportunities.py`
+- `backend/app/api/routes/findings.py`
+- `backend/app/schemas/opportunity.py`
+- `backend/app/schemas/finding.py`
+- `backend/app/services/opportunity_query.py`
+- `backend/app/services/opportunity_lifecycle.py`
+- `backend/app/models/finding.py`
+- `backend/app/migrations/versions/0008_opportunity_api_indexes.py`
+- `backend/app/main.py`
+- `backend/app/tests/test_opportunities_api.py`
+- `backend/app/tests/test_findings.py`
+- `backend/app/tests/test_opportunity_lifecycle.py`
+- `backend/app/tests/test_migrations.py`
+- `frontend/app/opportunities/page.tsx`
+- `frontend/lib/types.ts`
+
+### Testes previstos para a validação final
+
+A nova suite cobre paginação 100/20, status, conta, provider, filtros combinados,
+`CollectionRun`, ordenação, busca, detalhe, histórico factual, histórico de decisão,
+transições individuais, bulk atômico, stats, limites inválidos e uma verificação de
+queries confirmando contagem + SELECT paginado sem N+1.
+
+Também foram corrigidas as violações de formatação deixadas pela Etapa 3 que faziam o
+job backend da `main` falhar no `ruff check` antes da implementação desta etapa.
+
+### Pendências deliberadamente fora do escopo
+
+- generalização da entidade persistida de conta, que ainda é `AwsAccount`;
+- provider OCI/Azure/GCP real;
+- nova Home;
+- redesenho completo da tela de oportunidades;
+- tela e comparação de coletas;
+- full-text/trigram para volumes que justifiquem essa otimização;
+- agregações/materializações avançadas.
+
+Esses itens permanecem para etapas posteriores; nenhuma implementação da Etapa 5 foi
+incluída aqui.
