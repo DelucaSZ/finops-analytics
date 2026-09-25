@@ -273,22 +273,11 @@ def persist_findings(
             _refresh_finding_snapshot(finding, scan, item)
         if is_latest_observation:
             finding.last_seen_at = observation.observed_at
-            if finding.status == "resolved":
-                finding.status = "open"
+            if finding.status == "treated" and finding.treated_at is not None:
+                treated_at = _normalized_utc(finding.treated_at)
+                if _normalized_utc(observation.observed_at) > treated_at:
+                    finding.needs_review = True
 
-    if active_rule_keys:
-        open_findings = list(
-            db.scalars(
-                select(Finding).where(
-                    Finding.account_id == scan.account_id,
-                    Finding.rule_key.in_(active_rule_keys),
-                    Finding.status == "open",
-                )
-            )
-        )
-        for finding in open_findings:
-            if finding.fingerprint not in by_fingerprint:
-                finding.status = "resolved"
 
     db.flush()
     return len(by_fingerprint)
