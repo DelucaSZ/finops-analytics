@@ -63,7 +63,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
       api<OpportunityDetailType>(`/opportunities/${opportunityId}`, { signal: controller.signal }),
       api<OpportunityObservationPage>(`/opportunities/${opportunityId}/history?page=${historyPage}&page_size=${historyPageSize}`, { signal: controller.signal }),
       api<OpportunityStatusHistoryPage>(`/opportunities/${opportunityId}/status-history?page=1&page_size=50`, { signal: controller.signal }),
-    ])
+    ] as const)
       .then(([detailResult, observationResult, decisionResult]) => {
         if (controller.signal.aborted) return;
         if (detailResult.status === "rejected") {
