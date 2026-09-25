@@ -645,6 +645,8 @@ def collect_idle_nonprod_rds(
                         "instance_class": instance_class,
                         "average_cpu_percent": round(average_cpu, 2),
                         "maximum_connections": round(maximum_connections, 2),
+                        "cpu_datapoint_count": len(cpu_values),
+                        "connection_datapoint_count": len(connection_values),
                         "lookback_days": lookback_days,
                         "tags": tags,
                     },
