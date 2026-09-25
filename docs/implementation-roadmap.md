@@ -406,7 +406,7 @@ incluída aqui.
 
 ## Etapa 5 — Workspace operacional de oportunidades
 
-**Status:** implementada na branch de validação; merge na `main` condicionado ao CI do PR desta etapa.
+**Status:** concluída e validada no PR #10. O código funcional foi aprovado pelo CI run #86 antes do merge na `main`.
 
 ### Estado anterior
 
@@ -484,7 +484,7 @@ Foi criado um conjunto sem dependência adicional, baseado no `node:test`, cobri
 - mapeamento das três abas para os três estados;
 - verificação estática de que a workspace contém stats, detalhe, seleção por página e não voltou a usar `window.prompt()` ou reload completo.
 
-Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falhas**. O workflow de frontend também passou a executar `npm test` antes de `npm run build`. O resultado final de CI será registrado após a execução do PR.
+Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falhas**. No PR #10, o CI run **#86** concluiu com sucesso os jobs **frontend**, **backend** e **security**; no frontend, `npm test` e `npm run build` passaram. O workflow separado **Auto deploy tests #79** também concluiu com sucesso.
 
 ### Pendências deliberadas
 
