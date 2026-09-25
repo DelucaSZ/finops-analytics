@@ -94,8 +94,8 @@ RULES: dict[str, RuleDefinition] = {
     ),
     "load_balancer_no_traffic": RuleDefinition(
         key="load_balancer_no_traffic",
-        name="Load Balancer sem tráfego",
-        description="Avalia balanceadores sem requisições ou bytes processados.",
+        name="Load Balancer com tráfego ausente ou abaixo do limite",
+        description="Avalia balanceadores cujo tráfego observado ficou dentro do limite configurado.",
         implemented=True,
         enabled=True,
         config={
@@ -110,7 +110,7 @@ RULES: dict[str, RuleDefinition] = {
     "rds_nonprod_idle": RuleDefinition(
         key="rds_nonprod_idle",
         name="RDS não produtivo ocioso",
-        description="Cruza CPU, conexões e I/O para localizar bancos não produtivos ociosos.",
+        description="Cruza CPU e conexões para localizar bancos não produtivos ociosos.",
         implemented=True,
         enabled=True,
         config={
