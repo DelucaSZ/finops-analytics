@@ -68,7 +68,10 @@ class OpportunityBulkAction(BaseModel):
     def validate_action(self):
         if self.action == "reject" and self.reason is None:
             raise ValueError("Motivo é obrigatório para rejeição.")
-        if self.action == "reject" and self.reason == "OTHER":
-            if not (self.note or "").strip():
-                raise ValueError("Uma observação é obrigatória para o motivo Outro.")
+        if (
+            self.action == "reject"
+            and self.reason == "OTHER"
+            and not (self.note or "").strip()
+        ):
+            raise ValueError("Uma observação é obrigatória para o motivo Outro.")
         return self
