@@ -148,9 +148,7 @@ def client():
                     "run": "a2",
                     "missing_tags": ["Owner", "CostCenter"],
                     "current_tags": {"Environment": "Production"},
-                    "policy_config": {
-                        "required_tags": ["Environment", "Owner", "CostCenter"]
-                    },
+                    "policy_config": {"required_tags": ["Environment", "Owner", "CostCenter"]},
                 },
             )
         )
