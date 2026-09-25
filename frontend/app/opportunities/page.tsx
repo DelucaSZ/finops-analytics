@@ -191,4 +191,209 @@ function OpportunitiesContent() {
   useEffect(() => {
     const controller = new AbortController();
     api<CollectionRun[]>("/collections?limit=100&offset=0", { signal: controller.signal })
-      .then(set
+      .then(setCollectionRuns)
+      .catch(() => {
+        if (!controller.signal.aborted) setCollectionRuns([]);
+      });
+    return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setLoading(true);
+    setListError("");
+    api<OpportunityPage>(`/opportunities?${listQuery}`, { signal: controller.signal })
+      .then((data) => {
+        setFindings(data.items);
+        setTotal(data.total);
+        setTotalPages(data.total_pages);
+        setSelectedIds(new Set());
+      })
+      .catch((err) => {
+        if (!controller.signal.aborted) {
+          setListError(err instanceof Error ? err.message : "Não foi possível carregar as oportunidades.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [listQuery, reloadKey]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStatsLoading(true);
+    api<OpportunityStats>(`/opportunities/stats${statsQuery ? `?${statsQuery}` : ""}`, { signal: controller.signal })
+      .then(setStats)
+      .catch(() => {
+        if (!controller.signal.aborted) setStats({ open: 0, treated: 0, rejected: 0 });
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setStatsLoading(false);
+      });
+    return () => controller.abort();
+  }, [reloadKey, statsQuery]);
+
+
+  useEffect(() => {
+    if (!loading && totalPages > 0 && state.page > totalPages) {
+      updateUrl({ page: totalPages }, { resetPage: false });
+    }
+  }, [loading, state.page, totalPages, updateUrl]);
+
+  const selected = useMemo(
+    () => findings.filter((finding) => selectedIds.has(finding.id)),
+    [findings, selectedIds],
+  );
+  const allSelected = findings.length > 0 && selected.length === findings.length;
+  const pageSavings = findings.reduce((sum, finding) => sum + Number(finding.estimated_monthly_savings), 0);
+  const newestObservation = findings.reduce<string | null>((latest, finding) => {
+    if (!latest || new Date(finding.last_seen_at) > new Date(latest)) return finding.last_seen_at;
+    return latest;
+  }, null);
+  const currentAccount = accounts.find((account) => account.aws_account_id === state.accountId);
+  const providerOptions = Array.from(new Set([
+    "aws",
+    ...collectionRuns.map((run) => run.provider.toLowerCase()),
+    ...(state.provider ? [state.provider.toLowerCase()] : []),
+  ])).sort();
+  const visibleCollectionRuns = collectionRuns.filter((run) =>
+    (!state.provider || run.provider.toLowerCase() === state.provider.toLowerCase()) &&
+    (!state.accountId || run.account_id === state.accountId),
+  );
+  const pages = pageWindow(state.page, totalPages);
+  const hasFilters = Boolean(
+    state.provider || state.accountId || state.region || state.severity || state.rule ||
+    state.collectionRunId || state.resourceId || state.search,
+  );
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = selected.length > 0 && !allSelected;
+    }
+  }, [allSelected, selected.length]);
+
+  function changeStatus(status: "open" | "treated" | "rejected") {
+    setSelectedIds(new Set());
+    updateUrl({ status });
+  }
+
+  function clearFilters() {
+    setSearchInput("");
+    setRegionInput("");
+    setAccountInput("");
+    updateUrl({
+      provider: null,
+      account_id: null,
+      region: null,
+      severity: null,
+      rule: null,
+      rule_key: null,
+      collection_run_id: null,
+      resource_id: null,
+      search: null,
+    });
+  }
+
+  function toggleSelection(id: string) {
+    setSelectedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function openDetail(id: string) {
+    updateUrl({ opportunity_id: id }, { resetPage: false, push: true });
+  }
+
+  function closeDetail() {
+    updateUrl({ opportunity_id: null }, { resetPage: false });
+  }
+
+  function openDecision(action: OpportunityDecisionAction, ids: string[], bulk: boolean) {
+    setDecisionError("");
+    setDecision({ action, ids, bulk });
+  }
+
+  async function submitDecision(payload: { reason?: string; note?: string }) {
+    if (!decision || decisionSaving) return;
+    setDecisionSaving(true);
+    setDecisionError("");
+    setMessage("");
+    try {
+      const request = buildLifecycleRequest({
+        action: decision.action,
+        opportunityIds: decision.ids,
+        reason: payload.reason,
+        note: payload.note,
+        bulk: decision.bulk,
+      });
+      const result = await api<{ updated?: number } | Finding>(request.path, {
+        method: "POST",
+        body: JSON.stringify(request.body),
+      });
+      const updated = "updated" in result && typeof result.updated === "number" ? result.updated : 1;
+      setMessage(`${updated} oportunidade(s) atualizada(s) com sucesso.`);
+      setSelectedIds(new Set());
+      setDecision(null);
+      if (!decision.bulk && state.opportunityId) closeDetail();
+      setReloadKey((value) => value + 1);
+    } catch (err) {
+      setDecisionError(err instanceof Error ? err.message : rejectionFallback);
+    } finally {
+      setDecisionSaving(false);
+    }
+  }
+
+  function commitAccountInput() {
+    const value = accountInput.trim();
+    if (!value) {
+      if (state.accountId) updateUrl({ account_id: null });
+      return;
+    }
+    const match = accounts.find((account) => account.aws_account_id === value);
+    if (match) {
+      if (state.accountId !== value) updateUrl({ account_id: value, collection_run_id: null });
+      return;
+    }
+    setAccountInput(state.accountId);
+  }
+
+  return (
+    <>
+      <PageHeader
+        eyebrow="FINOPS OPERACIONAL"
+        title="Oportunidades"
+        description="Backlog operacional de achados, decisões e histórico por cloud, conta e coleta."
+      />
+
+      {message && <div className="alert success opportunity-feedback" role="status">{message}</div>}
+      {filterError && <div className="alert error opportunity-feedback" role="alert">{filterError}</div>}
+
+      <nav className="opportunity-tabs" aria-label="Estado das oportunidades">
+        {statusTabs.map((tab) => {
+          const count = stats[tab.value];
+          const active = state.status === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              className={active ? "opportunity-tab active" : "opportunity-tab"}
+              aria-current={active ? "page" : undefined}
+              onClick={() => changeStatus(tab.value)}
+            >
+              <span>{tab.label}</span>
+              <strong aria-label={`${count} oportunidades`}>{statsLoading ? "…" : count}</strong>
+            </button>
+          );
+        })}
+      </nav>
+
+      <section className="panel opportunity-filter-panel" aria-label="Filtros de oportunidades">
+        <div className="opportunity-filter-heading">
+          <div><ListFilter size={18} /><strong>Filtros</strong><span>Combinados no servidor e persistidos na URL</span></div>
+          {hasFilters && <button className="filter-clear" type="button" onClick={clearFilters}><X size={15} /> Limpar filtros</button>}
+        </div>
+        <div classN
