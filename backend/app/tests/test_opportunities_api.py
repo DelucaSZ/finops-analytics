@@ -126,7 +126,13 @@ def client():
                     current_monthly_cost=Decimal(index),
                     estimated_monthly_savings=Decimal(index + 1),
                     confidence="high",
-                    evidence={"run": "a1", "index": index},
+                    evidence={
+                        "run": "a1",
+                        "index": index,
+                        "missing_tags": ["Owner"],
+                        "current_tags": {"Environment": "Production"},
+                        "policy_config": {"required_tags": ["Environment", "Owner"]},
+                    },
                 )
             )
         db.add(
@@ -138,7 +144,14 @@ def client():
                 current_monthly_cost=Decimal("10"),
                 estimated_monthly_savings=Decimal("20"),
                 confidence="high",
-                evidence={"run": "a2"},
+                evidence={
+                    "run": "a2",
+                    "missing_tags": ["Owner", "CostCenter"],
+                    "current_tags": {"Environment": "Production"},
+                    "policy_config": {
+                        "required_tags": ["Environment", "Owner", "CostCenter"]
+                    },
+                },
             )
         )
         admin = User(
@@ -264,8 +277,13 @@ def test_detail_exposes_latest_evidence_without_loading_full_history(client):
     assert detail["account_id"] == "111111111111"
     assert detail["latest_observation"]["collection_run_id"] == "run-a2"
     assert detail["latest_evidence"]["schema_version"] == 1
-    assert detail["latest_evidence"]["summary"] == "Description 000"
-    assert detail["latest_evidence"]["details"]["run"] == "a2"
+    assert detail["latest_evidence"]["schema_version"] == 1
+    assert detail["latest_evidence"]["details"]["missing_tags"] == ["Owner", "CostCenter"]
+    assert detail["latest_evidence"]["parameters"]["required_tags"] == [
+        "Environment",
+        "Owner",
+        "CostCenter",
+    ]
     assert detail["rule"]["key"] == "missing_required_tags"
 
 
@@ -277,7 +295,10 @@ def test_observation_history_returns_collection_specific_evidence(client):
         "run-a2",
         "run-a1",
     ]
-    assert [item["evidence"]["details"]["run"] for item in history["items"]] == ["a2", "a1"]
+    assert [item["evidence"]["details"]["missing_tags"] for item in history["items"]] == [
+        ["Owner", "CostCenter"],
+        ["Owner"],
+    ]
     assert all(item["evidence"]["schema_version"] == 1 for item in history["items"])
 
 
