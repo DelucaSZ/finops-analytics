@@ -21,26 +21,69 @@ from app.services.authentication import COOKIE, csrf_token, new_session
 
 @pytest.fixture
 def client():
-    engine = create_engine("sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool)
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
     Base.metadata.create_all(engine)
     with Session(engine) as db:
-        db.add(AwsAccount(id=1, name="Account", aws_account_id="123456789012", role_arn="role", external_id="x"))
+        db.add(
+            AwsAccount(
+                id=1,
+                name="Account",
+                aws_account_id="123456789012",
+                role_arn="role",
+                external_id="x",
+            )
+        )
         db.add(Scan(id="scan", account_id=1))
         db.flush()
-        db.add(Finding(id="opp", fingerprint="a" * 64, scan_id="scan", account_id=1, rule_key="ebs_unattached", service="EC2", region="sa-east-1", resource_id="vol-1", title="Volume", description="Test", evidence={}, severity="high", status="open", first_seen_at=datetime(2026, 1, 1, tzinfo=UTC), last_seen_at=datetime(2026, 1, 1, tzinfo=UTC)))
-        admin = User(name="Admin", email="admin@example.com", password_hash="unused", role="admin")
+        db.add(
+            Finding(
+                id="opp",
+                fingerprint="a" * 64,
+                scan_id="scan",
+                account_id=1,
+                rule_key="ebs_unattached",
+                service="EC2",
+                region="sa-east-1",
+                resource_id="vol-1",
+                title="Volume",
+                description="Test",
+                evidence={},
+                severity="high",
+                status="open",
+                first_seen_at=datetime(2026, 1, 1, tzinfo=UTC),
+                last_seen_at=datetime(2026, 1, 1, tzinfo=UTC),
+            )
+        )
+        admin = User(
+            name="Admin",
+            email="admin@example.com",
+            password_hash="unused",
+            role="admin",
+        )
         db.add(admin)
         db.commit()
         _, token = new_session(db, admin)
         db.commit()
     app = FastAPI()
     app.include_router(router)
+
     def database():
         with Session(engine) as db:
             yield db
+
     app.dependency_overrides[get_db] = database
     with TestClient(app) as http:
-        http.headers.update({"Cookie": f"{COOKIE}={token}", "X-CSRF-Token": csrf_token(token), "X-DeepOps-Request": "1"})
+        http.headers.update(
+            {
+                "Cookie": f"{COOKIE}={token}",
+                "X-CSRF-Token": csrf_token(token),
+                "X-DeepOps-Request": "1",
+            }
+        )
         yield http, engine
 
 
@@ -61,7 +104,10 @@ def test_treat_reopen_and_history(client):
 def test_reject_requires_reason_and_preserves_decision(client):
     http, engine = client
     assert http.post("/findings/opp/reject", json={"reason": "OTHER"}).status_code == 422
-    response = http.post("/findings/opp/reject", json={"reason": "RESOURCE_REQUIRED", "note": "contingency"})
+    response = http.post(
+        "/findings/opp/reject",
+        json={"reason": "RESOURCE_REQUIRED", "note": "contingency"},
+    )
     assert response.status_code == 200
     with Session(engine) as db:
         finding = db.get(Finding, "opp")
@@ -74,14 +120,23 @@ def test_invalid_transitions_are_conflicts(client):
     http, _ = client
     assert http.post("/findings/opp/reopen", json={}).status_code == 409
     assert http.post("/findings/opp/treat", json={}).status_code == 200
-    assert http.post("/findings/opp/reject", json={"reason": "FALSE_POSITIVE"}).status_code == 409
+    response = http.post(
+        "/findings/opp/reject", json={"reason": "FALSE_POSITIVE"}
+    )
+    assert response.status_code == 409
 
 
 def test_bulk_is_atomic_for_invalid_transition(client):
     http, engine = client
-    response = http.post("/findings/bulk/action", json={"finding_ids": ["opp"], "action": "treat"})
+    response = http.post(
+        "/findings/bulk/action",
+        json={"finding_ids": ["opp"], "action": "treat"},
+    )
     assert response.status_code == 200
-    response = http.post("/findings/bulk/action", json={"finding_ids": ["opp"], "action": "treat"})
+    response = http.post(
+        "/findings/bulk/action",
+        json={"finding_ids": ["opp"], "action": "treat"},
+    )
     assert response.status_code == 409
     with Session(engine) as db:
         assert db.scalar(select(func.count()).select_from(OpportunityStatusHistory)) == 1
