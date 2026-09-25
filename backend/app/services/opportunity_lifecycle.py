@@ -178,3 +178,102 @@ def bulk_transition(
         else:
             _apply_reopen(db, finding, actor, note)
     return ordered
+
+
+
+def _legacy_target(status: str) -> str:
+    return {
+        "accepted": TREATED,
+        "treated": TREATED,
+        "dismissed": REJECTED,
+        "rejected": REJECTED,
+        "open": OPEN,
+    }[status]
+
+
+def _apply_legacy_status(
+    db: Session,
+    finding: Finding,
+    actor: User,
+    *,
+    status: str,
+    reason: str | None = None,
+    note: str | None = None,
+) -> None:
+    target = _legacy_target(status)
+    if finding.status == target:
+        return
+    if target == OPEN:
+        _apply_reopen(db, finding, actor, note)
+        return
+    if target == TREATED:
+        _apply_treat(db, finding, actor, note)
+        return
+
+    rejection_reason = reason
+    rejection_note = note
+    if rejection_reason is None:
+        rejection_reason = "OTHER"
+        rejection_note = (
+            rejection_note
+            or "Legacy status update did not provide a rejection reason."
+        )
+    _validate_rejection(rejection_reason, rejection_note)
+    _apply_reject(db, finding, actor, rejection_reason, rejection_note)
+
+
+def set_legacy_status(
+    db: Session,
+    opportunity_id: str,
+    actor: User,
+    *,
+    status: str,
+    reason: str | None = None,
+    note: str | None = None,
+) -> Finding:
+    finding = _locked(db, opportunity_id)
+    _apply_legacy_status(
+        db,
+        finding,
+        actor,
+        status=status,
+        reason=reason,
+        note=note,
+    )
+    return finding
+
+
+def bulk_set_legacy_status(
+    db: Session,
+    opportunity_ids: list[str],
+    actor: User,
+    *,
+    status: str,
+    reason: str | None = None,
+    note: str | None = None,
+) -> list[Finding]:
+    ids = list(dict.fromkeys(opportunity_ids))
+    findings = list(
+        db.scalars(
+            select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update()
+        )
+    )
+    by_id = {finding.id: finding for finding in findings}
+    missing = [opportunity_id for opportunity_id in ids if opportunity_id not in by_id]
+    if missing:
+        raise HTTPException(
+            status_code=404,
+            detail="Uma ou mais oportunidades não existem.",
+        )
+
+    ordered = [by_id[opportunity_id] for opportunity_id in ids]
+    for finding in ordered:
+        _apply_legacy_status(
+            db,
+            finding,
+            actor,
+            status=status,
+            reason=reason,
+            note=note,
+        )
+    return ordered
