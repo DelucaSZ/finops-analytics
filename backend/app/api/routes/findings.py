@@ -14,7 +14,7 @@ from app.schemas.finding import (
     OpportunityReject,
 )
 from app.services.ai import AIProviderError, explain_finding
-from app.services.opportunity_lifecycle import bulk_transition, reopen, reject, treat
+from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 
 router = APIRouter(
     prefix="/findings",
