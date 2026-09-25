@@ -182,6 +182,7 @@ def test_server_side_pagination_has_five_pages(client):
     assert body["total_pages"] == 5
     assert body["page"] == 1
     assert body["page_size"] == 20
+    assert "evidence" not in body["items"][0]
 
 
 def test_filters_by_status_account_provider_and_combination(client):
@@ -254,20 +255,30 @@ def test_search_and_ordering_are_server_side(client):
     assert http.get("/opportunities?page_size=201").status_code == 422
 
 
-def test_detail_and_observation_history_are_separate(client):
+def test_detail_exposes_latest_evidence_without_loading_full_history(client):
     http, _ = client
-    detail = http.get("/opportunities/opp-000")
-    assert detail.status_code == 200
-    assert detail.json()["fingerprint"] == "0" * 64
-    assert detail.json()["account_id"] == "111111111111"
+    response = http.get("/opportunities/opp-000")
+    assert response.status_code == 200
+    detail = response.json()
+    assert detail["fingerprint"] == "0" * 64
+    assert detail["account_id"] == "111111111111"
+    assert detail["latest_observation"]["collection_run_id"] == "run-a2"
+    assert detail["latest_evidence"]["schema_version"] == 1
+    assert detail["latest_evidence"]["summary"] == "Description 000"
+    assert detail["latest_evidence"]["details"]["run"] == "a2"
+    assert detail["rule"]["key"] == "missing_required_tags"
 
+
+def test_observation_history_returns_collection_specific_evidence(client):
+    http, _ = client
     history = http.get("/opportunities/opp-000/history?page_size=10").json()
     assert history["total"] == 2
     assert [item["collection_run_id"] for item in history["items"]] == [
         "run-a2",
         "run-a1",
     ]
-    assert history["items"][0]["evidence"] == {"run": "a2"}
+    assert [item["evidence"]["details"]["run"] for item in history["items"]] == ["a2", "a1"]
+    assert all(item["evidence"]["schema_version"] == 1 for item in history["items"])
 
 
 def test_individual_lifecycle_and_status_history(client):
