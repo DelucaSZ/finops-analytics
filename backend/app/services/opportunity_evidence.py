@@ -732,7 +732,11 @@ def build_evidence(
                     "Crescimento mínimo",
                     growth,
                     ">=",
-                    raw.get("minimum_growth_percent", config.get("minimum_growth_percent")),
+                    (
+                        raw.get("minimum_growth_percent", config.get("minimum_growth_percent"))
+                        if growth is not None
+                        else None
+                    ),
                     "%",
                 ),
                 _criterion(
