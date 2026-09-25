@@ -10,6 +10,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
+from app.services.opportunity_evidence import normalize_persisted_evidence
 
 
 @dataclass(frozen=True)
@@ -107,7 +108,6 @@ def serialize_list_item(finding: Finding, account: AwsAccount) -> dict:
         "resource_name": finding.resource_name,
         "title": finding.title,
         "description": finding.description,
-        "evidence": finding.evidence,
         "current_monthly_cost": finding.current_monthly_cost,
         "estimated_monthly_savings": finding.estimated_monthly_savings,
         "confidence": finding.confidence,
@@ -164,6 +164,54 @@ def opportunity_stats(db: Session, filters: OpportunityFilters) -> dict[str, int
     }
 
 
+def _structured_evidence(
+    finding: Finding,
+    *,
+    evidence: dict,
+    current_monthly_cost,
+    estimated_monthly_savings,
+) -> dict:
+    return normalize_persisted_evidence(
+        rule_key=finding.rule_key,
+        service=finding.service,
+        region=finding.region,
+        resource_id=finding.resource_id,
+        resource_name=finding.resource_name,
+        title=finding.title,
+        description=finding.description,
+        evidence=evidence,
+        current_monthly_cost=current_monthly_cost,
+        estimated_monthly_savings=estimated_monthly_savings,
+    )
+
+
+def _serialize_observation(
+    finding: Finding,
+    observation: OpportunityObservation,
+    run: CollectionRun,
+) -> dict:
+    return {
+        "id": observation.id,
+        "collection_run_id": observation.collection_run_id,
+        "observed_at": observation.observed_at,
+        "severity": observation.severity,
+        "current_monthly_cost": observation.current_monthly_cost,
+        "estimated_monthly_savings": observation.estimated_monthly_savings,
+        "confidence": observation.confidence,
+        "evidence": _structured_evidence(
+            finding,
+            evidence=observation.evidence,
+            current_monthly_cost=observation.current_monthly_cost,
+            estimated_monthly_savings=observation.estimated_monthly_savings,
+        ),
+        "collection_provider": run.provider,
+        "collection_account_id": run.account_id,
+        "collection_started_at": run.started_at,
+        "collection_finished_at": run.finished_at,
+        "collection_status": run.status,
+    }
+
+
 def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
     row = db.execute(
         select(Finding, AwsAccount)
@@ -173,6 +221,30 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
     if row is None:
         return None
     finding, account = row
+
+    latest_row = db.execute(
+        select(OpportunityObservation, CollectionRun)
+        .join(CollectionRun, OpportunityObservation.collection_run_id == CollectionRun.id)
+        .where(OpportunityObservation.opportunity_id == opportunity_id)
+        .order_by(
+            OpportunityObservation.observed_at.desc(),
+            OpportunityObservation.id.desc(),
+        )
+        .limit(1)
+    ).one_or_none()
+    latest_observation = (
+        _serialize_observation(finding, latest_row[0], latest_row[1]) if latest_row else None
+    )
+    latest_evidence = (
+        latest_observation["evidence"]
+        if latest_observation
+        else _structured_evidence(
+            finding,
+            evidence=finding.evidence,
+            current_monthly_cost=finding.current_monthly_cost,
+            estimated_monthly_savings=finding.estimated_monthly_savings,
+        )
+    )
     return serialize_list_item(finding, account) | {
         "scan_id": finding.scan_id,
         "treated_at": finding.treated_at,
@@ -182,6 +254,9 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
         "rejected_by": finding.rejected_by,
         "rejection_reason": finding.rejection_reason,
         "rejection_note": finding.rejection_note,
+        "rule": latest_evidence["rule"],
+        "latest_observation": latest_observation,
+        "latest_evidence": latest_evidence,
     }
 
 
@@ -192,7 +267,8 @@ def observation_history(
     page: int,
     page_size: int,
 ) -> dict | None:
-    if db.get(Finding, opportunity_id) is None:
+    finding = db.get(Finding, opportunity_id)
+    if finding is None:
         return None
     total = (
         db.scalar(
@@ -206,30 +282,18 @@ def observation_history(
         select(OpportunityObservation, CollectionRun)
         .join(CollectionRun, OpportunityObservation.collection_run_id == CollectionRun.id)
         .where(OpportunityObservation.opportunity_id == opportunity_id)
-        .order_by(OpportunityObservation.observed_at.desc(), OpportunityObservation.id)
+        .order_by(
+            OpportunityObservation.observed_at.desc(),
+            OpportunityObservation.id.desc(),
+        )
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
     items = [
-        {
-            "id": observation.id,
-            "collection_run_id": observation.collection_run_id,
-            "observed_at": observation.observed_at,
-            "severity": observation.severity,
-            "current_monthly_cost": observation.current_monthly_cost,
-            "estimated_monthly_savings": observation.estimated_monthly_savings,
-            "confidence": observation.confidence,
-            "evidence": observation.evidence,
-            "collection_provider": run.provider,
-            "collection_account_id": run.account_id,
-            "collection_started_at": run.started_at,
-            "collection_finished_at": run.finished_at,
-            "collection_status": run.status,
-        }
+        _serialize_observation(finding, observation, run)
         for observation, run in rows
     ]
     return {"items": items, **_page_meta(total, page, page_size)}
-
 
 def status_history(
     db: Session,
