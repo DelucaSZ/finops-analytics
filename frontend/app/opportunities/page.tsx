@@ -396,4 +396,142 @@ function OpportunitiesContent() {
           <div><ListFilter size={18} /><strong>Filtros</strong><span>Combinados no servidor e persistidos na URL</span></div>
           {hasFilters && <button className="filter-clear" type="button" onClick={clearFilters}><X size={15} /> Limpar filtros</button>}
         </div>
-        <div classN
+        <div className="opportunity-filter-grid">
+          <label className="opportunity-filter search-filter">
+            <span>Busca</span>
+            <div><Search size={16} /><input value={searchInput} placeholder="Recurso, título, regra ou serviço" onChange={(event) => setSearchInput(event.target.value)} /></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Cloud</span>
+            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, collection_run_id: null })}>
+              <option value="">Todas as clouds</option>
+              {providerOptions.map((provider) => <option key={provider} value={provider}>{provider.toUpperCase()}</option>)}
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter account-filter">
+            <span>Conta</span>
+            <div><Building2 size={16} /><input
+              list="opportunity-account-options"
+              value={accountInput}
+              placeholder={filtersLoading ? "Carregando contas…" : "Buscar por Account ID"}
+              onChange={(event) => {
+                const value = event.target.value;
+                setAccountInput(value);
+                if (!value) updateUrl({ account_id: null, collection_run_id: null });
+                else if (accounts.some((account) => account.aws_account_id === value)) {
+                  updateUrl({ account_id: value, collection_run_id: null });
+                }
+              }}
+              onBlur={commitAccountInput}
+              onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+            /></div>
+            {currentAccount && <small>{currentAccount.name} · {currentAccount.aws_account_id}</small>}
+            <datalist id="opportunity-account-options">
+              {accounts.map((account) => <option key={account.id} value={account.aws_account_id}>{account.name} · {account.aws_account_id}</option>)}
+            </datalist>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Região</span>
+            <div><Filter size={16} /><input
+              value={regionInput}
+              placeholder="Ex.: us-east-1"
+              onChange={(event) => setRegionInput(event.target.value)}
+              onBlur={() => { if (regionInput.trim() !== state.region) updateUrl({ region: regionInput.trim() }); }}
+              onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
+            /></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Severidade</span>
+            <div><Filter size={16} /><select value={state.severity} onChange={(event) => updateUrl({ severity: event.target.value })}>
+              <option value="">Todas</option>
+              <option value="high">Alta</option>
+              <option value="medium">Média</option>
+              <option value="low">Baixa</option>
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Regra / Analyzer</span>
+            <div><Tags size={16} /><select value={state.rule} onChange={(event) => updateUrl({ rule: event.target.value, rule_key: null })}>
+              <option value="">Todas as regras</option>
+              {policies
+                .map((policy) => [policy.rule_key, policy.name] as const)
+                .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
+                .map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter collection-filter">
+            <span>CollectionRun</span>
+            <div><RefreshCw size={16} /><select value={state.collectionRunId} onChange={(event) => updateUrl({ collection_run_id: event.target.value })}>
+              <option value="">Todas as coletas</option>
+              {state.collectionRunId && !visibleCollectionRuns.some((run) => run.id === state.collectionRunId) && (
+                <option value={state.collectionRunId}>Coleta selecionada · {state.collectionRunId.slice(0, 8)}</option>
+              )}
+              {visibleCollectionRuns.map((run) => (
+                <option key={run.id} value={run.id}>
+                  {formatDate(run.started_at)} · {run.provider.toUpperCase()} · {run.account_id} · {run.status}
+                </option>
+              ))}
+            </select></div>
+          </label>
+        </div>
+      </section>
+
+      <section className="opportunity-summary-grid" aria-label="Resumo da visão atual">
+        <div className="opportunity-summary-card">
+          <span>Resultados nesta visão</span>
+          <strong>{loading && !findings.length ? "…" : total}</strong>
+          <small>{state.status === "open" ? "Abertas" : state.status === "treated" ? "Tratadas" : "Rejeitadas"}</small>
+        </div>
+        <div className="opportunity-summary-card">
+          <WalletCards size={18} />
+          <span>Economia na página</span>
+          <strong>{usd(pageSavings)}/mês</strong>
+          <small>Somente os {findings.length} itens carregados</small>
+        </div>
+        <div className="opportunity-summary-card">
+          <span>Dados da coleta</span>
+          <strong className="summary-date">{newestObservation ? formatDate(newestObservation) : "—"}</strong>
+          <small>Última detecção nesta página; não é tempo real</small>
+        </div>
+      </section>
+
+      <section className="panel opportunity-workspace" aria-busy={loading}>
+        <div className="opportunity-workspace-toolbar">
+          <div className="selection-summary">
+            <label className="selection-control">
+              <input
+                ref={selectAllRef}
+                type="checkbox"
+                checked={allSelected}
+                disabled={loading || !findings.length}
+                onChange={() => setSelectedIds(allSelected ? new Set() : new Set(findings.map((finding) => finding.id)))}
+              />
+              Selecionar página atual
+            </label>
+            <span>{selected.length} selecionada(s)</span>
+          </div>
+
+          {selected.length > 0 && (
+            <div className="bulk-actions opportunity-bulk-actions" aria-label="Ações em massa">
+              <button className="button ghost" type="button" onClick={() => setSelectedIds(new Set())}>Limpar seleção</button>
+              {state.status === "open" ? (
+                <>
+                  <button className="button ghost" type="button" onClick={() => openDecision("treat", selected.map((item) => item.id), true)}>Marcar como tratadas</button>
+                  <button className="button primary" type="button" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>Rejeitar</button>
+                </>
+              ) : (
+                <button className="button primary" type="button" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</button>
+              )}
+            </div>
+          )}
+
+          <div className="opportunity-sort-controls">
+            <label>
+              <span>Ordenar por</span>
+             
