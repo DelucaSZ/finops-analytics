@@ -180,7 +180,6 @@ def bulk_transition(
     return ordered
 
 
-
 def _legacy_target(status: str) -> str:
     return {
         "accepted": TREATED,
@@ -215,8 +214,7 @@ def _apply_legacy_status(
     if rejection_reason is None:
         rejection_reason = "OTHER"
         rejection_note = (
-            rejection_note
-            or "Legacy status update did not provide a rejection reason."
+            rejection_note or "Legacy status update did not provide a rejection reason."
         )
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
