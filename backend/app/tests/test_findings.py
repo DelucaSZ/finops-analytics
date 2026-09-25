@@ -105,11 +105,12 @@ def test_pagination_and_account_rule_filters(client):
 @pytest.mark.parametrize("status", ["treated", "rejected"])
 def test_bulk_only_changes_selected_findings(client, status):
     http, engine = client
-    response = http.patch(
+    response = http.post(
         "/findings/bulk/action",
         json={
             "finding_ids": ["0000", "0002", "0002"],
-            "action": "treat" if status == "treated" else "reject",\n            "reason": None if status == "treated" else "FALSE_POSITIVE",
+            "action": "treat" if status == "treated" else "reject",
+            "reason": None if status == "treated" else "FALSE_POSITIVE",
         },
     )
     assert response.status_code == 200
@@ -123,7 +124,7 @@ def test_bulk_only_changes_selected_findings(client, status):
 def test_missing_finding_does_not_partially_apply(client):
     http, engine = client
     response = http.patch(
-        "/findings/bulk/status",
+        "/findings/bulk/action",
         json={
             "finding_ids": ["0000", "missing"],
             "action": "reject", "reason": "FALSE_POSITIVE",
@@ -141,7 +142,8 @@ def test_stale_selection_does_not_overwrite_status(client):
         "/findings/bulk/status",
         json={
             "finding_ids": ["0000", "0002"],
-            "status": "dismissed",
+            "action": "reject",
+            "reason": "FALSE_POSITIVE",
         },
     )
     assert response.status_code == 409
