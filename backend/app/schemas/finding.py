@@ -71,3 +71,16 @@ class OpportunityBulkAction(BaseModel):
         if self.action == "reject" and self.reason == "OTHER" and not (self.note or "").strip():
             raise ValueError("Uma observação é obrigatória para o motivo Outro.")
         return self
+
+
+class LegacyOpportunityStatus(BaseModel):
+    status: Literal["open", "accepted", "dismissed", "treated", "rejected"]
+    reason: RejectionReason | None = None
+    note: str | None = Field(default=None, max_length=4000)
+
+
+class OpportunityBulkStatus(BaseModel):
+    finding_ids: list[str] = Field(min_length=1, max_length=200)
+    status: Literal["open", "accepted", "dismissed", "treated", "rejected"]
+    reason: RejectionReason | None = None
+    note: str | None = Field(default=None, max_length=4000)
