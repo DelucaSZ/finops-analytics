@@ -224,7 +224,7 @@ PR #7 publicado por squash merge na `main`: `842c75f0ff843fd4075a458d0fea62dab2d
 
 ## Etapa 4 — API escalável de oportunidades
 
-**Status:** implementada na branch de validação; publicação na `main` condicionada ao CI.
+**Status:** concluída e validada no PR #9; CI completo aprovado antes do merge.
 
 ### Estado anterior
 
@@ -335,7 +335,11 @@ mesma transação; erro de ID ou transição provoca rollback completo.
 - Treat/reject/reopen legados foram preservados.
 - `POST /findings/bulk/action` foi preservado.
 - Os aliases `PATCH /findings/bulk/action` e `PATCH /findings/bulk/status` foram
-  mantidos para consumidores/testes legados.
+  mantidos para consumidores/testes legados. `/bulk/status` aceita tanto o payload
+  de ação da Etapa 3 quanto o payload histórico baseado em `status`.
+- `PATCH /findings/{id}/status` foi restaurado como compatibilidade controlada:
+  `accepted` mapeia para `treated`, `dismissed` para `rejected` e `open`
+  reabre quando necessário, sempre usando o service de lifecycle e auditoria.
 - `GET /findings/{id}/history` mantém a semântica legada de histórico de decisões.
 - O endpoint de IA `POST /findings/{id}/explain` permanece disponível.
 - A Home atual continua usando `/dashboard/summary`; não foi redesenhada nesta etapa.
@@ -363,12 +367,25 @@ lista e detalhe pertence à Etapa 5.
 - `frontend/app/opportunities/page.tsx`
 - `frontend/lib/types.ts`
 
-### Testes previstos para a validação final
+### Validação final
 
-A nova suite cobre paginação 100/20, status, conta, provider, filtros combinados,
+A suite cobre paginação 100/20, status, conta, provider, filtros combinados,
 `CollectionRun`, ordenação, busca, detalhe, histórico factual, histórico de decisão,
 transições individuais, bulk atômico, stats, limites inválidos e uma verificação de
 queries confirmando contagem + SELECT paginado sem N+1.
+
+Resultado do CI do PR #9 antes do merge:
+
+- `ruff check .`: aprovado;
+- `ruff format --check .`: aprovado;
+- `pytest -q`: **173 testes aprovados**, 1 warning, em 28,50 s;
+- `npm run build`: aprovado;
+- validações estáticas de segurança/exposição: aprovadas;
+- workflow `Auto deploy tests`: aprovado.
+
+A validação de migração roda em SQLite e PostgreSQL 17. O teste de upgrade de banco
+legado foi corrigido para criar de fato o schema histórico `0001_legacy`, em vez de
+tentar simular o passado com os models ORM atuais.
 
 Também foram corrigidas as violações de formatação deixadas pela Etapa 3 que faziam o
 job backend da `main` falhar no `ruff check` antes da implementação desta etapa.
