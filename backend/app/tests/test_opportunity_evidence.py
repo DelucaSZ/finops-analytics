@@ -225,7 +225,12 @@ def test_cost_growth_exposes_period_values_thresholds_and_contributors() -> None
 
 def test_missing_tags_keeps_only_policy_relevant_tag_values() -> None:
     evidence = build_collected_finding_evidence(
-        finding("missing_required_tags", deepcopy(CASES["missing_required_tags"]), cost="0", savings="0"),
+        finding(
+            "missing_required_tags",
+            deepcopy(CASES["missing_required_tags"]),
+            cost="0",
+            savings="0",
+        ),
         policy("missing_required_tags"),
         evaluated_at=NOW,
     )
