@@ -254,12 +254,19 @@ def test_search_and_ordering_are_server_side(client):
     assert http.get("/opportunities?page_size=201").status_code == 422
 
 
-def test_detail_and_observation_history_are_separate(client):
+def test_detail_returns_latest_observation_and_history_stays_paginated(client):
     http, _ = client
+    page = http.get("/opportunities?page=1&page_size=1").json()
+    assert "evidence" not in page["items"][0]
+
     detail = http.get("/opportunities/opp-000")
     assert detail.status_code == 200
-    assert detail.json()["fingerprint"] == "0" * 64
-    assert detail.json()["account_id"] == "111111111111"
+    body = detail.json()
+    assert body["fingerprint"] == "0" * 64
+    assert body["account_id"] == "111111111111"
+    assert body["latest_observation"]["collection_run_id"] == "run-a2"
+    assert body["latest_observation"]["evidence"] == {"run": "a2"}
+    assert body["rule"]["name"] == "Recursos sem tags obrigatórias"
 
     history = http.get("/opportunities/opp-000/history?page_size=10").json()
     assert history["total"] == 2

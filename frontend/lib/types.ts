@@ -26,6 +26,46 @@ export type Policy = {
   override_fields: string[];
 };
 
+export type EvidenceMetric = {
+  key: string;
+  label: string;
+  value: unknown;
+  unit: string | null;
+  currency: string | null;
+  kind: string;
+};
+
+export type EvidenceCriterion = {
+  key: string;
+  label: string;
+  operator: string | null;
+  value: unknown;
+  unit: string | null;
+  currency: string | null;
+};
+
+export type RuleExplanation = {
+  key: string;
+  name: string;
+  description: string;
+  criteria: EvidenceCriterion[];
+};
+
+export type OpportunityEvidence = {
+  schema_version: number;
+  summary: string;
+  metrics: EvidenceMetric[];
+  details: Record<string, unknown>;
+  rule: RuleExplanation;
+  decision_parameters: Record<string, unknown>;
+  source: {
+    provider: string;
+    system: string;
+    evaluated_at: string;
+  };
+  limitations: string[];
+};
+
 export type Finding = {
   id: string;
   fingerprint: string;
@@ -40,7 +80,7 @@ export type Finding = {
   resource_name: string | null;
   title: string;
   description: string;
-  evidence: Record<string, unknown>;
+  evidence?: OpportunityEvidence | Record<string, unknown>;
   current_monthly_cost: string;
   estimated_monthly_savings: string;
   confidence: string;
@@ -61,6 +101,9 @@ export type OpportunityPage = {
 
 export type OpportunityDetail = Finding & {
   scan_id: string;
+  evidence: OpportunityEvidence | Record<string, unknown>;
+  latest_observation: OpportunityObservation | null;
+  rule: RuleExplanation;
   treated_at: string | null;
   treated_by: string | null;
   treatment_note: string | null;
@@ -84,7 +127,7 @@ export type OpportunityObservation = {
   current_monthly_cost: string;
   estimated_monthly_savings: string;
   confidence: string;
-  evidence: Record<string, unknown>;
+  evidence: OpportunityEvidence | Record<string, unknown>;
   collection_provider: string;
   collection_account_id: string;
   collection_started_at: string;

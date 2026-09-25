@@ -198,3 +198,36 @@
 }
 .history-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; color: var(--muted); font-size: .8125rem; }
 .history-pagination .button { min-height: 38px; }
+
+
+/* Stage 6 — explainability bound to collection observations. */
+.evidence-context-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 13px 24px; border-bottom: 1px solid var(--border); background: rgba(97,169,255,.045); color: var(--muted); font-size: .75rem; }
+.evidence-context-bar strong { color: var(--text); font-size: .8125rem; }
+.evidence-context-bar code { margin-left: auto; color: var(--muted-2); overflow-wrap: anywhere; }
+.evidence-rule { margin: 18px 0 4px; padding: 14px 16px; border: 1px solid rgba(97,169,255,.2); border-radius: 10px; background: rgba(97,169,255,.045); }
+.evidence-rule strong { display: block; margin-top: 3px; color: var(--text); }
+.evidence-rule p { margin: 5px 0 0; color: var(--muted); font-size: .8125rem; }
+.evidence-summary { font-size: .96rem; }
+.evidence-limitations { margin-top: 22px; }
+.evidence-limitations h4 { margin-bottom: 5px; }
+.legacy-evidence-notice { margin: 14px 0 4px; padding: 9px 11px; border: 1px solid rgba(255,184,77,.22); border-radius: 8px; color: var(--warning); background: rgba(255,184,77,.045); font-size: .75rem; }
+.evidence-technical-details { margin-top: 22px; border-top: 1px solid var(--border); }
+.evidence-technical-details > summary { padding: 14px 0 8px; color: var(--muted); cursor: pointer; font-weight: 700; }
+.evidence-technical-details > dl { margin: 0; }
+.evidence-technical-details > dl > div { padding: 10px 0; border-top: 1px solid var(--border); }
+.evidence-technical-details > dl > div > dt { color: var(--muted-2); font-size: .72rem; font-weight: 800; text-transform: uppercase; }
+.evidence-technical-details > dl > div > dd { margin: 5px 0 0; color: var(--text); }
+.technical-value-list { margin: 0; padding-left: 18px; }
+.technical-value-map { margin: 0; }
+.technical-value-map > div { display: grid; grid-template-columns: minmax(120px,.8fr) minmax(0,1.4fr); gap: 12px; padding: 5px 0; }
+.technical-value-map dt { color: var(--muted); }
+.technical-value-map dd { margin: 0; overflow-wrap: anywhere; }
+.history-item { width: 100%; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.history-item:hover { border-color: var(--border-strong); background: rgba(255,255,255,.035); }
+.history-item.selected { border-color: rgba(85,229,182,.42); background: rgba(85,229,182,.06); box-shadow: inset 3px 0 var(--accent); }
+.history-item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+@media (max-width: 700px) {
+  .evidence-context-bar code { width: 100%; margin-left: 0; }
+  .technical-value-map > div { grid-template-columns: 1fr; gap: 3px; }
+}

@@ -495,3 +495,157 @@ Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falha
 - nenhuma explicabilidade avançada da Etapa 6 foi antecipada;
 - o teste integrado manual em browser/host operacional depende de uma sessão de execução da aplicação e não é substituído por suposição no roadmap.
 
+
+
+## Etapa 6 — Explicabilidade das oportunidades
+
+**Status:** implementada na branch de trabalho; validação final de CI registrada na entrega da etapa.
+
+### Contrato de evidência
+
+A explicabilidade passa a ser produzida pelo backend no momento da coleta e persistida
+em cada `OpportunityObservation.evidence`. Não foi criada nova tabela nem migration:
+o JSON já versionado temporalmente pela Etapa 2 é a fonte correta para representar
+como o problema estava em cada `CollectionRun`.
+
+O contrato `schema_version = 1` possui:
+
+- `summary`: conclusão humana curta e determinística;
+- `metrics`: valores estruturados com `key`, `label`, valor, unidade, moeda e natureza
+  observada/estimada;
+- `details`: evidência técnica curada, sem payloads completos da cloud;
+- `rule`: identificador técnico, nome amigável, descrição e critérios efetivamente
+  aplicados;
+- `decision_parameters`: somente parâmetros necessários para reproduzir/explicar a
+  decisão daquela coleta;
+- `source`: provider, sistema de origem e instante de avaliação;
+- `limitations`: limitações factuais da evidência, quando existirem.
+
+A configuração global atual não é consultada para explicar observações históricas.
+Thresholds relevantes são fotografados na própria observation. O modelo continua
+flexível por analyzer sem exigir tabela específica para cada regra.
+
+### Analyzers adaptados
+
+Todos os analyzers implementados nesta versão foram convertidos para o contrato:
+
+- `ebs_unattached`;
+- `eip_unassociated`;
+- `snapshot_retention`;
+- `ec2_stopped_with_ebs`;
+- `ec2_nonprod_outside_hours`;
+- `load_balancer_no_traffic`;
+- `rds_nonprod_idle`;
+- `missing_required_tags`;
+- `cost_growth_anomaly`.
+
+A implementação não fabrica dados ausentes. Exemplos deliberados:
+
+- EBS sem anexação registra idade desde a criação, mas não afirma há quanto tempo foi
+  desanexado;
+- Elastic IP sem associação não inventa duração da desassociação;
+- EC2 com horário de parada desconhecido mantém duração nula;
+- Load Balancer com zero datapoints não trata ausência de amostras como prova de
+  tráfego zero;
+- RDS ocioso documenta que a regra atual usa CPU e conexões; I/O ainda não é coletado;
+- EC2 fora do expediente comprova o estado no instante da coleta, não uma quantidade
+  histórica de ocorrências;
+- custo de snapshots é marcado como estimativa/limite superior por causa da natureza
+  incremental dos snapshots EBS;
+- crescimento de custo separa aumento observado de economia potencial, que não é
+  inferida por essa regra.
+
+### Dados sensíveis e tamanho do JSON
+
+O contrato não persiste respostas completas da AWS. Tags arbitrárias deixam de ser
+copiadas para a nova evidência estruturada. Quando tags participam da decisão, somente
+as chaves relevantes à regra são preservadas, como tags obrigatórias ou de ambiente.
+Não são incluídos user data, tokens, passwords, connection strings ou credenciais.
+
+### API e performance
+
+A listagem `GET /api/v1/opportunities` deixa de retornar o JSON completo de
+`evidence`, reduzindo o payload da workspace. O detalhe
+`GET /api/v1/opportunities/{id}` passa a retornar `latest_observation`, já resolvida
+no backend, incluindo sua evidência e contexto do `CollectionRun`. O frontend não
+precisa carregar todo o histórico, ordenar localmente e descobrir a última coleta.
+
+O histórico `GET /api/v1/opportunities/{id}/history` permanece paginado e retorna a
+evidência própria de cada observation. A listagem continua em uma contagem + uma query
+paginada; a consulta adicional da última observation só existe no endpoint de detalhe.
+Não foi introduzido N+1 na listagem.
+
+Schemas explícitos foram adicionados para métrica, critério, regra, origem e evidência.
+Observações legadas continuam aceitas como JSON não estruturado para migração
+incremental.
+
+### Frontend
+
+A seção **“Por que o DeepOps chegou nessa conclusão?”** passa a priorizar o contrato
+estruturado do backend. Ela apresenta, nessa ordem:
+
+1. conclusão;
+2. regra amigável;
+3. principais métricas;
+4. critério/threshold aplicado naquela coleta;
+5. contribuidores de custo, quando existirem;
+6. limitações;
+7. evidência técnica em seção avançada.
+
+O identificador interno da regra permanece disponível somente nas informações
+técnicas. JSON cru não é exibido por padrão.
+
+O histórico de detecção tornou-se selecionável: escolher uma observation troca a
+evidência mostrada no detalhe para os dados daquela coleta específica. Histórico
+técnico e histórico de decisões humanas permanecem separados.
+
+Observações anteriores ao contrato estruturado continuam renderizadas por um fallback
+legado. Evidência ausente mostra mensagem explícita e não é substituída por dados
+inventados.
+
+### Moedas e unidades
+
+Métricas financeiras preservam moeda separadamente do valor numérico e da unidade
+temporal. A implementação atual registra USD onde a origem/configuração atual é em
+USD, sem exigir que componentes assumam permanentemente uma moeda única. Unidades de
+capacidade provenientes do EC2/EBS são preservadas como GiB; percentuais, dias,
+requests, conexões e demais unidades permanecem explícitos.
+
+### Arquivos principais
+
+- `backend/app/services/opportunity_explainability.py`;
+- `backend/app/services/collectors.py`;
+- `backend/app/services/policies.py`;
+- `backend/app/services/opportunity_query.py`;
+- `backend/app/schemas/opportunity.py`;
+- `backend/app/tests/test_opportunity_explainability.py`;
+- `backend/app/tests/test_cost_evidence.py`;
+- `backend/app/tests/test_opportunities_api.py`;
+- `frontend/components/finding-evidence.tsx`;
+- `frontend/components/opportunity-detail.tsx`;
+- `frontend/lib/opportunity-evidence.mjs`;
+- `frontend/lib/opportunity-evidence.d.mts`;
+- `frontend/lib/types.ts`;
+- `frontend/tests/opportunity-evidence.test.mjs`;
+- `frontend/app/opportunities-stage5.css`.
+
+### Testes e pendências conhecidas
+
+A suite adicionada valida o contrato estruturado dos nove analyzers, ausência de
+inferência para horário de parada desconhecido e CloudWatch sem datapoints, períodos e
+contribuidores de crescimento de custo, snapshot dos thresholds, detalhe com
+`latest_observation`, listagem sem evidência pesada e seleção de evidence histórica no
+frontend.
+
+A persistência temporal continua coberta pelos testes da Etapa 2, que verificam duas
+coletas para a mesma oportunidade com duas `OpportunityObservation` independentes e
+sem sobrescrita do histórico.
+
+Limitações de dados permanecem explícitas: RDS ainda não coleta I/O; Elastic IP não
+possui histórico de desassociação; a regra de EC2 fora do expediente ainda não possui
+contador histórico de ocorrências. Esses itens não impedem explicabilidade correta dos
+dados realmente avaliados e não foram preenchidos por inferência.
+
+Não foram implementados nesta etapa tela completa de CollectionRun, comparação
+avançada entre coletas, nova Home, dashboard multi-cloud, materialização/cache global,
+retenção histórica ou geração por IA. A Etapa 7 não foi iniciada.

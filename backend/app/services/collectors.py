@@ -1,6 +1,5 @@
 import re
 from collections import defaultdict
-from copy import deepcopy
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
 from typing import Any
@@ -11,6 +10,7 @@ from botocore.exceptions import BotoCoreError, ClientError
 
 from app.services.aws_auth import BOTO_CONFIG
 from app.services.collector_types import CollectedFinding
+from app.services.opportunity_explainability import build_opportunity_evidence
 
 
 def _tags_to_dict(tags: list[dict] | None) -> dict[str, str]:
@@ -951,8 +951,11 @@ def run_collectors(
             try:
                 collected = collector(session, region, policy["config"])
                 for finding in collected:
-                    finding.evidence["policy_config"] = deepcopy(policy["config"])
-                    finding.evidence["evaluated_at"] = datetime.now(UTC).isoformat()
+                    finding.evidence = build_opportunity_evidence(
+                        finding,
+                        policy,
+                        evaluated_at=datetime.now(UTC),
+                    )
                 findings.extend(collected)
             except (BotoCoreError, ClientError) as exc:
                 errors.append(f"{policy['rule_key']}@{region}: {exc}")
