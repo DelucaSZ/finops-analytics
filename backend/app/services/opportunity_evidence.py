@@ -165,7 +165,10 @@ def _required_tag_evidence(
 ) -> dict[str, str]:
     if not isinstance(current_tags, dict) or not isinstance(required_tags, list):
         return {}
-    current_by_lower = {str(key).lower(): (str(key), str(value)) for key, value in current_tags.items()}
+    current_by_lower = {
+        str(key).lower(): (str(key), str(value))
+        for key, value in current_tags.items()
+    }
     result: dict[str, str] = {}
     for required in required_tags:
         item = current_by_lower.get(str(required).lower())
@@ -257,12 +260,25 @@ def build_evidence(
             [
                 _metric("age_days", "Idade desde a criação", age, "days"),
                 _metric("storage_gib", "Armazenamento", size, "GiB"),
-                _metric("estimated_monthly_cost", "Custo mensal estimado", current_cost, "USD_MONTH", kind="estimate"),
+                _metric(
+                    "estimated_monthly_cost",
+                    "Custo mensal estimado",
+                    current_cost,
+                    "USD_MONTH",
+                    kind="estimate",
+                ),
             ]
         )
         criteria.extend(
             [
-                _criterion("minimum_age_days", "Idade mínima", age, ">=", config.get("minimum_age_days"), "days"),
+                _criterion(
+                    "minimum_age_days",
+                    "Idade mínima",
+                    age,
+                    ">=",
+                    config.get("minimum_age_days"),
+                    "days",
+                ),
                 _criterion(
                     "minimum_monthly_savings_usd",
                     "Economia mensal mínima",
@@ -282,15 +298,25 @@ def build_evidence(
             }
         )
         notes.append(
-            "A idade disponível é a idade do volume desde a criação; o DeepOps não possui a data de desanexação."
+            "A idade disponível é a idade do volume desde a criação; "
+            "o DeepOps não possui a data de desanexação."
         )
 
     elif rule_key == "eip_unassociated":
-        summary = "O endereço IPv4 público está alocado, mas não possui associação a instância ou interface de rede."
+        summary = (
+            "O endereço IPv4 público está alocado, mas não possui associação "
+            "a instância ou interface de rede."
+        )
         if current_cost is not None:
             summary += f" O custo mensal configurado é estimado em US$ {current_cost:.2f}."
         metrics.append(
-            _metric("estimated_monthly_cost", "Custo mensal estimado", current_cost, "USD_MONTH", kind="estimate")
+            _metric(
+                "estimated_monthly_cost",
+                "Custo mensal estimado",
+                current_cost,
+                "USD_MONTH",
+                kind="estimate",
+            )
         )
         criteria.extend(
             [
@@ -319,7 +345,9 @@ def build_evidence(
                 "domain": raw.get("domain"),
             }
         )
-        notes.append("O coletor atual não registra há quanto tempo o endereço permanece sem associação.")
+        notes.append(
+            "O coletor atual não registra há quanto tempo o endereço permanece sem associação."
+        )
 
     elif rule_key == "snapshot_retention":
         age = _number(raw.get("age_days"))
@@ -358,7 +386,9 @@ def build_evidence(
             }
         )
         notes.append(
-            "O custo é um limite superior baseado no tamanho do volume de origem; snapshots EBS são incrementais."
+            "O custo é um limite superior baseado no tamanho do volume de origem; "
+            "snapshots EBS são incrementais."
+
         )
 
     elif rule_key == "ec2_stopped_with_ebs":
@@ -369,7 +399,9 @@ def build_evidence(
             for item in volumes
             if isinstance(item, dict)
         )
-        total_gib_value: int | float = int(total_gib) if total_gib.is_integer() else round(total_gib, 2)
+        total_gib_value: int | float = (
+            int(total_gib) if total_gib.is_integer() else round(total_gib, 2)
+        )
         volume_count = len(volumes)
         if stopped_days is None:
             summary = (
@@ -435,7 +467,9 @@ def build_evidence(
         )
         if stopped_days is None:
             notes.append(
-                "O StateTransitionReason não forneceu um horário de parada confiável; nenhum número de dias foi inferido."
+                "O StateTransitionReason não forneceu um horário de parada confiável; "
+                "nenhum número de dias foi inferido."
+
             )
 
     elif rule_key == "ec2_nonprod_outside_hours":
@@ -488,7 +522,9 @@ def build_evidence(
             }
         )
         notes.append(
-            "O achado representa o estado no instante da coleta; ele não prova quantas horas a instância permaneceu ligada fora do expediente."
+            "O achado representa o estado no instante da coleta; ele não prova quantas "
+            "horas a instância permaneceu ligada fora do expediente."
+
         )
 
     elif rule_key == "load_balancer_no_traffic":
@@ -507,7 +543,9 @@ def build_evidence(
         if datapoints == 0:
             summary = (
                 f"O CloudWatch não retornou amostras de {metric_name} no período analisado. "
-                "O recurso foi sinalizado para validação, mas ausência de tráfego não está confirmada."
+                "O recurso foi sinalizado para validação, mas ausência de tráfego "
+                "não está confirmada."
+
             )
         elif total == 0:
             summary = f"O CloudWatch registrou zero {unit} no período analisado de {lookback} dias."
@@ -550,7 +588,9 @@ def build_evidence(
         )
         if datapoints == 0:
             notes.append(
-                "Sem datapoints do CloudWatch, o DeepOps não trata tráfego zero como fato comprovado."
+                "Sem datapoints do CloudWatch, o DeepOps não trata tráfego zero "
+                "como fato comprovado."
+
             )
 
     elif rule_key == "rds_nonprod_idle":
@@ -608,11 +648,17 @@ def build_evidence(
                 "connection_datapoint_count": raw.get("connection_datapoint_count"),
             }
         )
-        notes.append("O analyzer atual não coleta I/O para esta regra; nenhum valor de I/O é inferido.")
+        notes.append(
+            "O analyzer atual não coleta I/O para esta regra; nenhum valor de I/O é inferido."
+        )
 
     elif rule_key == "missing_required_tags":
         missing = raw.get("missing_tags") if isinstance(raw.get("missing_tags"), list) else []
-        required = config.get("required_tags") if isinstance(config.get("required_tags"), list) else []
+        required = (
+            config.get("required_tags")
+            if isinstance(config.get("required_tags"), list)
+            else []
+        )
         current = raw.get("current_tags") or raw.get("tags")
         found = _required_tag_evidence(current, required)
         summary = (
@@ -622,7 +668,14 @@ def build_evidence(
             if missing
             else description
         )
-        metrics.append(_metric("missing_tag_count", "Tags obrigatórias ausentes", len(missing), "tags"))
+        metrics.append(
+            _metric(
+                "missing_tag_count",
+                "Tags obrigatórias ausentes",
+                len(missing),
+                "tags",
+            )
+        )
         details.update(
             {
                 "required_tags": required,
@@ -651,12 +704,16 @@ def build_evidence(
         delta = _money(raw.get("delta_usd"))
         growth = _number(raw.get("growth_percent"))
         baseline_days = _number(raw.get("baseline_period_days") or config.get("baseline_days"))
-        comparison_days = _number(raw.get("comparison_period_days") or config.get("comparison_days"))
+        comparison_days = _number(
+            raw.get("comparison_period_days") or config.get("comparison_days")
+        )
         if baseline is not None and current is not None and delta is not None:
             growth_text = f" ({growth:.1f}%)" if isinstance(growth, (int, float)) else ""
             summary = (
                 f"O custo de {service} em {region} aumentou de US$ {baseline:.2f} esperados "
-                f"para US$ {current:.2f} no período atual, variação de +US$ {delta:.2f}{growth_text}."
+                f"para US$ {current:.2f} no período atual, variação de "
+                f"+US$ {delta:.2f}{growth_text}."
+
             )
         metrics.extend(
             [
@@ -727,7 +784,9 @@ def build_evidence(
                     }
                 )
         notes.append(
-            "O custo esperado é normalizado para o mesmo número de dias do período atual. Crescimento de custo não equivale automaticamente a desperdício."
+            "O custo esperado é normalizado para o mesmo número de dias do período atual. "
+            "Crescimento de custo não equivale automaticamente a desperdício."
+
         )
         if raw.get("estimated") is True or raw.get("breakdown_estimated") is True:
             notes.append("A AWS marcou parte dos dados de custo como estimada.")
@@ -745,7 +804,9 @@ def build_evidence(
         }
         details.update(safe_details)
         notes.append(
-            "Este analyzer ainda não possui um mapeamento especializado de explicabilidade; apenas evidências persistidas são exibidas."
+            "Este analyzer ainda não possui um mapeamento especializado de explicabilidade; "
+            "apenas evidências persistidas são exibidas."
+
         )
 
     return _base(
