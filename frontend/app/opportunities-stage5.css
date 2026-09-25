@@ -196,4 +196,5 @@
   .opportunity-sort-controls label { display: grid; }
   .opportunity-sort-controls select { width: 100%; }
 }
-.history
+.history-pagination { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 14px; color: var(--muted); font-size: .8125rem; }
+.history-pagination .button { min-height: 38px; }
