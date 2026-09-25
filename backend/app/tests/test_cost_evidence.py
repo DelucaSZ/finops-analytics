@@ -169,8 +169,6 @@ def test_policy_evidence_is_a_snapshot_not_a_reference(monkeypatch):
     config["minimum_age_days"] = 90
     config["monthly_price_per_gb"]["gp3"] = 1
     assert not errors and not failed
-    assert findings[0].evidence["policy_config"] == {
-        "minimum_age_days": 7,
-        "monthly_price_per_gb": {"gp3": 0.08},
-    }
+    assert findings[0].evidence["parameters"]["minimum_age_days"] == 7
+    assert "policy_config" not in findings[0].evidence
     assert findings[0].evidence["evaluated_at"]
