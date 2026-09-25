@@ -14,6 +14,7 @@ from app.api.routes import (
     dashboard,
     findings,
     mfa,
+    opportunities,
     policies,
     scans,
     tls,
@@ -36,7 +37,7 @@ async def lifespan(_: FastAPI):
 
 app = FastAPI(
     title="DeepOps API",
-    description="Multi-account AWS FinOps analysis API",
+    description="Multi-account cloud FinOps analysis API",
     version="0.1.0",
     lifespan=lifespan,
 )
@@ -85,6 +86,7 @@ app.include_router(policies.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
+app.include_router(opportunities.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 
 

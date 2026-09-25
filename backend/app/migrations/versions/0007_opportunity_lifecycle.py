@@ -18,20 +18,41 @@ def upgrade():
         batch.add_column(sa.Column("rejected_by", sa.String(length=36), nullable=True))
         batch.add_column(sa.Column("rejection_reason", sa.String(length=32), nullable=True))
         batch.add_column(sa.Column("rejection_note", sa.Text(), nullable=True))
-        batch.add_column(sa.Column("needs_review", sa.Boolean(), nullable=False, server_default=sa.false()))
-        batch.create_foreign_key("fk_findings_treated_by_users", "users", ["treated_by"], ["id"])
-        batch.create_foreign_key("fk_findings_rejected_by_users", "users", ["rejected_by"], ["id"])
+        batch.add_column(
+            sa.Column(
+                "needs_review",
+                sa.Boolean(),
+                nullable=False,
+                server_default=sa.false(),
+            )
+        )
+        batch.create_foreign_key(
+            "fk_findings_treated_by_users",
+            "users",
+            ["treated_by"],
+            ["id"],
+        )
+        batch.create_foreign_key(
+            "fk_findings_rejected_by_users",
+            "users",
+            ["rejected_by"],
+            ["id"],
+        )
         batch.create_index("ix_findings_treated_at", ["treated_at"])
         batch.create_index("ix_findings_rejected_at", ["rejected_at"])
 
     bind = op.get_bind()
     findings = sa.table("findings", sa.column("status", sa.String()))
-    bind.execute(findings.update().values(status=sa.case(
-        (findings.c.status == "accepted", "treated"),
-        (findings.c.status == "dismissed", "rejected"),
-        (findings.c.status == "resolved", "open"),
-        else_=findings.c.status,
-    )))
+    bind.execute(
+        findings.update().values(
+            status=sa.case(
+                (findings.c.status == "accepted", "treated"),
+                (findings.c.status == "dismissed", "rejected"),
+                (findings.c.status == "resolved", "open"),
+                else_=findings.c.status,
+            )
+        )
+    )
 
     op.create_table(
         "opportunity_status_history",
@@ -50,9 +71,21 @@ def upgrade():
         sa.ForeignKeyConstraint(["opportunity_id"], ["findings.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
-    op.create_index("ix_opportunity_status_history_opportunity_id", "opportunity_status_history", ["opportunity_id"])
-    op.create_index("ix_opportunity_status_history_changed_by", "opportunity_status_history", ["changed_by"])
-    op.create_index("ix_opportunity_status_history_changed_at", "opportunity_status_history", ["changed_at"])
+    op.create_index(
+        "ix_opportunity_status_history_opportunity_id",
+        "opportunity_status_history",
+        ["opportunity_id"],
+    )
+    op.create_index(
+        "ix_opportunity_status_history_changed_by",
+        "opportunity_status_history",
+        ["changed_by"],
+    )
+    op.create_index(
+        "ix_opportunity_status_history_changed_at",
+        "opportunity_status_history",
+        ["changed_at"],
+    )
 
 
 def downgrade():

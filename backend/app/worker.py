@@ -278,7 +278,6 @@ def persist_findings(
                 if _normalized_utc(observation.observed_at) > treated_at:
                     finding.needs_review = True
 
-
     db.flush()
     return len(by_fingerprint)
 

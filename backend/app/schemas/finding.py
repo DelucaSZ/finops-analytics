@@ -4,6 +4,15 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+RejectionReason = Literal[
+    "FALSE_POSITIVE",
+    "OPERATIONAL_EXCEPTION",
+    "ACCEPTABLE_COST",
+    "RESOURCE_REQUIRED",
+    "RISK_ACCEPTED",
+    "OTHER",
+]
+
 
 class FindingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -39,7 +48,7 @@ class OpportunityNote(BaseModel):
 
 
 class OpportunityReject(BaseModel):
-    reason: Literal["FALSE_POSITIVE", "OPERATIONAL_EXCEPTION", "ACCEPTABLE_COST", "RESOURCE_REQUIRED", "RISK_ACCEPTED", "OTHER"]
+    reason: RejectionReason
     note: str | None = Field(default=None, max_length=4000)
 
     @model_validator(mode="after")
@@ -50,9 +59,9 @@ class OpportunityReject(BaseModel):
 
 
 class OpportunityBulkAction(BaseModel):
-    finding_ids: list[str] = Field(min_length=1)
+    finding_ids: list[str] = Field(min_length=1, max_length=200)
     action: Literal["treat", "reject", "reopen"]
-    reason: Literal["FALSE_POSITIVE", "OPERATIONAL_EXCEPTION", "ACCEPTABLE_COST", "RESOURCE_REQUIRED", "RISK_ACCEPTED", "OTHER"] | None = None
+    reason: RejectionReason | None = None
     note: str | None = Field(default=None, max_length=4000)
 
     @model_validator(mode="after")
@@ -62,3 +71,16 @@ class OpportunityBulkAction(BaseModel):
         if self.action == "reject" and self.reason == "OTHER" and not (self.note or "").strip():
             raise ValueError("Uma observação é obrigatória para o motivo Outro.")
         return self
+
+
+class LegacyOpportunityStatus(BaseModel):
+    status: Literal["open", "accepted", "dismissed", "treated", "rejected"]
+    reason: RejectionReason | None = None
+    note: str | None = Field(default=None, max_length=4000)
+
+
+class OpportunityBulkStatus(BaseModel):
+    finding_ids: list[str] = Field(min_length=1, max_length=200)
+    status: Literal["open", "accepted", "dismissed", "treated", "rejected"]
+    reason: RejectionReason | None = None
+    note: str | None = Field(default=None, max_length=4000)

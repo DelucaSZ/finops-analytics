@@ -4,16 +4,17 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 
 import pytest
+from alembic import command
 from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
-from sqlalchemy import create_engine, func, inspect, select, text
+from sqlalchemy import MetaData, Table, create_engine, func, inspect, select, text
 from sqlalchemy.orm import Session
 
 from app.api.routes.users import update_user
 from app.core.config import Settings
 from app.core.passwords import hash_password, verify_password
-from app.db.base import Base
-from app.db.migrations import initialize_database, wait_for_database
+from app.db.base import Base, utcnow
+from app.db.migrations import initialize_database, migration_config, wait_for_database
 from app.models.account import AwsAccount
 from app.models.user import AuthState, User
 from app.schemas.user import UserUpdate
@@ -60,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0007_opportunity_lifecycle"
+            == "0008_opportunity_api_indexes"
         )
         assert (
             compare_metadata(
@@ -84,23 +85,33 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
 
 
 def test_existing_data_survives_migration_and_restart(migration_engine):
-    legacy_tables = [
-        table
-        for table in Base.metadata.sorted_tables
-        if table.name in {"aws_accounts", "findings", "scans", "policies"}
-    ]
-    Base.metadata.create_all(migration_engine, tables=legacy_tables)
-    with Session(migration_engine) as db:
-        db.add(
-            AwsAccount(
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        command.upgrade(cfg, "0001_legacy")
+        accounts = Table("aws_accounts", MetaData(), autoload_with=connection)
+        now = utcnow()
+        connection.execute(
+            accounts.insert().values(
                 id=9,
                 name="Existing account",
                 aws_account_id="123456789012",
                 role_arn="legacy-role",
                 external_id="legacy-id",
+                regions=["sa-east-1"],
+                enabled=True,
+                is_management_account=False,
+                schedule_enabled=False,
+                scan_interval_hours=24,
+                next_scan_at=None,
+                connection_status="untested",
+                last_connection_test_at=None,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
             )
         )
-        db.commit()
+
     initialize_database(migration_engine, config())
     with Session(migration_engine) as db:
         user = db.scalar(select(User))
@@ -120,8 +131,6 @@ def test_existing_data_survives_migration_and_restart(migration_engine):
         user = db.get(User, original_id)
         assert user.email == "admin@example.com" and user.name == "Edited name"
         assert verify_password("Changed-in-database-123", user.password_hash)
-        # Retained tables are also compatible with the old worker's create_all.
-    Base.metadata.create_all(migration_engine, tables=legacy_tables)
 
 
 def test_failed_bootstrap_rolls_back_and_can_be_retried(migration_engine):

@@ -28,7 +28,11 @@ export type Policy = {
 
 export type Finding = {
   id: string;
-  account_id: number;
+  fingerprint: string;
+  provider: string;
+  account_id: string;
+  account_name: string;
+  legacy_account_id: number;
   rule_key: string;
   service: string;
   region: string;
@@ -44,14 +48,15 @@ export type Finding = {
   status: string;
   first_seen_at: string;
   last_seen_at: string;
-  treated_at: string | null;
-  treated_by: string | null;
-  treatment_note: string | null;
-  rejected_at: string | null;
-  rejected_by: string | null;
-  rejection_reason: string | null;
-  rejection_note: string | null;
   needs_review: boolean;
+};
+
+export type OpportunityPage = {
+  items: Finding[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
 };
 
 export type Scan = {
