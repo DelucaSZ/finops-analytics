@@ -7,6 +7,7 @@ import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate, usd } from "@/lib/api";
 import type {
   OpportunityDetail as OpportunityDetailType,
+  OpportunityObservation,
   OpportunityObservationPage,
   OpportunityStatusHistoryPage,
 } from "@/lib/types";
@@ -37,6 +38,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const [detail, setDetail] = useState<OpportunityDetailType | null>(null);
   const [observations, setObservations] = useState<OpportunityObservationPage | null>(null);
   const [decisions, setDecisions] = useState<OpportunityStatusHistoryPage | null>(null);
+  const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -53,6 +55,10 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     window.addEventListener("keydown", handleKey);
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
+
+  useEffect(() => {
+    setSelectedObservation(null);
+  }, [opportunityId]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -138,7 +144,13 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
                 <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
                 <div><dt>Recurso</dt><dd>{detail.resource_id}</dd></div>
-                <div><dt>Regra</dt><dd>{detail.rule_key}</dd></div>
+                <div>
+                  <dt>Regra</dt>
+                  <dd>
+                    {detail.rule.name}
+                    <span>{detail.rule.description}</span>
+                  </dd>
+                </div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
                 <div><dt>Custo mensal atual</dt><dd>{usd(detail.current_monthly_cost)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
@@ -164,7 +176,36 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             )}
 
             <section className="detail-section evidence-section">
-              <FindingEvidence finding={detail} />
+              {selectedObservation && (
+                <div className="historical-evidence-banner">
+                  <div>
+                    <strong>Evidência histórica</strong>
+                    <span>
+                      Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.
+                    </span>
+                  </div>
+                  <button
+                    className="button ghost"
+                    type="button"
+                    onClick={() => setSelectedObservation(null)}
+                  >
+                    Voltar à evidência mais recente
+                  </button>
+                </div>
+              )}
+              <FindingEvidence
+                evidence={selectedObservation?.evidence ?? detail.latest_evidence}
+                observedAt={
+                  selectedObservation?.observed_at ??
+                  detail.latest_observation?.observed_at ??
+                  detail.last_seen_at
+                }
+                collectionRunId={
+                  selectedObservation?.collection_run_id ??
+                  detail.latest_observation?.collection_run_id ??
+                  null
+                }
+              />
               <div className="ai-detail-action">
                 <button className="button ghost" type="button" disabled={aiLoading} onClick={() => void explain()}>
                   <BrainCircuit size={17} /> {aiLoading ? "Analisando…" : "Aprofundar com IA"}
@@ -184,11 +225,31 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               {observations?.items.length ? (
                 <div className="history-list">
                   {observations.items.map((item) => (
-                    <article key={item.id} className="history-item">
-                      <div><strong>{formatDate(item.observed_at)}</strong><span>{item.collection_provider.toUpperCase()} · {item.collection_account_id}</span></div>
+                    <article
+                      key={item.id}
+                      className={`history-item${selectedObservation?.id === item.id ? " selected" : ""}`}
+                    >
+                      <div>
+                        <strong>{formatDate(item.observed_at)}</strong>
+                        <span>{item.collection_provider.toUpperCase()} · {item.collection_account_id}</span>
+                      </div>
                       <div><StatusBadge value={item.severity} /></div>
-                      <div><strong>{usd(item.estimated_monthly_savings)}/mês</strong><span>economia estimada</span></div>
-                      <div><span>Coleta {item.collection_status}</span><code>{item.collection_run_id}</code></div>
+                      <div>
+                        <strong>{usd(item.estimated_monthly_savings)}/mês</strong>
+                        <span>economia estimada</span>
+                      </div>
+                      <div>
+                        <span>Coleta {item.collection_status}</span>
+                        <code>{item.collection_run_id}</code>
+                      </div>
+                      <p className="history-evidence-summary">{item.evidence.summary}</p>
+                      <button
+                        className="button ghost history-evidence-button"
+                        type="button"
+                        onClick={() => setSelectedObservation(item)}
+                      >
+                        Ver evidência desta coleta
+                      </button>
                     </article>
                   ))}
                 </div>
@@ -235,6 +296,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               <dl>
                 <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code></dd></div>
                 <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code></dd></div>
+                <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
                 <div><dt>Scan legado</dt><dd><code>{detail.scan_id}</code></dd></div>
               </dl>
             </details>
