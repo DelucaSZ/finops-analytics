@@ -637,8 +637,8 @@ def collect_idle_nonprod_rds(
                     resource_name=identifier,
                     title="RDS não produtivo ocioso",
                     description=(
-                        "CPU e conexões permaneceram abaixo dos limites configurados "
-                        f"durante {lookback_days} dias."
+                        "As amostras de CPU e conexões retornadas pelo CloudWatch ficaram "
+                        f"abaixo dos limites na janela de {lookback_days} dias."
                     ),
                     evidence={
                         "engine": instance.get("Engine"),
