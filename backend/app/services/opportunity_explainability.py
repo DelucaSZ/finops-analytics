@@ -246,9 +246,7 @@ def _snapshot_retention(
     age_days = _number(raw.get("age_days"))
     retention_days = _number(raw.get("retention_days"))
     excess_days = (
-        age_days - retention_days
-        if age_days is not None and retention_days is not None
-        else None
+        age_days - retention_days if age_days is not None and retention_days is not None else None
     )
     summary = finding.description
     if age_days is not None and retention_days is not None and excess_days is not None:
@@ -319,9 +317,7 @@ def _stopped_ec2(
     raw = finding.evidence
     volumes = raw.get("volumes") if isinstance(raw.get("volumes"), list) else []
     total_gib = sum(
-        float(volume.get("size_gib") or 0)
-        for volume in volumes
-        if isinstance(volume, dict)
+        float(volume.get("size_gib") or 0) for volume in volumes if isinstance(volume, dict)
     )
     stopped_days = _number(raw.get("stopped_days"))
     duration = (
@@ -480,9 +476,7 @@ def _load_balancer(
     metric_name = str(raw.get("metric") or "")
     is_bytes = metric_name == "ProcessedBytes"
     threshold = (
-        config.get("maximum_processed_bytes")
-        if is_bytes
-        else config.get("maximum_requests")
+        config.get("maximum_processed_bytes") if is_bytes else config.get("maximum_requests")
     )
     unit = "bytes" if is_bytes else "requests"
     if datapoints == 0:
@@ -540,9 +534,7 @@ def _load_balancer(
             "minimum_age_days": config.get("minimum_age_days"),
             "maximum_requests": config.get("maximum_requests"),
             "maximum_processed_bytes": config.get("maximum_processed_bytes"),
-            "estimated_base_monthly_cost_usd": config.get(
-                "estimated_base_monthly_cost_usd"
-            ),
+            "estimated_base_monthly_cost_usd": config.get("estimated_base_monthly_cost_usd"),
         },
         system="AWS ELB inventory + Amazon CloudWatch",
         evaluated_at=evaluated_at,
@@ -813,9 +805,7 @@ def build_opportunity_evidence(
             decision_parameters={},
             system="AWS resource analysis",
             evaluated_at=evaluated_at,
-            limitations=[
-                "Este analyzer ainda não possui contrato de explicabilidade específico."
-            ],
+            limitations=["Este analyzer ainda não possui contrato de explicabilidade específico."],
         )
     else:
         payload = builder(finding, config, evaluated_at)
