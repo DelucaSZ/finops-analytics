@@ -102,14 +102,14 @@ def test_pagination_and_account_rule_filters(client):
     assert http.get("/findings?offset=-1").status_code == 422
 
 
-@pytest.mark.parametrize("status", ["accepted", "dismissed"])
+@pytest.mark.parametrize("status", ["treated", "rejected"])
 def test_bulk_only_changes_selected_findings(client, status):
     http, engine = client
     response = http.patch(
-        "/findings/bulk/status",
+        "/findings/bulk/action",
         json={
             "finding_ids": ["0000", "0002", "0002"],
-            "status": status,
+            "action": "treat" if status == "treated" else "reject",\n            "reason": None if status == "treated" else "FALSE_POSITIVE",
         },
     )
     assert response.status_code == 200
@@ -126,7 +126,7 @@ def test_missing_finding_does_not_partially_apply(client):
         "/findings/bulk/status",
         json={
             "finding_ids": ["0000", "missing"],
-            "status": "dismissed",
+            "action": "reject", "reason": "FALSE_POSITIVE",
         },
     )
     assert response.status_code == 404
@@ -136,7 +136,7 @@ def test_missing_finding_does_not_partially_apply(client):
 
 def test_stale_selection_does_not_overwrite_status(client):
     http, engine = client
-    http.patch("/findings/0000/status", json={"status": "resolved"})
+    http.post("/findings/0000/treat", json={})
     response = http.patch(
         "/findings/bulk/status",
         json={
@@ -146,15 +146,15 @@ def test_stale_selection_does_not_overwrite_status(client):
     )
     assert response.status_code == 409
     with Session(engine) as db:
-        assert db.get(Finding, "0000").status == "resolved"
+        assert db.get(Finding, "0000").status == "treated"
         assert db.get(Finding, "0002").status == "open"
 
 
 @pytest.mark.parametrize(
     "payload",
     [
-        {"finding_ids": [], "status": "dismissed"},
-        {"finding_ids": ["0000"], "status": "invalid"},
+        {"finding_ids": [], "action": "reject", "reason": "FALSE_POSITIVE"},
+        {"finding_ids": ["0000"], "action": "invalid"},
     ],
 )
 def test_invalid_bulk_request(client, payload):
