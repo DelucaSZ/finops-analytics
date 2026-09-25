@@ -21,9 +21,7 @@ REJECTION_REASONS = {
 
 
 def _locked(db: Session, opportunity_id: str) -> Finding:
-    finding = db.scalar(
-        select(Finding).where(Finding.id == opportunity_id).with_for_update()
-    )
+    finding = db.scalar(select(Finding).where(Finding.id == opportunity_id).with_for_update())
     if finding is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return finding
@@ -160,10 +158,7 @@ def bulk_transition(
 
     findings = list(
         db.scalars(
-            select(Finding)
-            .where(Finding.id.in_(ids))
-            .order_by(Finding.id)
-            .with_for_update()
+            select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update()
         )
     )
     by_id = {finding.id: finding for finding in findings}
