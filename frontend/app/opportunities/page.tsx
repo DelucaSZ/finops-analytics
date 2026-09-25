@@ -664,4 +664,24 @@ function OpportunitiesContent() {
         </footer>
       </section>
 
-     
+      {state.opportunityId && (
+        <OpportunityDetail
+          opportunityId={state.opportunityId}
+          onClose={closeDetail}
+          onAction={(action, id) => openDecision(action, [id], false)}
+        />
+      )}
+
+      {decision && (
+        <OpportunityDecisionDialog
+          action={decision.action}
+          count={decision.ids.length}
+          saving={decisionSaving}
+          error={decisionError}
+          onClose={() => { if (!decisionSaving) { setDecision(null); setDecisionError(""); } }}
+          onSubmit={submitDecision}
+        />
+      )}
+    </>
+  );
+}
