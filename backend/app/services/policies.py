@@ -95,7 +95,9 @@ RULES: dict[str, RuleDefinition] = {
     "load_balancer_no_traffic": RuleDefinition(
         key="load_balancer_no_traffic",
         name="Load Balancer com tráfego ausente ou abaixo do limite",
-        description="Avalia balanceadores cujo tráfego observado ficou dentro do limite configurado.",
+        description=(
+            "Avalia balanceadores cujo tráfego observado ficou dentro do limite configurado."
+        ),
         implemented=True,
         enabled=True,
         config={
