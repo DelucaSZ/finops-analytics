@@ -130,8 +130,10 @@ def list_opportunities(
 ) -> dict:
     base = select(Finding, AwsAccount).join(AwsAccount, Finding.account_id == AwsAccount.id)
     base = _apply_filters(base, filters)
-    count_query = select(func.count()).select_from(Finding).join(
-        AwsAccount, Finding.account_id == AwsAccount.id
+    count_query = (
+        select(func.count())
+        .select_from(Finding)
+        .join(AwsAccount, Finding.account_id == AwsAccount.id)
     )
     count_query = _apply_filters(count_query, filters)
     total = db.scalar(count_query) or 0
