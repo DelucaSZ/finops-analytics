@@ -138,11 +138,7 @@ def _policy_config(
 
 
 def _parameters(rule_key: str, config: dict[str, Any]) -> dict[str, Any]:
-    return {
-        key: config[key]
-        for key in RULE_PARAMETER_KEYS.get(rule_key, ())
-        if key in config
-    }
+    return {key: config[key] for key in RULE_PARAMETER_KEYS.get(rule_key, ()) if key in config}
 
 
 def _environment_tags(
@@ -152,11 +148,7 @@ def _environment_tags(
     if not isinstance(tags, dict):
         return {}
     wanted = {str(key).lower() for key in config.get("environment_tag_keys", [])}
-    return {
-        str(key): str(value)
-        for key, value in tags.items()
-        if str(key).lower() in wanted
-    }
+    return {str(key): str(value) for key, value in tags.items() if str(key).lower() in wanted}
 
 
 def _required_tag_evidence(
@@ -166,8 +158,7 @@ def _required_tag_evidence(
     if not isinstance(current_tags, dict) or not isinstance(required_tags, list):
         return {}
     current_by_lower = {
-        str(key).lower(): (str(key), str(value))
-        for key, value in current_tags.items()
+        str(key).lower(): (str(key), str(value)) for key, value in current_tags.items()
     }
     result: dict[str, str] = {}
     for required in required_tags:
@@ -388,16 +379,13 @@ def build_evidence(
         notes.append(
             "O custo é um limite superior baseado no tamanho do volume de origem; "
             "snapshots EBS são incrementais."
-
         )
 
     elif rule_key == "ec2_stopped_with_ebs":
         stopped_days = _number(raw.get("stopped_days"))
         volumes = raw.get("volumes") if isinstance(raw.get("volumes"), list) else []
         total_gib = sum(
-            float(item.get("size_gib") or 0)
-            for item in volumes
-            if isinstance(item, dict)
+            float(item.get("size_gib") or 0) for item in volumes if isinstance(item, dict)
         )
         total_gib_value: int | float = (
             int(total_gib) if total_gib.is_integer() else round(total_gib, 2)
@@ -469,7 +457,6 @@ def build_evidence(
             notes.append(
                 "O StateTransitionReason não forneceu um horário de parada confiável; "
                 "nenhum número de dias foi inferido."
-
             )
 
     elif rule_key == "ec2_nonprod_outside_hours":
@@ -524,7 +511,6 @@ def build_evidence(
         notes.append(
             "O achado representa o estado no instante da coleta; ele não prova quantas "
             "horas a instância permaneceu ligada fora do expediente."
-
         )
 
     elif rule_key == "load_balancer_no_traffic":
@@ -545,7 +531,6 @@ def build_evidence(
                 f"O CloudWatch não retornou amostras de {metric_name} no período analisado. "
                 "O recurso foi sinalizado para validação, mas ausência de tráfego "
                 "não está confirmada."
-
             )
         elif total == 0:
             summary = f"O CloudWatch registrou zero {unit} no período analisado de {lookback} dias."
@@ -590,7 +575,6 @@ def build_evidence(
             notes.append(
                 "Sem datapoints do CloudWatch, o DeepOps não trata tráfego zero "
                 "como fato comprovado."
-
             )
 
     elif rule_key == "rds_nonprod_idle":
@@ -655,9 +639,7 @@ def build_evidence(
     elif rule_key == "missing_required_tags":
         missing = raw.get("missing_tags") if isinstance(raw.get("missing_tags"), list) else []
         required = (
-            config.get("required_tags")
-            if isinstance(config.get("required_tags"), list)
-            else []
+            config.get("required_tags") if isinstance(config.get("required_tags"), list) else []
         )
         current = raw.get("current_tags") or raw.get("tags")
         found = _required_tag_evidence(current, required)
@@ -713,7 +695,6 @@ def build_evidence(
                 f"O custo de {service} em {region} aumentou de US$ {baseline:.2f} esperados "
                 f"para US$ {current:.2f} no período atual, variação de "
                 f"+US$ {delta:.2f}{growth_text}."
-
             )
         metrics.extend(
             [
@@ -790,7 +771,6 @@ def build_evidence(
         notes.append(
             "O custo esperado é normalizado para o mesmo número de dias do período atual. "
             "Crescimento de custo não equivale automaticamente a desperdício."
-
         )
         if raw.get("estimated") is True or raw.get("breakdown_estimated") is True:
             notes.append("A AWS marcou parte dos dados de custo como estimada.")
@@ -810,7 +790,6 @@ def build_evidence(
         notes.append(
             "Este analyzer ainda não possui um mapeamento especializado de explicabilidade; "
             "apenas evidências persistidas são exibidas."
-
         )
 
     return _base(
