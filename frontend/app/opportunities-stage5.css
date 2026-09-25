@@ -99,7 +99,7 @@
 .page-buttons button:disabled { opacity: .45; cursor: not-allowed; }
 
 .drawer-backdrop, .dialog-backdrop { position: fixed; inset: 0; z-index: 30; display: flex; justify-content: flex-end; background: rgba(2,5,10,.68); backdrop-filter: blur(3px); }
-.opportunity-drawer { width: min(820px, calc(100vw - 70px)); height: 100vh; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--border-strong); background: #090f19; box-shadow: -28px 0 70px rgba(0,0,0,.42); }
+.opportunity-drawer { position: relative; width: min(820px, calc(100vw - 70px)); height: 100vh; display: flex; flex-direction: column; overflow: hidden; border-left: 1px solid var(--border-strong); background: #090f19; box-shadow: -28px 0 70px rgba(0,0,0,.42); }
 .drawer-heading { flex: 0 0 auto; display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; padding: 24px 26px 20px; border-bottom: 1px solid var(--border); background: var(--surface); }
 .drawer-heading h2 { margin: 0; font-size: 1.45rem; line-height: 1.25; }
 .drawer-heading p { margin: 7px 0 0; color: var(--muted); overflow-wrap: anywhere; }
