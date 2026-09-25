@@ -155,7 +155,7 @@ def _run_bulk(
     except Exception:
         db.rollback()
         raise
-    return _bulk_result(len(payload.opportunity_ids), [finding.id for finding in findings])
+    return _bulk_result(len(findings), [finding.id for finding in findings])
 
 
 @router.post(
