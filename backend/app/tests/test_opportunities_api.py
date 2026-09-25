@@ -190,9 +190,7 @@ def test_filters_by_status_account_provider_and_combination(client):
     assert status_items
     assert all(item["status"] == "open" for item in status_items)
 
-    account_items = http.get(
-        "/opportunities?account_id=111111111111&page_size=100"
-    ).json()["items"]
+    account_items = http.get("/opportunities?account_id=111111111111&page_size=100").json()["items"]
     assert len(account_items) == 50
     assert all(item["account_id"] == "111111111111" for item in account_items)
 
@@ -240,9 +238,7 @@ def test_search_and_ordering_are_server_side(client):
     assert search["total"] == 1
     assert search["items"][0]["id"] == "opp-042"
 
-    recent = http.get(
-        "/opportunities?page_size=5&sort=last_seen_at&order=desc"
-    ).json()["items"]
+    recent = http.get("/opportunities?page_size=5&sort=last_seen_at&order=desc").json()["items"]
     assert [item["id"] for item in recent] == [
         "opp-099",
         "opp-098",
@@ -250,9 +246,9 @@ def test_search_and_ordering_are_server_side(client):
         "opp-096",
         "opp-095",
     ]
-    savings = http.get(
-        "/opportunities?page_size=3&sort=estimated_savings&order=asc"
-    ).json()["items"]
+    savings = http.get("/opportunities?page_size=3&sort=estimated_savings&order=asc").json()[
+        "items"
+    ]
     assert [item["id"] for item in savings] == ["opp-000", "opp-001", "opp-002"]
     assert http.get("/opportunities?sort=not_a_column").status_code == 422
     assert http.get("/opportunities?page_size=201").status_code == 422
@@ -338,9 +334,7 @@ def test_stats_respect_non_status_filters(client):
     http, _ = client
     body = http.get("/opportunities/stats?account_id=111111111111").json()
     assert sum(body.values()) == 50
-    filtered = http.get(
-        "/opportunities/stats?account_id=111111111111&severity=high"
-    ).json()
+    filtered = http.get("/opportunities/stats?account_id=111111111111&severity=high").json()
     assert sum(filtered.values()) > 0
     assert sum(filtered.values()) < 50
 
