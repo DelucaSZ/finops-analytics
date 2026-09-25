@@ -1,0 +1,59 @@
+
+/* Stage 5 — operational opportunities workspace. */
+.opportunities-boot { min-height: 260px; display: grid; place-items: center; color: var(--muted); }
+.opportunity-feedback { margin-top: -10px; }
+.opportunity-tabs { display: flex; gap: 8px; margin: 0 0 16px; padding-bottom: 1px; overflow-x: auto; border-bottom: 1px solid var(--border); }
+.opportunity-tab { min-width: 132px; min-height: 48px; display: inline-flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 15px; border: 1px solid transparent; border-bottom: 0; border-radius: 10px 10px 0 0; color: var(--muted); background: transparent; cursor: pointer; font-weight: 750; }
+.opportunity-tab:hover { color: var(--text); background: rgba(255,255,255,.025); }
+.opportunity-tab.active { color: var(--text); border-color: var(--border); background: var(--surface); box-shadow: inset 0 -3px var(--accent); }
+.opportunity-tab strong { min-width: 30px; padding: 3px 8px; border-radius: 99px; color: var(--muted); background: rgba(148,163,184,.1); font-size: .75rem; font-variant-numeric: tabular-nums; }
+.opportunity-tab.active strong { color: var(--accent); background: rgba(85,229,182,.1); }
+
+.opportunity-filter-panel { margin-bottom: 16px; overflow: visible; }
+.opportunity-filter-heading { min-height: 52px; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 0 18px; border-bottom: 1px solid var(--border); }
+.opportunity-filter-heading > div { display: flex; align-items: center; gap: 9px; min-width: 0; }
+.opportunity-filter-heading svg { color: var(--accent); }
+.opportunity-filter-heading span { color: var(--muted); font-size: .8125rem; }
+.filter-clear { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 650; }
+.filter-clear:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.opportunity-filter-grid { display: grid; grid-template-columns: minmax(280px,1.45fr) repeat(3,minmax(170px,1fr)); gap: 12px; padding: 16px 18px 18px; }
+.opportunity-filter { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: .75rem; font-weight: 750; }
+.opportunity-filter > div { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: #0a101b; }
+.opportunity-filter > div:focus-within { border-color: rgba(85,229,182,.55); box-shadow: 0 0 0 3px rgba(85,229,182,.07); }
+.opportunity-filter svg { flex: 0 0 auto; color: var(--muted-2); }
+.opportunity-filter input, .opportunity-filter select { min-width: 0; width: 100%; height: 42px; border: 0; outline: 0; color: var(--text); background: transparent; }
+.opportunity-filter small { min-height: 18px; overflow: hidden; color: var(--muted-2); font-size: .72rem; font-weight: 500; white-space: nowrap; text-overflow: ellipsis; }
+.search-filter { grid-column: span 2; }
+.collection-filter { grid-column: span 2; }
+
+.opportunity-summary-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px; margin-bottom: 16px; }
+.opportunity-summary-card { min-height: 100px; display: grid; grid-template-columns: auto 1fr; align-content: center; gap: 3px 10px; padding: 16px 18px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
+.opportunity-summary-card > svg { grid-row: 1/4; align-self: center; color: var(--accent); }
+.opportunity-summary-card > span, .opportunity-summary-card > strong, .opportunity-summary-card > small { grid-column: 2; }
+.opportunity-summary-card:not(:has(svg)) > span, .opportunity-summary-card:not(:has(svg)) > strong, .opportunity-summary-card:not(:has(svg)) > small { grid-column: 1/-1; }
+.opportunity-summary-card span { color: var(--muted); font-size: .75rem; }
+.opportunity-summary-card strong { color: var(--text); font-size: 1.18rem; font-variant-numeric: tabular-nums; }
+.opportunity-summary-card strong.summary-date { font-size: .98rem; }
+.opportunity-summary-card small { color: var(--muted-2); font-size: .75rem; }
+
+.opportunity-workspace { overflow: hidden; }
+.opportunity-workspace-toolbar { min-height: 62px; display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; padding: 10px 16px; border-bottom: 1px solid var(--border); background: var(--surface-2); }
+.selection-summary { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 14px; color: var(--muted); font-size: .8125rem; }
+.selection-control.compact-check { min-height: 32px; }
+.opportunity-bulk-actions { margin-left: 0; }
+.opportunity-sort-controls { display: flex; flex-wrap: wrap; gap: 8px; margin-left: auto; }
+.opportunity-sort-controls label { display: flex; align-items: center; gap: 7px; color: var(--muted); font-size: .75rem; }
+.opportunity-sort-controls select { min-height: 40px; padding: 0 30px 0 10px; border: 1px solid var(--border-strong); border-radius: 8px; color: var(--text); background: #0a101b; }
+.table-loading-bar { height: 36px; display: flex; align-items: center; gap: 10px; padding: 0 18px; color: var(--muted); border-bottom: 1px solid var(--border); font-size: .8125rem; }
+.table-loading-bar span { width: 70px; height: 3px; overflow: hidden; border-radius: 99px; background: linear-gradient(90deg, transparent, var(--accent), transparent); background-size: 200% 100%; animation: opportunity-loading 1s linear infinite; }
+@keyframes opportunity-loading { to { background-position: -200% 0; } }
+.opportunity-inline-error { display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 14px 18px; border-bottom: 1px solid rgba(255,107,114,.2); background: rgba(255,107,114,.055); }
+.opportunity-inline-error div { display: grid; gap: 2px; }
+.opportunity-inline-error strong { color: #ffb0b4; }
+.opportunity-inline-error span { color: var(--muted); font-size: .8125rem; }
+.opportunity-table-wrap { position: relative; }
+.stage-five-table { min-width: 1180px; }
+.stage-five-table td { vertical-align: top; }
+.stage-five-table .selection-cell { min-width: 72px; width: 72px; }
+.stage-five-table td:first-child { min-width: 72px; }
+.stage-five-table td
