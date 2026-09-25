@@ -292,7 +292,15 @@ def test_structured_evidence_is_preserved_independently_per_collection_run(db):
     item_a.evidence = {
         "schema_version": 1,
         "summary": "Parada há 14 dias.",
-        "metrics": [{"key": "stopped_days", "label": "Tempo parada", "value": 14, "unit": "days", "kind": "observed"}],
+        "metrics": [
+            {
+                "key": "stopped_days",
+                "label": "Tempo parada",
+                "value": 14,
+                "unit": "days",
+                "kind": "observed",
+            }
+        ],
         "criteria": [],
         "details": {"state": "stopped"},
         "parameters": {"minimum_stopped_days": 7},
