@@ -289,10 +289,7 @@ def observation_history(
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
-    items = [
-        _serialize_observation(finding, observation, run)
-        for observation, run in rows
-    ]
+    items = [_serialize_observation(finding, observation, run) for observation, run in rows]
     return {"items": items, **_page_meta(total, page, page_size)}
 
 
