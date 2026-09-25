@@ -5,6 +5,7 @@ import { BrainCircuit, Clock3, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate, usd } from "@/lib/api";
+import { evidenceForSelection } from "@/lib/opportunity-evidence.mjs";
 import type {
   OpportunityDetail as OpportunityDetailType,
   OpportunityObservationPage,
@@ -41,6 +42,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const [error, setError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
+  const [selectedObservationId, setSelectedObservationId] = useState<string | null>(null);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -56,6 +58,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
 
   useEffect(() => {
     const controller = new AbortController();
+    setSelectedObservationId(null);
     setLoading(true);
     setError("");
     const historyPageSize = historyExpanded ? 50 : 8;
@@ -88,6 +91,16 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     if (!detail || !decisions) return null;
     return decisions.items.find((item) => item.to_status === detail.status) || null;
   }, [decisions, detail]);
+
+  const evidenceSelection = useMemo(
+    () => evidenceForSelection(
+      detail?.evidence,
+      detail?.latest_observation ?? null,
+      observations?.items ?? [],
+      selectedObservationId,
+    ),
+    [detail, observations, selectedObservationId],
+  );
 
   async function explain() {
     if (!detail || aiLoading) return;
@@ -138,7 +151,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
                 <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
                 <div><dt>Recurso</dt><dd>{detail.resource_id}</dd></div>
-                <div><dt>Regra</dt><dd>{detail.rule_key}</dd></div>
+                <div><dt>Regra</dt><dd>{detail.rule.name}<span>{detail.rule.description}</span></dd></div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
                 <div><dt>Custo mensal atual</dt><dd>{usd(detail.current_monthly_cost)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
@@ -164,7 +177,14 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             )}
 
             <section className="detail-section evidence-section">
-              <FindingEvidence finding={detail} />
+              {evidenceSelection.observation && (
+                <div className="evidence-context-bar">
+                  <span>Evidência da coleta</span>
+                  <strong>{formatDate(evidenceSelection.observation.observed_at)}</strong>
+                  <code>{evidenceSelection.observation.collection_run_id}</code>
+                </div>
+              )}
+              <FindingEvidence finding={detail} evidence={evidenceSelection.evidence} />
               <div className="ai-detail-action">
                 <button className="button ghost" type="button" disabled={aiLoading} onClick={() => void explain()}>
                   <BrainCircuit size={17} /> {aiLoading ? "Analisando…" : "Aprofundar com IA"}
@@ -184,23 +204,29 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               {observations?.items.length ? (
                 <div className="history-list">
                   {observations.items.map((item) => (
-                    <article key={item.id} className="history-item">
+                    <button
+                      key={item.id}
+                      type="button"
+                      className={`history-item ${evidenceSelection.observation?.id === item.id ? "selected" : ""}`}
+                      onClick={() => setSelectedObservationId(item.id)}
+                      aria-pressed={evidenceSelection.observation?.id === item.id}
+                    >
                       <div><strong>{formatDate(item.observed_at)}</strong><span>{item.collection_provider.toUpperCase()} · {item.collection_account_id}</span></div>
                       <div><StatusBadge value={item.severity} /></div>
                       <div><strong>{usd(item.estimated_monthly_savings)}/mês</strong><span>economia estimada</span></div>
                       <div><span>Coleta {item.collection_status}</span><code>{item.collection_run_id}</code></div>
-                    </article>
+                    </button>
                   ))}
                 </div>
               ) : <p className="muted-copy">Nenhuma observação histórica disponível.</p>}
               {observations && !historyExpanded && observations.total > 8 && (
-                <button className="button ghost history-more" type="button" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</button>
+                <button className="button ghost history-more" type="button" onClick={() => { setSelectedObservationId(null); setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</button>
               )}
               {observations && historyExpanded && observations.total_pages > 1 && (
                 <div className="history-pagination" aria-label="Paginação do histórico de detecção">
-                  <button className="button ghost" type="button" disabled={historyPage <= 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}>Anterior</button>
+                  <button className="button ghost" type="button" disabled={historyPage <= 1} onClick={() => { setSelectedObservationId(null); setHistoryPage((page) => Math.max(1, page - 1)); }}>Anterior</button>
                   <span>Página {observations.page} de {observations.total_pages}</span>
-                  <button className="button ghost" type="button" disabled={historyPage >= observations.total_pages} onClick={() => setHistoryPage((page) => page + 1)}>Próxima</button>
+                  <button className="button ghost" type="button" disabled={historyPage >= observations.total_pages} onClick={() => { setSelectedObservationId(null); setHistoryPage((page) => page + 1); }}>Próxima</button>
                 </div>
               )}
             </section>
@@ -235,6 +261,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               <dl>
                 <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code></dd></div>
                 <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code></dd></div>
+                <div><dt>Regra técnica</dt><dd><code>{detail.rule_key}</code></dd></div>
                 <div><dt>Scan legado</dt><dd><code>{detail.scan_id}</code></dd></div>
               </dl>
             </details>
