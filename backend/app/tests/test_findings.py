@@ -127,7 +127,8 @@ def test_missing_finding_does_not_partially_apply(client):
         "/findings/bulk/action",
         json={
             "finding_ids": ["0000", "missing"],
-            "action": "reject", "reason": "FALSE_POSITIVE",
+            "action": "reject",
+            "reason": "FALSE_POSITIVE",
         },
     )
     assert response.status_code == 404
