@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from math import ceil
+from typing import Any
 
 from sqlalchemy import String, case, cast, false, func, or_, select
 from sqlalchemy.orm import Session
@@ -10,6 +11,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
+from app.services.policies import RULES
 
 
 @dataclass(frozen=True)
@@ -92,7 +94,7 @@ def _page_meta(total: int, page: int, page_size: int) -> dict[str, int]:
     }
 
 
-def serialize_list_item(finding: Finding, account: AwsAccount) -> dict:
+def serialize_list_item(finding: Finding, account: AwsAccount) -> dict[str, Any]:
     return {
         "id": finding.id,
         "fingerprint": finding.fingerprint,
@@ -107,7 +109,6 @@ def serialize_list_item(finding: Finding, account: AwsAccount) -> dict:
         "resource_name": finding.resource_name,
         "title": finding.title,
         "description": finding.description,
-        "evidence": finding.evidence,
         "current_monthly_cost": finding.current_monthly_cost,
         "estimated_monthly_savings": finding.estimated_monthly_savings,
         "confidence": finding.confidence,
@@ -116,6 +117,63 @@ def serialize_list_item(finding: Finding, account: AwsAccount) -> dict:
         "first_seen_at": finding.first_seen_at,
         "last_seen_at": finding.last_seen_at,
         "needs_review": finding.needs_review,
+    }
+
+
+def _serialize_observation(
+    observation: OpportunityObservation,
+    run: CollectionRun,
+) -> dict[str, Any]:
+    return {
+        "id": observation.id,
+        "collection_run_id": observation.collection_run_id,
+        "observed_at": observation.observed_at,
+        "severity": observation.severity,
+        "current_monthly_cost": observation.current_monthly_cost,
+        "estimated_monthly_savings": observation.estimated_monthly_savings,
+        "confidence": observation.confidence,
+        "evidence": observation.evidence,
+        "collection_provider": run.provider,
+        "collection_account_id": run.account_id,
+        "collection_started_at": run.started_at,
+        "collection_finished_at": run.finished_at,
+        "collection_status": run.status,
+    }
+
+
+def _latest_observation(
+    db: Session,
+    opportunity_id: str,
+) -> dict[str, Any] | None:
+    row = db.execute(
+        select(OpportunityObservation, CollectionRun)
+        .join(CollectionRun, OpportunityObservation.collection_run_id == CollectionRun.id)
+        .where(OpportunityObservation.opportunity_id == opportunity_id)
+        .order_by(OpportunityObservation.observed_at.desc(), OpportunityObservation.id)
+        .limit(1)
+    ).one_or_none()
+    if row is None:
+        return None
+    observation, run = row
+    return _serialize_observation(observation, run)
+
+
+def _rule_explanation(rule_key: str, evidence: dict[str, Any]) -> dict[str, Any]:
+    structured_rule = evidence.get("rule")
+    if (
+        evidence.get("schema_version") == 1
+        and isinstance(structured_rule, dict)
+        and structured_rule.get("key")
+        and structured_rule.get("name")
+    ):
+        return structured_rule
+
+    definition = RULES.get(rule_key)
+    return {
+        "key": rule_key,
+        "name": definition.name if definition else rule_key,
+        "description": definition.description if definition else "",
+        "criteria": [],
     }
 
 
@@ -172,9 +230,19 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
     ).one_or_none()
     if row is None:
         return None
+
     finding, account = row
+    latest_observation = _latest_observation(db, opportunity_id)
+    latest_evidence = (
+        latest_observation["evidence"]
+        if latest_observation is not None
+        else finding.evidence or {}
+    )
     return serialize_list_item(finding, account) | {
         "scan_id": finding.scan_id,
+        "evidence": finding.evidence or {},
+        "latest_observation": latest_observation,
+        "rule": _rule_explanation(finding.rule_key, latest_evidence),
         "treated_at": finding.treated_at,
         "treated_by": finding.treated_by,
         "treatment_note": finding.treatment_note,
@@ -210,25 +278,13 @@ def observation_history(
         .offset((page - 1) * page_size)
         .limit(page_size)
     ).all()
-    items = [
-        {
-            "id": observation.id,
-            "collection_run_id": observation.collection_run_id,
-            "observed_at": observation.observed_at,
-            "severity": observation.severity,
-            "current_monthly_cost": observation.current_monthly_cost,
-            "estimated_monthly_savings": observation.estimated_monthly_savings,
-            "confidence": observation.confidence,
-            "evidence": observation.evidence,
-            "collection_provider": run.provider,
-            "collection_account_id": run.account_id,
-            "collection_started_at": run.started_at,
-            "collection_finished_at": run.finished_at,
-            "collection_status": run.status,
-        }
-        for observation, run in rows
-    ]
-    return {"items": items, **_page_meta(total, page, page_size)}
+    return {
+        "items": [
+            _serialize_observation(observation, run)
+            for observation, run in rows
+        ],
+        **_page_meta(total, page, page_size),
+    }
 
 
 def status_history(
