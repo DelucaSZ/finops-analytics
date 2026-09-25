@@ -734,9 +734,7 @@ def _cost_growth(
             "comparação por serviço e região permanece válida."
         )
     current_cost_label = (
-        "Custo estimado no período atual"
-        if is_estimated
-        else "Custo observado no período atual"
+        "Custo estimado no período atual" if is_estimated else "Custo observado no período atual"
     )
     change_label = "Variação absoluta estimada" if is_estimated else "Variação absoluta"
     return _payload(
