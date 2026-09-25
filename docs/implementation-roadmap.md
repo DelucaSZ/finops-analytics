@@ -495,3 +495,133 @@ Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falha
 - nenhuma explicabilidade avançada da Etapa 6 foi antecipada;
 - o teste integrado manual em browser/host operacional depende de uma sessão de execução da aplicação e não é substituído por suposição no roadmap.
 
+
+
+## Etapa 6 — Explicabilidade das oportunidades
+
+**Status:** implementada no branch `feat/stage6-opportunity-explainability`; validação de CI e merge na `main` pendentes neste registro.
+
+### Estado anterior
+
+A Etapa 5 já apresentava a seção **“Por que o DeepOps chegou nessa conclusão?”**, porém a interpretação de cada payload de `evidence` acontecia no frontend. `Finding.evidence` e `OpportunityObservation.evidence` continham JSONs específicos por analyzer, incluindo a configuração completa da policy. O detalhe não expunha `latest_observation` de forma explícita e o frontend precisava consultar o histórico separadamente para acessar uma observation. A listagem também carregava o JSON completo de `evidence` em cada item.
+
+### Contrato de evidência adotado
+
+`OpportunityObservation.evidence` continua sendo JSON para permitir domínios diferentes sem criar uma tabela por analyzer, mas novos achados passam a persistir um contrato versionado e mínimo:
+
+- `schema_version`;
+- `summary`: conclusão humana curta, determinística e produzida no backend;
+- `metrics[]`: `key`, `label`, valor numérico/estruturado, unidade e natureza (`observed`, `estimate` ou `projection`);
+- `criteria[]`: valor observado, operador, threshold realmente aplicado e unidade;
+- `details`: evidência técnica necessária para auditoria/troubleshooting;
+- `parameters`: somente parâmetros relevantes da regra utilizados naquela coleta;
+- `rule`: identificador técnico, nome amigável e descrição da regra;
+- `source`, `notes`, `contributors[]` e `evaluated_at`.
+
+Não é armazenado HTML. O frontend apenas formata o contrato. Valores monetários preservam número e unidade (por exemplo `USD` e `USD_MONTH`), permitindo novas moedas sem espalhar texto fixo pela UI.
+
+### Estrutura temporal
+
+Não foi criada migration de tabela nesta etapa: `OpportunityObservation.evidence` já é o local correto para a evidência temporal. Cada `CollectionRun` continua gerando sua própria observation e seu próprio JSON de evidência. `Finding.evidence` permanece somente como snapshot mais recente por compatibilidade com endpoints/fluxos legados; ele não é a fonte do histórico.
+
+Observações antigas com o formato anterior são normalizadas no momento da leitura, usando somente campos realmente persistidos. Se uma observation antiga não possui um threshold/configuração, o backend não consulta a policy atual para fingir que aquele valor foi aplicado no passado.
+
+### Analyzers adaptados
+
+Todos os 9 analyzers atualmente registrados em `COLLECTORS` foram mapeados para o contrato:
+
+- `ebs_unattached`: estado, tamanho, tipo, idade desde a criação, custo estimado e thresholds; deixa explícito que idade do volume não é tempo desde o detach;
+- `eip_unassociated`: IP/alocação, ausência de associação e custo estimado; não inventa duração sem associação;
+- `snapshot_retention`: idade, retenção, excesso em dias, tamanho de origem e custo como limite superior; preserva o aviso de snapshots incrementais;
+- `ec2_stopped_with_ebs`: estado, tempo parada quando conhecido, volumes, capacidade total, custo estimado e threshold; quando o horário de parada não é confiável, nenhum número de dias é inferido;
+- `ec2_nonprod_outside_hours`: estado observado, horário da observação, timezone, janela permitida, tags de ambiente relevantes e estimativas; não transforma um snapshot em contagem de horas/ocorrências;
+- `load_balancer_no_traffic`: métrica, total, datapoints, período, threshold e custo. O texto agora diferencia zero observado, tráfego abaixo de um threshold não-zero e ausência de datapoints;
+- `rds_nonprod_idle`: classe/engine, CPU média, conexões máximas, período, thresholds e custo estimado. I/O não é exibido porque o analyzer atual não coleta I/O;
+- `missing_required_tags`: tags obrigatórias, tags obrigatórias encontradas e ausentes; tags não relacionadas à policy não são copiadas para a evidência estruturada;
+- `cost_growth_anomaly`: período anterior/atual, custo esperado normalizado, custo atual, delta, percentual, thresholds e até 5 contribuidores positivos por `USAGE_TYPE`, quando a consulta adicional ao Cost Explorer está disponível.
+
+### Configuração e thresholds
+
+O `run_collectors` não grava mais uma cópia indiscriminada de `policy_config`. O builder de evidência seleciona apenas os parâmetros relevantes para explicar/reproduzir a decisão. Overrides globais ou por conta já chegam ao collector como policy efetiva, portanto os valores persistidos representam o que foi realmente utilizado na coleta.
+
+Para dados históricos legados, `policy_config` é lido somente quando ele já fazia parte daquela observation. A configuração corrente não é usada como substituto silencioso de configuração histórica ausente.
+
+### Segurança e minimização
+
+A evidência estruturada evita copiar respostas completas de AWS. Tags completas deixam de ser persistidas no novo contrato quando não são necessárias. Regras de ambiente guardam somente as chaves usadas para classificar ambiente; a regra de tagging guarda somente as tags obrigatórias relevantes. Não são incluídos user data, secrets, tokens, credenciais ou connection strings.
+
+### API
+
+- `GET /api/v1/opportunities` não retorna mais o JSON completo de evidência, mantendo a listagem leve;
+- `GET /api/v1/opportunities/{id}` retorna `rule`, `latest_observation` e `latest_evidence`;
+- a latest observation é obtida por query ordenada e `LIMIT 1`, sem carregar/ordenar todo o histórico no frontend;
+- `GET /api/v1/opportunities/{id}/history` continua paginado e cada item retorna sua evidência estruturada específica;
+- foram criados schemas explícitos para `OpportunityEvidence`, `EvidenceMetric`, `EvidenceCriterion`, `EvidenceContributor` e `RuleExplanation`;
+- o endpoint legado de findings permanece compatível.
+
+A listagem mantém o padrão da Etapa 4 de duas queries limitadas (count + página) e não adiciona join de observation. Detalhe e histórico são carregados somente sob demanda.
+
+### Frontend
+
+`FindingEvidence` não recalcula mais regras FinOps a partir de JSON cru. O componente recebe o contrato do backend e renderiza:
+
+1. resumo/conclusão;
+2. métricas principais;
+3. critério observado versus threshold;
+4. contribuidores quando disponíveis;
+5. notas de precisão/estimativa;
+6. seção recolhível **“Ver evidência técnica”**.
+
+O drawer apresenta nome e descrição amigáveis da regra, mantém **Histórico de decisões** separado da detecção técnica e permite selecionar **“Ver evidência desta coleta”** em qualquer observation carregada. Ao selecionar uma observation histórica, a seção principal passa a renderizar exatamente a evidência daquela coleta e oferece retorno à evidência mais recente. JSON cru não é exibido por padrão.
+
+O helper antigo `frontend/lib/finding-explanation.ts`, que continha lógica de FinOps no cliente, foi removido.
+
+### Limitações factuais mantidas
+
+Esta etapa não inventa dados que os collectors não possuem:
+
+- EIP: não existe duração sem associação;
+- EC2 fora do expediente: não existe contagem histórica de ocorrências nem número exato de horas fora da janela;
+- Load Balancer: conexões não são coletadas atualmente; somente a métrica efetivamente consultada é exibida;
+- RDS: I/O não é coletado pelo analyzer atual;
+- crescimento de custo: contribuidores são por `USAGE_TYPE` no agrupamento serviço/região; atribuição por recurso só será exibida quando a coleta passar a fornecê-la.
+
+Essas limitações não bloqueiam o contrato e podem ser enriquecidas por analyzers futuros sem migration específica.
+
+### Principais arquivos
+
+- `backend/app/services/opportunity_evidence.py`;
+- `backend/app/services/collectors.py`;
+- `backend/app/services/policies.py`;
+- `backend/app/services/opportunity_query.py`;
+- `backend/app/schemas/opportunity.py`;
+- `backend/app/tests/test_opportunity_evidence.py`;
+- `backend/app/tests/test_opportunity_observations.py`;
+- `backend/app/tests/test_opportunities_api.py`;
+- `frontend/components/finding-evidence.tsx`;
+- `frontend/components/opportunity-detail.tsx`;
+- `frontend/lib/types.ts`;
+- `frontend/app/opportunities-stage5.css`;
+- `frontend/tests/opportunity-evidence.test.mjs`.
+
+### Testes incluídos
+
+Foram adicionados/ajustados testes para:
+
+- contrato estruturado dos 9 analyzers atuais;
+- EC2 parada com dias/capacidade/custo reais;
+- ausência de duração de parada sem inferência;
+- Load Balancer sem datapoints sem afirmar tráfego zero;
+- crescimento anormal com períodos, thresholds, valores e contribuidores;
+- minimização de tags na regra de tagging;
+- persistência de evidências estruturadas diferentes em dois `CollectionRun` sem sobrescrever a primeira;
+- listagem sem payload completo de evidência;
+- detalhe com latest observation/latest evidence;
+- histórico paginado com evidência correspondente a cada coleta;
+- frontend usando o contrato do backend, fallback de evidência ausente e seleção de evidência histórica.
+
+A validação final de lint, testes, build e CI será registrada antes do merge. O teste operacional contra uma conta AWS real/browser não é substituído por suposição: exige sessão e credenciais no host de execução e deve ser informado separadamente se não estiver disponível nesta execução.
+
+### Fora de escopo preservado
+
+Não foram implementados tela completa de CollectionRun, comparação avançada entre coletas, nova Home, dashboard multi-cloud, cache/materialização global, retenção histórica nem geração por IA como mecanismo principal de explicação. O botão de análise Bedrock que já existia permanece apenas como aprofundamento opcional e separado da explicação determinística/auditável desta etapa.
