@@ -167,7 +167,11 @@ def test_each_current_analyzer_builds_structured_evidence(
     expected_metric,
 ):
     result = build_opportunity_evidence(
-        finding(rule_key, raw, service="Amazon EC2" if rule_key == "cost_growth_anomaly" else "EC2"),
+        finding(
+            rule_key,
+            raw,
+            service="Amazon EC2" if rule_key == "cost_growth_anomaly" else "EC2",
+        ),
         policy(rule_key),
         evaluated_at=NOW,
     )
