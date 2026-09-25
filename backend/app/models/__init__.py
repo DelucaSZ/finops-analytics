@@ -4,6 +4,7 @@ from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
 from app.models.opportunity_observation import OpportunityObservation
+from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.policy import Policy
 from app.models.scan import Scan
 from app.models.user import AuthState, User
@@ -21,6 +22,7 @@ __all__ = [
     "CollectionRunStatus",
     "Finding",
     "OpportunityObservation",
+    "OpportunityStatusHistory",
     "Policy",
     "Scan",
     "User",
