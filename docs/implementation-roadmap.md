@@ -499,7 +499,7 @@ Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falha
 
 ## Etapa 6 — Explicabilidade das oportunidades
 
-**Status:** implementada no branch `feat/stage6-opportunity-explainability`; validação de CI e merge na `main` pendentes neste registro.
+**Status:** concluída e validada no PR #12. O contrato determinístico de explicabilidade está implementado para os 9 analyzers atuais e a suíte automatizada da etapa está verde.
 
 ### Estado anterior
 
@@ -596,6 +596,7 @@ Essas limitações não bloqueiam o contrato e podem ser enriquecidas por analyz
 - `backend/app/services/opportunity_query.py`;
 - `backend/app/schemas/opportunity.py`;
 - `backend/app/tests/test_opportunity_evidence.py`;
+- `backend/app/tests/test_cost_evidence.py`;
 - `backend/app/tests/test_opportunity_observations.py`;
 - `backend/app/tests/test_opportunities_api.py`;
 - `frontend/components/finding-evidence.tsx`;
@@ -620,7 +621,14 @@ Foram adicionados/ajustados testes para:
 - histórico paginado com evidência correspondente a cada coleta;
 - frontend usando o contrato do backend, fallback de evidência ausente e seleção de evidência histórica.
 
-A validação final de lint, testes, build e CI será registrada antes do merge. O teste operacional contra uma conta AWS real/browser não é substituído por suposição: exige sessão e credenciais no host de execução e deve ser informado separadamente se não estiver disponível nesta execução.
+Validação automatizada do PR #12 concluída em 25/09/2026:
+
+- backend: `ruff check .` aprovado, `ruff format --check .` aprovado e **189 testes aprovados**;
+- frontend: **11 testes aprovados** e `npm run build` compilado com sucesso;
+- security: validações de readiness, exposição pública do Compose e template de Security Group aprovadas;
+- Auto Deploy Tests: workflow aprovado.
+
+O teste operacional ponta a ponta contra uma conta AWS real, com backend/worker/frontend do ambiente implantado e duas coletas reais, não foi executado a partir desta sessão. A execução atual possui acesso ao repositório/CI, mas não uma sessão shell no host DeepOps com as credenciais cloud nem um browser conectado ao ambiente implantado. A cobertura automatizada valida explicitamente duas `OpportunityObservation` de `CollectionRun` diferentes e confirma que a segunda evidência não sobrescreve a primeira.
 
 ### Fora de escopo preservado
 
