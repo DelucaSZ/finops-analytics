@@ -463,12 +463,27 @@ def build_evidence(
                 ),
             ]
         )
+        observed_local_time = raw.get("observed_local_time")
+        configured_window = (
+            f"{config.get('business_hours_start', 'unknown')}–"
+            f"{config.get('business_hours_end', 'unknown')} "
+            f"({config.get('timezone', 'UTC')})"
+        )
+        criteria.append(
+            _criterion(
+                "business_hours",
+                "Janela de expediente",
+                observed_local_time,
+                "outside",
+                configured_window,
+            )
+        )
         details.update(
             {
                 "state": raw.get("state") or "running",
                 "instance_type": raw.get("instance_type"),
                 "observed_at": observed_at_value,
-                "observed_local_time": raw.get("observed_local_time"),
+                "observed_local_time": observed_local_time,
                 "environment_tags": environment_tags,
             }
         )
@@ -488,6 +503,7 @@ def build_evidence(
             else config.get("maximum_requests")
         )
         unit = "bytes" if metric_name == "ProcessedBytes" else "requests"
+        confirmed_total = None if datapoints == 0 else total
         if datapoints == 0:
             summary = (
                 f"O CloudWatch não retornou amostras de {metric_name} no período analisado. "
@@ -502,7 +518,7 @@ def build_evidence(
             )
         metrics.extend(
             [
-                _metric("traffic_total", "Tráfego observado", total, unit),
+                _metric("traffic_total", "Tráfego observado", confirmed_total, unit),
                 _metric("datapoint_count", "Amostras retornadas", datapoints, "datapoints"),
                 _metric("lookback_days", "Período analisado", lookback, "days"),
                 _metric(
@@ -515,7 +531,14 @@ def build_evidence(
             ]
         )
         criteria.append(
-            _criterion("traffic_threshold", "Limite de tráfego", total, "<=", threshold, unit)
+            _criterion(
+                "traffic_threshold",
+                "Limite de tráfego",
+                confirmed_total,
+                "<=",
+                threshold,
+                unit,
+            )
         )
         details.update(
             {
@@ -581,6 +604,8 @@ def build_evidence(
                 "engine": raw.get("engine"),
                 "instance_class": raw.get("instance_class"),
                 "environment_tags": environment_tags,
+                "cpu_datapoint_count": raw.get("cpu_datapoint_count"),
+                "connection_datapoint_count": raw.get("connection_datapoint_count"),
             }
         )
         notes.append("O analyzer atual não coleta I/O para esta regra; nenhum valor de I/O é inferido.")
