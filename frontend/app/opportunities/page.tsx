@@ -534,4 +534,134 @@ function OpportunitiesContent() {
           <div className="opportunity-sort-controls">
             <label>
               <span>Ordenar por</span>
-             
+              <select value={state.sort} onChange={(event) => updateUrl({ sort: event.target.value })}>
+                {sortOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Ordem</span>
+              <select value={state.order} onChange={(event) => updateUrl({ order: event.target.value })}>
+                <option value="desc">Decrescente</option>
+                <option value="asc">Crescente</option>
+              </select>
+            </label>
+          </div>
+        </div>
+
+        {loading && findings.length > 0 && <div className="table-loading-bar" role="status"><span /> Atualizando resultados…</div>}
+        {listError && (
+          <div className="opportunity-inline-error" role="alert">
+            <div><strong>Não foi possível carregar as oportunidades.</strong><span>{listError}</span></div>
+            <button className="button ghost" type="button" onClick={() => setReloadKey((value) => value + 1)}>Tentar novamente</button>
+          </div>
+        )}
+
+        <div className="data-table-wrap opportunity-table-wrap" role="region" aria-label="Backlog de oportunidades" tabIndex={0}>
+          <table className="data-table opportunities-table stage-five-table">
+            <thead>
+              <tr>
+                <th scope="col" className="selection-cell">Seleção</th>
+                <th scope="col">Oportunidade</th>
+                <th scope="col">Contexto</th>
+                <th scope="col">Risco</th>
+                <th scope="col">Impacto</th>
+                <th scope="col">Detecções</th>
+                <th scope="col">Ações</th>
+              </tr>
+            </thead>
+            {loading && !findings.length ? <SkeletonRows /> : (
+              <tbody>
+                {findings.map((finding) => (
+                  <tr key={finding.id} className={selectedIds.has(finding.id) ? "selected-row" : undefined}>
+                    <td className="selection-cell">
+                      <label className="selection-control compact-check">
+                        <input
+                          type="checkbox"
+                          checked={selectedIds.has(finding.id)}
+                          aria-label={`Selecionar ${finding.title} · ${finding.resource_id}`}
+                          onChange={() => toggleSelection(finding.id)}
+                        />
+                      </label>
+                    </td>
+                    <td className="opportunity-primary-cell">
+                      <button className="opportunity-title-button" type="button" onClick={() => openDetail(finding.id)}>{finding.title}</button>
+                      <span className="opportunity-rule">{finding.rule_key}</span>
+                      <strong className="opportunity-resource">{finding.resource_name || finding.resource_id}</strong>
+                      {finding.resource_name && <span>{finding.resource_id}</span>}
+                    </td>
+                    <td className="opportunity-context-cell">
+                      <strong>{finding.provider.toUpperCase()} · {finding.account_name}</strong>
+                      <span>{finding.account_id}</span>
+                      <span>{finding.region || "Sem região"} · {finding.service || "Sem serviço"}</span>
+                    </td>
+                    <td>
+                      <div className="risk-badges"><StatusBadge value={finding.severity} /><StatusBadge value={finding.status} /></div>
+                      {finding.needs_review && <span className="review-inline">Detectada novamente</span>}
+                    </td>
+                    <td className="money-cell opportunity-impact-cell">
+                      {savingsLabel(finding)}
+                      <span>Custo atual: {usd(finding.current_monthly_cost)}</span>
+                    </td>
+                    <td className="detection-cell">
+                      <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>
+                      <span><strong>Última</strong>{formatDate(finding.last_seen_at)}</span>
+                    </td>
+                    <td>
+                      <div className="row-actions stage-five-actions">
+                        <button type="button" onClick={() => openDetail(finding.id)}>Abrir detalhe</button>
+                        {finding.status === "open" ? (
+                          <>
+                            <button type="button" onClick={() => openDecision("treat", [finding.id], false)}>Tratar</button>
+                            <button type="button" onClick={() => openDecision("reject", [finding.id], false)}>Rejeitar</button>
+                          </>
+                        ) : (
+                          <button type="button" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            )}
+          </table>
+
+          {!loading && !listError && !findings.length && (
+            <div className="opportunity-empty-state">
+              <Filter size={24} />
+              <strong>Nenhuma oportunidade {state.status === "open" ? "aberta" : state.status === "treated" ? "tratada" : "rejeitada"} encontrada.</strong>
+              <p>{hasFilters ? "Os filtros selecionados não retornaram resultados." : "Ainda não existem oportunidades nesse estado para as coletas disponíveis."}</p>
+              {hasFilters && <button className="button ghost" type="button" onClick={clearFilters}>Limpar filtros</button>}
+            </div>
+          )}
+        </div>
+
+        <footer className="opportunity-pagination">
+          <div>
+            <span>Página {totalPages ? state.page : 0} de {totalPages} · {total} resultado(s)</span>
+            <label>
+              Itens por página
+              <select value={state.pageSize} onChange={(event) => updateUrl({ page_size: event.target.value })}>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+            </label>
+          </div>
+          <nav className="page-buttons" aria-label="Paginação das oportunidades">
+            <button type="button" aria-label="Página anterior" disabled={loading || state.page <= 1} onClick={() => updateUrl({ page: state.page - 1 }, { resetPage: false })}><ChevronLeft size={18} /></button>
+            {pages.map((page) => (
+              <button
+                type="button"
+                key={page}
+                aria-current={page === state.page ? "page" : undefined}
+                className={page === state.page ? "active" : undefined}
+                disabled={loading}
+                onClick={() => updateUrl({ page }, { resetPage: false })}
+              >{page}</button>
+            ))}
+            <button type="button" aria-label="Próxima página" disabled={loading || state.page >= totalPages} onClick={() => updateUrl({ page: state.page + 1 }, { resetPage: false })}><ChevronRight size={18} /></button>
+          </nav>
+        </footer>
+      </section>
+
+     
