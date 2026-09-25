@@ -110,7 +110,7 @@ RULES: dict[str, RuleDefinition] = {
     "rds_nonprod_idle": RuleDefinition(
         key="rds_nonprod_idle",
         name="RDS não produtivo ocioso",
-        description="Cruza CPU, conexões e I/O para localizar bancos não produtivos ociosos.",
+        description="Cruza CPU e conexões para localizar bancos não produtivos ociosos.",
         implemented=True,
         enabled=True,
         config={
