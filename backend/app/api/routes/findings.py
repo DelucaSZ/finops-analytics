@@ -9,12 +9,21 @@ from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
 from app.schemas.finding import (
     FindingRead,
+    LegacyOpportunityStatus,
     OpportunityBulkAction,
+    OpportunityBulkStatus,
     OpportunityNote,
     OpportunityReject,
 )
 from app.services.ai import AIProviderError, explain_finding
-from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
+from app.services.opportunity_lifecycle import (
+    bulk_set_legacy_status,
+    bulk_transition,
+    reject,
+    reopen,
+    set_legacy_status,
+    treat,
+)
 
 router = APIRouter(
     prefix="/findings",
@@ -128,13 +137,70 @@ def _bulk_action(
 
 @router.post("/bulk/action", dependencies=[Depends(require_operator)])
 @router.patch("/bulk/action", dependencies=[Depends(require_operator)])
-@router.patch("/bulk/status", dependencies=[Depends(require_operator)])
 def bulk_action(
     payload: OpportunityBulkAction,
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
     return _bulk_action(payload, db, actor)
+
+
+@router.patch("/bulk/status", dependencies=[Depends(require_operator)])
+def legacy_bulk_status(
+    payload: OpportunityBulkAction | OpportunityBulkStatus,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    if isinstance(payload, OpportunityBulkAction):
+        return _bulk_action(payload, db, actor)
+
+    ids = list(dict.fromkeys(payload.finding_ids))
+    try:
+        findings = bulk_set_legacy_status(
+            db,
+            ids,
+            actor,
+            status=payload.status,
+            reason=payload.reason,
+            note=payload.note,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {
+        "requested_count": len(ids),
+        "updated_count": len(findings),
+        "updated_ids": [finding.id for finding in findings],
+    }
+
+
+@router.patch(
+    "/{finding_id}/status",
+    response_model=FindingRead,
+    dependencies=[Depends(require_operator)],
+)
+def legacy_status(
+    finding_id: str,
+    payload: LegacyOpportunityStatus,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> Finding:
+    try:
+        finding = set_legacy_status(
+            db,
+            finding_id,
+            actor,
+            status=payload.status,
+            reason=payload.reason,
+            note=payload.note,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    db.refresh(finding)
+    return finding
 
 
 @router.get("/{finding_id}/history")
