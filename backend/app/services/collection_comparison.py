@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from decimal import Decimal
+from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
 from typing import Any, Literal
 
@@ -516,7 +516,7 @@ def _financial_summary(
         return None
     delta = target_total - baseline_total
     delta_percent = (
-        (delta / baseline_total * Decimal("100")).quantize(Decimal("0.1"))
+        (delta / baseline_total * Decimal("100")).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
         if baseline_total != 0
         else None
     )
