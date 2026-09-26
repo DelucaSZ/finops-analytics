@@ -636,7 +636,7 @@ Não foram implementados tela completa de CollectionRun, comparação avançada 
 
 ## Etapa 8 — Comparação temporal entre CollectionRuns
 
-**Status:** implementada nesta alteração; validação automatizada final pelo CI do repositório.
+**Status:** concluída e validada no PR #13; CI run #113 aprovado antes do merge.
 
 ### Pré-condição encontrada
 
@@ -765,7 +765,16 @@ A cobertura adicionada valida:
 - ausência de baseline como estado informativo;
 - contrato/navegação frontend.
 
-O CI executa `ruff check`, `ruff format --check`, `pytest -q`, `npm test`, `npm run build` e checks de segurança. O resultado efetivo fica associado ao commit/PR desta etapa.
+Validação automatizada do PR #13, CI run #113:
+
+- `ruff check .`: aprovado;
+- `ruff format --check .`: aprovado;
+- `pytest -q`: **202 testes aprovados**, 1 warning, em 36,95 s;
+- frontend: **13 testes aprovados** e `npm run build` concluído com sucesso;
+- security: aprovado;
+- Auto Deploy Tests run #106: aprovado.
+
+Uma execução anterior do CI detectou dois problemas antes do merge: o identificador da revisão Alembic excedia o `VARCHAR(32)` do version table PostgreSQL e o percentual `56,25%` usava arredondamento bancário. A revisão foi encurtada para `0009_collection_compare_idx` e o cálculo passou a `ROUND_HALF_UP`; o CI #113 validou as correções em PostgreSQL 17 e na suite completa.
 
 ### Limitações e pendências
 
