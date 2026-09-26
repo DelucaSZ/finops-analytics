@@ -26,11 +26,14 @@ export default function CollectionRunDetailPage() {
   useEffect(() => {
     let active = true;
     setLoading(true);
-    Promise.all([
-      api<CollectionRun>(`/collections/${collectionId}`),
-      api<CollectionComparisonRun[]>(`/collections/${collectionId}/comparison-options?limit=100`),
-    ])
-      .then(([runData, optionData]) => {
+    api<CollectionRun>(`/collections/${collectionId}`)
+      .then(async (runData) => {
+        const optionData =
+          runData.status === "SUCCESS"
+            ? await api<CollectionComparisonRun[]>(
+                `/collections/${collectionId}/comparison-options?limit=100`,
+              )
+            : [];
         if (!active) return;
         setRun(runData);
         setOptions(optionData);
