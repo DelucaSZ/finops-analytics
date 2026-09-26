@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from decimal import Decimal
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Numeric, String, UniqueConstraint
+from sqlalchemy import JSON, DateTime, ForeignKey, Index, Numeric, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -15,6 +15,11 @@ class OpportunityObservation(TimestampMixin, Base):
             "opportunity_id",
             "collection_run_id",
             name="uq_opportunity_observation_run",
+        ),
+        Index(
+            "ix_opportunity_observations_run_opportunity",
+            "collection_run_id",
+            "opportunity_id",
         ),
     )
 
