@@ -633,3 +633,157 @@ O teste operacional ponta a ponta contra uma conta AWS real, com backend/worker/
 ### Fora de escopo preservado
 
 Não foram implementados tela completa de CollectionRun, comparação avançada entre coletas, nova Home, dashboard multi-cloud, cache/materialização global, retenção histórica nem geração por IA como mecanismo principal de explicação. O botão de análise Bedrock que já existia permanece apenas como aprofundamento opcional e separado da explicação determinística/auditável desta etapa.
+
+## Etapa 8 — Comparação temporal entre CollectionRuns
+
+**Status:** concluída e validada no PR #13; CI run #113 aprovado antes do merge.
+
+### Pré-condição encontrada
+
+A fonte de verdade no início desta etapa era a `main` em `8905988ad2f4184710fd019174bf7e1a229cd6ea`, com as Etapas 1–6. A Etapa 7 (tela completa de Coletas) não estava publicada na `main` nem em branch disponível. Esta implementação não assume componentes inexistentes: adiciona a comparação e a navegação mínima a partir da tela de Execuções, sem reconstruir ou declarar concluída a Etapa 7.
+
+### Definições
+
+As categorias são mutuamente exclusivas no resumo:
+
+- `NEW`: não existe `OpportunityObservation` da oportunidade lógica na baseline e existe na target.
+- `PERSISTENT`: existe observation da mesma oportunidade lógica nas duas coletas e nenhum atributo semanticamente relevante mudou.
+- `NO_LONGER_DETECTED`: existe observation na baseline e não existe na target. Significa somente ausência de detecção na target; não implica resolução e não altera lifecycle.
+- `CHANGED`: existe observation da mesma oportunidade lógica nas duas coletas e mudou severidade, impacto financeiro canônico, confiança, métrica estruturada relevante, threshold, parâmetro da regra, contribuidores ou detalhe semântico explicitamente suportado.
+
+A identidade usa `OpportunityObservation.opportunity_id`, que referencia o `Finding` persistente protegido pelo fingerprint determinístico da Etapa 2. Título, descrição, posição em lista e ID da observation não participam da equivalência.
+
+### Detection state versus lifecycle
+
+O lifecycle atual (`open`, `treated`, `rejected`) é somente metadado do item comparado. As categorias são derivadas exclusivamente das observations. Uma oportunidade `rejected` ou `treated` presente nas duas coletas continua `PERSISTENT` ou `CHANGED`. Nenhuma transição automática foi adicionada; em especial, `NO_LONGER_DETECTED` não vira `TREATED`.
+
+### Comparabilidade e baseline
+
+Somente CollectionRuns distintos, `SUCCESS`, do mesmo `provider`, mesmo `account_id` nativo e com baseline anterior à target são comparáveis. O schema atual não possui `PARTIAL`.
+
+A baseline automática é a última `SUCCESS` anterior da mesma combinação `provider + account_id`. Runs `FAILED`, `RUNNING`, de outras contas ou providers são ignorados. Para a primeira coleta válida a API retorna `available=false`, `reason=NO_BASELINE`, sem erro 500.
+
+O modelo atual de `CollectionRun` não persiste snapshot de regiões, escopo ou tipo de coleta. Esses atributos não são inferidos. A API emite `SCOPE_METADATA_UNAVAILABLE` para registrar que a comparabilidade atual pôde validar provider/conta, mas não mudanças de configuração de escopo.
+
+### Rules version
+
+O campo real existente é `analyzer_version`; não foi criada coluna duplicada. No contrato de comparação ele é exposto como `rules_version`.
+
+- versões iguais e presentes: sem warning;
+- versões diferentes: `RULES_VERSION_CHANGED`, sem marcar tudo como `CHANGED`;
+- versão ausente em uma ou ambas: `RULES_VERSION_UNAVAILABLE`.
+
+A versão é contexto interpretativo. A classificação continua baseada nas observations.
+
+### Backend e API
+
+A lógica está centralizada em `backend/app/services/collection_comparison.py`.
+
+Endpoints:
+
+- `GET /api/v1/collections/{target_id}/comparison-options?limit=100`
+- `GET /api/v1/collections/{target_id}/compare?baseline_id=...&category=...&page=...&page_size=...`
+
+O endpoint retorna metadata de baseline/target, resumo, resumo financeiro compatível, warnings e a lista paginada da categoria solicitada. Baselines explícitas incompatíveis retornam HTTP 409 com código de negócio legível.
+
+### Estratégia de diff
+
+Cada request carrega somente os dois conjuntos de `OpportunityObservation` envolvidos, em duas queries em lote com join para `Finding`. Não existe query por opportunity e o frontend não baixa os dois históricos para executar diff.
+
+O serviço usa mapas por `opportunity_id`, operações de conjunto para novas/não detectadas e compara apenas a interseção para separar persistentes de alteradas.
+
+A comparação semântica ignora timestamps, IDs técnicos, `created_at`, `evaluated_at`, texto-resumo e ordem de chaves/listas. Métricas de evolução temporal natural como `stopped_days`, `age_days`, `lookback_days` e contagem de datapoints não criam, sozinhas, `CHANGED`. Thresholds, parâmetros, métricas relevantes, contribuidores e detalhes semânticos conhecidos da Etapa 6 são comparados.
+
+Não foi criado um diff universal de JSON.
+
+### Financeiro
+
+O agregado usa exclusivamente `OpportunityObservation.estimated_monthly_savings`, cuja semântica atual é economia potencial em USD/mês. Não soma `current_monthly_cost` com savings, nem agrega métricas `USD` de períodos avulsos.
+
+Retorna `baseline_total`, `target_total`, `delta`, `delta_percent` quando aplicável, `currency=USD`, `period=month` e `metric=estimated_monthly_savings`. Quando ambos os totais são zero, o resumo é omitido.
+
+Mudanças individuais de `current_monthly_cost` ou `estimated_monthly_savings` são registradas como `financial_impact` com unidade `USD_MONTH`.
+
+### Performance e índice
+
+O resumo é server-side. Somente a categoria/página solicitada é serializada na resposta. A estratégia é O(n + m) sobre as observations dos dois runs, e não sobre todas as opportunities da conta.
+
+Foi adicionado:
+
+- `ix_opportunity_observations_run_opportunity (collection_run_id, opportunity_id)`
+
+A constraint única existente `(opportunity_id, collection_run_id)` foi preservada. O novo índice cobre o acesso inverso iniciado pelo run. Migration: `0009_collection_comparison_indexes.py`.
+
+Não foi introduzido Redis, cache global ou materialized view.
+
+### Frontend
+
+Como a Etapa 7 não existe na fonte de verdade atual:
+
+- `/scans` continua sendo a lista operacional e passa a vincular o scan ao `CollectionRun`;
+- `/collections/{id}` mostra o run auditável e as ações de investigação;
+- `/collections/{target_id}/compare?baseline_id=...&category=...&page=...` é a URL compartilhável;
+- a baseline pode ser automática ou manual dentre opções compatíveis;
+- cards de Novas, Persistentes, Não detectadas e Alteradas filtram a lista;
+- detalhe é paginado pelo backend;
+- mudanças são exibidas baseline → target;
+- lifecycle é mostrado separadamente;
+- cada item abre a oportunidade existente;
+- baseline e target podem ser abertas individualmente.
+
+### Principais arquivos
+
+- `backend/app/services/collection_comparison.py`
+- `backend/app/api/routes/collections.py`
+- `backend/app/schemas/collection.py`
+- `backend/app/models/opportunity_observation.py`
+- `backend/app/migrations/versions/0009_collection_comparison_indexes.py`
+- `backend/app/tests/test_collection_comparison.py`
+- `backend/app/tests/test_migrations.py`
+- `frontend/app/scans/page.tsx`
+- `frontend/app/collections/[collectionId]/page.tsx`
+- `frontend/app/collections/[collectionId]/compare/page.tsx`
+- `frontend/app/collections/collection.module.css`
+- `frontend/lib/types.ts`
+- `frontend/tests/collection-comparison.test.mjs`
+
+### Testes incluídos
+
+A cobertura adicionada valida:
+
+- `NEW`, `PERSISTENT`, `NO_LONGER_DETECTED`, `CHANGED`;
+- mudança de severidade e impacto financeiro;
+- evolução natural `14 -> 15 dias` sem falso `CHANGED`;
+- `REJECTED`/`TREATED` sem interferir na categoria técnica;
+- delta financeiro em USD/mês;
+- warning de rules version;
+- baseline automática ignorando `FAILED` e outra conta;
+- rejeição de baseline `FAILED`, conta diferente e target inválida;
+- paginação;
+- exatamente duas queries de observations no caminho principal, sem N+1;
+- contrato HTTP e erro 409;
+- ausência de baseline como estado informativo;
+- contrato/navegação frontend.
+
+Validação automatizada do PR #13, CI run #113:
+
+- `ruff check .`: aprovado;
+- `ruff format --check .`: aprovado;
+- `pytest -q`: **202 testes aprovados**, 1 warning, em 36,95 s;
+- frontend: **13 testes aprovados** e `npm run build` concluído com sucesso;
+- security: aprovado;
+- Auto Deploy Tests run #106: aprovado.
+
+Uma execução anterior do CI detectou dois problemas antes do merge: o identificador da revisão Alembic excedia o `VARCHAR(32)` do version table PostgreSQL e o percentual `56,25%` usava arredondamento bancário. A revisão foi encurtada para `0009_collection_compare_idx` e o cálculo passou a `ROUND_HALF_UP`; o CI #113 validou as correções em PostgreSQL 17 e na suite completa.
+
+### Limitações e pendências
+
+- `CollectionRun` ainda não registra snapshot de regiões/escopo/tipo da coleta.
+- `analyzer_version` ainda pode estar nulo porque o worker não o preenche sistematicamente.
+- `Finding`/conta persistida ainda são AWS-específicos.
+- o agregado financeiro atual é somente `estimated_monthly_savings` USD/mês; múltiplas moedas exigirão metadata persistida.
+- o teste operacional ponta a ponta com alteração real de infraestrutura não é reproduzível apenas pelo repositório/CI sem sessão no host implantado e credenciais do provider; a suite cobre duas coletas e observations controladas.
+- não foram implementados nova Home, benchmark entre contas/clouds, cache global ou automação de lifecycle.
+
+Persistir metadata de escopo/região/tipo e uma versão de regras preenchida consistentemente permitirá endurecer a comparabilidade em etapa futura.
+

@@ -220,3 +220,97 @@ export type DashboardSummary = {
     estimated_monthly_savings_usd: number;
   }>;
 };
+
+export type CollectionComparisonCategory =
+  | "NEW"
+  | "PERSISTENT"
+  | "NO_LONGER_DETECTED"
+  | "CHANGED";
+
+export type CollectionComparisonRun = {
+  id: string;
+  provider: string;
+  account_id: string;
+  started_at: string;
+  finished_at: string | null;
+  status: string;
+  rules_version: string | null;
+};
+
+export type CollectionComparisonWarning = {
+  code: string;
+  message: string;
+};
+
+export type CollectionComparisonSummary = {
+  baseline_total: number;
+  target_total: number;
+  new: number;
+  persistent: number;
+  no_longer_detected: number;
+  changed: number;
+};
+
+export type CollectionComparisonFinancialSummary = {
+  metric: "estimated_monthly_savings";
+  label: string;
+  currency: "USD";
+  period: "month";
+  baseline_total: string;
+  target_total: string;
+  delta: string;
+  delta_percent: string | null;
+};
+
+export type CollectionComparisonObservation = {
+  observed_at: string;
+  severity: string;
+  current_monthly_cost: string;
+  estimated_monthly_savings: string;
+  confidence: string;
+  evidence_summary: string | null;
+};
+
+export type CollectionComparisonChange = {
+  type: string;
+  label: string;
+  baseline: unknown;
+  target: unknown;
+  unit: string | null;
+};
+
+export type CollectionComparisonItem = {
+  category: CollectionComparisonCategory;
+  opportunity_id: string;
+  fingerprint: string;
+  title: string;
+  rule_key: string;
+  service: string;
+  region: string;
+  resource_id: string;
+  resource_name: string | null;
+  lifecycle_status: string;
+  first_seen_at: string;
+  baseline: CollectionComparisonObservation | null;
+  target: CollectionComparisonObservation | null;
+  change_types: string[];
+  changes: CollectionComparisonChange[];
+};
+
+export type CollectionComparisonResponse = {
+  available: boolean;
+  reason: string | null;
+  message: string | null;
+  baseline: CollectionComparisonRun | null;
+  target: CollectionComparisonRun;
+  summary: CollectionComparisonSummary | null;
+  financial_summary: CollectionComparisonFinancialSummary | null;
+  rules_version_warning: CollectionComparisonWarning | null;
+  warnings: CollectionComparisonWarning[];
+  category: CollectionComparisonCategory;
+  items: CollectionComparisonItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
