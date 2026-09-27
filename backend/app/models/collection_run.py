@@ -35,7 +35,7 @@ class CollectionRun(TimestampMixin, Base):
     )
     provider: Mapped[str] = mapped_column(String(16), index=True, nullable=False)
     account_id: Mapped[str] = mapped_column(String(255), nullable=False)
-    scope: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
+    scope: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}", nullable=False)
     started_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), index=True, nullable=False
     )
