@@ -124,6 +124,7 @@ def comparison_options(
             "id": run.id,
             "provider": run.provider,
             "account_id": run.account_id,
+            "scope": run.scope or {},
             "started_at": run.started_at,
             "finished_at": run.finished_at,
             "status": run.status,
