@@ -39,6 +39,7 @@ export function parseOpportunitySearchParams(value) {
     sort: OPPORTUNITY_SORTS.includes(requestedSort) ? requestedSort : "last_seen_at",
     order: OPPORTUNITY_ORDERS.includes(requestedOrder) ? requestedOrder : "desc",
     opportunityId: params.get("opportunity_id") || "",
+    current: params.get("current") === "true",
   };
 }
 
@@ -63,6 +64,7 @@ export function buildOpportunityApiQuery(state) {
   addFilter(params, "collection_run_id", state.collectionRunId);
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
+  if (state.current) params.set("current", "true");
   return params.toString();
 }
 
@@ -76,6 +78,7 @@ export function buildOpportunityStatsQuery(state) {
   addFilter(params, "collection_run_id", state.collectionRunId);
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
+  if (state.current) params.set("current", "true");
   return params.toString();
 }
 
