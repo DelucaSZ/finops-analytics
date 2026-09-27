@@ -97,7 +97,8 @@ def seed_demo_data(db: Session) -> None:
             Finding(
                 fingerprint=fingerprint,
                 scan_id=scan.id,
-                account_id=account.id,
+                provider="aws",
+                account_id=account.aws_account_id,
                 rule_key=item["rule_key"],
                 service=item["service"],
                 region=item["region"],
