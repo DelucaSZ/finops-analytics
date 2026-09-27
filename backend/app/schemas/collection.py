@@ -16,6 +16,7 @@ class CollectionRunRead(BaseModel):
     scan_id: str | None
     provider: str
     account_id: str
+    scope: dict[str, Any] = Field(default_factory=dict)
     started_at: datetime
     finished_at: datetime | None
     status: str
@@ -85,6 +86,7 @@ class CollectionComparisonRun(BaseModel):
     id: str
     provider: str
     account_id: str
+    scope: dict[str, Any] = Field(default_factory=dict)
     started_at: datetime
     finished_at: datetime | None
     status: str
@@ -108,7 +110,7 @@ class CollectionComparisonSummary(BaseModel):
 class CollectionComparisonFinancialSummary(BaseModel):
     metric: Literal["estimated_monthly_savings"]
     label: str
-    currency: Literal["USD"]
+    currency: str
     period: Literal["month"]
     baseline_total: Decimal
     target_total: Decimal
@@ -140,9 +142,10 @@ class CollectionComparisonItem(BaseModel):
     title: str
     rule_key: str
     service: str
-    region: str
+    region: str | None
     resource_id: str
     resource_name: str | None
+    resource_type: str | None = None
     lifecycle_status: str
     first_seen_at: datetime
     baseline: CollectionComparisonObservation | None
