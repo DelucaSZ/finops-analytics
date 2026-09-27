@@ -965,7 +965,7 @@ aprovados e uma única head Alembic (`0010_collection_workspace`).
 
 ## Etapa 9 — Home operacional multi-account e multi-cloud
 
-**Status:** implementada na branch de entrega; validação automatizada final em andamento antes do merge.
+**Status:** concluída e validada no PR #14. O head de implementação foi aprovado pelo CI #118 e pelo Auto Deploy Tests #111 antes do merge.
 
 ### Estado anterior
 
@@ -1225,8 +1225,31 @@ A cobertura adicionada inclui:
 - persistência dos filtros e parâmetros de drill-down no frontend;
 - remoção da dependência da Home em `/accounts` para calcular indicadores.
 
-O resultado final de Ruff, pytest/PostgreSQL 17, testes frontend e build de produção
-será registrado aqui após a validação do PR.
+Validação automatizada do head de implementação no PR #14:
+
+- CI #118: aprovado integralmente;
+- `ruff check .`: aprovado;
+- `ruff format --check .`: aprovado;
+- `pytest -q`: **236 testes aprovados**, 1 warning de depreciação do TestClient,
+  em 39,11 s;
+- PostgreSQL **17.11** inicializado no job backend; as suites de migrations e
+  compatibilidade PostgreSQL incluídas no pytest foram executadas no mesmo pipeline;
+- frontend: **23 testes aprovados**;
+- `next build`: compilação de produção aprovada, 21/21 páginas estáticas geradas;
+- security job: aprovado, incluindo readiness checker, exposição do Compose e
+  `cfn-lint` do Security Group público;
+- Auto Deploy Tests #111: aprovado;
+- teste de performance da Etapa 9 confirmou **9 statements** no summary e
+  **3 statements** no collection-health, sem crescimento por quantidade de itens;
+- teste de drill-down confirmou que `/opportunities?current=true&status=open`
+  devolve exatamente as mesmas oportunidades abertas contabilizadas pela Home.
+
+A validação disponível neste ambiente é de repositório/CI. Não houve sessão remota na
+EC2 implantada nem acesso a credenciais reais de cloud; portanto não foram afirmados
+teste manual do console do navegador em produção, inspeção dos logs dos containers do
+host ou uma coleta real contra AWS. O build de produção, API/test client, PostgreSQL
+17, migrations, worker/readiness existentes e os testes controlados do fluxo foram
+validados pelo pipeline sem introduzir credenciais operacionais.
 
 ### Limitações e pendências futuras
 
