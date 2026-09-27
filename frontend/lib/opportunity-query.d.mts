@@ -7,6 +7,8 @@ export type OpportunityQueryState = {
   provider: string;
   accountId: string;
   region: string;
+  service: string;
+  resourceType: string;
   severity: OpportunitySeverity | "";
   rule: string;
   collectionRunId: string;
