@@ -29,6 +29,8 @@ export function parseOpportunitySearchParams(value) {
     provider: params.get("provider") || "",
     accountId: params.get("account_id") || "",
     region: params.get("region") || "",
+    service: params.get("service") || "",
+    resourceType: params.get("resource_type") || "",
     severity: OPPORTUNITY_SEVERITIES.includes(requestedSeverity) ? requestedSeverity : "",
     rule: params.get("rule") || params.get("rule_key") || "",
     collectionRunId: params.get("collection_run_id") || "",
@@ -59,6 +61,8 @@ export function buildOpportunityApiQuery(state) {
   addFilter(params, "provider", state.provider);
   addFilter(params, "account_id", state.accountId);
   addFilter(params, "region", state.region);
+  addFilter(params, "service", state.service);
+  addFilter(params, "resource_type", state.resourceType);
   addFilter(params, "severity", state.severity);
   addFilter(params, "rule", state.rule);
   addFilter(params, "collection_run_id", state.collectionRunId);
@@ -73,6 +77,8 @@ export function buildOpportunityStatsQuery(state) {
   addFilter(params, "provider", state.provider);
   addFilter(params, "account_id", state.accountId);
   addFilter(params, "region", state.region);
+  addFilter(params, "service", state.service);
+  addFilter(params, "resource_type", state.resourceType);
   addFilter(params, "severity", state.severity);
   addFilter(params, "rule", state.rule);
   addFilter(params, "collection_run_id", state.collectionRunId);
