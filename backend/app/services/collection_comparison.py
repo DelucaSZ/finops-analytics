@@ -99,6 +99,7 @@ def _evidence(context: ObservationContext) -> dict[str, Any]:
         evidence=observation.evidence,
         current_monthly_cost=observation.current_monthly_cost,
         estimated_monthly_savings=observation.estimated_monthly_savings,
+        provider=finding.provider,
     )
 
 
