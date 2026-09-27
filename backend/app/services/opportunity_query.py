@@ -24,6 +24,7 @@ class OpportunityFilters:
     collection_run_id: str | None = None
     resource_id: str | None = None
     search: str | None = None
+    current: bool = False
 
 
 def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bool = True):
@@ -56,6 +57,28 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
             .exists()
         )
         statement = statement.where(observed_in_run)
+    if filters.current:
+        latest_success_run = (
+            select(CollectionRun.id)
+            .where(
+                CollectionRun.provider == "aws",
+                CollectionRun.account_id == AwsAccount.aws_account_id,
+                CollectionRun.status == "SUCCESS",
+            )
+            .order_by(CollectionRun.started_at.desc(), CollectionRun.id.desc())
+            .limit(1)
+            .correlate(AwsAccount)
+            .scalar_subquery()
+        )
+        observed_in_current_run = (
+            select(OpportunityObservation.id)
+            .where(
+                OpportunityObservation.opportunity_id == Finding.id,
+                OpportunityObservation.collection_run_id == latest_success_run,
+            )
+            .exists()
+        )
+        statement = statement.where(observed_in_current_run)
     if filters.search:
         pattern = f"%{filters.search.strip()}%"
         statement = statement.where(
