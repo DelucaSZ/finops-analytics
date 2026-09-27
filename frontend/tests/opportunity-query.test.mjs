@@ -76,6 +76,19 @@ test("stats query keeps global filters but omits status and pagination", () => {
   assert.equal(query.has("page"), false);
 });
 
+test("current-state context survives opportunity API queries", () => {
+  const state = parseOpportunitySearchParams(
+    "provider=aws&account_id=123&status=open&current=true",
+  );
+  assert.equal(state.current, true);
+  const list = new URLSearchParams(buildOpportunityApiQuery(state));
+  const stats = new URLSearchParams(buildOpportunityStatsQuery(state));
+  assert.equal(list.get("current"), "true");
+  assert.equal(stats.get("current"), "true");
+  assert.equal(list.get("provider"), "aws");
+  assert.equal(list.get("account_id"), "123");
+});
+
 test("changing a filter resets page while explicit pagination does not", () => {
   const filtered = patchOpportunityUrl("status=open&page=4&severity=low", { severity: "high" });
   assert.equal(filtered.get("page"), "1");
