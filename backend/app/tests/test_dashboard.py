@@ -83,9 +83,7 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
     # opp-000 has observations in run-a1 and run-a2 but is still one logical opportunity.
     assert {item["id"] for item in body["top_opportunities"]} == {"opp-000", "opp-003"}
 
-    drill_down = http.get(
-        "/opportunities?current=true&status=open&page_size=100"
-    ).json()
+    drill_down = http.get("/opportunities?current=true&status=open&page_size=100").json()
     assert drill_down["total"] == body["opportunities"]["open"]
     assert {item["id"] for item in drill_down["items"]} == {"opp-000", "opp-003"}
 
@@ -128,9 +126,7 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
     assert oci["opportunities"]["open"] == 0
     assert oci["by_provider"] == []
 
-    account = http.get(
-        "/dashboard/summary?provider=aws&account_id=111111111111"
-    ).json()
+    account = http.get("/dashboard/summary?provider=aws&account_id=111111111111").json()
     assert account["scope"]["valid_scope_count"] == 1
     assert account["opportunities"] == {
         "open": 1,
@@ -138,13 +134,9 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
         "rejected": 1,
         "new_since_previous": 1,
     }
-    assert {
-        row["account_id"] for row in account["by_account"]
-    } == {"111111111111"}
+    assert {row["account_id"] for row in account["by_account"]} == {"111111111111"}
 
-    health = http.get(
-        "/dashboard/collection-health?provider=aws&account_id=111111111111"
-    ).json()
+    health = http.get("/dashboard/collection-health?provider=aws&account_id=111111111111").json()
     assert health["total_scopes"] == 1
     assert health["latest_execution"]["failed"] == 1
 
