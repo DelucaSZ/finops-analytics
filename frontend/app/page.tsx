@@ -18,6 +18,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
+import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import {
   buildDashboardApiQuery,
   parseDashboardSearchParams,
@@ -30,18 +31,6 @@ import type {
   DashboardCollectionHealth,
   DashboardSummary,
 } from "@/lib/types";
-
-function money(value: string | number, currency: string) {
-  try {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency,
-      minimumFractionDigits: 2,
-    }).format(Number(value));
-  } catch {
-    return `${currency} ${Number(value).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`;
-  }
-}
 
 function DashboardBoot() {
   return (
@@ -194,9 +183,9 @@ function DashboardContent() {
   );
 
   const scopeDescription = state.accountId
-    ? `${selectedAccount?.account_name || state.accountId} · ${state.provider.toUpperCase()}`
+    ? `${selectedAccount?.account_name || state.accountId} · ${providerLabel(state.provider)}`
     : state.provider
-      ? `${state.provider.toUpperCase()} · todas as contas`
+      ? `${providerLabel(state.provider)} · todas as contas`
       : "Todas as clouds · todas as contas";
 
   const currentOpportunityHref = (
@@ -268,7 +257,7 @@ function DashboardContent() {
               <option value="">Todas as clouds</option>
               {options.providers.map((provider) => (
                 <option value={provider} key={provider}>
-                  {provider.toUpperCase()}
+                  {providerLabel(provider)}
                 </option>
               ))}
             </select>
@@ -298,7 +287,7 @@ function DashboardContent() {
                   value={`${account.provider}|${account.account_id}`}
                 >
                   {account.account_name || account.account_id}
-                  {state.provider ? "" : ` · ${account.provider.toUpperCase()}`}
+                  {state.provider ? "" : ` · ${providerLabel(account.provider)}`}
                 </option>
               ))}
             </select>
@@ -386,7 +375,7 @@ function DashboardContent() {
               value={
                 monthlyTotals.length
                   ? monthlyTotals
-                      .map((total) => money(total.amount, total.currency))
+                      .map((total) => formatMoney(total.amount, total.currency))
                       .join(" · ")
                   : "—"
               }
@@ -522,12 +511,12 @@ function DashboardContent() {
                           {item.resource_name || item.resource_id} · {item.region}
                         </span>
                         <small>
-                          {item.account_name || item.account_id} · {item.provider.toUpperCase()}
+                          {item.account_name || item.account_id} · {providerLabel(item.provider)}
                         </small>
                       </div>
                       <StatusBadge value={item.severity} />
                       <strong className="dashboard-money">
-                        {money(item.estimated_monthly_savings, item.currency)}/mês
+                        {formatMoney(item.estimated_monthly_savings, item.currency)}/mês
                       </strong>
                     </Link>
                   ))}
@@ -660,7 +649,7 @@ function DashboardContent() {
                       <tr key={`${item.provider}:${item.account_id}`}>
                         <td>
                           <strong>{item.account_name || item.account_id}</strong>
-                          <span>{item.provider.toUpperCase()} · {item.account_id}</span>
+                          <span>{providerLabel(item.provider)} · {item.account_id}</span>
                         </td>
                         <td>
                           <Link href={`/collections/${encodeURIComponent(item.latest_execution.id)}`}>
@@ -820,7 +809,7 @@ function Distribution({
                 )}
                 key={item.provider}
               >
-                <span><Cloud size={15} /> {item.provider.toUpperCase()}</span>
+                <span><Cloud size={15} /> {providerLabel(item.provider)}</span>
                 <strong>{item.open}</strong>
               </Link>
             ))}
@@ -845,7 +834,7 @@ function Distribution({
                 <span>
                   <Building2 size={15} />
                   {item.account_name || item.account_id}
-                  <small>{item.provider.toUpperCase()}</small>
+                  <small>{providerLabel(item.provider)}</small>
                 </span>
                 <strong>{item.open}</strong>
               </Link>
