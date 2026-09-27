@@ -27,7 +27,8 @@ import type { OpportunityDecisionAction } from "@/components/opportunity-decisio
 import { OpportunityDetail } from "@/components/opportunity-detail";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate, usd } from "@/lib/api";
+import { api, formatDate } from "@/lib/api";
+import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import {
   buildLifecycleRequest,
   buildOpportunityApiQuery,
@@ -37,12 +38,11 @@ import {
 } from "@/lib/opportunity-query.mjs";
 import type { OpportunityQueryState } from "@/lib/opportunity-query.mjs";
 import type {
-  AwsAccount,
   CollectionRun,
   Finding,
+  OpportunityOptions,
   OpportunityPage,
   OpportunityStats,
-  Policy,
 } from "@/lib/types";
 
 const statusTabs = [
@@ -71,7 +71,7 @@ function pageWindow(page: number, totalPages: number) {
 function savingsLabel(finding: Finding) {
   return finding.rule_key === "cost_growth_anomaly"
     ? "Não estimada"
-    : `${usd(finding.estimated_monthly_savings)}/mês`;
+    : `${formatMoney(finding.estimated_monthly_savings, finding.currency)}/mês`;
 }
 
 function SkeletonRows() {
@@ -111,17 +111,23 @@ function OpportunitiesContent() {
   );
   const listQuery = useMemo(() => buildOpportunityApiQuery(state), [
     state.accountId, state.collectionRunId, state.current, state.order, state.page, state.pageSize,
-    state.provider, state.region, state.resourceId, state.rule, state.search,
-    state.severity, state.sort, state.status,
+    state.provider, state.region, state.resourceId, state.resourceType, state.rule, state.search,
+    state.service, state.severity, state.sort, state.status,
   ]);
   const statsQuery = useMemo(() => buildOpportunityStatsQuery(state), [
     state.accountId, state.collectionRunId, state.current, state.provider, state.region,
-    state.resourceId, state.rule, state.search, state.severity,
+    state.resourceId, state.resourceType, state.rule, state.search, state.service, state.severity,
   ]);
 
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [accounts, setAccounts] = useState<AwsAccount[]>([]);
-  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [options, setOptions] = useState<OpportunityOptions>({
+    providers: [],
+    accounts: [],
+    regions: [],
+    services: [],
+    resource_types: [],
+    rules: [],
+  });
   const [collectionRuns, setCollectionRuns] = useState<CollectionRun[]>([]);
   const [stats, setStats] = useState<OpportunityStats>({ open: 0, treated: 0, rejected: 0 });
   const [total, setTotal] = useState(0);
@@ -169,14 +175,11 @@ function OpportunitiesContent() {
     const controller = new AbortController();
     setFiltersLoading(true);
     setFilterError("");
-    Promise.all([
-      api<AwsAccount[]>("/accounts", { signal: controller.signal }),
-      api<Policy[]>("/policies/global", { signal: controller.signal }),
-    ])
-      .then(([accountData, policyData]) => {
-        setAccounts(accountData);
-        setPolicies(policyData);
-      })
+    const params = new URLSearchParams({ limit: "300" });
+    if (state.provider) params.set("provider", state.provider);
+    if (state.accountId) params.set("account_id", state.accountId);
+    api<OpportunityOptions>(`/opportunities/options?${params}`, { signal: controller.signal })
+      .then(setOptions)
       .catch((err) => {
         if (!controller.signal.aborted) {
           setFilterError(err instanceof Error ? err.message : "Não foi possível carregar as opções de filtro.");
@@ -186,7 +189,7 @@ function OpportunitiesContent() {
         if (!controller.signal.aborted) setFiltersLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [state.accountId, state.provider, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -246,14 +249,23 @@ function OpportunitiesContent() {
     [findings, selectedIds],
   );
   const allSelected = findings.length > 0 && selected.length === findings.length;
-  const pageSavings = findings.reduce((sum, finding) => sum + Number(finding.estimated_monthly_savings), 0);
+  const pageSavings = findings.reduce<Record<string, number>>((totals, finding) => {
+    const currency = finding.currency || "USD";
+    totals[currency] = (totals[currency] || 0) + Number(finding.estimated_monthly_savings);
+    return totals;
+  }, {});
   const newestObservation = findings.reduce<string | null>((latest, finding) => {
     if (!latest || new Date(finding.last_seen_at) > new Date(latest)) return finding.last_seen_at;
     return latest;
   }, null);
-  const currentAccount = accounts.find((account) => account.aws_account_id === state.accountId);
+  const currentAccount = options.accounts.find(
+    (account) => account.provider === state.provider && account.account_id === state.accountId,
+  );
+  const accountOptions = options.accounts.filter(
+    (account) => !state.provider || account.provider === state.provider,
+  );
   const providerOptions = Array.from(new Set([
-    "aws",
+    ...options.providers.map((provider) => provider.toLowerCase()),
     ...collectionRuns.map((run) => run.provider.toLowerCase()),
     ...(state.provider ? [state.provider.toLowerCase()] : []),
   ])).sort();
@@ -263,7 +275,8 @@ function OpportunitiesContent() {
   );
   const pages = pageWindow(state.page, totalPages);
   const hasFilters = Boolean(
-    state.provider || state.accountId || state.region || state.severity || state.rule ||
+    state.provider || state.accountId || state.region || state.service || state.resourceType ||
+    state.severity || state.rule ||
     state.collectionRunId || state.resourceId || state.search || state.current,
   );
 
@@ -286,6 +299,8 @@ function OpportunitiesContent() {
       provider: null,
       account_id: null,
       region: null,
+      service: null,
+      resource_type: null,
       severity: null,
       rule: null,
       rule_key: null,
@@ -354,7 +369,7 @@ function OpportunitiesContent() {
       if (state.accountId) updateUrl({ account_id: null });
       return;
     }
-    const match = accounts.find((account) => account.aws_account_id === value);
+    const match = accountOptions.find((account) => account.account_id === value);
     if (match) {
       if (state.accountId !== value) updateUrl({ account_id: value, collection_run_id: null });
       return;
