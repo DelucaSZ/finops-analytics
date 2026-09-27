@@ -74,7 +74,7 @@ def claim_scan(db: Session) -> Scan | None:
                     scan_id=scan.id,
                     provider=CloudProvider.AWS.value,
                     account_id=account_id,
-                    scope={"regions": sorted(account.regions)},
+                    scope={"regions": sorted(account.regions) if account else []},
                     started_at=started_at,
                     status=CollectionRunStatus.RUNNING,
                 )
@@ -95,6 +95,7 @@ def _create_finding_race_safe(
     *,
     fingerprint: str,
     scan: Scan,
+    run: CollectionRun,
     item,
     observed_at: datetime,
 ) -> Finding:
@@ -245,6 +246,7 @@ def persist_findings(
                 db,
                 fingerprint=fingerprint,
                 scan=scan,
+                run=run,
                 item=item,
                 observed_at=observed_at,
             )
