@@ -90,17 +90,18 @@ def client():
         db.add_all(runs)
         db.flush()
         for index in range(100):
-            account_id = 1 if index % 2 == 0 else 2
+            account_id = "111111111111" if index % 2 == 0 else "222222222222"
             status = ("open", "treated", "rejected")[index % 3]
             severity = ("high", "medium", "low")[index % 3]
             finding = Finding(
                 id=f"opp-{index:03d}",
                 fingerprint=f"{index:064x}",
-                scan_id="scan-a2" if account_id == 1 else "scan-b1",
+                scan_id="scan-a2" if account_id == "111111111111" else "scan-b1",
+                provider="aws",
                 account_id=account_id,
                 rule_key="missing_required_tags" if index % 2 == 0 else "ebs_unattached",
                 service="EC2",
-                region="sa-east-1" if account_id == 1 else "us-east-1",
+                region="sa-east-1" if account_id == "111111111111" else "us-east-1",
                 resource_id=f"resource-{index:03d}",
                 resource_name=f"Resource {index:03d}",
                 title=f"Opportunity {index:03d}",
