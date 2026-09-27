@@ -5,6 +5,7 @@ from decimal import Decimal
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
+from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
@@ -81,6 +82,7 @@ def _current_observations(*, provider: str | None, account_id: str | None):
             OpportunityObservation.severity.label("severity"),
             OpportunityObservation.current_monthly_cost.label("current_monthly_cost"),
             OpportunityObservation.estimated_monthly_savings.label("estimated_monthly_savings"),
+            OpportunityObservation.currency.label("currency"),
             OpportunityObservation.confidence.label("confidence"),
             latest_valid.c.provider.label("provider"),
             latest_valid.c.account_id.label("account_id"),
@@ -98,7 +100,7 @@ def _current_observations(*, provider: str | None, account_id: str | None):
 
 def _account_name_join(current):
     return and_(
-        current.c.provider == "aws",
+        current.c.provider == CloudProvider.AWS.value,
         current.c.account_id == AwsAccount.aws_account_id,
     )
 
@@ -257,22 +259,24 @@ def dashboard_summary(
             func.count(
                 func.distinct(case((Finding.status == "rejected", Finding.id), else_=None))
             ).label("rejected"),
-            func.coalesce(
-                func.sum(
-                    case(
-                        (
-                            Finding.status == "open",
-                            current.c.estimated_monthly_savings,
-                        ),
-                        else_=Decimal("0"),
-                    )
-                ),
-                Decimal("0"),
-            ).label("estimated_monthly_savings"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
     ).one()
+
+    financial_rows = db.execute(
+        select(
+            current.c.currency,
+            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
+                "amount"
+            ),
+        )
+        .select_from(current)
+        .join(Finding, Finding.id == current.c.opportunity_id)
+        .where(Finding.status == "open")
+        .group_by(current.c.currency)
+        .order_by(current.c.currency)
+    ).all()
 
     severity_rows = db.execute(
         select(current.c.severity, func.count(func.distinct(Finding.id)))
@@ -287,9 +291,6 @@ def dashboard_summary(
         select(
             current.c.provider,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "estimated_monthly_savings"
-            ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -304,9 +305,6 @@ def dashboard_summary(
             current.c.account_id,
             AwsAccount.name,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "estimated_monthly_savings"
-            ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -341,6 +339,7 @@ def dashboard_summary(
             current.c.collection_run_id,
             current.c.severity,
             current.c.estimated_monthly_savings,
+            current.c.currency,
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -383,21 +382,20 @@ def dashboard_summary(
             "metric": "estimated_monthly_savings",
             "label": "Economia potencial estimada",
             "period": "month",
-            # O schema atual da Etapa 8 define esta métrica em USD/mês. A resposta usa
-            # uma lista por moeda para não cristalizar a arquitetura em um total único.
             "totals": [
                 {
-                    "currency": "USD",
-                    "amount": totals.estimated_monthly_savings or Decimal("0"),
+                    "currency": row.currency,
+                    "amount": row.amount,
                 }
+                for row in financial_rows
             ],
         },
         "by_provider": [
             {
                 "provider": row.provider,
                 "open": int(row.open),
-                "estimated_monthly_savings": row.estimated_monthly_savings,
-                "currency": "USD",
+                "estimated_monthly_savings": None,
+                "currency": None,
             }
             for row in provider_rows
         ],
@@ -407,8 +405,8 @@ def dashboard_summary(
                 "account_id": row.account_id,
                 "account_name": row.name,
                 "open": int(row.open),
-                "estimated_monthly_savings": row.estimated_monthly_savings,
-                "currency": "USD",
+                "estimated_monthly_savings": None,
+                "currency": None,
             }
             for row in account_rows
         ],
@@ -426,7 +424,7 @@ def dashboard_summary(
                 "collection_run_id": row.collection_run_id,
                 "severity": row.severity,
                 "estimated_monthly_savings": row.estimated_monthly_savings,
-                "currency": "USD",
+                "currency": row.currency,
             }
             for row in top_rows
         ],
@@ -521,7 +519,7 @@ def collection_health(
     ).one()
 
     account_join = and_(
-        joined.c.provider == "aws",
+        joined.c.provider == CloudProvider.AWS.value,
         joined.c.account_id == AwsAccount.aws_account_id,
     )
     rows = db.execute(
