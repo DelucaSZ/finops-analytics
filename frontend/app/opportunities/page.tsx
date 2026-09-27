@@ -420,9 +420,9 @@ function OpportunitiesContent() {
 
           <label className="opportunity-filter">
             <span>Cloud</span>
-            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, collection_run_id: null })}>
+            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, account_id: null, collection_run_id: null })}>
               <option value="">Todas as clouds</option>
-              {providerOptions.map((provider) => <option key={provider} value={provider}>{provider.toUpperCase()}</option>)}
+              {providerOptions.map((provider) => <option key={provider} value={provider}>{providerLabel(provider)}</option>)}
             </select></div>
           </label>
 
@@ -431,33 +431,61 @@ function OpportunitiesContent() {
             <div><Building2 size={16} /><input
               list="opportunity-account-options"
               value={accountInput}
-              placeholder={filtersLoading ? "Carregando contas…" : "Buscar por Account ID"}
+              placeholder={filtersLoading ? "Carregando contas…" : "Buscar por nome ou ID da conta"}
               onChange={(event) => {
                 const value = event.target.value;
                 setAccountInput(value);
                 if (!value) updateUrl({ account_id: null, collection_run_id: null });
-                else if (accounts.some((account) => account.aws_account_id === value)) {
+                else if (accountOptions.some((account) => account.account_id === value)) {
                   updateUrl({ account_id: value, collection_run_id: null });
                 }
               }}
               onBlur={commitAccountInput}
               onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             /></div>
-            {currentAccount && <small>{currentAccount.name} · {currentAccount.aws_account_id}</small>}
+            {currentAccount && (
+              <small>
+                {currentAccount.account_name || currentAccount.account_id} · {providerLabel(currentAccount.provider)}
+              </small>
+            )}
             <datalist id="opportunity-account-options">
-              {accounts.map((account) => <option key={account.id} value={account.aws_account_id}>{account.name} · {account.aws_account_id}</option>)}
+              {accountOptions.map((account) => (
+                <option key={`${account.provider}:${account.account_id}`} value={account.account_id}>
+                  {account.account_name || account.account_id} · {providerLabel(account.provider)}
+                </option>
+              ))}
             </datalist>
           </label>
 
           <label className="opportunity-filter">
             <span>Região</span>
             <div><Filter size={16} /><input
+              list="opportunity-region-options"
               value={regionInput}
-              placeholder="Ex.: us-east-1"
+              placeholder="Qualquer região ou escopo regional"
               onChange={(event) => setRegionInput(event.target.value)}
               onBlur={() => { if (regionInput.trim() !== state.region) updateUrl({ region: regionInput.trim() }); }}
               onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             /></div>
+            <datalist id="opportunity-region-options">
+              {options.regions.map((region) => <option key={region} value={region} />)}
+            </datalist>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Serviço</span>
+            <div><Filter size={16} /><select value={state.service} onChange={(event) => updateUrl({ service: event.target.value })}>
+              <option value="">Todos os serviços</option>
+              {options.services.map((service) => <option key={service} value={service}>{service}</option>)}
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Tipo de recurso</span>
+            <div><Filter size={16} /><select value={state.resourceType} onChange={(event) => updateUrl({ resource_type: event.target.value })}>
+              <option value="">Todos os tipos</option>
+              {options.resource_types.map((resourceType) => <option key={resourceType} value={resourceType}>{resourceType}</option>)}
+            </select></div>
           </label>
 
           <label className="opportunity-filter">
@@ -474,10 +502,7 @@ function OpportunitiesContent() {
             <span>Regra / Analyzer</span>
             <div><Tags size={16} /><select value={state.rule} onChange={(event) => updateUrl({ rule: event.target.value, rule_key: null })}>
               <option value="">Todas as regras</option>
-              {policies
-                .map((policy) => [policy.rule_key, policy.name] as const)
-                .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
-                .map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+              {options.rules.map((rule) => <option key={rule} value={rule}>{rule}</option>)}
             </select></div>
           </label>
 
@@ -490,7 +515,7 @@ function OpportunitiesContent() {
               )}
               {visibleCollectionRuns.map((run) => (
                 <option key={run.id} value={run.id}>
-                  {formatDate(run.started_at)} · {run.provider.toUpperCase()} · {run.account_id} · {run.status}
+                  {formatDate(run.started_at)} · {providerLabel(run.provider)} · {run.account_id} · {run.status}
                 </option>
               ))}
             </select></div>
@@ -507,7 +532,13 @@ function OpportunitiesContent() {
         <div className="opportunity-summary-card">
           <WalletCards size={18} />
           <span>Economia na página</span>
-          <strong>{usd(pageSavings)}/mês</strong>
+          <strong>
+            {Object.entries(pageSavings).length
+              ? Object.entries(pageSavings)
+                  .map(([currency, amount]) => formatMoney(amount, currency))
+                  .join(" · ")
+              : "—"}
+          </strong>
           <small>Somente os {findings.length} itens carregados</small>
         </div>
         <div className="opportunity-summary-card">
@@ -606,9 +637,10 @@ function OpportunitiesContent() {
                       {finding.resource_name && <span>{finding.resource_id}</span>}
                     </td>
                     <td className="opportunity-context-cell">
-                      <strong>{finding.provider.toUpperCase()} · {finding.account_name}</strong>
+                      <strong>{providerLabel(finding.provider)} · {finding.account_name || finding.account_id}</strong>
                       <span>{finding.account_id}</span>
                       <span>{finding.region || "Sem região"} · {finding.service || "Sem serviço"}</span>
+                      {finding.resource_type && <span>{finding.resource_type}</span>}
                     </td>
                     <td>
                       <div className="risk-badges"><StatusBadge value={finding.severity} /><StatusBadge value={finding.status} /></div>
@@ -616,7 +648,7 @@ function OpportunitiesContent() {
                     </td>
                     <td className="money-cell opportunity-impact-cell">
                       {savingsLabel(finding)}
-                      <span>Custo atual: {usd(finding.current_monthly_cost)}</span>
+                      <span>Custo atual: {formatMoney(finding.current_monthly_cost, finding.currency)}</span>
                     </td>
                     <td className="detection-cell">
                       <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>
