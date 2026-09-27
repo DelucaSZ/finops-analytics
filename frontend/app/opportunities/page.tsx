@@ -110,12 +110,12 @@ function OpportunitiesContent() {
     [searchKey],
   );
   const listQuery = useMemo(() => buildOpportunityApiQuery(state), [
-    state.accountId, state.collectionRunId, state.order, state.page, state.pageSize,
+    state.accountId, state.collectionRunId, state.current, state.order, state.page, state.pageSize,
     state.provider, state.region, state.resourceId, state.rule, state.search,
     state.severity, state.sort, state.status,
   ]);
   const statsQuery = useMemo(() => buildOpportunityStatsQuery(state), [
-    state.accountId, state.collectionRunId, state.provider, state.region,
+    state.accountId, state.collectionRunId, state.current, state.provider, state.region,
     state.resourceId, state.rule, state.search, state.severity,
   ]);
 
@@ -264,7 +264,7 @@ function OpportunitiesContent() {
   const pages = pageWindow(state.page, totalPages);
   const hasFilters = Boolean(
     state.provider || state.accountId || state.region || state.severity || state.rule ||
-    state.collectionRunId || state.resourceId || state.search,
+    state.collectionRunId || state.resourceId || state.search || state.current,
   );
 
   useEffect(() => {
@@ -292,6 +292,7 @@ function OpportunitiesContent() {
       collection_run_id: null,
       resource_id: null,
       search: null,
+      current: null,
     });
   }
 
@@ -393,7 +394,7 @@ function OpportunitiesContent() {
 
       <section className="panel opportunity-filter-panel" aria-label="Filtros de oportunidades">
         <div className="opportunity-filter-heading">
-          <div><ListFilter size={18} /><strong>Filtros</strong><span>Combinados no servidor e persistidos na URL</span></div>
+          <div><ListFilter size={18} /><strong>Filtros</strong><span>Combinados no servidor e persistidos na URL{state.current ? " · Estado atual das últimas coletas válidas" : ""}</span></div>
           {hasFilters && <button className="filter-clear" type="button" onClick={clearFilters}><X size={15} /> Limpar filtros</button>}
         </div>
         <div className="opportunity-filter-grid">

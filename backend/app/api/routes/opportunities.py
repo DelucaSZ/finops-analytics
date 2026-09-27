@@ -46,6 +46,7 @@ def _filters(
     collection_run_id: str | None,
     resource_id: str | None,
     search: str | None,
+    current: bool,
 ) -> OpportunityFilters:
     return OpportunityFilters(
         provider=provider.lower() if provider else None,
@@ -57,6 +58,7 @@ def _filters(
         collection_run_id=collection_run_id,
         resource_id=resource_id,
         search=search,
+        current=current,
     )
 
 
@@ -71,6 +73,7 @@ def list_opportunity_page(
     collection_run_id: str | None = None,
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
+    current: bool = False,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     sort: OpportunitySort = "last_seen_at",
@@ -87,6 +90,7 @@ def list_opportunity_page(
         collection_run_id,
         resource_id,
         search,
+        current,
     )
     return list_opportunities(
         db,
@@ -108,6 +112,7 @@ def stats(
     collection_run_id: str | None = None,
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
+    current: bool = False,
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
     filters = _filters(
@@ -120,6 +125,7 @@ def stats(
         collection_run_id,
         resource_id,
         search,
+        current,
     )
     return opportunity_stats(db, filters)
 

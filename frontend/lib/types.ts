@@ -197,27 +197,112 @@ export type Scan = {
 };
 
 export type DashboardSummary = {
-  accounts: number;
-  connected_accounts: number;
-  open_findings: number;
-  estimated_monthly_savings_usd: number;
-  estimated_annual_savings_usd: number;
-  by_severity: Record<string, number>;
-  latest_scans: Array<{
-    id: string;
-    account_id: number;
-    status: string;
-    created_at: string;
-    findings_count: number;
+  scope: {
+    provider: string | null;
+    account_id: string | null;
+    valid_scope_count: number;
+    has_current_data: boolean;
+  };
+  opportunities: {
+    open: number;
+    treated: number;
+    rejected: number;
+    new_since_previous: number;
+  };
+  severity: {
+    high: number;
+    medium: number;
+    low: number;
+    other: number;
+  };
+  financial: {
+    metric: string;
+    label: string;
+    period: string;
+    totals: Array<{ currency: string; amount: string }>;
+  };
+  by_provider: Array<{
+    provider: string;
+    open: number;
+    estimated_monthly_savings: string;
+    currency: string;
   }>;
-  top_findings: Array<{
+  by_account: Array<{
+    provider: string;
+    account_id: string;
+    account_name: string | null;
+    open: number;
+    estimated_monthly_savings: string;
+    currency: string;
+  }>;
+  top_opportunities: Array<{
     id: string;
-    account_id: number;
     title: string;
+    rule_key: string;
     resource_id: string;
+    resource_name: string | null;
     region: string;
+    provider: string;
+    account_id: string;
+    account_name: string | null;
+    collection_run_id: string;
     severity: string;
-    estimated_monthly_savings_usd: number;
+    estimated_monthly_savings: string;
+    currency: string;
+  }>;
+  recent_changes: {
+    new: number;
+    no_longer_detected: number;
+    changed: number | null;
+    changed_available: boolean;
+    comparable_scopes: number;
+    scopes_without_baseline: number;
+    rules_version_changed_scopes: number;
+    rules_version_unknown_scopes: number;
+  };
+};
+
+export type DashboardCollectionHealth = {
+  scope: {
+    provider: string | null;
+    account_id: string | null;
+  };
+  total_scopes: number;
+  valid_scopes: number;
+  latest_execution: {
+    failed: number;
+    running: number;
+    success: number;
+  };
+  valid_with_warnings: number;
+  newest_valid_at: string | null;
+  oldest_valid_at: string | null;
+  oldest_valid_scope: {
+    provider: string;
+    account_id: string;
+    account_name: string | null;
+    started_at: string;
+  } | null;
+  stale_policy_configured: boolean;
+  items: Array<{
+    provider: string;
+    account_id: string;
+    account_name: string | null;
+    latest_execution: {
+      id: string;
+      status: string;
+      started_at: string;
+      finished_at: string | null;
+      has_warnings: boolean;
+    };
+    latest_valid: {
+      id: string;
+      status: string;
+      started_at: string;
+      finished_at: string | null;
+      rules_version: string | null;
+      has_warnings: boolean;
+    } | null;
   }>;
 };
 
