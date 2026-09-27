@@ -11,6 +11,7 @@ from app.schemas.opportunity import (
     BulkTransitionResult,
     ObservationPage,
     OpportunityDetail,
+    OpportunityOptions,
     OpportunityPage,
     OpportunitySeverity,
     OpportunitySort,
@@ -25,6 +26,7 @@ from app.services.opportunity_query import (
     get_opportunity,
     list_opportunities,
     observation_history,
+    opportunity_options,
     opportunity_stats,
     status_history,
 )
@@ -40,6 +42,8 @@ def _filters(
     provider: str | None,
     account_id: str | None,
     region: str | None,
+    service: str | None,
+    resource_type: str | None,
     status: str | None,
     severity: str | None,
     rule: str | None,
@@ -52,6 +56,8 @@ def _filters(
         provider=provider.lower() if provider else None,
         account_id=account_id,
         region=region,
+        service=service,
+        resource_type=resource_type,
         status=status,
         severity=severity,
         rule=rule,
@@ -67,6 +73,8 @@ def list_opportunity_page(
     provider: str | None = None,
     account_id: str | None = None,
     region: str | None = None,
+    service: str | None = Query(default=None, max_length=120),
+    resource_type: str | None = Query(default=None, max_length=120),
     opportunity_status: OpportunityStatus | None = Query(default=None, alias="status"),
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
@@ -84,6 +92,8 @@ def list_opportunity_page(
         provider,
         account_id,
         region,
+        service,
+        resource_type,
         opportunity_status,
         severity,
         rule,
@@ -107,6 +117,8 @@ def stats(
     provider: str | None = None,
     account_id: str | None = None,
     region: str | None = None,
+    service: str | None = Query(default=None, max_length=120),
+    resource_type: str | None = Query(default=None, max_length=120),
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
     collection_run_id: str | None = None,
@@ -119,6 +131,8 @@ def stats(
         provider,
         account_id,
         region,
+        service,
+        resource_type,
         None,
         severity,
         rule,
@@ -128,6 +142,25 @@ def stats(
         current,
     )
     return opportunity_stats(db, filters)
+
+
+
+
+@router.get("/options", response_model=OpportunityOptions)
+def options(
+    provider: str | None = Query(default=None, max_length=16),
+    account_id: str | None = Query(default=None, max_length=255),
+    search: str | None = Query(default=None, max_length=255),
+    limit: int = Query(default=200, ge=1, le=500),
+    db: Session = Depends(get_db),
+) -> dict:
+    return opportunity_options(
+        db,
+        provider=provider,
+        account_id=account_id,
+        search=search,
+        limit=limit,
+    )
 
 
 def _bulk_result(requested: int, updated_ids: list[str]) -> dict:
