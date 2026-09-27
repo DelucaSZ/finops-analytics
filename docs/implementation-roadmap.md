@@ -634,6 +634,163 @@ O teste operacional ponta a ponta contra uma conta AWS real, com backend/worker/
 
 Não foram implementados tela completa de CollectionRun, comparação avançada entre coletas, nova Home, dashboard multi-cloud, cache/materialização global, retenção histórica nem geração por IA como mecanismo principal de explicação. O botão de análise Bedrock que já existia permanece apenas como aprofundamento opcional e separado da explicação determinística/auditável desta etapa.
 
+## Etapa 7 — Workspace de coletas
+
+**Status:** concluída e validada localmente.
+
+### Inspeção da base antes das alterações
+
+Base: `main` em `8905988ad2f4184710fd019174bf7e1a229cd6ea`. Confirmados no código:
+Etapa 1 em `CollectionRun`/worker/migration 0005; Etapa 2 em fingerprint,
+`persist_findings`, observation e migration 0006; Etapa 3 em lifecycle/migration
+0007; Etapa 4 em API/query de opportunities/migration 0008; Etapas 5–6 no workspace,
+drawer, histórico paginado e evidência estruturada por observation.
+
+Campos reais de CollectionRun: `id`, `scan_id`, `provider`, `account_id`,
+`started_at`, `finished_at`, `status`, `resources_analyzed`, `opportunities_found`,
+`analyzer_version`, `error_detail`, `created_at`, `updated_at`. Provider e conta são
+texto genérico; `scan_id` é opcional/único, FK para Scan com SET NULL. Estados reais:
+RUNNING, SUCCESS, FAILED. Índices individuais em provider/account_id/status/started_at
+e composto (provider, account_id, started_at). Observation possui FK para run com
+CASCADE, índice collection_run_id e unicidade (opportunity_id, collection_run_id).
+
+O worker cria RUNNING no claim transacional do Scan, finaliza SUCCESS após persistir
+achados deduplicados e FAILED na fronteira de exceção. Antes desta etapa, exceções
+eram persistidas como texto livre. Falhas parciais dos analyzers resultam em Scan
+completed_with_warnings e CollectionRun SUCCESS. Recursos não são medidos (0 é
+placeholder), analyzer_version é nulo. Os endpoints existentes são GET /collections
+(lista limit/offset com filtros provider/account/status) e GET /collections/{id}.
+A tela de oportunidades consome a lista legada limitada a 100 itens.
+
+### Estrutura final e navegação
+
+- Entrada de primeiro nível **Coletas**, mantendo Execuções/Scan legado e demais itens.
+- `/collections`: tabela de início/fim, provider, nome e identificador nativo de conta,
+  status com ícone/texto, duração, recursos quando disponíveis e oportunidades encontradas.
+- `/collections/{id}`: detalhe com UUID completo, contexto, horários com segundos,
+  duração derivada, versão dos analyzers, trigger e Scan de origem quando disponíveis,
+  contagem factual de observations e erro/avisos sanitizados.
+- RUNNING apresenta tempo decorrido, sem percentual inventado ou classificação STUCK.
+- Atualização local a cada 15 segundos quando a página está visível e botão Atualizar.
+  Shell preservado entre rotas protegidas (autorização continua validada em cada API).
+- Skeleton inicial, loading local, retry, 404 e estados vazios distintos. Tabela com
+  scroll horizontal local em telas pequenas. Voltar ao histórico preserva sua query.
+
+### API, filtros, paginação e ordenação
+
+Endpoints reaproveitados/evoluídos:
+
+- `GET /api/v1/collections?page=1&page_size=50`: envelope `items`, `page`, `page_size`,
+  `total`, `total_pages`, `account_summary`. Máximo 200 por página; UI oferece 25/50/100.
+- Compatibilidade: sem page/page_size, a mesma rota mantém o array `limit/offset`
+  consumido pela Etapa 5, com limite máximo 200. Não existe endpoint duplicado de listagem.
+- `GET /api/v1/collections/{id}`: detalhe leve, sem JSON de evidências nem histórico completo.
+- Novo `GET /api/v1/collections/options`: providers conhecidos e sugestões pesquisáveis
+  de conta (provider/search/limit; padrão 50, máximo 100, `has_more_accounts`). Busca por
+  nome ou ID no banco; contas não AWS/desconhecidas continuam visíveis pelo ID nativo.
+
+Filtros combináveis no servidor: `provider`, `account_id`, `status`, `date_from`,
+`date_to`, `analyzer_version`. Datas filtram started_at com intervalo
+`[date_from, date_to)`: início inclusivo, fim exclusivo. API aceita offsets e normaliza
+UTC; datas sem timezone são UTC. UI edita horários locais e grava ISO com timezone na
+URL; oferece também Últimos 30 dias. Estados inválidos/intervalos invertidos retornam 422.
+
+Ordenação server-side: `started_at` (padrão DESC) e `opportunities_found`, com
+`order=asc|desc` e desempate por ID. Não há ordenação enganosa somente da página atual.
+Duração é derivada, não armazenada; ordenação por duração/recursos não foi exposta.
+Filtros, página, tamanho e ordenação sobrevivem a refresh e navegação voltar/avançar.
+Aplicar filtros ou alterar tamanho/ordenação retorna à página 1.
+
+### Métricas e integração com oportunidades
+
+- Listagem usa `opportunities_found`, contagem deduplicada persistida pelo worker.
+- Detalhe usa `COUNT(OpportunityObservation)` por `collection_run_id`, e não o total
+  de Finding nem o último `Finding.scan_id`. Não carrega observations no navegador.
+- Link **Ver oportunidades desta coleta** reutiliza `/opportunities` com
+  `collection_run_id` explícito. Abre a aba Abertas; Tratadas/Rejeitadas mantêm o filtro,
+  conforme explicado na interface. Valores/evidências históricas continuam no drawer.
+- Histórico de observations no drawer agora oferece link para `/collections/{id}`.
+- Com provider e account_id selecionados, contexto separado consulta última execução
+  e última SUCCESS do histórico inteiro, ignorando filtros de período/status da tabela.
+  SUCCESS com avisos aparece explicitamente e não é chamada de coleta válida/completa.
+
+### Falhas e proteção de dados
+
+`collection_errors.py` centraliza uma allowlist de mensagens públicas para falhas de
+permissão, autenticação, limites, conexão e timeout; erros desconhecidos recebem uma
+mensagem genérica. Nunca copia payload, URL, header, token, credencial, SQL ou traceback
+arbitrário, mesmo após uma falha de um serviço remoto.
+
+Worker aplica essa proteção antes de gravar erro em CollectionRun/Scan/conta e antes
+de registrar a falha no log. Leitura de CollectionRun e Scan aplica a mesma proteção
+para registros históricos, sem reescrever dados antigos. O detalhe mostra FAILED com
+motivo seguro. SUCCESS associado a Scan completed_with_warnings mostra aviso de
+resultado incompleto e motivo seguro, sem inventar novo estado PARTIAL.
+
+### Queries e índices
+
+- Listagem normal: duas queries, COUNT + página com LIMIT/OFFSET, LEFT JOIN de nome de
+  conta e status do Scan; não há query por linha nem join de todas as observations.
+- Contexto de uma conta/cloud: duas queries adicionais fixas com LIMIT 1.
+- Detalhe: leitura do run/contexto, COUNT indexado de observations e Scan opcional.
+- Nomes de conta são enriquecidos para AWS, sem excluir providers desconhecidos.
+- Migration `0010_collection_workspace`: substitui índices simples account_id/status
+  por `(account_id, started_at)` e `(status, started_at)`, evitando manter prefixos
+  redundantes. Mantém provider, started_at e `(provider, account_id, started_at)`.
+- Reutiliza o índice existente de `OpportunityObservation.collection_run_id`.
+
+### Principais arquivos
+
+- Backend: `api/routes/collections.py`, `services/collection_query.py`,
+  `services/collection_errors.py`, `schemas/collection.py`, `schemas/scan.py`,
+  `models/collection_run.py`, `worker.py`, migration 0010.
+- Frontend: `app/collections/page.tsx`, `app/collections/[collectionId]/page.tsx`,
+  `components/collection-workspace.tsx`, `lib/collection-query.mjs` + declaração TS,
+  `components/app-shell.tsx`, `components/opportunity-detail.tsx`, `lib/types.ts`,
+  `app/globals.css`.
+- Testes: `test_collections_api.py`, expectativas de migration em `test_migrations.py`
+  e `test_opportunity_migration.py`, `test_collection_runs.py`,
+  `frontend/tests/collection-query.test.mjs`.
+
+### Validação e teste integrado
+
+- Ruff check e format aprovados; frontend compilado em produção com as duas novas rotas.
+- Frontend: 16 testes node:test aprovados, incluindo query/URL, reset de página,
+  sanitização de parâmetros de navegação, link por coleta e duração.
+- Backend: **206 testes aprovados**, **11 testes PostgreSQL pulados** por ausência de
+  servidor local, 1 aviso de depreciação do TestClient. Suíte cobre filtros, limites de período,
+  timezone, paginação, ordenação, detalhe/404, autenticação, compatibilidade legada,
+  sanitização de erros históricos/novos, avisos parciais e contagem constante de queries.
+- Migração de banco vazio e legado, equivalência metadata/schema e prontidão do worker
+  validadas em SQLite. PostgreSQL não disponível localmente; testes correspondentes
+  são pulados explicitamente e permanecem configurados para PostgreSQL 17 no CI.
+- Teste integrado em Chromium, API FastAPI, worker real e frontend Next.js local,
+  com chamadas AWS substituídas por fixtures controladas: 31 runs (29 históricos de
+  teste + uma coleta SUCCESS e uma FAILED), 2 contas AWS e histórico de provider OCI.
+- Confirmados no navegador: login; shell/navegação; listagem; cloud/conta/status;
+  paginação 25 itens e segunda página; refresh mantendo filtros/página; detalhe,
+  timestamps/duração; indisponibilidade honesta de recursos; uma observation vinculada;
+  navegação à oportunidade filtrada e retorno pelo histórico; FAILED/AccessDenied
+  sem segredo simulado; viewport desktop e mobile sem overflow global.
+- Console do navegador sem erros JavaScript ou erros de console no teste integrado
+  concluído. Logs API/worker revisados: requisições bem-sucedidas e única falha
+  intencional sanitizada. Nenhum acesso à conta AWS real/EC2 de produção foi feito.
+
+### Pendências conhecidas e escopo preservado
+
+- Recursos: collectors ainda não medem esse total; zero legado aparece como
+  **Não disponível** (`resources_analyzed_available=false`), nunca como zero medido.
+- Versão de analyzers permanece **Não registrada** quando o worker não a fornece.
+- Novas/persistentes ficam para Etapa 8: backfill da Etapa 2 só preservou snapshots
+  disponíveis e oportunidades anteriores ao histórico podem não ter a primeira
+  observation original. Não foi inferida classificação falsa a partir de created_at.
+- Nenhum motor de comparação, desaparecidas/alteradas, nova Home, materialização,
+  cache global, retenção ou novo provider de coleta foi implementado.
+- Modelo persistido de conta e execução de collectors continuam AWS-específicos;
+  o workspace e CollectionRun aceitam providers/identificadores genéricos.
+- Validar coleta e deploy na EC2 real continua sendo uma verificação operacional
+  posterior: o teste integrado desta entrega usa AWS simulada, não credenciais reais.
+
 ## Etapa 8 — Comparação temporal entre CollectionRuns
 
 **Status:** concluída e validada no PR #13; CI run #113 aprovado antes do merge.
@@ -787,3 +944,20 @@ Uma execução anterior do CI detectou dois problemas antes do merge: o identifi
 
 Persistir metadata de escopo/região/tipo e uma versão de regras preenchida consistentemente permitirá endurecer a comparabilidade em etapa futura.
 
+
+
+### Integração tardia da Etapa 7 — 27/09/2026
+
+O commit local da Etapa 7 não havia sido publicado por falta de credenciais no git
+HTTPS. A main avançou para `0ea94dc` (Etapa 8) nesse intervalo. A entrega foi integrada
+preservando integralmente o motor, schemas, endpoints e tela de comparação da Etapa 8.
+A migration do workspace passa a `0010_collection_workspace`, após
+`0009_collection_compare_idx`, evitando duas heads Alembic. A rota dinâmica unificada
+usa `[collectionId]`; o detalhe operacional mantém os links Comparar e Comparar com
+coleta anterior, cujas opções são carregadas separadamente. As afirmações anteriores
+sobre ausência de Etapa 7 na seção 8 descrevem a base histórica daquela implementação.
+Os testes das duas etapas foram executados juntos antes desta publicação.
+
+Validação conjunta após integração: **219 testes backend aprovados**, 11 testes
+PostgreSQL pulados localmente, **18 testes frontend aprovados**; Ruff check/format
+aprovados e uma única head Alembic (`0010_collection_workspace`).

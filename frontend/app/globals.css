@@ -408,3 +408,31 @@ button svg, .toolbar svg, .alert svg { flex-shrink: 0; }
 .settings-row-actions { display: flex; flex-wrap: wrap; gap: 8px; min-width: 280px; }
 .settings-pagination { display: flex; align-items: center; flex-wrap: wrap; justify-content: space-between; gap: 12px; margin: 24px 0; color: var(--muted); }
 .settings-table td { vertical-align: top; }
+
+/* CollectionRun workspace: same shell and panels as opportunities. */
+.collection-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 18px 0; }
+.collection-toolbar > span, .collection-note { color: var(--muted); font-size: .9rem; }
+.collection-toolbar select { margin-left: 6px; }
+.collection-status { display: inline-flex; align-items: center; gap: 7px; border: 1px solid currentColor; border-radius: 20px; padding: 5px 10px; font-size: .85rem; white-space: nowrap; }
+.collection-status.collection-success { color: #6de4b9; background: rgba(38, 179, 129, .12); }
+.collection-status.collection-running { color: #8fc3ff; background: rgba(74, 144, 226, .12); }
+.collection-status.collection-failed { color: #ff9da5; background: rgba(226, 74, 85, .12); }
+.collection-table td { vertical-align: top; }
+.collection-link { font-weight: 650; text-decoration: underline; text-underline-offset: 3px; }
+.collection-pagination, .collection-note { padding: 0 22px 18px; }
+.collection-detail, .collection-account-summary { padding: 24px; margin-bottom: 22px; }
+.collection-id { display: block; overflow-wrap: anywhere; margin-bottom: 24px; }
+.collection-metadata { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 24px; margin: 28px 0; }
+.collection-metadata dt { color: var(--muted); font-size: .9rem; margin-bottom: 8px; }
+.collection-metadata dd { margin: 0; font-size: 1.05rem; font-weight: 600; overflow-wrap: anywhere; }
+.collection-metadata small { display: block; font-weight: 400; margin-top: 6px; }
+.collection-detail .collection-note { padding: 14px 0 0; max-width: 760px; }
+.collection-account-summary a { text-decoration: underline; }
+.collection-detail p { line-height: 1.6; }
+
+.collection-table td .collection-status { display: inline-flex; font-size: .85rem; margin-top: 0; }
+.collection-toolbar select { color: var(--text); background: var(--surface-2); border: 1px solid var(--border); padding: 8px 10px; border-radius: 8px; font: inherit; }
+
+.collection-toolbar label { min-width: 0; max-width: 100%; }
+.collection-toolbar select { max-width: calc(100% - 6px); }
+.opportunity-filter-panel > .collection-toolbar { padding: 0 20px; }

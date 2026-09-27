@@ -168,7 +168,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0009_collection_compare_idx"
+            == "0010_collection_workspace"
         )
 
     engine.dispose()

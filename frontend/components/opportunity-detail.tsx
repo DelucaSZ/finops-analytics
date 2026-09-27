@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Clock3, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
@@ -240,7 +242,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                       </div>
                       <div>
                         <span>Coleta {item.collection_status}</span>
-                        <code>{item.collection_run_id}</code>
+                        <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Link>
                       </div>
                       <p className="history-evidence-summary">{item.evidence.summary}</p>
                       <button

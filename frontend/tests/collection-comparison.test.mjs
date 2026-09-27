@@ -33,7 +33,7 @@ test("collection comparison is backend-owned, paginated and shareable", async ()
 test("execution history exposes CollectionRun detail and comparison navigation", async () => {
   const scans = await readFile(new URL("../app/scans/page.tsx", import.meta.url), "utf8");
   const detail = await readFile(
-    new URL("../app/collections/[collectionId]/page.tsx", import.meta.url),
+    new URL("../components/collection-comparison-actions.tsx", import.meta.url),
     "utf8",
   );
 
@@ -41,7 +41,7 @@ test("execution history exposes CollectionRun detail and comparison navigation",
   assert.match(scans, /Ver coleta/);
   assert.match(scans, /Comparar/);
   assert.match(detail, /comparison-options/);
-  assert.match(detail, /runData\.status === "SUCCESS"/);
+  assert.match(detail, /run\.status === "SUCCESS"/);
   assert.match(detail, /Comparar com coleta anterior/);
   assert.match(detail, /primeira coleta bem-sucedida/);
 });

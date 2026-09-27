@@ -17,6 +17,7 @@ import { api, ApiError } from "@/lib/api";
 const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/opportunities", label: "Oportunidades", icon: ScanSearch },
+  { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/accounts", label: "Contas AWS", icon: Building2 },
   { href: "/policies", label: "Políticas", icon: Settings2 },
   { href: "/scans", label: "Execuções", icon: Activity },
@@ -44,7 +45,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       else setError("Não foi possível verificar sua sessão. Tente novamente.");
     });
     return () => { active = false; };
-  }, [isPublic, pathname, router, retry]);
+  }, [isPublic, router, retry]);
 
   if (error && !ready) return <main className="boot-screen"><p role="alert">{error}</p><button className="button" onClick={() => setRetry((value) => value + 1)}>Tentar novamente</button></main>;
   if (!ready) return <div className="boot-screen">Verificando acesso…</div>;

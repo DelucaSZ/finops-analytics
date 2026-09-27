@@ -1,10 +1,12 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-ComparisonCategory = Literal["NEW", "PERSISTENT", "NO_LONGER_DETECTED", "CHANGED"]
+from app.services.collection_errors import sanitize_collection_error
+
+CollectionSort = Literal["started_at", "opportunities_found"]
 
 
 class CollectionRunRead(BaseModel):
@@ -23,6 +25,60 @@ class CollectionRunRead(BaseModel):
     error_detail: str | None
     created_at: datetime
     updated_at: datetime
+
+    @field_validator("error_detail", mode="before")
+    @classmethod
+    def safe_error(cls, value):
+        return sanitize_collection_error(value)
+
+    @field_validator("started_at", "finished_at", "created_at", "updated_at")
+    @classmethod
+    def utc_dates(cls, value):
+        if value is not None and value.tzinfo is None:
+            return value.replace(tzinfo=UTC)
+        return value
+
+
+class CollectionItem(CollectionRunRead):
+    account_name: str | None = None
+    duration_seconds: float | None = None
+    resources_analyzed_available: bool = False
+    has_warnings: bool = False
+
+
+class CollectionAccountSummary(BaseModel):
+    latest_run: CollectionItem | None
+    latest_success: CollectionItem | None
+
+
+class CollectionPage(BaseModel):
+    items: list[CollectionItem]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+    account_summary: CollectionAccountSummary | None = None
+
+
+class CollectionDetail(CollectionItem):
+    opportunities_observed: int
+    warning_detail: str | None = None
+    trigger: str | None = None
+
+
+class CollectionAccountOption(BaseModel):
+    provider: str
+    account_id: str
+    account_name: str | None
+
+
+class CollectionOptions(BaseModel):
+    providers: list[str]
+    accounts: list[CollectionAccountOption]
+    has_more_accounts: bool
+
+
+ComparisonCategory = Literal["NEW", "PERSISTENT", "NO_LONGER_DETECTED", "CHANGED"]
 
 
 class CollectionComparisonRun(BaseModel):

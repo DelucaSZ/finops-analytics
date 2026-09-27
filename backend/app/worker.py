@@ -16,6 +16,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
+from app.services.collection_errors import sanitize_collection_error
 from app.services.collectors import run_collectors
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 from app.services.policies import list_effective_policies
@@ -311,7 +312,11 @@ def execute_scan(db: Session, scan: Scan) -> None:
     scan.findings_count = opportunity_count
     scan.status = "completed_with_warnings" if collector_errors else "completed"
     scan.completed_at = datetime.now(UTC)
-    scan.error = "\n".join(collector_errors)[:4000] if collector_errors else None
+    scan.error = (
+        "\n".join(sanitize_collection_error(error) for error in collector_errors)[:4000]
+        if collector_errors
+        else None
+    )
 
     run.status = CollectionRunStatus.SUCCESS
     run.finished_at = scan.completed_at
@@ -333,7 +338,7 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
         return
 
     finished_at = datetime.now(UTC)
-    error = str(exc)
+    error = sanitize_collection_error(exc)
     failed_scan.status = "failed"
     failed_scan.completed_at = finished_at
     failed_scan.error = error[:4000]
@@ -362,7 +367,7 @@ def process_once() -> bool:
             execute_scan(db, scan)
             logger.info("Completed scan %s with %s findings", scan.id, scan.findings_count)
         except Exception as exc:  # worker boundary: persist errors and continue
-            logger.exception("Scan %s failed", scan.id)
+            logger.error("Scan %s failed: %s", scan.id, sanitize_collection_error(exc))
             fail_scan(db, scan.id, exc)
         return True
 

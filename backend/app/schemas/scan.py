@@ -1,6 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
+
+from app.services.collection_errors import sanitize_collection_error
 
 
 class ScanCreate(BaseModel):
@@ -19,3 +21,8 @@ class ScanRead(BaseModel):
     findings_count: int
     error: str | None
     created_at: datetime
+
+    @field_validator("error", mode="before")
+    @classmethod
+    def safe_error(cls, value):
+        return sanitize_collection_error(value)

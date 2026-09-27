@@ -108,7 +108,7 @@ def test_failed_scan_is_not_left_running(db):
     assert run is not None
     assert run.status == CollectionRunStatus.FAILED
     assert run.finished_at is not None
-    assert run.error_detail == "collector exploded"
+    assert run.error_detail == worker.sanitize_collection_error("collector exploded")
     failed_scan = db.get(Scan, scan.id)
     assert failed_scan.status == "failed"
     assert failed_scan.completed_at is not None

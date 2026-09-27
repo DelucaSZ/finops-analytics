@@ -221,6 +221,31 @@ export type DashboardSummary = {
   }>;
 };
 
+export type CollectionItem = CollectionRun & {
+  account_name: string | null;
+  duration_seconds: number | null;
+  resources_analyzed_available: boolean;
+  has_warnings: boolean;
+};
+export type CollectionPage = {
+  items: CollectionItem[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+  account_summary: { latest_run: CollectionItem | null; latest_success: CollectionItem | null } | null;
+};
+export type CollectionDetail = CollectionItem & {
+  opportunities_observed: number;
+  warning_detail: string | null;
+  trigger: string | null;
+};
+export type CollectionOptions = {
+  providers: string[];
+  accounts: { provider: string; account_id: string; account_name: string | null }[];
+  has_more_accounts: boolean;
+};
+
 export type CollectionComparisonCategory =
   | "NEW"
   | "PERSISTENT"
