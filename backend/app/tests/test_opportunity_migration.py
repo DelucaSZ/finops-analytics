@@ -139,7 +139,10 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
         observations = refreshed.tables["opportunity_observations"]
 
         rows = {
-            row.id: row for row in connection.execute(select(findings.c.id, findings.c.fingerprint))
+            row.id: row
+            for row in connection.execute(
+                select(findings.c.id, findings.c.fingerprint, findings.c.provider, findings.c.account_id)
+            )
         }
         assert rows["finding-with-run"].fingerprint == build_opportunity_fingerprint(
             provider="aws",
@@ -149,6 +152,11 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
             resource_id="i-abc",
             rule_id="ec2_stopped_with_ebs",
         )
+        assert rows["finding-with-run"].provider == "aws"
+        assert rows["finding-with-run"].account_id == "123456789012"
+        assert rows["finding-before-runs"].provider == "aws"
+        assert rows["finding-before-runs"].account_id == "123456789012"
+
         assert rows["finding-before-runs"].fingerprint == build_opportunity_fingerprint(
             provider="aws",
             account_id="123456789012",
@@ -168,7 +176,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0010_collection_workspace"
+            == "0011_multicloud_core"
         )
 
     engine.dispose()
