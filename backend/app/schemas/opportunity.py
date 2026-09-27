@@ -76,17 +76,20 @@ class OpportunityListItem(BaseModel):
     fingerprint: str
     provider: str
     account_id: str
-    account_name: str
-    legacy_account_id: int
+    account_name: str | None = None
+    legacy_account_id: int | None = None
     rule_key: str
     service: str
-    region: str
+    region: str | None
     resource_id: str
     resource_name: str | None
+    resource_type: str | None = None
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
     title: str
     description: str
     current_monthly_cost: Decimal
     estimated_monthly_savings: Decimal
+    currency: str
     confidence: str
     severity: str
     status: str
@@ -102,7 +105,9 @@ class ObservationRead(BaseModel):
     severity: str
     current_monthly_cost: Decimal
     estimated_monthly_savings: Decimal
+    currency: str
     confidence: str
+    provider_metadata: dict[str, Any] = Field(default_factory=dict)
     evidence: OpportunityEvidence
     collection_provider: str
     collection_account_id: str
@@ -112,7 +117,7 @@ class ObservationRead(BaseModel):
 
 
 class OpportunityDetail(OpportunityListItem):
-    scan_id: str
+    scan_id: str | None
     treated_at: datetime | None = None
     treated_by: str | None = None
     treatment_note: str | None = None
@@ -131,6 +136,21 @@ class OpportunityPage(BaseModel):
     page_size: int
     total: int
     total_pages: int
+
+
+class OpportunityAccountOption(BaseModel):
+    provider: str
+    account_id: str
+    account_name: str | None = None
+
+
+class OpportunityOptions(BaseModel):
+    providers: list[str] = Field(default_factory=list)
+    accounts: list[OpportunityAccountOption] = Field(default_factory=list)
+    regions: list[str] = Field(default_factory=list)
+    services: list[str] = Field(default_factory=list)
+    resource_types: list[str] = Field(default_factory=list)
+    rules: list[str] = Field(default_factory=list)
 
 
 class OpportunityStats(BaseModel):
