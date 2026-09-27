@@ -214,6 +214,7 @@ def build_evidence(
     estimated_monthly_savings: Decimal | float | int | str,
     policy: dict[str, Any] | None = None,
     evaluated_at: datetime | str | None = None,
+    provider: str = "aws",
 ) -> dict[str, Any]:
     raw = dict(raw_evidence or {})
     if raw.get("schema_version") == EVIDENCE_SCHEMA_VERSION and all(
