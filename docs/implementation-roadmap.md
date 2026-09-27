@@ -961,3 +961,282 @@ Os testes das duas etapas foram executados juntos antes desta publicação.
 Validação conjunta após integração: **219 testes backend aprovados**, 11 testes
 PostgreSQL pulados localmente, **18 testes frontend aprovados**; Ruff check/format
 aprovados e uma única head Alembic (`0010_collection_workspace`).
+
+
+## Etapa 9 — Home operacional multi-account e multi-cloud
+
+**Status:** implementada na branch de entrega; validação automatizada final em andamento antes do merge.
+
+### Estado anterior
+
+A Home consumia um `/dashboard/summary` legado que agregava todos os `Finding`
+abertos independentemente da coleta em que foram observados, somava
+`estimated_monthly_savings` diretamente no snapshot atual de `Finding`, consultava
+`Scan` para atividade recente e carregava `/accounts` no frontend para enriquecer
+nomes. A página era explicitamente AWS, possuía o card fixo `9/9` de regras e não
+distinguia última execução de última coleta válida.
+
+### Definição formal de estado atual
+
+O estado atual consolidado passa a ser a união das observations da **última
+`CollectionRun SUCCESS` de cada par `provider + account_id`** dentro do escopo
+selecionado.
+
+Em termos conceituais:
+
+```text
+estado atual =
+latest SUCCESS(provider A, account X)
++ latest SUCCESS(provider A, account Y)
++ latest SUCCESS(provider B, account Z)
++ ...
+```
+
+O backend usa `row_number() over (partition by provider, account_id order by
+started_at desc, id desc)` e escolhe `rank = 1` somente após restringir runs a
+`SUCCESS`. Não existe `ORDER BY ... LIMIT 1` global para representar o ambiente.
+
+Os únicos estados reais do modelo são `RUNNING`, `SUCCESS` e `FAILED`.
+`SUCCESS` é a coleta válida. `FAILED` e `RUNNING` nunca substituem o snapshot
+corrente. Um `SUCCESS` associado a `Scan.completed_with_warnings` continua sendo
+válido porque o domínio não possui `PARTIAL`; a Home, porém, o identifica
+explicitamente na saúde das coletas para evitar interpretação de completude que o
+modelo não garante.
+
+### Última execução versus última coleta válida
+
+A saúde das coletas calcula dois rankings independentes por `provider + account_id`:
+
+- última execução: qualquer status;
+- última coleta válida: somente `SUCCESS`.
+
+Assim, se `#101 FAILED` vier depois de `#100 SUCCESS`, a Home mostra a falha de
+`#101` e continua usando `#100` como fonte do estado atual. A mesma separação é
+exposta por conta na tabela compacta de saúde.
+
+Não existe política persistida de atraso/freshness no domínio. A Etapa 9 não inventa
+um threshold de “coleta atrasada”; mostra horário da coleta válida mais recente,
+horário da mais antiga no consolidado e informa que a política de stale ainda não foi
+configurada.
+
+### Filtros e URL
+
+Filtros globais implementados:
+
+- `provider`;
+- `account_id` nativo do provider.
+
+A URL é a fonte de estado do filtro, por exemplo
+`/?provider=aws&account_id=111111111111`. Refresh, histórico do navegador e links
+compartilháveis preservam o escopo. Os providers e contas disponíveis vêm de
+`GET /api/v1/collections/options`; não existe lista fixa de clouds no frontend.
+
+Região e ambiente não foram promovidos a filtro global nesta etapa. `CollectionRun`
+ainda não persiste snapshot de regiões/escopo e o domínio não possui uma dimensão
+provider-neutral confiável de ambiente; expor esses filtros na Home produziria uma
+semântica inconsistente entre estado atual e histórico.
+
+### KPIs e definições
+
+Os cards principais são links operacionais:
+
+- **Oportunidades abertas:** `Finding.status = open`, contando cada oportunidade
+  lógica uma vez e somente se ela possui `OpportunityObservation` na última
+  `SUCCESS` de seu provider/conta.
+- **Economia potencial:** soma de
+  `OpportunityObservation.estimated_monthly_savings` das oportunidades `open`
+  pertencentes ao estado atual. Não soma `current_monthly_cost` nem outras grandezas.
+- **Novas desde a coleta anterior:** `NEW` entre a última `SUCCESS` e a
+  `SUCCESS` anterior da mesma conta/provider. Escopos sem baseline são excluídos
+  dessa contagem e reportados separadamente.
+- **Tratadas:** lifecycle `treated` das oportunidades presentes no estado atual.
+- **Rejeitadas:** lifecycle `rejected` das oportunidades presentes no estado atual.
+- **Falhas na última execução:** quantidade de pares provider/conta cuja execução mais
+  recente possui status `FAILED`.
+
+Lifecycle (`open/treated/rejected`) continua independente de detection state
+(`NEW/PERSISTENT/NO_LONGER_DETECTED/CHANGED`). Uma oportunidade rejeitada observada
+novamente continua rejeitada.
+
+### Mudanças recentes e baseline
+
+O backend ranqueia as duas últimas `SUCCESS` de cada `provider + account_id`.
+`NEW` é obtido por anti-join de observations da target contra a baseline da mesma
+conta; `NO_LONGER_DETECTED` faz o anti-join inverso. Não existe comparação cruzada
+entre contas.
+
+Para uma conta com somente uma `SUCCESS`, a Home registra “sem baseline” e **não**
+classifica todo o primeiro snapshot como novo.
+
+`analyzer_version` é usada como contexto: a resposta informa quantos escopos
+comparáveis trocaram versão e quantos não possuem versão suficiente para confirmar
+igualdade.
+
+A contagem consolidada de `CHANGED` não é aproximada nesta etapa. A Etapa 8 define
+`CHANGED` por diff semântico de evidence, parâmetros, critérios e contribuidores;
+reproduzir corretamente essa regra em um agregado SQL exigiria duplicar/carregar a
+lógica de evidence. A Home deixa `changed` indisponível e direciona a investigação à
+comparação de coletas, em vez de produzir um número enganoso.
+
+### Financeiro e moeda
+
+A única métrica financeira semanticamente agregável hoje é
+`estimated_monthly_savings`, definida pela Etapa 8 como USD/mês. A API não retorna um
+campo global fixo “USD total”; retorna uma coleção de totais por moeda:
+
+```json
+{"totals": [{"currency": "USD", "amount": "..."}]}
+```
+
+Isso preserva o comportamento real atual e deixa o contrato apto a representar
+USD/BRL/EUR separadamente quando a moeda for persistida no domínio. Não foi
+implementada conversão cambial implícita.
+
+### Severidade, clouds, contas e principais oportunidades
+
+A distribuição de severidade usa os enums existentes `high/medium/low` e somente
+oportunidades `open` do estado atual. Cada linha é clicável e leva ao filtro
+correspondente; severidades desconhecidas são contabilizadas como `other` e não são
+reclassificadas pela Home.
+
+A distribuição por provider é dinâmica e agrupada no banco. A distribuição por conta
+mostra no máximo oito contas ordenadas pela quantidade objetiva de oportunidades
+abertas; nomes AWS são apenas enriquecimento opcional por `LEFT JOIN`, sem excluir
+providers desconhecidos.
+
+“Oportunidades abertas para atenção” usa critério explícito: maior
+`estimated_monthly_savings` do estado atual, com severidade apenas como desempate.
+São retornados no máximo cinco itens e cada um abre a oportunidade existente.
+
+### Drill-down e preservação de contexto
+
+Foi introduzido o filtro `current=true` na API de oportunidades. Ele restringe a
+listagem/stats às oportunidades observadas na última `SUCCESS` de cada conta do
+escopo, permitindo reconciliar exatamente os números da Home.
+
+Exemplos:
+
+```text
+/?provider=aws&account_id=111...
+  -> /opportunities?provider=aws&account_id=111...&current=true&status=open
+  -> /opportunities?provider=aws&account_id=111...&current=true&status=open&severity=high
+  -> /opportunities?provider=aws&account_id=111...&current=true&status=treated
+  -> /collections?provider=aws&account_id=111...&status=FAILED
+```
+
+A tela de Oportunidades mantém `current=true` ao trocar lifecycle, paginação e
+demais filtros e sinaliza visualmente que está mostrando o estado atual.
+
+### APIs
+
+Endpoints alterados/criados:
+
+- `GET /api/v1/dashboard/summary?provider=&account_id=`;
+- `GET /api/v1/dashboard/collection-health?provider=&account_id=&limit=8`;
+- `GET /api/v1/opportunities?...&current=true` e
+  `GET /api/v1/opportunities/stats?...&current=true`;
+- reutilizado `GET /api/v1/collections/options` para opções de escopo.
+
+A Home faz três requests independentes: summary, collection-health e options. Summary
+e health possuem loading/erro local; falha na saúde das coletas não derruba os KPIs e
+vice-versa. Os payloads contêm agregados, metadados e no máximo pequenos top-N; não
+incluem evidence completo nem históricos.
+
+### Queries e performance
+
+`dashboard/summary` foi desenhado para nove statements agregados/limitados no caminho
+atual: seleção de escopos válidos, lifecycle+financeiro, severidade, provider, conta,
+top opportunities e três agregações da comparação recente.
+`dashboard/collection-health` usa três statements: agregado de saúde, lista compacta
+e escopo com dado válido mais antigo.
+
+As consultas usam `COUNT`, `SUM`, `CASE`, `GROUP BY`, window function, `EXISTS`
+e anti-joins no banco. O frontend não baixa todas as opportunities,
+`OpportunityObservation` ou `CollectionRun` para montar indicadores. Não existe
+N+1 por oportunidade/conta no dashboard.
+
+Nenhum índice novo foi criado. A revisão das queries confirmou reaproveitamento dos
+índices existentes:
+
+- `collection_runs(provider, account_id, started_at)`;
+- `collection_runs(account_id, started_at)`;
+- `collection_runs(status, started_at)`;
+- `opportunity_observations(collection_run_id, opportunity_id)`;
+- `findings(account_id, status, last_seen_at)`;
+- `findings(status, severity)`.
+
+Materialized view, tabela de resumo, Redis e cache global permanecem deliberadamente
+fora da Etapa 9.
+
+### UX e estados
+
+A primeira viewport prioriza escopo, freshness e seis KPIs investigáveis. Blocos
+secundários cobrem severidade, clouds/contas, top opportunities, mudanças e saúde das
+coletas. A página usa skeletons locais, mantém shell/header/filtros visíveis e não
+bloqueia summary à espera de health.
+
+Estados distintos:
+
+- nenhuma `CollectionRun`: orientação para executar a primeira coleta;
+- runs existentes sem `SUCCESS`: alerta de ausência de estado atual válido;
+- `SUCCESS` sem oportunidade aberta: mensagem explícita de nenhuma oportunidade;
+- erro parcial de summary/health: bloco de erro e retry local.
+
+Gráficos/barras de severidade possuem labels e valores; a informação não depende
+somente de cor.
+
+### Segurança
+
+Os endpoints continuam sob `require_user`. A Etapa 9 não introduz autorização
+paralela nem contorna as dependências existentes. O produto ainda não possui uma
+camada de ACL por conta/provider; portanto não existe regra adicional de escopo para
+replicar nesta etapa.
+
+### Principais arquivos
+
+- `backend/app/services/dashboard.py`;
+- `backend/app/schemas/dashboard.py`;
+- `backend/app/api/routes/dashboard.py`;
+- `backend/app/api/routes/opportunities.py`;
+- `backend/app/services/opportunity_query.py`;
+- `backend/app/tests/test_dashboard.py`;
+- `frontend/app/page.tsx`;
+- `frontend/app/globals.css`;
+- `frontend/lib/dashboard-query.mjs` e `.d.mts`;
+- `frontend/lib/opportunity-query.mjs` e `.d.mts`;
+- `frontend/app/opportunities/page.tsx`;
+- `frontend/lib/types.ts`;
+- testes frontend de dashboard/query.
+
+### Testes e validação
+
+A cobertura adicionada inclui:
+
+- lifecycle `open/treated/rejected` sem inflar pela quantidade de observations;
+- duas contas usando sua própria última `SUCCESS`;
+- última execução `FAILED` preservando a `SUCCESS` anterior como estado atual;
+- filtros de provider e conta;
+- `NEW` por baseline de cada conta e primeira coleta sem falso “novo”;
+- `NO_LONGER_DETECTED` separado de lifecycle;
+- warning de mudança de rules version;
+- reconciliação entre KPI aberto e drill-down `current=true`;
+- contagem constante de queries do summary e health;
+- autenticação;
+- persistência dos filtros e parâmetros de drill-down no frontend;
+- remoção da dependência da Home em `/accounts` para calcular indicadores.
+
+O resultado final de Ruff, pytest/PostgreSQL 17, testes frontend e build de produção
+será registrado aqui após a validação do PR.
+
+### Limitações e pendências futuras
+
+- `Finding.account_id` ainda referencia `aws_accounts`; portanto o lifecycle/lista de
+  oportunidades continuará AWS até a etapa de generalização do domínio. A Home e
+  `CollectionRun` já não dependem de uma lista fixa de providers.
+- `CollectionRun` não possui snapshot de região/ambiente/escopo.
+- moeda não é persistida por observation; hoje a semântica confiável é USD/mês.
+- `analyzer_version` ainda pode ser nula.
+- não existe política configurada de atraso de coleta.
+- `CHANGED` consolidado permanece na comparação da Etapa 8 até existir estratégia
+  correta de agregação do diff semântico.
+- cache global/materialização e demais otimizações futuras permanecem fora desta etapa.
