@@ -124,6 +124,7 @@ class CollectionComparisonObservation(BaseModel):
     current_monthly_cost: Decimal
     estimated_monthly_savings: Decimal
     confidence: str
+    currency: str
     evidence_summary: str | None
 
 
