@@ -181,6 +181,7 @@ def _base(
     notes: list[str] | None = None,
     contributors: list[dict[str, Any]] | None = None,
     evaluated_at: datetime | str | None = None,
+    provider: str = "aws",
 ) -> dict[str, Any]:
     if isinstance(evaluated_at, datetime):
         evaluated_at = evaluated_at.astimezone(UTC).isoformat()
@@ -203,7 +204,7 @@ def build_evidence(
     *,
     rule_key: str,
     service: str,
-    region: str,
+    region: str | None,
     resource_id: str,
     resource_name: str | None,
     title: str,
@@ -235,7 +236,7 @@ def build_evidence(
     notes: list[str] = []
     contributors: list[dict[str, Any]] = []
     summary = description or title
-    source = "AWS inventory"
+    source = "AWS inventory" if provider.lower() == "aws" else f"{provider.upper()} provider data"
 
     if rule_key == "ebs_unattached":
         state = raw.get("state")
@@ -826,6 +827,7 @@ def build_collected_finding_evidence(
         estimated_monthly_savings=finding.estimated_monthly_savings,
         policy=policy,
         evaluated_at=evaluated_at,
+        provider="aws",
     )
 
 
@@ -833,7 +835,7 @@ def normalize_persisted_evidence(
     *,
     rule_key: str,
     service: str,
-    region: str,
+    region: str | None,
     resource_id: str,
     resource_name: str | None,
     title: str,
@@ -841,6 +843,7 @@ def normalize_persisted_evidence(
     evidence: dict[str, Any] | None,
     current_monthly_cost: Decimal | float | int | str,
     estimated_monthly_savings: Decimal | float | int | str,
+    provider: str = "aws",
 ) -> dict[str, Any]:
     return build_evidence(
         rule_key=rule_key,
@@ -853,4 +856,5 @@ def normalize_persisted_evidence(
         raw_evidence=evidence,
         current_monthly_cost=current_monthly_cost,
         estimated_monthly_savings=estimated_monthly_savings,
+        provider=provider,
     )
