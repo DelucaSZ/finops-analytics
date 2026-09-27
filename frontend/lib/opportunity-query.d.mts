@@ -17,6 +17,7 @@ export type OpportunityQueryState = {
   sort: OpportunitySort;
   order: OpportunityOrder;
   opportunityId: string;
+  current: boolean;
 };
 export const OPPORTUNITY_STATUSES: OpportunityStatus[];
 export const OPPORTUNITY_SEVERITIES: OpportunitySeverity[];
