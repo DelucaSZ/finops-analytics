@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api, ApiError, formatDate } from "@/lib/api";
+import { providerLabel } from "@/lib/cloud.mjs";
 import {
   COLLECTION_STATUSES,
   buildCollectionQuery,
@@ -255,7 +256,7 @@ export function CollectionWorkspace({
               <datalist id="collection-providers">
                 {options.providers.map((provider) => (
                   <option key={provider} value={provider}>
-                    {provider.toUpperCase()}
+                    {providerLabel(provider)}
                   </option>
                 ))}
               </datalist>
@@ -279,7 +280,7 @@ export function CollectionWorkspace({
                     value={account.account_id}
                   >
                     {account.account_name || account.account_id} ·{" "}
-                    {account.provider.toUpperCase()} · {account.account_id}
+                    {providerLabel(account.provider)} · {account.account_id}
                   </option>
                 ))}
               </datalist>
@@ -507,7 +508,7 @@ export function CollectionWorkspace({
                       <span>Fim: {formatDate(run.finished_at)}</span>
                       <code>{run.id.slice(0, 8)}</code>
                     </td>
-                    <td>{run.provider.toUpperCase()}</td>
+                    <td>{providerLabel(run.provider)}</td>
                     <td>
                       <strong>{run.account_name || run.account_id}</strong>
                       {run.account_name && <span>{run.account_id}</span>}
@@ -626,7 +627,7 @@ export function CollectionWorkspace({
           <dl className="collection-metadata">
             <div>
               <dt>Cloud</dt>
-              <dd>{detail.provider.toUpperCase()}</dd>
+              <dd>{providerLabel(detail.provider)}</dd>
             </div>
             <div>
               <dt>Conta</dt>
