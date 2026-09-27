@@ -286,6 +286,7 @@ def _structured_evidence(
         evidence=evidence,
         current_monthly_cost=current_monthly_cost,
         estimated_monthly_savings=estimated_monthly_savings,
+        provider=finding.provider,
     )
 
 
