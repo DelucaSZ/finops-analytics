@@ -142,9 +142,7 @@ def _recent_changes(db: Session, *, provider: str | None, account_id: str | None
     metadata = db.execute(
         select(
             func.count().label("total_scopes"),
-            func.count(case((pairs.c.baseline_run_id.is_not(None), 1))).label(
-                "comparable_scopes"
-            ),
+            func.count(case((pairs.c.baseline_run_id.is_not(None), 1))).label("comparable_scopes"),
             func.count(case((pairs.c.baseline_run_id.is_(None), 1))).label(
                 "scopes_without_baseline"
             ),
@@ -289,9 +287,9 @@ def dashboard_summary(
         select(
             current.c.provider,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.coalesce(
-                func.sum(current.c.estimated_monthly_savings), Decimal("0")
-            ).label("estimated_monthly_savings"),
+            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
+                "estimated_monthly_savings"
+            ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -306,9 +304,9 @@ def dashboard_summary(
             current.c.account_id,
             AwsAccount.name,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.coalesce(
-                func.sum(current.c.estimated_monthly_savings), Decimal("0")
-            ).label("estimated_monthly_savings"),
+            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
+                "estimated_monthly_savings"
+            ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -514,9 +512,9 @@ def collection_health(
             func.count(case((joined.c.execution_status == "SUCCESS", 1))).label(
                 "successful_latest_execution"
             ),
-            func.count(
-                case((joined.c.valid_scan_status == "completed_with_warnings", 1))
-            ).label("valid_with_warnings"),
+            func.count(case((joined.c.valid_scan_status == "completed_with_warnings", 1))).label(
+                "valid_with_warnings"
+            ),
             func.max(joined.c.valid_started_at).label("newest_valid_at"),
             func.min(joined.c.valid_started_at).label("oldest_valid_at"),
         ).select_from(joined)
