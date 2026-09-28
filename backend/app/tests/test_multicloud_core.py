@@ -278,9 +278,7 @@ def test_home_aggregates_multiple_providers_without_aws_account_rows(db):
     summary = dashboard_summary(db)
     assert summary["opportunities"]["open"] == 2
     assert {item["provider"] for item in summary["by_provider"]} == {"aws", "oci"}
-    assert summary["financial"]["totals"] == [
-        {"currency": "USD", "amount": Decimal("25")}
-    ]
+    assert summary["financial"]["totals"] == [{"currency": "USD", "amount": Decimal("25")}]
 
 
 def test_unknown_rule_evidence_does_not_claim_aws_source_for_oci():
