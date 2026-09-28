@@ -44,7 +44,7 @@ def account_join():
     # Name enrichment only: unknown providers/accounts remain visible through the LEFT JOIN.
     return and_(
         CollectionRun.provider == CloudProvider.AWS.value,
-        CollectionRun.account_id == AwsAccount.aws_account_id
+        CollectionRun.account_id == AwsAccount.aws_account_id,
     )
 
 
