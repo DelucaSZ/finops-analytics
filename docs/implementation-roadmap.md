@@ -1857,8 +1857,8 @@ endpoint estruturalmente lento.
 
 ## Etapa 12 — performance do backend e banco
 
-**Status:** implementação e validação local concluídas; validação PostgreSQL/CI e
-publicação final registradas na entrega desta etapa.
+**Status:** concluída e validada. CI do PR #17 aprovado no código
+`7ee31586975ab425f512de2ce4e6fc028616df8e` (run `36467922841`).
 
 Base conferida diretamente: `db654436627e3956bcf72f7ee3e971a32a3d33f8`, incluindo
 CollectionRun, fingerprint/observations, lifecycle, APIs/telas/evidence, coletas,
@@ -1893,3 +1893,13 @@ collectors sintéticos, sem acesso AWS real. Não houve deploy operacional na EC
 Pendências Etapa 13: custo O(interseção) de CHANGED, agregados da Home repetidos,
 escopos JSON de baselines, planos/históricos longos em PostgreSQL e concorrência.
 Não houve avanço de implementação para Etapa 13.
+
+Teste integrado Chromium aprovado em Home, filtros, detalhes, históricos, coletas,
+comparação e lifecycle individual/em lote, sem erros JavaScript. Em teste adicional
+com 4.500 snapshots por run, comparação CHANGED caiu de 672,17 para 139,85 ms e
+14.002 → 2 objetos ORM. Ambos os datasets mantiveram os 11 payloads idênticos.
+
+Validação final remota: **245 testes backend aprovados**, incluindo PostgreSQL 17
+(45,96 s), ruff/format aprovados, frontend/testes/build e segurança aprovados;
+Auto deploy tests run `36467923015` aprovado. A documentação posterior a esse head
+apenas registra esses resultados; não altera o código validado.

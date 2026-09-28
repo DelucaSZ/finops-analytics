@@ -37,6 +37,34 @@ no banco, mas elimina hidratação e retenção de todos os snapshots. CHANGED/P
 precisam percorrer a interseção para classificar evidence semanticamente; conservam
 apenas a página de saída, e não listas de todos os IDs/diffs.
 
+## Comparação com mais snapshots por conta
+
+Uma segunda execução isolou 5.000 oportunidades em uma conta, 49.000 observations
+históricas, 4.500 observations em cada run comparado e interseção de 4.000.
+Mediana de três requests, mesmo método SQLite; 11 payloads novamente idênticos:
+
+| Categoria (página de 50) | Antes ms | Depois ms | Objetos ORM antes → depois |
+|---|---:|---:|---:|
+| NEW | 708,65 | 181,90 | 14.002 → 2 |
+| CHANGED | 672,17 | 139,85 | 14.002 → 2 |
+
+Isso verifica o ganho com milhares de snapshots numa conta; não estabelece SLA nem
+limite máximo. Reproduzir com `--accounts 1 --per-account 5000 --repeat 3`.
+
+## Validação integrada
+
+233 testes backend aprovados localmente (12 PostgreSQL sem serviço local), ruff e
+formatação aprovados; 34 testes frontend e build Next aprovados. Chromium conectado à
+API/Next locais passou por login, Home, filtros, detalhe/histórico, coletas e detalhe,
+comparação, tratamento, rejeição, ação em lote e auditoria, sem erros JavaScript.
+Worker executou duas coletas por `process_once` com collectors/STS sintéticos;
+resultaram 25 oportunidades lógicas e 40 observations, preservando a deduplicação.
+Banco local, API, worker e frontend foram iniciados; chamadas AWS reais e deploy EC2
+não foram executados. CI do PR #17, run `36467922841`, aprovou **245 testes backend**
+em 45,96 s incluindo PostgreSQL 17; frontend/build/segurança também aprovados.
+Código validado: `7ee31586975ab425f512de2ce4e6fc028616df8e`. Auto deploy tests
+run `36467923015` aprovado.
+
 ## Reproduzir
 
 Na pasta `backend`, com `requirements-dev.txt` instalado:
