@@ -144,8 +144,6 @@ def stats(
     return opportunity_stats(db, filters)
 
 
-
-
 @router.get("/options", response_model=OpportunityOptions)
 def options(
     provider: str | None = Query(default=None, max_length=16),
