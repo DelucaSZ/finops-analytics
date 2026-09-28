@@ -153,7 +153,7 @@ def test_dashboard_uses_bounded_aggregate_queries_not_frontend_sized_reads(dashb
         try:
             summary = dashboard_summary(db)
             assert summary["opportunities"]["open"] == 2
-            assert len(statements) == 9
+            assert len(statements) <= 8
 
             statements.clear()
             health = collection_health(db)

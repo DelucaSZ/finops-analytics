@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from math import ceil
 
 from sqlalchemy import String, and_, case, cast, func, or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, defer, load_only
 
 from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
@@ -48,7 +48,10 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
                 account_match,
                 and_(
                     Finding.provider == CloudProvider.AWS.value,
-                    cast(AwsAccount.id, String) == filters.account_id,
+                    select(AwsAccount.id)
+                    .where(_account_join(), cast(AwsAccount.id, String) == filters.account_id)
+                    .correlate(Finding)
+                    .exists(),
                 ),
             )
         statement = statement.where(account_match)
@@ -174,9 +177,18 @@ def list_opportunities(
     sort: str,
     order: str,
 ) -> dict:
-    base = select(Finding, AwsAccount).outerjoin(AwsAccount, _account_join())
+    base = (
+        select(Finding, AwsAccount)
+        .outerjoin(AwsAccount, _account_join())
+        .options(
+            defer(Finding.evidence, raiseload=True),
+            defer(Finding.treatment_note, raiseload=True),
+            defer(Finding.rejection_note, raiseload=True),
+            load_only(AwsAccount.id, AwsAccount.name, raiseload=True),
+        )
+    )
     base = _apply_filters(base, filters)
-    count_query = select(func.count()).select_from(Finding).outerjoin(AwsAccount, _account_join())
+    count_query = select(func.count()).select_from(Finding)
     count_query = _apply_filters(count_query, filters)
     total = db.scalar(count_query) or 0
 
@@ -192,12 +204,7 @@ def list_opportunities(
 
 
 def opportunity_stats(db: Session, filters: OpportunityFilters) -> dict[str, int]:
-    statement = (
-        select(Finding.status, func.count())
-        .select_from(Finding)
-        .outerjoin(AwsAccount, _account_join())
-        .group_by(Finding.status)
-    )
+    statement = select(Finding.status, func.count()).select_from(Finding).group_by(Finding.status)
     statement = _apply_filters(statement, filters, include_status=False)
     counts = {status: count for status, count in db.execute(statement).all()}
     return {

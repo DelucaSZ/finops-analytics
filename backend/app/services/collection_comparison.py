@@ -4,10 +4,11 @@ import json
 from dataclasses import dataclass
 from decimal import ROUND_HALF_UP, Decimal
 from math import ceil
+from types import SimpleNamespace
 from typing import Any, Literal
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, select
+from sqlalchemy.orm import Session, aliased
 
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
@@ -237,6 +238,9 @@ def compare_observations(
                 unit=money_unit,
             )
 
+    if before.evidence == after.evidence:
+        return {"changed": bool(changes), "change_types": sorted(change_types), "changes": changes}
+
     baseline_evidence = _evidence(baseline)
     target_evidence = _evidence(target)
 
@@ -463,25 +467,84 @@ def _scope_warning(
     }
 
 
-def _contexts_for_run(
-    db: Session,
-    collection_run_id: str,
-) -> dict[str, ObservationContext]:
-    rows = db.execute(
-        select(Finding, OpportunityObservation)
-        .join(
-            OpportunityObservation,
-            OpportunityObservation.opportunity_id == Finding.id,
+# Explicit projections exclude Finding.evidence, provider metadata and decision notes.
+_FINDING_FIELDS = (
+    "id",
+    "fingerprint",
+    "title",
+    "description",
+    "rule_key",
+    "service",
+    "region",
+    "provider",
+    "resource_id",
+    "resource_name",
+    "resource_type",
+    "status",
+    "first_seen_at",
+)
+_OBSERVATION_FIELDS = (
+    "observed_at",
+    "severity",
+    "current_monthly_cost",
+    "estimated_monthly_savings",
+    "confidence",
+    "currency",
+    "evidence",
+)
+
+
+def _projection(model, fields, prefix):
+    return [getattr(model, field).label(prefix + field) for field in fields]
+
+
+def _context(row, prefix):
+    return ObservationContext(
+        finding=SimpleNamespace(**{key: row["finding_" + key] for key in _FINDING_FIELDS}),
+        observation=SimpleNamespace(**{key: row[prefix + key] for key in _OBSERVATION_FIELDS}),
+    )
+
+
+def _comparison_query(baseline_id, target_id, *, shared, category=None):
+    before = aliased(OpportunityObservation)
+    after = aliased(OpportunityObservation)
+    if shared:
+        return (
+            select(
+                *_projection(Finding, _FINDING_FIELDS, "finding_"),
+                *_projection(before, _OBSERVATION_FIELDS, "before_"),
+                *_projection(after, _OBSERVATION_FIELDS, "after_"),
+            )
+            .select_from(before)
+            .join(
+                after,
+                and_(
+                    after.opportunity_id == before.opportunity_id,
+                    after.collection_run_id == target_id,
+                ),
+            )
+            .join(Finding, Finding.id == before.opportunity_id)
+            .where(before.collection_run_id == baseline_id)
+            .order_by(Finding.id)
         )
-        .where(OpportunityObservation.collection_run_id == collection_run_id)
-    ).all()
-    return {
-        observation.opportunity_id: ObservationContext(
-            finding=finding,
-            observation=observation,
+    run_id, other_id = (target_id, baseline_id) if category == "NEW" else (baseline_id, target_id)
+    return (
+        select(
+            *_projection(Finding, _FINDING_FIELDS, "finding_"),
+            *_projection(before, _OBSERVATION_FIELDS, "observation_"),
         )
-        for finding, observation in rows
-    }
+        .select_from(before)
+        .join(Finding, Finding.id == before.opportunity_id)
+        .where(
+            before.collection_run_id == run_id,
+            ~select(after.id)
+            .where(
+                after.collection_run_id == other_id, after.opportunity_id == before.opportunity_id
+            )
+            .exists(),
+        )
+        .order_by(Finding.id)
+    )
 
 
 def _snapshot(context: ObservationContext | None) -> dict[str, Any] | None:
@@ -531,15 +594,8 @@ def _item(
     }
 
 
-def _financial_summary(
-    baseline: dict[str, ObservationContext],
-    target: dict[str, ObservationContext],
-) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
-    currencies = {
-        context.observation.currency
-        for context in [*baseline.values(), *target.values()]
-        if context.observation.currency
-    }
+def _financial_summary(rows, baseline_id, target_id):
+    currencies = {row.currency for row in rows if row.currency}
     if len(currencies) > 1:
         return None, {
             "code": "MULTIPLE_CURRENCIES",
@@ -550,12 +606,10 @@ def _financial_summary(
         }
     currency = next(iter(currencies), "USD")
     baseline_total = sum(
-        (context.observation.estimated_monthly_savings for context in baseline.values()),
-        Decimal("0"),
+        (row.amount for row in rows if row.collection_run_id == baseline_id), Decimal("0")
     )
     target_total = sum(
-        (context.observation.estimated_monthly_savings for context in target.values()),
-        Decimal("0"),
+        (row.amount for row in rows if row.collection_run_id == target_id), Decimal("0")
     )
     if baseline_total == 0 and target_total == 0:
         return None, None
@@ -610,51 +664,65 @@ def compare_collection_runs(
 
     validate_comparable_runs(baseline, target)
 
-    baseline_contexts = _contexts_for_run(db, baseline.id)
-    target_contexts = _contexts_for_run(db, target.id)
-
-    baseline_ids = set(baseline_contexts)
-    target_ids = set(target_contexts)
-    new_ids = sorted(target_ids - baseline_ids)
-    no_longer_ids = sorted(baseline_ids - target_ids)
-
-    persistent_ids: list[str] = []
-    changed_ids: list[str] = []
-    diffs: dict[str, dict[str, Any]] = {}
-    for opportunity_id in sorted(baseline_ids & target_ids):
-        diff = compare_observations(
-            baseline_contexts[opportunity_id],
-            target_contexts[opportunity_id],
+    # Counts and money are reduced by the database; at most one row per run/currency.
+    totals = db.execute(
+        select(
+            OpportunityObservation.collection_run_id,
+            OpportunityObservation.currency,
+            func.count().label("count"),
+            func.sum(OpportunityObservation.estimated_monthly_savings).label("amount"),
         )
-        if diff["changed"]:
-            changed_ids.append(opportunity_id)
-            diffs[opportunity_id] = diff
-        else:
-            persistent_ids.append(opportunity_id)
-
-    category_ids: dict[ComparisonCategory, list[str]] = {
-        "NEW": new_ids,
-        "PERSISTENT": persistent_ids,
-        "NO_LONGER_DETECTED": no_longer_ids,
-        "CHANGED": changed_ids,
-    }
-    selected_ids = category_ids[category]
+        .join(Finding, Finding.id == OpportunityObservation.opportunity_id)
+        .where(OpportunityObservation.collection_run_id.in_([baseline.id, target.id]))
+        .group_by(OpportunityObservation.collection_run_id, OpportunityObservation.currency)
+    ).all()
+    baseline_total = sum(row.count for row in totals if row.collection_run_id == baseline.id)
+    target_total = sum(row.count for row in totals if row.collection_run_id == target.id)
+    shared_total = changed_total = selected_total = 0
+    items = []
     start = (page - 1) * page_size
-    page_ids = selected_ids[start : start + page_size]
-    items = [
-        _item(
-            category,
-            baseline_contexts.get(opportunity_id),
-            target_contexts.get(opportunity_id),
-            diffs.get(opportunity_id),
-        )
-        for opportunity_id in page_ids
-    ]
+    # Semantic evidence comparison cannot be replaced by raw JSON equality. Stream only
+    # the SQL intersection, retaining the requested page rather than every ID and diff.
+    rows = db.execute(
+        _comparison_query(baseline.id, target.id, shared=True).execution_options(yield_per=200)
+    ).mappings()
+    try:
+        for row in rows:
+            before, after = _context(row, "before_"), _context(row, "after_")
+            diff = compare_observations(before, after)
+            shared_total += 1
+            changed_total += int(diff["changed"])
+            row_category = "CHANGED" if diff["changed"] else "PERSISTENT"
+            if category == row_category:
+                if start <= selected_total < start + page_size:
+                    items.append(_item(category, before, after, diff))
+                selected_total += 1
+    finally:
+        rows.close()
 
-    financial_summary, currency_warning = _financial_summary(
-        baseline_contexts,
-        target_contexts,
-    )
+    counts = {
+        "NEW": target_total - shared_total,
+        "NO_LONGER_DETECTED": baseline_total - shared_total,
+        "PERSISTENT": shared_total - changed_total,
+        "CHANGED": changed_total,
+    }
+    if category in {"NEW", "NO_LONGER_DETECTED"}:
+        rows = db.execute(
+            _comparison_query(baseline.id, target.id, shared=False, category=category)
+            .offset(start)
+            .limit(page_size)
+        ).mappings()
+        for row in rows:
+            context = _context(row, "observation_")
+            items.append(
+                _item(
+                    category,
+                    context if category == "NO_LONGER_DETECTED" else None,
+                    context if category == "NEW" else None,
+                )
+            )
+
+    financial_summary, currency_warning = _financial_summary(totals, baseline.id, target.id)
     warnings = [
         warning
         for warning in [
@@ -671,17 +739,17 @@ def compare_collection_runs(
         "baseline": _run_metadata(baseline),
         "target": _run_metadata(target),
         "summary": {
-            "baseline_total": len(baseline_contexts),
-            "target_total": len(target_contexts),
-            "new": len(new_ids),
-            "persistent": len(persistent_ids),
-            "no_longer_detected": len(no_longer_ids),
-            "changed": len(changed_ids),
+            "baseline_total": baseline_total,
+            "target_total": target_total,
+            "new": counts["NEW"],
+            "persistent": counts["PERSISTENT"],
+            "no_longer_detected": counts["NO_LONGER_DETECTED"],
+            "changed": counts["CHANGED"],
         },
         "financial_summary": financial_summary,
         "rules_version_warning": _rules_warning(baseline, target),
         "warnings": warnings,
         "category": category,
         "items": items,
-        **_page_meta(len(selected_ids), page, page_size),
+        **_page_meta(counts[category], page, page_size),
     }

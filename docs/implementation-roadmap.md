@@ -1854,3 +1854,42 @@ primeiro carregamento sem cache, o próximo diagnóstico deve medir o backend e 
 O cache da Etapa 11 melhora navegação recorrente, mas não é tratado como correção para
 endpoint estruturalmente lento.
 
+
+## Etapa 12 — performance do backend e banco
+
+**Status:** implementação e validação local concluídas; validação PostgreSQL/CI e
+publicação final registradas na entrega desta etapa.
+
+Base conferida diretamente: `db654436627e3956bcf72f7ee3e971a32a3d33f8`, incluindo
+CollectionRun, fingerprint/observations, lifecycle, APIs/telas/evidence, coletas,
+comparação, Home, domínio multi-cloud e cache da Etapa 11. Código é a fonte de verdade.
+
+- Home: severidade compartilhada com agregação SQL por moeda/lifecycle, 9 → 8 queries;
+  última SUCCESS por provider/conta e saúde da última execução mantidas.
+- Oportunidades: listagem exclui evidence/notas/configuração sensível de conta do SELECT;
+  COUNT/stats sem JOIN desnecessário; legado account PK via EXISTS; sem N+1 ou alteração
+  de total/paginação/ordem/filtros/autorização. Detalhe/histórico seguem sob demanda.
+- Comparison: SQL para totais financeiros/counts, interseção e anti-join; NEW/ausentes
+  paginados no banco; CHANGED/PERSISTENT em lotes de 200, mantendo só a página de saída.
+  Teste sintético reduz objetos ORM de 1.402 para 2, mantendo todos os hashes de payload.
+- Coletas: mantém listagem paginada sem consultas por linha; detalhe inclui warning e
+  trigger no JOIN existente (3 → 2 queries quando scan vinculado).
+- Worker: fecha transação de leitura antes de chamadas externas; recarrega estado antes
+  da persistência. Locks/savepoints/constraints e atomicidade de lifecycle preservados.
+- Nenhum índice adicionado/removido, migration ou mudança de pool/timeouts. Sem cache
+  de backend/materialização. JSON continua JSON, sem GIN/pg_trgm sem caso comprovado.
+- Novo harness `backend/benchmarks/backend_reads.py`, isolado de dados reais, com opção
+  de EXPLAIN e PostgreSQL de testes. Testes de contratos/carregamento também em PG no CI.
+
+Baseline, números completos antes/depois, inventário de índices, planos observados,
+revisão de transações/pool, experimentos descartados e limites estão em
+[`docs/backend-performance.md`](backend-performance.md).
+
+Validação local: 233 testes backend aprovados (12 PostgreSQL ignorados sem serviço
+local), ruff/format aprovados; 34 testes frontend e build Next aprovados. O pipeline
+valida PostgreSQL 17; não confundir com benchmark de produção. Teste integrado usa
+collectors sintéticos, sem acesso AWS real. Não houve deploy operacional na EC2.
+
+Pendências Etapa 13: custo O(interseção) de CHANGED, agregados da Home repetidos,
+escopos JSON de baselines, planos/históricos longos em PostgreSQL e concorrência.
+Não houve avanço de implementação para Etapa 13.
