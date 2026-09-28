@@ -41,7 +41,11 @@ class OpportunityObservation(TimestampMixin, Base):
     estimated_monthly_savings: Mapped[Decimal] = mapped_column(
         Numeric(14, 2), default=0, nullable=False
     )
-    currency: Mapped[str] = mapped_column(String(3), default="USD", server_default="USD", nullable=False)
+    currency: Mapped[str] = mapped_column(
+        String(3), default="USD", server_default="USD", nullable=False
+    )
     confidence: Mapped[str] = mapped_column(String(16), nullable=False)
-    provider_metadata: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}", nullable=False)
+    provider_metadata: Mapped[dict] = mapped_column(
+        JSON, default=dict, server_default="{}", nullable=False
+    )
     evidence: Mapped[dict] = mapped_column(JSON, default=dict, nullable=False)
