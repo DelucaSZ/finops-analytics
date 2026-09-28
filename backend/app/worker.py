@@ -19,6 +19,7 @@ from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.collection_errors import sanitize_collection_error
 from app.services.collectors import run_collectors
+from app.services.dashboard_aggregation import rebuild_account_summary
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 from app.services.policies import list_effective_policies
 
@@ -356,7 +357,29 @@ def execute_scan(db: Session, scan: Scan) -> None:
 
     account.connection_status = "connected"
     account.last_error = None
+    summary_provider = run.provider
+    summary_account_id = run.account_id
+    summary_collection_run_id = run.id
     db.commit()
+
+    # Collection success is operational truth. The dashboard aggregate is derived and
+    # repaired independently so a summary failure never rewrites a valid run as FAILED.
+    try:
+        rebuild_account_summary(
+            db,
+            provider=summary_provider,
+            account_id=summary_account_id,
+            collection_run_id=summary_collection_run_id,
+        )
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception(
+            "Dashboard summary rebuild failed provider=%s account_id=%s collection_run_id=%s",
+            summary_provider,
+            summary_account_id,
+            summary_collection_run_id,
+        )
 
 
 def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:

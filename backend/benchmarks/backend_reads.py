@@ -25,6 +25,10 @@ from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
+from app.services.dashboard_aggregation import (
+    backfill_dashboard_summaries,
+    rebuild_account_summary,
+)
 
 
 def seed(engine, accounts, per_account):
@@ -146,6 +150,26 @@ def main():
     with benchmark_engine(args.postgres) as engine:
         Base.metadata.create_all(engine)
         seed(engine, args.accounts, args.per_account)
+        # Stage 13 measures steady-state reads. Derived summaries are built before
+        # query/latency instrumentation, exactly as a deployed backfill would do.
+        backfill_started = time.perf_counter()
+        with Session(engine) as db:
+            backfilled = backfill_dashboard_summaries(db, commit_every=50)
+            db.commit()
+        backfill_ms = (time.perf_counter() - backfill_started) * 1000
+
+        rebuild_times = []
+        with Session(engine) as db:
+            for _ in range(args.repeat):
+                before = time.perf_counter()
+                rebuild_account_summary(
+                    db,
+                    provider="aws",
+                    account_id="000000000000",
+                )
+                db.commit()
+                rebuild_times.append((time.perf_counter() - before) * 1000)
+
         app = FastAPI()
         for router in (collections.router, dashboard.router, opportunities.router):
             app.include_router(router, prefix="/api/v1")
@@ -234,6 +258,15 @@ def main():
                         args.per_account * 10
                         - sum(i % 10 in (8, 9) for i in range(args.per_account))
                     ),
+                    summary_maintenance={
+                        "backfilled_scopes": backfilled,
+                        "backfill_ms": round(backfill_ms, 2),
+                        "rebuild_scope": {
+                            "provider": "aws",
+                            "account_id": "000000000000",
+                            "median_ms": round(statistics.median(rebuild_times), 2),
+                        },
+                    },
                     results=results,
                 ),
                 indent=2,

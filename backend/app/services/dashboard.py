@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from decimal import Decimal
 
 from sqlalchemy import and_, case, func, or_, select
@@ -8,9 +9,13 @@ from sqlalchemy.orm import Session, aliased
 from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
+from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
+from app.services.dashboard_aggregation import rebuild_account_summary
+
+logger = logging.getLogger("deepops.dashboard")
 
 
 def _scope(statement, *, provider: str | None, account_id: str | None):
@@ -238,7 +243,7 @@ def _recent_changes(db: Session, *, provider: str | None, account_id: str | None
     }
 
 
-def dashboard_summary(
+def _dashboard_summary_direct(
     db: Session,
     *,
     provider: str | None = None,
@@ -451,6 +456,266 @@ def dashboard_summary(
         ],
         "recent_changes": recent_changes,
     }
+
+
+def _persisted_summary_rows(
+    db: Session,
+    *,
+    provider: str | None,
+    account_id: str | None,
+):
+    latest_valid = _latest_success_runs(provider=provider, account_id=account_id)
+    summary = DashboardAccountSummary
+    return db.execute(
+        select(
+            latest_valid.c.run_id.label("expected_run_id"),
+            latest_valid.c.provider.label("provider"),
+            latest_valid.c.account_id.label("account_id"),
+            summary.collection_run_id.label("summary_run_id"),
+            summary.open_count.label("open_count"),
+            summary.treated_count.label("treated_count"),
+            summary.rejected_count.label("rejected_count"),
+            summary.severity_counts.label("severity_counts"),
+            summary.financial.label("financial"),
+            summary.new_count.label("new_count"),
+            summary.no_longer_detected_count.label("no_longer_detected_count"),
+            summary.has_baseline.label("has_baseline"),
+            summary.rules_version_changed.label("rules_version_changed"),
+            summary.rules_version_unknown.label("rules_version_unknown"),
+            summary.updated_at.label("summary_updated_at"),
+            AwsAccount.name.label("account_name"),
+        )
+        .select_from(latest_valid)
+        .outerjoin(
+            summary,
+            and_(
+                summary.provider == latest_valid.c.provider,
+                summary.account_id == latest_valid.c.account_id,
+            ),
+        )
+        .outerjoin(
+            AwsAccount,
+            and_(
+                latest_valid.c.provider == CloudProvider.AWS.value,
+                latest_valid.c.account_id == AwsAccount.aws_account_id,
+            ),
+        )
+        .order_by(latest_valid.c.provider, latest_valid.c.account_id)
+    ).all()
+
+
+def _top_current_opportunities(
+    db: Session,
+    *,
+    provider: str | None,
+    account_id: str | None,
+) -> list[dict]:
+    _, current = _current_observations(provider=provider, account_id=account_id)
+    severity_order = case(
+        (current.c.severity == "high", 3),
+        (current.c.severity == "medium", 2),
+        (current.c.severity == "low", 1),
+        else_=0,
+    )
+    rows = db.execute(
+        select(
+            Finding.id,
+            Finding.title,
+            Finding.rule_key,
+            Finding.resource_id,
+            Finding.resource_name,
+            Finding.region,
+            current.c.provider,
+            current.c.account_id,
+            AwsAccount.name,
+            current.c.collection_run_id,
+            current.c.severity,
+            current.c.estimated_monthly_savings,
+            current.c.currency,
+        )
+        .select_from(current)
+        .join(Finding, Finding.id == current.c.opportunity_id)
+        .outerjoin(AwsAccount, _account_name_join(current))
+        .where(Finding.status == "open")
+        .order_by(
+            current.c.estimated_monthly_savings.desc(),
+            severity_order.desc(),
+            Finding.id,
+        )
+        .limit(5)
+    ).all()
+    return [
+        {
+            "id": row.id,
+            "title": row.title,
+            "rule_key": row.rule_key,
+            "resource_id": row.resource_id,
+            "resource_name": row.resource_name,
+            "region": row.region,
+            "provider": row.provider,
+            "account_id": row.account_id,
+            "account_name": row.name,
+            "collection_run_id": row.collection_run_id,
+            "severity": row.severity,
+            "estimated_monthly_savings": row.estimated_monthly_savings,
+            "currency": row.currency,
+        }
+        for row in rows
+    ]
+
+
+def _dashboard_summary_from_persisted_rows(
+    db: Session,
+    rows,
+    *,
+    provider: str | None,
+    account_id: str | None,
+) -> dict:
+    lifecycle = {"open": 0, "treated": 0, "rejected": 0}
+    severity = {"high": 0, "medium": 0, "low": 0, "other": 0}
+    money: dict[str, Decimal] = {}
+    providers: dict[str, int] = {}
+
+    for row in rows:
+        lifecycle["open"] += int(row.open_count or 0)
+        lifecycle["treated"] += int(row.treated_count or 0)
+        lifecycle["rejected"] += int(row.rejected_count or 0)
+        for level in severity:
+            severity[level] += int((row.severity_counts or {}).get(level, 0))
+        for total in (row.financial or {}).get("totals", []):
+            currency = str(total["currency"])
+            money[currency] = money.get(currency, Decimal("0")) + Decimal(str(total["amount"]))
+        if row.open_count:
+            providers[row.provider] = providers.get(row.provider, 0) + int(row.open_count)
+
+    by_account = sorted(
+        (
+            {
+                "provider": row.provider,
+                "account_id": row.account_id,
+                "account_name": row.account_name,
+                "open": int(row.open_count),
+                "estimated_monthly_savings": None,
+                "currency": None,
+            }
+            for row in rows
+            if row.open_count
+        ),
+        key=lambda item: (-item["open"], item["provider"], item["account_id"]),
+    )[:8]
+
+    recent_changes = {
+        "new": sum(int(row.new_count or 0) for row in rows),
+        "no_longer_detected": sum(int(row.no_longer_detected_count or 0) for row in rows),
+        "changed": None,
+        "changed_available": False,
+        "comparable_scopes": sum(bool(row.has_baseline) for row in rows),
+        "scopes_without_baseline": sum(not bool(row.has_baseline) for row in rows),
+        "rules_version_changed_scopes": sum(bool(row.rules_version_changed) for row in rows),
+        "rules_version_unknown_scopes": sum(bool(row.rules_version_unknown) for row in rows),
+    }
+
+    return {
+        "scope": {
+            "provider": provider.lower() if provider else None,
+            "account_id": account_id,
+            "valid_scope_count": len(rows),
+            "has_current_data": bool(rows),
+        },
+        "opportunities": {
+            "open": lifecycle["open"],
+            "treated": lifecycle["treated"],
+            "rejected": lifecycle["rejected"],
+            "new_since_previous": recent_changes["new"],
+        },
+        "severity": severity,
+        "financial": {
+            "metric": "estimated_monthly_savings",
+            "label": "Economia potencial estimada",
+            "period": "month",
+            "totals": [
+                {"currency": currency, "amount": amount}
+                for currency, amount in sorted(money.items())
+            ],
+        },
+        "by_provider": [
+            {
+                "provider": provider_name,
+                "open": open_count,
+                "estimated_monthly_savings": None,
+                "currency": None,
+            }
+            for provider_name, open_count in sorted(
+                providers.items(),
+                key=lambda item: (-item[1], item[0]),
+            )
+        ],
+        "by_account": by_account,
+        "top_opportunities": _top_current_opportunities(
+            db,
+            provider=provider,
+            account_id=account_id,
+        ),
+        "recent_changes": recent_changes,
+    }
+
+
+def dashboard_summary(
+    db: Session,
+    *,
+    provider: str | None = None,
+    account_id: str | None = None,
+) -> dict:
+    rows = _persisted_summary_rows(db, provider=provider, account_id=account_id)
+    stale = [row for row in rows if row.summary_run_id != row.expected_run_id]
+    if stale:
+        try:
+            for row in stale:
+                rebuild_account_summary(
+                    db,
+                    provider=row.provider,
+                    account_id=row.account_id,
+                    collection_run_id=row.expected_run_id,
+                )
+            db.commit()
+            rows = _persisted_summary_rows(db, provider=provider, account_id=account_id)
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "Dashboard summary repair failed provider=%s account_id=%s; using source fallback",
+                provider,
+                account_id,
+            )
+            return _dashboard_summary_direct(
+                db,
+                provider=provider,
+                account_id=account_id,
+            )
+
+    if any(row.summary_run_id != row.expected_run_id for row in rows):
+        return _dashboard_summary_direct(
+            db,
+            provider=provider,
+            account_id=account_id,
+        )
+    try:
+        return _dashboard_summary_from_persisted_rows(
+            db,
+            rows,
+            provider=provider,
+            account_id=account_id,
+        )
+    except (KeyError, TypeError, ValueError):
+        logger.exception(
+            "Dashboard summary payload invalid provider=%s account_id=%s; using source fallback",
+            provider,
+            account_id,
+        )
+        return _dashboard_summary_direct(
+            db,
+            provider=provider,
+            account_id=account_id,
+        )
 
 
 def _health_base(*, provider: str | None, account_id: str | None):

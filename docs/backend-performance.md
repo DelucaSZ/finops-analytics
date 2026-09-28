@@ -175,3 +175,66 @@ EXPLAIN SQLite não permite concluir seletividade/loops/buffers PostgreSQL.
 
 Sem Redis, materialized views, summary tables, snapshots de dashboard, retenção,
 particionamento ou exclusão de histórico. Etapa 13 não foi implementada.
+
+## Etapa 13 — agregação persistida da Home
+
+A Etapa 13 atacou somente o gargalo de leitura repetitiva comprovado acima. Não houve
+materialização generalizada: foi criada uma linha corrente de
+`dashboard_account_summaries` por `provider/account_id`, derivada da última SUCCESS.
+
+O endpoint `/dashboard/summary` em steady state passou a consultar os summaries
+correntes e executar separadamente apenas o Top 5. Saúde de coleta segue consultando
+`CollectionRun` em tempo real. NEW e NO_LONGER_DETECTED são persistidos com a mesma
+baseline de `previous_comparable_run()`; CHANGED segue sob demanda porque depende do
+diff semântico de evidence.
+
+### Resultado medido
+
+Dataset: 20 contas AWS/OCI/Azure/GCP, 10.000 opportunities, 2.000 CollectionRuns e
+98.000 observations. Mediana de três requests. O benchmark da Etapa 13 é executado
+depois do backfill, portanto mede steady state da Home, não o caminho de reparo.
+
+| Banco / medida | Resultado |
+|---|---:|
+| SQLite `/dashboard/summary` | 38,11 ms / 2 queries |
+| SQLite payload | 3.541 bytes |
+| SQLite backfill 20 escopos | 197,32 ms |
+| SQLite rebuild AWS/000000000000 | 8,74 ms |
+| PostgreSQL 17 `/dashboard/summary` | 37,66 ms / 2 queries |
+| PostgreSQL 17 payload | 3.541 bytes |
+| PostgreSQL 17 backfill 20 escopos | 289,45 ms |
+| PostgreSQL 17 rebuild AWS/000000000000 | 11,31 ms |
+
+O baseline pós-Etapa 12 para a Home SQLite era 129,58 ms / 8 queries no mesmo dataset.
+A Etapa 13 mediu 38,11 ms / 2 queries: cerca de 70,6% menos latência e 75% menos queries.
+Não existe baseline PostgreSQL 17 equivalente publicado pela Etapa 12; por isso não é
+atribuído percentual de ganho PostgreSQL.
+
+O payload da Home permaneceu em 3.541 bytes; o benchmark Stage 13 produziu SHA-256
+`db6572bf53f341238c0cc6a6d0c58126438df34874b08d7666c6074324641493` em SQLite e
+PostgreSQL para o summary deste dataset.
+
+### Custo deslocado para escrita
+
+O backfill completo dos 20 escopos custou 197,32 ms em SQLite e 289,45 ms em
+PostgreSQL 17. O rebuild idempotente de uma única conta mediu 8,74 ms e 11,31 ms,
+respectivamente. Isso confirma no dataset testado que deslocar o trabalho consolidado
+de read-time para collection/lifecycle update-time permaneceu barato por escopo.
+
+Lifecycle recalcula apenas a conta afetada; bulk agrupa escopos. Rebuilds concorrentes
+da mesma conta bloqueiam a linha derivada com `FOR UPDATE`; contas independentes não
+compartilham a chave. Collection SUCCESS é commitada antes do rebuild derivado, e uma
+falha de summary não transforma a coleta em FAILED.
+
+### Reprodução Stage 13
+
+O mesmo harness agora prepara os summaries e também reporta custo de backfill/rebuild:
+
+```bash
+PYTHONPATH=. python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3
+PYTHONPATH=. python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 --postgres
+```
+
+Para PostgreSQL é obrigatório `TEST_POSTGRES_URL` de ambiente descartável/teste.
+Os números acima vieram do CI/PR #18 e não são benchmark de produção.
+

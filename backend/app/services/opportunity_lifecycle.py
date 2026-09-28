@@ -6,6 +6,7 @@ from app.db.base import utcnow
 from app.models.finding import Finding
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
+from app.services.dashboard_aggregation import refresh_summaries_for_findings
 
 OPEN = "open"
 TREATED = "treated"
@@ -107,6 +108,7 @@ def treat(
 ) -> Finding:
     finding = _locked(db, opportunity_id)
     _apply_treat(db, finding, actor, note)
+    refresh_summaries_for_findings(db, [finding])
     return finding
 
 
@@ -120,6 +122,7 @@ def reject(
     _validate_rejection(reason, note)
     finding = _locked(db, opportunity_id)
     _apply_reject(db, finding, actor, reason, note)
+    refresh_summaries_for_findings(db, [finding])
     return finding
 
 
@@ -131,6 +134,7 @@ def reopen(
 ) -> Finding:
     finding = _locked(db, opportunity_id)
     _apply_reopen(db, finding, actor, note)
+    refresh_summaries_for_findings(db, [finding])
     return finding
 
 
@@ -177,6 +181,7 @@ def bulk_transition(
             _apply_reject(db, finding, actor, reason or "", note)
         else:
             _apply_reopen(db, finding, actor, note)
+    refresh_summaries_for_findings(db, ordered)
     return ordered
 
 
@@ -238,6 +243,7 @@ def set_legacy_status(
         reason=reason,
         note=note,
     )
+    refresh_summaries_for_findings(db, [finding])
     return finding
 
 
@@ -274,4 +280,5 @@ def bulk_set_legacy_status(
             reason=reason,
             note=note,
         )
+    refresh_summaries_for_findings(db, ordered)
     return ordered

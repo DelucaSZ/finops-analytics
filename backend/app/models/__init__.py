@@ -1,6 +1,7 @@
 from app.models.account import AwsAccount
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.collection_run import CollectionRun, CollectionRunStatus
+from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
 from app.models.opportunity_observation import OpportunityObservation
@@ -20,6 +21,7 @@ __all__ = [
     "AwsAccount",
     "CollectionRun",
     "CollectionRunStatus",
+    "DashboardAccountSummary",
     "Finding",
     "OpportunityObservation",
     "OpportunityStatusHistory",

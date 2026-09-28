@@ -1903,3 +1903,137 @@ Validação final remota: **245 testes backend aprovados**, incluindo PostgreSQL
 (45,96 s), ruff/format aprovados, frontend/testes/build e segurança aprovados;
 Auto deploy tests run `36467923015` aprovado. A documentação posterior a esse head
 apenas registra esses resultados; não altera o código validado.
+
+## Etapa 13 — agregação persistida da Home
+
+**Status:** concluída e validada no PR #18. A implementação foi motivada pelo gargalo
+remanescente da Etapa 12 em `GET /dashboard/summary`: 8 queries e 129,58 ms no dataset
+sintético padrão, com repetição de agregados que só mudam após nova coleta válida ou
+decisão humana.
+
+### Estratégia escolhida
+
+Foi adotada uma **summary table corrente por `provider + account_id`**, sem Redis,
+materialized view ou cache de backend adicional. A fonte de verdade continua sendo
+`Finding`/Opportunity, `OpportunityObservation`, `CollectionRun` e histórico de
+lifecycle; `dashboard_account_summaries` é exclusivamente derivada e reconstruível.
+
+Cada linha representa a última `CollectionRun SUCCESS` comparável daquela conta e
+persiste somente dados reutilizados pela Home:
+
+- lifecycle: `open_count`, `treated_count`, `rejected_count`;
+- severidade corrente: high/medium/low/other;
+- economia potencial mensal, preservada por moeda;
+- `new_count` e `no_longer_detected_count` em relação à mesma baseline da Etapa 8;
+- referência da coleta atual e da baseline;
+- flags de baseline e de mudança/desconhecimento de `rules_version`;
+- `updated_at`.
+
+Não são materializados Top 5, saúde de coleta, histórico detalhado nem `CHANGED`.
+Top opportunities continua sendo uma query indexada com LIMIT 5. Saúde continua em
+`CollectionRun`, o que preserva a distinção entre última execução e última coleta
+válida sem duplicar `last_execution_status`. `CHANGED` mantém a comparação semântica
+de evidence da Etapa 8 e segue calculado sob demanda.
+
+### Atualização e consistência
+
+Ao concluir uma coleta, o worker primeiro confirma `CollectionRun SUCCESS` e os dados
+operacionais. Em seguida reconstrói o summary da conta em transação separada. Falha no
+rebuild é registrada e revertida somente na camada derivada; não converte uma coleta
+válida em FAILED.
+
+Uma coleta FAILED nunca avança `collection_run_id` do summary. Assim, com `#100
+SUCCESS` e `#101 FAILED`, o estado consolidado continua em #100, enquanto
+`/dashboard/collection-health` informa #101 como última execução.
+
+TREAT/REJECT/REOPEN recalculam lifecycle, severidade e financeiro da conta afetada na
+mesma transação da decisão. Bulk deduplica `provider/account` e recalcula uma vez por
+escopo, em vez de uma vez por oportunidade. A linha de summary é bloqueada com
+`FOR UPDATE` antes do recálculo para serializar writers da mesma conta e evitar drift;
+contas diferentes permanecem independentes.
+
+A baseline é obtida por `previous_comparable_run()`, reutilizando exatamente a
+semântica da Etapa 8. Primeira coleta sem baseline produz contagens comparativas zero,
+sem classificar artificialmente todos os achados como NEW.
+
+### Multi-account, multi-cloud e financeiro
+
+A identidade persistida é a chave composta `(provider, account_id)`; portanto AWS e
+OCI com o mesmo identificador textual não compartilham summary. `AwsAccount` continua
+apenas enriquecendo nome para AWS, conforme a arquitetura real da Etapa 10.
+
+Financeiro é armazenado como `estimated_monthly_savings`, período `month`, com totais
+separados por `currency`. Não há soma implícita entre USD/BRL/EUR e não foi introduzido
+sistema cambial.
+
+### Cache, TTL e invalidação
+
+Não foi criado cache de backend. Logo não existe TTL, cache key, stampede ou invalidação
+de resposta a administrar nesta etapa. O cache frontend da Etapa 11 permanece com sua
+política existente e é invalidado pelas mutations já implementadas. A atualização do
+summary é dirigida por eventos de domínio e por reparo/rebuild, não por expiração.
+
+### Recovery, backfill e freshness
+
+`python -m app.commands.rebuild_dashboard_summaries` reconstrói dados derivados a
+partir da fonte operacional. O comando aceita filtro por provider/conta e por
+CollectionRun corrente; o backfill global trabalha em lotes e sempre resolve a última
+SUCCESS antes de publicar o estado corrente.
+
+A migration não executa um backfill potencialmente bloqueante. Em instalações já com
+histórico, o comando faz o preenchimento inicial; adicionalmente, a Home detecta summary
+ausente/stale, tenta reparar o escopo e, se o reparo falhar, usa o cálculo direto antigo
+como fallback correto. Summary nunca é tratado como autoridade sobre os dados
+operacionais.
+
+### Migration e índices
+
+Nova revisão: `0012_dashboard_summaries`.
+
+A tabela usa PK composta `(provider, account_id)`, FKs para target/baseline
+`CollectionRun` e índice UNIQUE em `collection_run_id`. Não foram adicionados índices
+em JSON, materialized views ou infraestrutura Redis.
+
+### Benchmark
+
+Mesmo dataset sintético padrão da Etapa 12: 20 contas, 10.000 opportunities, 2.000
+CollectionRuns e 98.000 observations; mediana de três requests.
+
+| Medida | Etapa 12 | Etapa 13 |
+|---|---:|---:|
+| SQLite `/dashboard/summary` | 129,58 ms / 8 queries | 38,11 ms / 2 queries |
+| Payload da Home | 3.541 bytes | 3.541 bytes |
+| SQLite backfill 20 escopos | n/a | 197,32 ms |
+| SQLite rebuild 1 conta | n/a | 8,74 ms |
+| PostgreSQL 17 `/dashboard/summary` | sem baseline publicado | 37,66 ms / 2 queries |
+| PostgreSQL 17 backfill 20 escopos | n/a | 289,45 ms |
+| PostgreSQL 17 rebuild 1 conta | n/a | 11,31 ms |
+
+A redução observada da Home SQLite em relação ao estado pós-Etapa 12 foi de
+aproximadamente 70,6% em latência e 75% em número de queries. Esses números são de
+harness sintético/CI e não constituem SLA de produção.
+
+### Testes e arquivos principais
+
+CI final da implementação aprovou 250 testes backend em PostgreSQL 17, ruff, format,
+frontend tests/build, segurança e auto-deploy tests. O benchmark Stage 13 também passou
+em SQLite e PostgreSQL 17.
+
+Arquivos principais: `app/models/dashboard_summary.py`,
+`app/services/dashboard_aggregation.py`, `app/services/dashboard.py`,
+`app/services/opportunity_lifecycle.py`, `app/worker.py`,
+`app/commands/rebuild_dashboard_summaries.py`,
+`app/migrations/versions/0012_dashboard_summaries.py` e
+`benchmarks/backend_reads.py`.
+
+### Limitações e pendências
+
+A etapa não materializa CHANGED/PERSISTENT, não altera retenção, não cria novos
+providers e não mede produção real. O primeiro insert de um summary ainda depende da
+constraint composta para arbitrar corrida rara antes da linha-mutex existir; qualquer
+conflito falha/rollbacka em vez de publicar dado silenciosamente incorreto e pode ser
+reparado pelo rebuild.
+
+**Etapa 14 permanece exclusivamente para retenção, arquivamento e limpeza controlada
+de histórico. Nenhuma retenção foi implementada aqui.**
+
