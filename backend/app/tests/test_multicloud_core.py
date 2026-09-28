@@ -106,7 +106,10 @@ def test_core_persists_and_queries_non_aws_opportunity_without_aws_account(db):
             estimated_monthly_savings=Decimal("10.00"),
             currency="USD",
             confidence="high",
-            provider_metadata={"ocid": finding.resource_id, "compartment_id": "ocid1.compartment.x"},
+            provider_metadata={
+                "ocid": finding.resource_id,
+                "compartment_id": "ocid1.compartment.x",
+            },
             evidence={"metric": "idle"},
         )
     )
@@ -228,7 +231,14 @@ def test_home_aggregates_multiple_providers_without_aws_account_rows(db):
             "Compute Instance",
         ),
     ]
-    for index, (provider, account_id, region, resource_id, service, resource_type) in enumerate(fixtures):
+    for index, (
+        provider,
+        account_id,
+        region,
+        resource_id,
+        service,
+        resource_type,
+    ) in enumerate(fixtures):
         run = CollectionRun(
             id=f"run-{provider}",
             provider=provider,
