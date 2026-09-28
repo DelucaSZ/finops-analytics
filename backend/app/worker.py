@@ -307,6 +307,16 @@ def execute_scan(db: Session, scan: Scan) -> None:
     if run is None:
         raise RuntimeError("CollectionRun missing for claimed scan")
 
+    # Capture collection configuration while reading the database, then return the
+    # connection before STS/cloud requests. The claim/RUNNING record is already committed.
+    account_id, scan_id, run_id = account.id, scan.id, run.id
+    policies = list_effective_policies(db, account_id)
+    active_rule_keys = [
+        policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
+    ]
+    db.expunge(account)
+    db.commit()
+
     aws_session = assume_account_session(account)
     identity = get_caller_identity(aws_session)
     if identity.account_id != account.aws_account_id:
@@ -314,15 +324,18 @@ def execute_scan(db: Session, scan: Scan) -> None:
             f"Assumed role returned account {identity.account_id}; "
             f"expected {account.aws_account_id}"
         )
-
-    policies = list_effective_policies(db, account.id)
-    active_rule_keys = [
-        policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
-    ]
     collected, collector_errors, failed_rule_keys = run_collectors(
         aws_session, account.regions, policies
     )
     active_rule_keys = [key for key in active_rule_keys if key not in failed_rule_keys]
+
+    # Start the persistence transaction only after cloud I/O finishes; reload state
+    # that may have changed during collection. Fingerprint locks/savepoints stay intact.
+    account = db.get(AwsAccount, account_id, populate_existing=True)
+    scan = db.get(Scan, scan_id, populate_existing=True)
+    run = db.get(CollectionRun, run_id, populate_existing=True)
+    if account is None or scan is None or run is None:
+        raise RuntimeError("Collection account, scan or run was removed during collection")
     opportunity_count = persist_findings(db, scan, run, collected, active_rule_keys)
     scan.findings_count = opportunity_count
     scan.status = "completed_with_warnings" if collector_errors else "completed"

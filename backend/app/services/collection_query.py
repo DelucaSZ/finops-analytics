@@ -103,7 +103,9 @@ def list_collections(db, filters, *, page, page_size, sort, order, offset=None):
 
 
 def get_collection(db: Session, collection_id: str) -> dict | None:
-    row = db.execute(base_query().where(CollectionRun.id == collection_id)).first()
+    row = db.execute(
+        base_query().add_columns(Scan.error, Scan.trigger).where(CollectionRun.id == collection_id)
+    ).first()
     if row is None:
         return None
     observed = (
@@ -114,14 +116,13 @@ def get_collection(db: Session, collection_id: str) -> dict | None:
         )
         or 0
     )
-    scan = db.get(Scan, row[0].scan_id) if row[0].scan_id else None
     return {
-        **serialize_item(row),
+        **serialize_item(row[:3]),
         "opportunities_observed": observed,
-        "warning_detail": sanitize_collection_error(scan.error)
-        if scan and scan.status == "completed_with_warnings"
+        "warning_detail": sanitize_collection_error(row.error)
+        if row.scan_status == "completed_with_warnings"
         else None,
-        "trigger": scan.trigger if scan else None,
+        "trigger": row.trigger,
     }
 
 

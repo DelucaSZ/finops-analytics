@@ -251,6 +251,23 @@ def dashboard_summary(
     summary_rows = db.execute(
         select(
             current.c.currency,
+            *[
+                func.count(
+                    case((and_(Finding.status == "open", current.c.severity == level), 1))
+                ).label(f"severity_{level}")
+                for level in ("high", "medium", "low")
+            ],
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == "open",
+                            current.c.severity.not_in(["high", "medium", "low"]),
+                        ),
+                        1,
+                    )
+                )
+            ).label("severity_other"),
             func.count(
                 func.distinct(case((Finding.status == "open", Finding.id), else_=None))
             ).label("open"),
@@ -285,14 +302,11 @@ def dashboard_summary(
     }
     financial_rows = [row for row in summary_rows if row.open]
 
-    severity_rows = db.execute(
-        select(current.c.severity, func.count(func.distinct(Finding.id)))
-        .select_from(current)
-        .join(Finding, Finding.id == current.c.opportunity_id)
-        .where(Finding.status == "open")
-        .group_by(current.c.severity)
-    ).all()
-    by_severity = {str(severity): int(count) for severity, count in severity_rows}
+    # Only grouped currency rows are reduced here, never individual opportunities.
+    by_severity = {
+        level: sum(int(getattr(row, f"severity_{level}") or 0) for row in summary_rows)
+        for level in ("high", "medium", "low", "other")
+    }
 
     provider_rows = db.execute(
         select(

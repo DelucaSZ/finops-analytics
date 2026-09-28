@@ -112,3 +112,32 @@ def test_failed_scan_is_not_left_running(db):
     failed_scan = db.get(Scan, scan.id)
     assert failed_scan.status == "failed"
     assert failed_scan.completed_at is not None
+
+
+def test_cloud_io_does_not_hold_database_transaction(db, monkeypatch):
+    queued_scan(db)
+    claimed = worker.claim_scan(db)
+    stages = []
+
+    def assume(aws_account):
+        assert not db.in_transaction()
+        assert aws_account.regions == ["sa-east-1"]
+        stages.append("sts")
+        return object()
+
+    def identity(_):
+        assert not db.in_transaction()
+        stages.append("identity")
+        return type("Identity", (), {"account_id": "123456789012"})()
+
+    def collect(*_):
+        assert not db.in_transaction()
+        stages.append("collect")
+        return [], [], set()
+
+    monkeypatch.setattr(worker, "assume_account_session", assume)
+    monkeypatch.setattr(worker, "get_caller_identity", identity)
+    monkeypatch.setattr(worker, "run_collectors", collect)
+    worker.execute_scan(db, claimed)
+    assert stages == ["sts", "identity", "collect"]
+    assert db.get(Scan, claimed.id).status == "completed"
