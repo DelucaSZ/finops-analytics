@@ -25,6 +25,7 @@ from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
+from app.services.dashboard_aggregation import backfill_dashboard_summaries
 
 
 def seed(engine, accounts, per_account):
@@ -146,6 +147,11 @@ def main():
     with benchmark_engine(args.postgres) as engine:
         Base.metadata.create_all(engine)
         seed(engine, args.accounts, args.per_account)
+        # Stage 13 measures steady-state reads. Derived summaries are built before
+        # query/latency instrumentation, exactly as a deployed backfill would do.
+        with Session(engine) as db:
+            backfill_dashboard_summaries(db, commit_every=50)
+            db.commit()
         app = FastAPI()
         for router in (collections.router, dashboard.router, opportunities.router):
             app.include_router(router, prefix="/api/v1")

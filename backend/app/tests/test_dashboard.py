@@ -7,8 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.api.routes.dashboard import router
 from app.models.collection_run import CollectionRun
+from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.opportunity_observation import OpportunityObservation
 from app.services.dashboard import collection_health, dashboard_summary
+from app.services.dashboard_aggregation import (
+    backfill_dashboard_summaries,
+    summary_matches_source,
+)
 from app.tests.test_opportunities_api import START, client  # noqa: F401
 
 
@@ -149,11 +154,14 @@ def test_dashboard_uses_bounded_aggregate_queries_not_frontend_sized_reads(dashb
         statements.append(statement)
 
     with Session(engine) as db:
+        # Backfill is deployment/write-time work and must not pollute steady-state reads.
+        backfill_dashboard_summaries(db)
+        db.commit()
         event.listen(engine, "before_cursor_execute", record)
         try:
             summary = dashboard_summary(db)
             assert summary["opportunities"]["open"] == 2
-            assert len(statements) <= 8
+            assert len(statements) <= 2
 
             statements.clear()
             health = collection_health(db)
@@ -162,6 +170,79 @@ def test_dashboard_uses_bounded_aggregate_queries_not_frontend_sized_reads(dashb
         finally:
             event.remove(engine, "before_cursor_execute", record)
 
+
+
+def test_persisted_summary_tracks_latest_success_and_not_latest_failed(dashboard):
+    http, engine = dashboard
+    assert http.get("/dashboard/summary").status_code == 200
+
+    with Session(engine) as db:
+        summary = db.get(
+            DashboardAccountSummary,
+            ("aws", "111111111111"),
+        )
+        assert summary is not None
+        assert summary.collection_run_id == "run-a2"
+        assert summary.baseline_collection_run_id == "run-a1"
+        assert summary.rules_version_changed is True
+        assert summary_matches_source(
+            db,
+            provider="aws",
+            account_id="111111111111",
+        )
+
+
+def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dashboard):
+    http, engine = dashboard
+    initial = http.get("/dashboard/summary").json()
+    assert initial["opportunities"]["open"] == 2
+
+    treated = http.post(
+        "/opportunities/opp-000/treat",
+        json={"note": "implemented"},
+    )
+    assert treated.status_code == 200
+    after_treat = http.get("/dashboard/summary").json()
+    assert after_treat["opportunities"]["open"] == 1
+    assert after_treat["opportunities"]["treated"] == 4
+    assert after_treat["financial"]["totals"] == [
+        {"currency": "USD", "amount": "13.00"}
+    ]
+
+    reopened = http.post(
+        "/opportunities/opp-000/reopen",
+        json={"note": "review again"},
+    )
+    assert reopened.status_code == 200
+    after_reopen = http.get("/dashboard/summary").json()
+    assert after_reopen["opportunities"]["open"] == 2
+    assert after_reopen["opportunities"]["treated"] == 3
+
+    rejected = http.post(
+        "/opportunities/bulk/reject",
+        json={
+            "opportunity_ids": ["opp-000", "opp-003"],
+            "reason": "RISK_ACCEPTED",
+            "note": "bulk decision",
+        },
+    )
+    assert rejected.status_code == 200
+    after_bulk = http.get("/dashboard/summary").json()
+    assert after_bulk["opportunities"]["open"] == 0
+    assert after_bulk["opportunities"]["rejected"] == 3
+    assert after_bulk["opportunities"]["new_since_previous"] == 1
+
+    with Session(engine) as db:
+        assert summary_matches_source(
+            db,
+            provider="aws",
+            account_id="111111111111",
+        )
+        assert summary_matches_source(
+            db,
+            provider="aws",
+            account_id="222222222222",
+        )
 
 def test_dashboard_requires_authentication(dashboard):
     http, _ = dashboard

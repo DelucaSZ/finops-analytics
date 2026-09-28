@@ -6,6 +6,7 @@ from app import worker
 from app.db.base import Base
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
+from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.scan import Scan
 from app.services.collector_types import CollectedFinding
 
@@ -95,7 +96,38 @@ def test_successful_scan_finishes_collection_run(db, monkeypatch):
     assert run.opportunities_found == 1
     assert run.resources_analyzed == 0
     assert db.get(Scan, scan.id).status == "completed"
+    summary = db.get(DashboardAccountSummary, ("aws", "123456789012"))
+    assert summary is not None
+    assert summary.collection_run_id == run.id
+    assert summary.open_count == 1
 
+
+
+def test_summary_failure_does_not_rewrite_successful_collection(db, monkeypatch):
+    scan = queued_scan(db)
+    claimed = worker.claim_scan(db)
+    assert claimed is not None
+
+    monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+    monkeypatch.setattr(
+        worker,
+        "get_caller_identity",
+        lambda _: type("Identity", (), {"account_id": "123456789012"})(),
+    )
+    monkeypatch.setattr(worker, "list_effective_policies", lambda *_: [])
+    monkeypatch.setattr(worker, "run_collectors", lambda *_: ([], [], set()))
+
+    def fail_summary(*_args, **_kwargs):
+        raise RuntimeError("derived summary unavailable")
+
+    monkeypatch.setattr(worker, "rebuild_account_summary", fail_summary)
+
+    worker.execute_scan(db, claimed)
+
+    run = db.scalar(select(CollectionRun).where(CollectionRun.scan_id == scan.id))
+    assert run is not None
+    assert run.status == CollectionRunStatus.SUCCESS
+    assert db.get(Scan, scan.id).status == "completed"
 
 def test_failed_scan_is_not_left_running(db):
     scan = queued_scan(db)

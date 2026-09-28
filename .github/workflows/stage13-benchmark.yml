@@ -1,0 +1,53 @@
+name: Stage 13 benchmark
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    if: github.head_ref == 'codex/stage13-dashboard-aggregation'
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: deepops_test
+          POSTGRES_USER: deepops_test
+          POSTGRES_PASSWORD: test-only-ci-password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U deepops_test -d deepops_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      TEST_POSTGRES_URL: postgresql+psycopg://deepops_test:test-only-ci-password@localhost:5432/deepops_test
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements-dev.txt
+      - run: pip install -r requirements-dev.txt
+      - name: SQLite benchmark
+        run: python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 > stage13-sqlite.json
+      - name: PostgreSQL benchmark
+        run: python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 --postgres > stage13-postgresql.json
+      - name: Show results
+        run: |
+          cat stage13-sqlite.json
+          cat stage13-postgresql.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stage13-benchmark
+          path: |
+            backend/stage13-sqlite.json
+            backend/stage13-postgresql.json
