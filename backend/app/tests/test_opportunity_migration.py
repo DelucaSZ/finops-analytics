@@ -141,7 +141,12 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
         rows = {
             row.id: row
             for row in connection.execute(
-                select(findings.c.id, findings.c.fingerprint, findings.c.provider, findings.c.account_id)
+                select(
+                    findings.c.id,
+                    findings.c.fingerprint,
+                    findings.c.provider,
+                    findings.c.account_id,
+                )
             )
         }
         assert rows["finding-with-run"].fingerprint == build_opportunity_fingerprint(
