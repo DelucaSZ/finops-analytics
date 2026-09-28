@@ -11,9 +11,9 @@ class CollectedFinding:
     service: str
     region: str | None
     resource_id: str
-    resource_name: str | None
     title: str
     description: str
+    resource_name: str | None = None
     resource_type: str | None = None
     provider_metadata: dict[str, Any] = field(default_factory=dict)
     evidence: dict[str, Any] = field(default_factory=dict)
