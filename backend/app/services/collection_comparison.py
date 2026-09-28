@@ -99,6 +99,7 @@ def _evidence(context: ObservationContext) -> dict[str, Any]:
         evidence=observation.evidence,
         current_monthly_cost=observation.current_monthly_cost,
         estimated_monthly_savings=observation.estimated_monthly_savings,
+        provider=finding.provider,
     )
 
 
@@ -203,27 +204,38 @@ def compare_observations(
             target=after.confidence,
         )
 
-    if before.current_monthly_cost != after.current_monthly_cost:
+    if before.currency != after.currency:
         _change(
             changes,
             change_types,
-            change_type="financial_impact",
-            label="Custo mensal observado",
-            baseline=before.current_monthly_cost,
-            target=after.current_monthly_cost,
-            unit="USD_MONTH",
+            change_type="currency",
+            label="Moeda",
+            baseline=before.currency,
+            target=after.currency,
         )
+    else:
+        money_unit = f"{after.currency}_MONTH"
+        if before.current_monthly_cost != after.current_monthly_cost:
+            _change(
+                changes,
+                change_types,
+                change_type="financial_impact",
+                label="Custo mensal observado",
+                baseline=before.current_monthly_cost,
+                target=after.current_monthly_cost,
+                unit=money_unit,
+            )
 
-    if before.estimated_monthly_savings != after.estimated_monthly_savings:
-        _change(
-            changes,
-            change_types,
-            change_type="financial_impact",
-            label="Economia potencial estimada",
-            baseline=before.estimated_monthly_savings,
-            target=after.estimated_monthly_savings,
-            unit="USD_MONTH",
-        )
+        if before.estimated_monthly_savings != after.estimated_monthly_savings:
+            _change(
+                changes,
+                change_types,
+                change_type="financial_impact",
+                label="Economia potencial estimada",
+                baseline=before.estimated_monthly_savings,
+                target=after.estimated_monthly_savings,
+                unit=money_unit,
+            )
 
     baseline_evidence = _evidence(baseline)
     target_evidence = _evidence(target)
@@ -351,6 +363,11 @@ def validate_comparable_runs(baseline: CollectionRun, target: CollectionRun) -> 
             "As coletas pertencem a contas diferentes.",
             code="DIFFERENT_ACCOUNT",
         )
+    if baseline.scope and target.scope and not _same(baseline.scope, target.scope):
+        raise CollectionComparisonError(
+            "As coletas possuem escopos conhecidos diferentes.",
+            code="DIFFERENT_SCOPE",
+        )
     if baseline.started_at >= target.started_at:
         raise CollectionComparisonError(
             "A baseline precisa ser anterior à coleta atual.",
@@ -375,9 +392,15 @@ def compatible_baselines(
             CollectionRun.started_at < target.started_at,
         )
         .order_by(CollectionRun.started_at.desc(), CollectionRun.id.desc())
-        .limit(limit)
     )
-    return list(db.scalars(statement))
+    compatible: list[CollectionRun] = []
+    for candidate in db.scalars(statement.execution_options(yield_per=100)):
+        if target.scope and candidate.scope and not _same(candidate.scope, target.scope):
+            continue
+        compatible.append(candidate)
+        if len(compatible) >= limit:
+            break
+    return compatible
 
 
 def previous_comparable_run(db: Session, target: CollectionRun) -> CollectionRun | None:
@@ -390,6 +413,7 @@ def _run_metadata(run: CollectionRun) -> dict[str, Any]:
         "id": run.id,
         "provider": run.provider,
         "account_id": run.account_id,
+        "scope": run.scope or {},
         "started_at": run.started_at,
         "finished_at": run.finished_at,
         "status": run.status,
@@ -423,13 +447,18 @@ def _rules_warning(
     }
 
 
-def _scope_warning() -> dict[str, str]:
+def _scope_warning(
+    baseline: CollectionRun | None,
+    target: CollectionRun,
+) -> dict[str, str] | None:
+    if baseline is not None and baseline.scope and target.scope:
+        return None
     return {
         "code": "SCOPE_METADATA_UNAVAILABLE",
         "message": (
-            "O schema atual de CollectionRun não persiste snapshot de regiões, escopo ou tipo "
-            "da coleta. A comparabilidade foi validada por provider e conta; mudanças de "
-            "configuração de escopo entre execuções podem afetar o resultado."
+            "Uma ou ambas as coletas não possuem snapshot histórico de escopo. "
+            "A comparabilidade foi validada por provider e conta; mudanças antigas "
+            "de configuração podem afetar o resultado."
         ),
     }
 
@@ -466,6 +495,7 @@ def _snapshot(context: ObservationContext | None) -> dict[str, Any] | None:
         "current_monthly_cost": observation.current_monthly_cost,
         "estimated_monthly_savings": observation.estimated_monthly_savings,
         "confidence": observation.confidence,
+        "currency": observation.currency,
         "evidence_summary": evidence.get("summary"),
     }
 
@@ -491,6 +521,7 @@ def _item(
         "region": finding.region,
         "resource_id": finding.resource_id,
         "resource_name": finding.resource_name,
+        "resource_type": finding.resource_type,
         "lifecycle_status": finding.status,
         "first_seen_at": finding.first_seen_at,
         "baseline": _snapshot(baseline),
@@ -503,7 +534,21 @@ def _item(
 def _financial_summary(
     baseline: dict[str, ObservationContext],
     target: dict[str, ObservationContext],
-) -> dict[str, Any] | None:
+) -> tuple[dict[str, Any] | None, dict[str, str] | None]:
+    currencies = {
+        context.observation.currency
+        for context in [*baseline.values(), *target.values()]
+        if context.observation.currency
+    }
+    if len(currencies) > 1:
+        return None, {
+            "code": "MULTIPLE_CURRENCIES",
+            "message": (
+                "A comparação contém mais de uma moeda. O DeepOps não soma valores "
+                "de moedas diferentes sem conversão explícita."
+            ),
+        }
+    currency = next(iter(currencies), "USD")
     baseline_total = sum(
         (context.observation.estimated_monthly_savings for context in baseline.values()),
         Decimal("0"),
@@ -513,7 +558,7 @@ def _financial_summary(
         Decimal("0"),
     )
     if baseline_total == 0 and target_total == 0:
-        return None
+        return None, None
     delta = target_total - baseline_total
     delta_percent = (
         (delta / baseline_total * Decimal("100")).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
@@ -523,13 +568,13 @@ def _financial_summary(
     return {
         "metric": "estimated_monthly_savings",
         "label": "Economia potencial estimada",
-        "currency": "USD",
+        "currency": currency,
         "period": "month",
         "baseline_total": baseline_total,
         "target_total": target_total,
         "delta": delta,
         "delta_percent": delta_percent,
-    }
+    }, None
 
 
 def compare_collection_runs(
@@ -557,7 +602,7 @@ def compare_collection_runs(
             "summary": None,
             "financial_summary": None,
             "rules_version_warning": None,
-            "warnings": [_scope_warning()],
+            "warnings": [warning for warning in [_scope_warning(None, target)] if warning],
             "category": category,
             "items": [],
             **_page_meta(0, page, page_size),
@@ -606,6 +651,19 @@ def compare_collection_runs(
         for opportunity_id in page_ids
     ]
 
+    financial_summary, currency_warning = _financial_summary(
+        baseline_contexts,
+        target_contexts,
+    )
+    warnings = [
+        warning
+        for warning in [
+            _scope_warning(baseline, target),
+            currency_warning,
+        ]
+        if warning
+    ]
+
     return {
         "available": True,
         "reason": None,
@@ -620,9 +678,9 @@ def compare_collection_runs(
             "no_longer_detected": len(no_longer_ids),
             "changed": len(changed_ids),
         },
-        "financial_summary": _financial_summary(baseline_contexts, target_contexts),
+        "financial_summary": financial_summary,
         "rules_version_warning": _rules_warning(baseline, target),
-        "warnings": [_scope_warning()],
+        "warnings": warnings,
         "category": category,
         "items": items,
         **_page_meta(len(selected_ids), page, page_size),

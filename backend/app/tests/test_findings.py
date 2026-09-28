@@ -46,7 +46,8 @@ def client():
                     id=str(i).zfill(4),
                     fingerprint=str(i).zfill(64),
                     scan_id="scan",
-                    account_id=1 if i % 2 == 0 else 2,
+                    provider="aws",
+                    account_id="000000000001" if i % 2 == 0 else "000000000002",
                     rule_key="missing_required_tags" if i % 2 == 0 else "ebs_unattached",
                     service="EC2",
                     region="sa-east-1",
@@ -98,7 +99,7 @@ def test_pagination_and_account_rule_filters(client):
     assert len({item["id"] for item in first + second}) == 505
     filtered = http.get("/findings?account_id=1&rule_key=missing_required_tags&limit=500").json()
     assert len(filtered) == 253
-    assert all(item["account_id"] == 1 for item in filtered)
+    assert all(item["account_id"] == "000000000001" for item in filtered)
     assert http.get("/findings?offset=-1").status_code == 422
 
 

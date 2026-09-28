@@ -6,7 +6,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Clock3, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate, usd } from "@/lib/api";
+import { api, formatDate } from "@/lib/api";
+import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import type {
   OpportunityDetail as OpportunityDetailType,
   OpportunityObservation,
@@ -27,7 +28,7 @@ const rejectionReasonLabels: Record<string, string> = {
 function monthlySavings(item: OpportunityDetailType) {
   return item.rule_key === "cost_growth_anomaly"
     ? "Não estimada"
-    : `${usd(item.estimated_monthly_savings)}/mês`;
+    : `${formatMoney(item.estimated_monthly_savings, item.currency)}/mês`;
 }
 
 type Props = {
@@ -141,11 +142,12 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               </div>
               <p className="detail-description">{detail.description}</p>
               <dl className="detail-grid">
-                <div><dt>Cloud</dt><dd>{detail.provider.toUpperCase()}</dd></div>
-                <div><dt>Conta</dt><dd>{detail.account_name}<span>{detail.account_id}</span></dd></div>
+                <div><dt>Cloud</dt><dd>{providerLabel(detail.provider)}</dd></div>
+                <div><dt>Conta</dt><dd>{detail.account_name || detail.account_id}<span>{detail.account_id}</span></dd></div>
                 <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
                 <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
                 <div><dt>Recurso</dt><dd>{detail.resource_id}</dd></div>
+                {detail.resource_type && <div><dt>Tipo de recurso</dt><dd>{detail.resource_type}</dd></div>}
                 <div>
                   <dt>Regra</dt>
                   <dd>
@@ -154,7 +156,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                   </dd>
                 </div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
-                <div><dt>Custo mensal atual</dt><dd>{usd(detail.current_monthly_cost)}</dd></div>
+                <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
                 <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
                 <div><dt>Ocorrências registradas</dt><dd>{observations?.total ?? "—"}</dd></div>
@@ -237,7 +239,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                       </div>
                       <div><StatusBadge value={item.severity} /></div>
                       <div>
-                        <strong>{usd(item.estimated_monthly_savings)}/mês</strong>
+                        <strong>{formatMoney(item.estimated_monthly_savings, item.currency)}/mês</strong>
                         <span>economia estimada</span>
                       </div>
                       <div>
@@ -299,7 +301,10 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code></dd></div>
                 <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code></dd></div>
                 <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
-                <div><dt>Scan legado</dt><dd><code>{detail.scan_id}</code></dd></div>
+                <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
+                {Object.keys(detail.provider_metadata || {}).length > 0 && (
+                  <div><dt>Metadata do provider</dt><dd><pre>{JSON.stringify(detail.provider_metadata, null, 2)}</pre></dd></div>
+                )}
               </dl>
             </details>
           </div>

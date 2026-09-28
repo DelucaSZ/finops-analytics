@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401
+from app.core.cloud import CloudProvider
 from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
@@ -25,7 +26,7 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
-logger = logging.getLogger("nuvemiq.worker")
+logger = logging.getLogger("deepops.worker")
 
 
 def enqueue_due_scans(db: Session) -> None:
@@ -71,8 +72,9 @@ def claim_scan(db: Session) -> Scan | None:
             db.add(
                 CollectionRun(
                     scan_id=scan.id,
-                    provider="aws",
+                    provider=CloudProvider.AWS.value,
                     account_id=account_id,
+                    scope={"regions": sorted(account.regions) if account else []},
                     started_at=started_at,
                     status=CollectionRunStatus.RUNNING,
                 )
@@ -93,23 +95,28 @@ def _create_finding_race_safe(
     *,
     fingerprint: str,
     scan: Scan,
+    run: CollectionRun,
     item,
     observed_at: datetime,
 ) -> Finding:
     candidate = Finding(
         fingerprint=fingerprint,
         scan_id=scan.id,
-        account_id=scan.account_id,
+        provider=run.provider,
+        account_id=run.account_id,
         rule_key=item.rule_key,
         service=item.service,
         region=item.region,
         resource_id=item.resource_id,
         resource_name=item.resource_name,
+        resource_type=item.resource_type,
+        provider_metadata=dict(item.provider_metadata),
         title=item.title,
         description=item.description,
         evidence=dict(item.evidence),
         current_monthly_cost=item.current_monthly_cost,
         estimated_monthly_savings=item.estimated_monthly_savings,
+        currency=item.currency,
         confidence=item.confidence,
         severity=item.severity,
         status="open",
@@ -156,7 +163,9 @@ def _create_observation_race_safe(
         severity=item.severity,
         current_monthly_cost=item.current_monthly_cost,
         estimated_monthly_savings=item.estimated_monthly_savings,
+        currency=item.currency,
         confidence=item.confidence,
+        provider_metadata=dict(item.provider_metadata),
         evidence=dict(item.evidence),
     )
     try:
@@ -175,7 +184,9 @@ def _refresh_observation(observation: OpportunityObservation, item) -> None:
     observation.severity = item.severity
     observation.current_monthly_cost = item.current_monthly_cost
     observation.estimated_monthly_savings = item.estimated_monthly_savings
+    observation.currency = item.currency
     observation.confidence = item.confidence
+    observation.provider_metadata = dict(item.provider_metadata)
     observation.evidence = dict(item.evidence)
 
 
@@ -186,11 +197,14 @@ def _normalized_utc(value: datetime) -> datetime:
 def _refresh_finding_snapshot(finding: Finding, scan: Scan, item) -> None:
     finding.scan_id = scan.id
     finding.resource_name = item.resource_name
+    finding.resource_type = item.resource_type
+    finding.provider_metadata = dict(item.provider_metadata)
     finding.title = item.title
     finding.description = item.description
     finding.evidence = dict(item.evidence)
     finding.current_monthly_cost = item.current_monthly_cost
     finding.estimated_monthly_savings = item.estimated_monthly_savings
+    finding.currency = item.currency
     finding.confidence = item.confidence
     finding.severity = item.severity
 
@@ -232,6 +246,7 @@ def persist_findings(
                 db,
                 fingerprint=fingerprint,
                 scan=scan,
+                run=run,
                 item=item,
                 observed_at=observed_at,
             )
@@ -362,12 +377,35 @@ def process_once() -> bool:
         scan = claim_scan(db)
         if scan is None:
             return False
+        run = collection_run_for_scan(db, scan.id)
+        provider = run.provider if run else "unknown"
+        account_id = run.account_id if run else str(scan.account_id)
+        collection_run_id = run.id if run else "missing"
         try:
-            logger.info("Starting scan %s for account %s", scan.id, scan.account_id)
+            logger.info(
+                "Starting collection provider=%s account_id=%s collection_run_id=%s scan_id=%s",
+                provider,
+                account_id,
+                collection_run_id,
+                scan.id,
+            )
             execute_scan(db, scan)
-            logger.info("Completed scan %s with %s findings", scan.id, scan.findings_count)
+            logger.info(
+                "Completed collection provider=%s account_id=%s collection_run_id=%s "
+                "opportunities=%s",
+                provider,
+                account_id,
+                collection_run_id,
+                scan.findings_count,
+            )
         except Exception as exc:  # worker boundary: persist errors and continue
-            logger.error("Scan %s failed: %s", scan.id, sanitize_collection_error(exc))
+            logger.error(
+                "Collection failed provider=%s account_id=%s collection_run_id=%s error=%s",
+                provider,
+                account_id,
+                collection_run_id,
+                sanitize_collection_error(exc),
+            )
             fail_scan(db, scan.id, exc)
         return True
 

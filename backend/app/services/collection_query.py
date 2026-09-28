@@ -5,6 +5,7 @@ from math import ceil
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun
 from app.models.opportunity_observation import OpportunityObservation
@@ -42,7 +43,8 @@ def apply_filters(statement, filters: CollectionFilters):
 def account_join():
     # Name enrichment only: unknown providers/accounts remain visible through the LEFT JOIN.
     return and_(
-        CollectionRun.provider == "aws", CollectionRun.account_id == AwsAccount.aws_account_id
+        CollectionRun.provider == CloudProvider.AWS.value,
+        CollectionRun.account_id == AwsAccount.aws_account_id,
     )
 
 

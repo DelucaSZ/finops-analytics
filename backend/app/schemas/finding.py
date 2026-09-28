@@ -17,17 +17,21 @@ RejectionReason = Literal[
 class FindingRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: str
-    account_id: int
+    provider: str
+    account_id: str
     rule_key: str
     service: str
-    region: str
+    region: str | None
     resource_id: str
     resource_name: str | None
+    resource_type: str | None = None
+    provider_metadata: dict = Field(default_factory=dict)
     title: str
     description: str
     evidence: dict
     current_monthly_cost: Decimal
     estimated_monthly_savings: Decimal
+    currency: str
     confidence: str
     severity: str
     status: str

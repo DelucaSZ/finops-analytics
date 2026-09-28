@@ -13,7 +13,8 @@ def test_ai_explanation_requires_explicit_provider(monkeypatch: pytest.MonkeyPat
     finding = Finding(
         fingerprint="a" * 64,
         scan_id="scan-id",
-        account_id=1,
+        provider="aws",
+        account_id="123456789012",
         rule_key="ebs_unattached",
         service="EC2/EBS",
         region="sa-east-1",

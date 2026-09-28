@@ -27,7 +27,8 @@ import type { OpportunityDecisionAction } from "@/components/opportunity-decisio
 import { OpportunityDetail } from "@/components/opportunity-detail";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate, usd } from "@/lib/api";
+import { api, formatDate } from "@/lib/api";
+import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import {
   buildLifecycleRequest,
   buildOpportunityApiQuery,
@@ -37,12 +38,11 @@ import {
 } from "@/lib/opportunity-query.mjs";
 import type { OpportunityQueryState } from "@/lib/opportunity-query.mjs";
 import type {
-  AwsAccount,
   CollectionRun,
   Finding,
+  OpportunityOptions,
   OpportunityPage,
   OpportunityStats,
-  Policy,
 } from "@/lib/types";
 
 const statusTabs = [
@@ -71,7 +71,7 @@ function pageWindow(page: number, totalPages: number) {
 function savingsLabel(finding: Finding) {
   return finding.rule_key === "cost_growth_anomaly"
     ? "Não estimada"
-    : `${usd(finding.estimated_monthly_savings)}/mês`;
+    : `${formatMoney(finding.estimated_monthly_savings, finding.currency)}/mês`;
 }
 
 function SkeletonRows() {
@@ -111,17 +111,23 @@ function OpportunitiesContent() {
   );
   const listQuery = useMemo(() => buildOpportunityApiQuery(state), [
     state.accountId, state.collectionRunId, state.current, state.order, state.page, state.pageSize,
-    state.provider, state.region, state.resourceId, state.rule, state.search,
-    state.severity, state.sort, state.status,
+    state.provider, state.region, state.resourceId, state.resourceType, state.rule, state.search,
+    state.service, state.severity, state.sort, state.status,
   ]);
   const statsQuery = useMemo(() => buildOpportunityStatsQuery(state), [
     state.accountId, state.collectionRunId, state.current, state.provider, state.region,
-    state.resourceId, state.rule, state.search, state.severity,
+    state.resourceId, state.resourceType, state.rule, state.search, state.service, state.severity,
   ]);
 
   const [findings, setFindings] = useState<Finding[]>([]);
-  const [accounts, setAccounts] = useState<AwsAccount[]>([]);
-  const [policies, setPolicies] = useState<Policy[]>([]);
+  const [options, setOptions] = useState<OpportunityOptions>({
+    providers: [],
+    accounts: [],
+    regions: [],
+    services: [],
+    resource_types: [],
+    rules: [],
+  });
   const [collectionRuns, setCollectionRuns] = useState<CollectionRun[]>([]);
   const [stats, setStats] = useState<OpportunityStats>({ open: 0, treated: 0, rejected: 0 });
   const [total, setTotal] = useState(0);
@@ -169,14 +175,11 @@ function OpportunitiesContent() {
     const controller = new AbortController();
     setFiltersLoading(true);
     setFilterError("");
-    Promise.all([
-      api<AwsAccount[]>("/accounts", { signal: controller.signal }),
-      api<Policy[]>("/policies/global", { signal: controller.signal }),
-    ])
-      .then(([accountData, policyData]) => {
-        setAccounts(accountData);
-        setPolicies(policyData);
-      })
+    const params = new URLSearchParams({ limit: "300" });
+    if (state.provider) params.set("provider", state.provider);
+    if (state.accountId) params.set("account_id", state.accountId);
+    api<OpportunityOptions>(`/opportunities/options?${params}`, { signal: controller.signal })
+      .then(setOptions)
       .catch((err) => {
         if (!controller.signal.aborted) {
           setFilterError(err instanceof Error ? err.message : "Não foi possível carregar as opções de filtro.");
@@ -186,7 +189,7 @@ function OpportunitiesContent() {
         if (!controller.signal.aborted) setFiltersLoading(false);
       });
     return () => controller.abort();
-  }, []);
+  }, [state.accountId, state.provider, reloadKey]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -246,14 +249,23 @@ function OpportunitiesContent() {
     [findings, selectedIds],
   );
   const allSelected = findings.length > 0 && selected.length === findings.length;
-  const pageSavings = findings.reduce((sum, finding) => sum + Number(finding.estimated_monthly_savings), 0);
+  const pageSavings = findings.reduce<Record<string, number>>((totals, finding) => {
+    const currency = finding.currency || "USD";
+    totals[currency] = (totals[currency] || 0) + Number(finding.estimated_monthly_savings);
+    return totals;
+  }, {});
   const newestObservation = findings.reduce<string | null>((latest, finding) => {
     if (!latest || new Date(finding.last_seen_at) > new Date(latest)) return finding.last_seen_at;
     return latest;
   }, null);
-  const currentAccount = accounts.find((account) => account.aws_account_id === state.accountId);
+  const currentAccount = options.accounts.find(
+    (account) => account.provider === state.provider && account.account_id === state.accountId,
+  );
+  const accountOptions = options.accounts.filter(
+    (account) => !state.provider || account.provider === state.provider,
+  );
   const providerOptions = Array.from(new Set([
-    "aws",
+    ...options.providers.map((provider) => provider.toLowerCase()),
     ...collectionRuns.map((run) => run.provider.toLowerCase()),
     ...(state.provider ? [state.provider.toLowerCase()] : []),
   ])).sort();
@@ -263,7 +275,8 @@ function OpportunitiesContent() {
   );
   const pages = pageWindow(state.page, totalPages);
   const hasFilters = Boolean(
-    state.provider || state.accountId || state.region || state.severity || state.rule ||
+    state.provider || state.accountId || state.region || state.service || state.resourceType ||
+    state.severity || state.rule ||
     state.collectionRunId || state.resourceId || state.search || state.current,
   );
 
@@ -286,6 +299,8 @@ function OpportunitiesContent() {
       provider: null,
       account_id: null,
       region: null,
+      service: null,
+      resource_type: null,
       severity: null,
       rule: null,
       rule_key: null,
@@ -354,7 +369,7 @@ function OpportunitiesContent() {
       if (state.accountId) updateUrl({ account_id: null });
       return;
     }
-    const match = accounts.find((account) => account.aws_account_id === value);
+    const match = accountOptions.find((account) => account.account_id === value);
     if (match) {
       if (state.accountId !== value) updateUrl({ account_id: value, collection_run_id: null });
       return;
@@ -405,9 +420,9 @@ function OpportunitiesContent() {
 
           <label className="opportunity-filter">
             <span>Cloud</span>
-            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, collection_run_id: null })}>
+            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, account_id: null, collection_run_id: null })}>
               <option value="">Todas as clouds</option>
-              {providerOptions.map((provider) => <option key={provider} value={provider}>{provider.toUpperCase()}</option>)}
+              {providerOptions.map((provider) => <option key={provider} value={provider}>{providerLabel(provider)}</option>)}
             </select></div>
           </label>
 
@@ -416,33 +431,61 @@ function OpportunitiesContent() {
             <div><Building2 size={16} /><input
               list="opportunity-account-options"
               value={accountInput}
-              placeholder={filtersLoading ? "Carregando contas…" : "Buscar por Account ID"}
+              placeholder={filtersLoading ? "Carregando contas…" : "Buscar por nome ou ID da conta"}
               onChange={(event) => {
                 const value = event.target.value;
                 setAccountInput(value);
                 if (!value) updateUrl({ account_id: null, collection_run_id: null });
-                else if (accounts.some((account) => account.aws_account_id === value)) {
+                else if (accountOptions.some((account) => account.account_id === value)) {
                   updateUrl({ account_id: value, collection_run_id: null });
                 }
               }}
               onBlur={commitAccountInput}
               onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             /></div>
-            {currentAccount && <small>{currentAccount.name} · {currentAccount.aws_account_id}</small>}
+            {currentAccount && (
+              <small>
+                {currentAccount.account_name || currentAccount.account_id} · {providerLabel(currentAccount.provider)}
+              </small>
+            )}
             <datalist id="opportunity-account-options">
-              {accounts.map((account) => <option key={account.id} value={account.aws_account_id}>{account.name} · {account.aws_account_id}</option>)}
+              {accountOptions.map((account) => (
+                <option key={`${account.provider}:${account.account_id}`} value={account.account_id}>
+                  {account.account_name || account.account_id} · {providerLabel(account.provider)}
+                </option>
+              ))}
             </datalist>
           </label>
 
           <label className="opportunity-filter">
             <span>Região</span>
             <div><Filter size={16} /><input
+              list="opportunity-region-options"
               value={regionInput}
-              placeholder="Ex.: us-east-1"
+              placeholder="Qualquer região ou escopo regional"
               onChange={(event) => setRegionInput(event.target.value)}
               onBlur={() => { if (regionInput.trim() !== state.region) updateUrl({ region: regionInput.trim() }); }}
               onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             /></div>
+            <datalist id="opportunity-region-options">
+              {options.regions.map((region) => <option key={region} value={region} />)}
+            </datalist>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Serviço</span>
+            <div><Filter size={16} /><select value={state.service} onChange={(event) => updateUrl({ service: event.target.value })}>
+              <option value="">Todos os serviços</option>
+              {options.services.map((service) => <option key={service} value={service}>{service}</option>)}
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Tipo de recurso</span>
+            <div><Filter size={16} /><select value={state.resourceType} onChange={(event) => updateUrl({ resource_type: event.target.value })}>
+              <option value="">Todos os tipos</option>
+              {options.resource_types.map((resourceType) => <option key={resourceType} value={resourceType}>{resourceType}</option>)}
+            </select></div>
           </label>
 
           <label className="opportunity-filter">
@@ -459,10 +502,7 @@ function OpportunitiesContent() {
             <span>Regra / Analyzer</span>
             <div><Tags size={16} /><select value={state.rule} onChange={(event) => updateUrl({ rule: event.target.value, rule_key: null })}>
               <option value="">Todas as regras</option>
-              {policies
-                .map((policy) => [policy.rule_key, policy.name] as const)
-                .sort((a, b) => a[1].localeCompare(b[1], "pt-BR"))
-                .map(([key, name]) => <option key={key} value={key}>{name}</option>)}
+              {options.rules.map((rule) => <option key={rule} value={rule}>{rule}</option>)}
             </select></div>
           </label>
 
@@ -475,7 +515,7 @@ function OpportunitiesContent() {
               )}
               {visibleCollectionRuns.map((run) => (
                 <option key={run.id} value={run.id}>
-                  {formatDate(run.started_at)} · {run.provider.toUpperCase()} · {run.account_id} · {run.status}
+                  {formatDate(run.started_at)} · {providerLabel(run.provider)} · {run.account_id} · {run.status}
                 </option>
               ))}
             </select></div>
@@ -492,7 +532,13 @@ function OpportunitiesContent() {
         <div className="opportunity-summary-card">
           <WalletCards size={18} />
           <span>Economia na página</span>
-          <strong>{usd(pageSavings)}/mês</strong>
+          <strong>
+            {Object.entries(pageSavings).length
+              ? Object.entries(pageSavings)
+                  .map(([currency, amount]) => formatMoney(amount, currency))
+                  .join(" · ")
+              : "—"}
+          </strong>
           <small>Somente os {findings.length} itens carregados</small>
         </div>
         <div className="opportunity-summary-card">
@@ -591,9 +637,10 @@ function OpportunitiesContent() {
                       {finding.resource_name && <span>{finding.resource_id}</span>}
                     </td>
                     <td className="opportunity-context-cell">
-                      <strong>{finding.provider.toUpperCase()} · {finding.account_name}</strong>
+                      <strong>{providerLabel(finding.provider)} · {finding.account_name || finding.account_id}</strong>
                       <span>{finding.account_id}</span>
                       <span>{finding.region || "Sem região"} · {finding.service || "Sem serviço"}</span>
+                      {finding.resource_type && <span>{finding.resource_type}</span>}
                     </td>
                     <td>
                       <div className="risk-badges"><StatusBadge value={finding.severity} /><StatusBadge value={finding.status} /></div>
@@ -601,7 +648,7 @@ function OpportunitiesContent() {
                     </td>
                     <td className="money-cell opportunity-impact-cell">
                       {savingsLabel(finding)}
-                      <span>Custo atual: {usd(finding.current_monthly_cost)}</span>
+                      <span>Custo atual: {formatMoney(finding.current_monthly_cost, finding.currency)}</span>
                     </td>
                     <td className="detection-cell">
                       <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>

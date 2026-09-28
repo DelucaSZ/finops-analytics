@@ -2,8 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cloud import CloudProvider
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
+from app.models.account import AwsAccount
 from app.models.finding import Finding
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
@@ -35,7 +37,8 @@ ALLOWED_STATUSES = {"open", "treated", "rejected"}
 
 @router.get("", response_model=list[FindingRead])
 def list_findings(
-    account_id: int | None = None,
+    provider: str | None = Query(default=None, max_length=16),
+    account_id: str | None = Query(default=None, max_length=255),
     rule_key: str | None = None,
     finding_status: str | None = Query(default="open", alias="status"),
     limit: int = Query(default=100, ge=1, le=500),
@@ -49,8 +52,21 @@ def list_findings(
         Finding.last_seen_at.desc(),
         Finding.id,
     )
+    if provider:
+        statement = statement.where(Finding.provider == provider.lower())
     if account_id is not None:
-        statement = statement.where(Finding.account_id == account_id)
+        legacy_account = None
+        if account_id.isdigit() and (
+            provider is None or provider.lower() == CloudProvider.AWS.value
+        ):
+            legacy_account = db.get(AwsAccount, int(account_id))
+        if legacy_account is not None:
+            statement = statement.where(
+                Finding.provider == CloudProvider.AWS.value,
+                Finding.account_id == legacy_account.aws_account_id,
+            )
+        else:
+            statement = statement.where(Finding.account_id == account_id)
     if rule_key:
         statement = statement.where(Finding.rule_key == rule_key)
     if finding_status:

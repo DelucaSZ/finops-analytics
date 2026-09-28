@@ -40,8 +40,8 @@ class DashboardFinancial(BaseModel):
 class DashboardProviderDistribution(BaseModel):
     provider: str
     open: int
-    estimated_monthly_savings: Decimal
-    currency: str
+    estimated_monthly_savings: Decimal | None = None
+    currency: str | None = None
 
 
 class DashboardAccountDistribution(BaseModel):
@@ -49,8 +49,8 @@ class DashboardAccountDistribution(BaseModel):
     account_id: str
     account_name: str | None = None
     open: int
-    estimated_monthly_savings: Decimal
-    currency: str
+    estimated_monthly_savings: Decimal | None = None
+    currency: str | None = None
 
 
 class DashboardTopOpportunity(BaseModel):
@@ -59,7 +59,7 @@ class DashboardTopOpportunity(BaseModel):
     rule_key: str
     resource_id: str
     resource_name: str | None = None
-    region: str
+    region: str | None
     provider: str
     account_id: str
     account_name: str | None = None

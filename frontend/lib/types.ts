@@ -31,17 +31,20 @@ export type Finding = {
   fingerprint: string;
   provider: string;
   account_id: string;
-  account_name: string;
-  legacy_account_id: number;
+  account_name: string | null;
+  legacy_account_id: number | null;
   rule_key: string;
   service: string;
-  region: string;
+  region: string | null;
   resource_id: string;
   resource_name: string | null;
+  resource_type: string | null;
+  provider_metadata: Record<string, unknown>;
   title: string;
   description: string;
   current_monthly_cost: string;
   estimated_monthly_savings: string;
+  currency: string;
   confidence: string;
   severity: string;
   status: string;
@@ -56,6 +59,15 @@ export type OpportunityPage = {
   page_size: number;
   total: number;
   total_pages: number;
+};
+
+export type OpportunityOptions = {
+  providers: string[];
+  accounts: { provider: string; account_id: string; account_name: string | null }[];
+  regions: string[];
+  services: string[];
+  resource_types: string[];
+  rules: string[];
 };
 
 export type EvidenceMetric = {
@@ -105,7 +117,7 @@ export type OpportunityEvidence = {
 };
 
 export type OpportunityDetail = Finding & {
-  scan_id: string;
+  scan_id: string | null;
   treated_at: string | null;
   treated_by: string | null;
   treatment_note: string | null;
@@ -131,7 +143,9 @@ export type OpportunityObservation = {
   severity: string;
   current_monthly_cost: string;
   estimated_monthly_savings: string;
+  currency: string;
   confidence: string;
+  provider_metadata: Record<string, unknown>;
   evidence: OpportunityEvidence;
   collection_provider: string;
   collection_account_id: string;
@@ -173,6 +187,7 @@ export type CollectionRun = {
   scan_id: string | null;
   provider: string;
   account_id: string;
+  scope: Record<string, unknown>;
   started_at: string;
   finished_at: string | null;
   status: string;
@@ -224,16 +239,16 @@ export type DashboardSummary = {
   by_provider: Array<{
     provider: string;
     open: number;
-    estimated_monthly_savings: string;
-    currency: string;
+    estimated_monthly_savings: string | null;
+    currency: string | null;
   }>;
   by_account: Array<{
     provider: string;
     account_id: string;
     account_name: string | null;
     open: number;
-    estimated_monthly_savings: string;
-    currency: string;
+    estimated_monthly_savings: string | null;
+    currency: string | null;
   }>;
   top_opportunities: Array<{
     id: string;
@@ -241,7 +256,7 @@ export type DashboardSummary = {
     rule_key: string;
     resource_id: string;
     resource_name: string | null;
-    region: string;
+    region: string | null;
     provider: string;
     account_id: string;
     account_name: string | null;
@@ -378,6 +393,7 @@ export type CollectionComparisonObservation = {
   current_monthly_cost: string;
   estimated_monthly_savings: string;
   confidence: string;
+  currency: string;
   evidence_summary: string | null;
 };
 
@@ -399,6 +415,7 @@ export type CollectionComparisonItem = {
   region: string;
   resource_id: string;
   resource_name: string | null;
+  resource_type: string | null;
   lifecycle_status: string;
   first_seen_at: string;
   baseline: CollectionComparisonObservation | null;

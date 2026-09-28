@@ -6,7 +6,8 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate, usd } from "@/lib/api";
+import { api, formatDate } from "@/lib/api";
+import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import type {
   CollectionComparisonCategory,
   CollectionComparisonChange,
@@ -32,16 +33,17 @@ const categories: Array<{
 
 const categoryValues = new Set(categories.map((item) => item.value));
 
-function signedMoney(value: number | string) {
+function signedMoney(value: number | string, currency: string) {
   const number = Number(value);
   const prefix = number > 0 ? "+" : "";
-  return `${prefix}${usd(number)}/mês`;
+  return `${prefix}${formatMoney(number, currency)}/mês`;
 }
 
 function displayValue(value: unknown, unit?: string | null): string {
   if (value === null || value === undefined) return "—";
-  if (unit === "USD_MONTH" && (typeof value === "number" || typeof value === "string")) {
-    return `${usd(value)}/mês`;
+  const currencyUnit = unit?.match(/^([A-Z]{3})_MONTH$/);
+  if (currencyUnit && (typeof value === "number" || typeof value === "string")) {
+    return `${formatMoney(value, currencyUnit[1])}/mês`;
   }
   if (typeof value === "number") {
     const rendered = value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
@@ -220,7 +222,7 @@ function CollectionComparisonContent() {
                 {formatDate(selectedBaseline.started_at)}
               </Link>
               <strong>
-                {selectedBaseline.provider.toUpperCase()} · {selectedBaseline.account_id}
+                {providerLabel(selectedBaseline.provider)} · {selectedBaseline.account_id}
               </strong>
               <span>Rules {selectedBaseline.rules_version || "não registrada"}</span>
             </>
@@ -235,7 +237,7 @@ function CollectionComparisonContent() {
             {formatDate(comparison.target.started_at)}
           </Link>
           <strong>
-            {comparison.target.provider.toUpperCase()} · {comparison.target.account_id}
+            {providerLabel(comparison.target.provider)} · {comparison.target.account_id}
           </strong>
           <span>Rules {comparison.target.rules_version || "não registrada"}</span>
         </div>
@@ -302,15 +304,15 @@ function CollectionComparisonContent() {
         <section className={styles.financialGrid}>
           <article>
             <span>Impacto anterior</span>
-            <strong>{usd(financial.baseline_total)}/mês</strong>
+            <strong>{formatMoney(financial.baseline_total, financial.currency)}/mês</strong>
           </article>
           <article>
             <span>Impacto atual</span>
-            <strong>{usd(financial.target_total)}/mês</strong>
+            <strong>{formatMoney(financial.target_total, financial.currency)}/mês</strong>
           </article>
           <article>
             <span>Variação</span>
-            <strong>{signedMoney(financial.delta)}</strong>
+            <strong>{signedMoney(financial.delta, financial.currency)}</strong>
             {financial.delta_percent !== null && (
               <small>
                 {Number(financial.delta_percent) > 0 ? "+" : ""}
@@ -367,12 +369,13 @@ function CollectionComparisonContent() {
                         {item.service} · {item.region || "Sem região"}
                       </strong>
                       <span>{item.resource_id}</span>
+                      {item.resource_type && <span>{item.resource_type}</span>}
                     </td>
                     <td>
                       {item.baseline ? (
                         <>
                           <StatusBadge value={item.baseline.severity} />
-                          <span>{usd(item.baseline.estimated_monthly_savings)}/mês</span>
+                          <span>{formatMoney(item.baseline.estimated_monthly_savings, item.baseline.currency)}/mês</span>
                           <span>{item.baseline.evidence_summary || "Sem resumo"}</span>
                         </>
                       ) : (
@@ -383,7 +386,7 @@ function CollectionComparisonContent() {
                       {item.target ? (
                         <>
                           <StatusBadge value={item.target.severity} />
-                          <span>{usd(item.target.estimated_monthly_savings)}/mês</span>
+                          <span>{formatMoney(item.target.estimated_monthly_savings, item.target.currency)}/mês</span>
                           <span>{item.target.evidence_summary || "Sem resumo"}</span>
                         </>
                       ) : (
