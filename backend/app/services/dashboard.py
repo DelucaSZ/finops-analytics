@@ -458,7 +458,6 @@ def _dashboard_summary_direct(
     }
 
 
-
 def _persisted_summary_rows(
     db: Session,
     *,
@@ -585,9 +584,7 @@ def _dashboard_summary_from_persisted_rows(
             severity[level] += int((row.severity_counts or {}).get(level, 0))
         for total in (row.financial or {}).get("totals", []):
             currency = str(total["currency"])
-            money[currency] = money.get(currency, Decimal("0")) + Decimal(
-                str(total["amount"])
-            )
+            money[currency] = money.get(currency, Decimal("0")) + Decimal(str(total["amount"]))
         if row.open_count:
             providers[row.provider] = providers.get(row.provider, 0) + int(row.open_count)
 
@@ -614,12 +611,8 @@ def _dashboard_summary_from_persisted_rows(
         "changed_available": False,
         "comparable_scopes": sum(bool(row.has_baseline) for row in rows),
         "scopes_without_baseline": sum(not bool(row.has_baseline) for row in rows),
-        "rules_version_changed_scopes": sum(
-            bool(row.rules_version_changed) for row in rows
-        ),
-        "rules_version_unknown_scopes": sum(
-            bool(row.rules_version_unknown) for row in rows
-        ),
+        "rules_version_changed_scopes": sum(bool(row.rules_version_changed) for row in rows),
+        "rules_version_unknown_scopes": sum(bool(row.rules_version_unknown) for row in rows),
     }
 
     return {

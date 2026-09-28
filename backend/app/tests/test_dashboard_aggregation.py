@@ -98,10 +98,7 @@ def test_summary_is_idempotent_and_provider_account_identity_isolated(tmp_path):
 
         assert backfill_dashboard_summaries(db) == 2
         db.commit()
-        assert (
-            db.scalar(select(func.count()).select_from(DashboardAccountSummary))
-            == 2
-        )
+        assert db.scalar(select(func.count()).select_from(DashboardAccountSummary)) == 2
 
         rebuild_account_summary(
             db,
@@ -117,18 +114,21 @@ def test_summary_is_idempotent_and_provider_account_identity_isolated(tmp_path):
         )
         db.commit()
 
+        assert db.scalar(select(func.count()).select_from(DashboardAccountSummary)) == 2
         assert (
-            db.scalar(select(func.count()).select_from(DashboardAccountSummary))
-            == 2
+            db.get(
+                DashboardAccountSummary,
+                ("aws", shared_account_id),
+            ).collection_run_id
+            == "run-aws"
         )
-        assert db.get(
-            DashboardAccountSummary,
-            ("aws", shared_account_id),
-        ).collection_run_id == "run-aws"
-        assert db.get(
-            DashboardAccountSummary,
-            ("oci", shared_account_id),
-        ).collection_run_id == "run-oci"
+        assert (
+            db.get(
+                DashboardAccountSummary,
+                ("oci", shared_account_id),
+            ).collection_run_id
+            == "run-oci"
+        )
         assert summary_matches_source(
             db,
             provider="aws",

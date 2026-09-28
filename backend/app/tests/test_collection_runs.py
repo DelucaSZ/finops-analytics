@@ -102,7 +102,6 @@ def test_successful_scan_finishes_collection_run(db, monkeypatch):
     assert summary.open_count == 1
 
 
-
 def test_summary_failure_does_not_rewrite_successful_collection(db, monkeypatch):
     scan = queued_scan(db)
     claimed = worker.claim_scan(db)

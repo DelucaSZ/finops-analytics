@@ -154,9 +154,7 @@ def _comparison_metrics(db: Session, target: CollectionRun) -> dict:
         or 0
     )
 
-    baseline_observation = aliased(
-        OpportunityObservation, name="summary_baseline_observation"
-    )
+    baseline_observation = aliased(OpportunityObservation, name="summary_baseline_observation")
     target_probe = aliased(OpportunityObservation, name="summary_target_probe")
     target_exists = (
         select(target_probe.id)
@@ -179,9 +177,7 @@ def _comparison_metrics(db: Session, target: CollectionRun) -> dict:
     )
 
     rules_unknown = baseline.analyzer_version is None or target.analyzer_version is None
-    rules_changed = bool(
-        not rules_unknown and baseline.analyzer_version != target.analyzer_version
-    )
+    rules_changed = bool(not rules_unknown and baseline.analyzer_version != target.analyzer_version)
     return {
         "baseline_collection_run_id": baseline.id,
         "new_count": int(new_count),
@@ -398,11 +394,9 @@ def summary_matches_source(
             summary.rejected_count == expected["rejected_count"],
             summary.severity_counts == expected["severity_counts"],
             summary.financial == expected["financial"],
-            summary.baseline_collection_run_id
-            == expected["baseline_collection_run_id"],
+            summary.baseline_collection_run_id == expected["baseline_collection_run_id"],
             summary.new_count == expected["new_count"],
-            summary.no_longer_detected_count
-            == expected["no_longer_detected_count"],
+            summary.no_longer_detected_count == expected["no_longer_detected_count"],
             summary.has_baseline == expected["has_baseline"],
             summary.rules_version_changed == expected["rules_version_changed"],
             summary.rules_version_unknown == expected["rules_version_unknown"],

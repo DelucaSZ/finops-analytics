@@ -35,9 +35,7 @@ class DashboardAccountSummary(Base):
     severity_counts: Mapped[dict] = mapped_column(
         JSON, default=dict, server_default="{}", nullable=False
     )
-    financial: Mapped[dict] = mapped_column(
-        JSON, default=dict, server_default="{}", nullable=False
-    )
+    financial: Mapped[dict] = mapped_column(JSON, default=dict, server_default="{}", nullable=False)
 
     new_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     no_longer_detected_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)

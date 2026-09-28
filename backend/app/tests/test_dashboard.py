@@ -171,7 +171,6 @@ def test_dashboard_uses_bounded_aggregate_queries_not_frontend_sized_reads(dashb
             event.remove(engine, "before_cursor_execute", record)
 
 
-
 def test_persisted_summary_tracks_latest_success_and_not_latest_failed(dashboard):
     http, engine = dashboard
     assert http.get("/dashboard/summary").status_code == 200
@@ -205,9 +204,7 @@ def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dash
     after_treat = http.get("/dashboard/summary").json()
     assert after_treat["opportunities"]["open"] == 1
     assert after_treat["opportunities"]["treated"] == 4
-    assert after_treat["financial"]["totals"] == [
-        {"currency": "USD", "amount": "13.00"}
-    ]
+    assert after_treat["financial"]["totals"] == [{"currency": "USD", "amount": "13.00"}]
 
     reopened = http.post(
         "/opportunities/opp-000/reopen",
