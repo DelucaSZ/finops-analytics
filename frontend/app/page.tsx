@@ -508,7 +508,7 @@ function DashboardContent() {
                       <div>
                         <strong>{item.title}</strong>
                         <span>
-                          {item.resource_name || item.resource_id} · {item.region}
+                          {item.resource_name || item.resource_id} · {item.region || "Sem região"}
                         </span>
                         <small>
                           {item.account_name || item.account_id} · {providerLabel(item.provider)}
