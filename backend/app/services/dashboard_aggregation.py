@@ -198,9 +198,10 @@ def _persist(
     db: Session,
     target: CollectionRun,
     values: dict,
+    *,
+    summary: DashboardAccountSummary | None = None,
 ) -> DashboardAccountSummary:
     identity = {"provider": target.provider, "account_id": target.account_id}
-    summary = db.get(DashboardAccountSummary, identity)
     if summary is None:
         summary = DashboardAccountSummary(**identity, collection_run_id=target.id)
         db.add(summary)
@@ -237,28 +238,54 @@ def rebuild_account_summary(
     collection_run_id: str | None = None,
 ) -> DashboardAccountSummary | None:
     provider = provider.lower()
-    if collection_run_id is None:
-        target = _latest_successful_run(db, provider=provider, account_id=account_id)
-    else:
-        target = db.get(CollectionRun, collection_run_id)
-        if target is None:
-            raise ValueError(f"CollectionRun {collection_run_id} does not exist")
-        if target.provider != provider or target.account_id != account_id:
-            raise ValueError("CollectionRun does not belong to the requested provider/account")
-        if target.status != CollectionRunStatus.SUCCESS:
-            raise ValueError("CollectionRun is not successful")
+    identity = {"provider": provider, "account_id": account_id}
+    # The persisted row is also the scope mutex. Serializing rebuilds prevents two
+    # lifecycle decisions or a CollectionRun completion from publishing stale counts.
+    summary = db.scalar(
+        select(DashboardAccountSummary)
+        .where(
+            DashboardAccountSummary.provider == provider,
+            DashboardAccountSummary.account_id == account_id,
+        )
+        .with_for_update()
+    )
+    target = _latest_successful_run(db, provider=provider, account_id=account_id)
 
     if target is None:
-        existing = db.get(
-            DashboardAccountSummary,
-            {"provider": provider, "account_id": account_id},
-        )
-        if existing is not None:
-            db.delete(existing)
+        if collection_run_id is not None:
+            requested = db.get(CollectionRun, collection_run_id)
+            if requested is None:
+                raise ValueError(f"CollectionRun {collection_run_id} does not exist")
+            if requested.provider != provider or requested.account_id != account_id:
+                raise ValueError("CollectionRun does not belong to the requested provider/account")
+            raise ValueError("CollectionRun is not successful")
+        if summary is not None:
+            db.delete(summary)
             db.flush()
         return None
 
-    return _persist(db, target, calculate_account_summary(db, target))
+    if collection_run_id is not None and target.id != collection_run_id:
+        requested = db.get(CollectionRun, collection_run_id)
+        if requested is None:
+            raise ValueError(f"CollectionRun {collection_run_id} does not exist")
+        if requested.provider != provider or requested.account_id != account_id:
+            raise ValueError("CollectionRun does not belong to the requested provider/account")
+        if requested.status != CollectionRunStatus.SUCCESS:
+            raise ValueError("CollectionRun is not successful")
+        raise ValueError(
+            "CollectionRun is not the latest successful collection for this provider/account"
+        )
+
+    if summary is not None and (
+        summary.provider != identity["provider"] or summary.account_id != identity["account_id"]
+    ):
+        raise RuntimeError("Locked dashboard summary identity changed unexpectedly")
+    return _persist(
+        db,
+        target,
+        calculate_account_summary(db, target),
+        summary=summary,
+    )
 
 
 def refresh_account_summary_after_lifecycle(
@@ -268,14 +295,20 @@ def refresh_account_summary_after_lifecycle(
     account_id: str,
 ) -> DashboardAccountSummary | None:
     provider = provider.lower()
+    summary = db.scalar(
+        select(DashboardAccountSummary)
+        .where(
+            DashboardAccountSummary.provider == provider,
+            DashboardAccountSummary.account_id == account_id,
+        )
+        .with_for_update()
+    )
+    # Resolve the target after acquiring the summary lock so a concurrent refresh that
+    # completed while we waited is visible to this transaction.
     target = _latest_successful_run(db, provider=provider, account_id=account_id)
     if target is None:
         return None
 
-    summary = db.get(
-        DashboardAccountSummary,
-        {"provider": provider, "account_id": account_id},
-    )
     if summary is None or summary.collection_run_id != target.id:
         return rebuild_account_summary(
             db,
@@ -359,8 +392,12 @@ def backfill_dashboard_summaries(
     targets = _latest_successful_runs(db, provider=provider, account_id=account_id)
     rebuilt = 0
     for target in targets:
-        _persist(db, target, calculate_account_summary(db, target))
-        rebuilt += 1
+        summary = rebuild_account_summary(
+            db,
+            provider=target.provider,
+            account_id=target.account_id,
+        )
+        rebuilt += int(summary is not None)
         if commit_every and rebuilt % commit_every == 0:
             db.commit()
     return rebuilt
