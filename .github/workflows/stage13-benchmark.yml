@@ -38,9 +38,9 @@ jobs:
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
       - name: SQLite benchmark
-        run: python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 > stage13-sqlite.json
+        run: PYTHONPATH=. python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 > stage13-sqlite.json
       - name: PostgreSQL benchmark
-        run: python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 --postgres > stage13-postgresql.json
+        run: PYTHONPATH=. python benchmarks/backend_reads.py --accounts 20 --per-account 500 --repeat 3 --postgres > stage13-postgresql.json
       - name: Show results
         run: |
           cat stage13-sqlite.json

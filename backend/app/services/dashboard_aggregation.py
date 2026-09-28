@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Iterable
 from decimal import Decimal
-from typing import Iterable
 
 from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session, aliased
