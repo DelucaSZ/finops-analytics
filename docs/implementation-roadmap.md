@@ -1263,3 +1263,338 @@ validados pelo pipeline sem introduzir credenciais operacionais.
 - `CHANGED` consolidado permanece na comparação da Etapa 8 até existir estratégia
   correta de agregação do diff semântico.
 - cache global/materialização e demais otimizações futuras permanecem fora desta etapa.
+
+---
+
+## Etapa 10 — preparação estrutural multi-cloud
+
+**Status:** concluída e validada em CI. Esta etapa prepara o núcleo para AWS, OCI,
+Azure e GCP sem implementar coletores, autenticação ou regras completas para novos
+providers.
+
+### Acoplamentos AWS encontrados
+
+A revisão das Etapas 1–9 confirmou que `CollectionRun`, a comparação temporal e o
+fingerprint v1 já possuíam parte importante do contrato provider-aware. Os
+acoplamentos que impediam a expansão estavam principalmente em:
+
+- `Finding.account_id` como FK inteira obrigatória para `aws_accounts.id`;
+- queries de oportunidades usando `INNER JOIN aws_accounts`;
+- filtro de provider de oportunidades descartando qualquer valor diferente de AWS;
+- tela de Oportunidades carregando contas via `/accounts` e regras via configuração
+  global AWS;
+- `region` obrigatória e com modelagem curta herdada do inventário AWS;
+- ausência de `resource_type`, metadata específica de provider e moeda na entidade
+  central;
+- fallback de evidence assumindo `AWS inventory` mesmo para regra desconhecida;
+- formatação financeira e labels de provider distribuídos pelo frontend;
+- logs do worker sem `provider/account_id/collection_run_id`.
+
+Também existem acoplamentos AWS que **permanecem propositalmente específicos**:
+`AwsAccount`, `Scan`, assume-role/STS, `boto3`, EC2, EBS, RDS, ELB, CloudWatch,
+Cost Explorer, policies atuais e os analyzers/regras AWS. Eles representam a
+implementação concreta do provider AWS e não o domínio comum.
+
+### Estratégia de provider
+
+Foi criado `CloudProvider` em `app/core/cloud.py`, com chaves canônicas:
+
+- `aws`;
+- `oci`;
+- `azure`;
+- `gcp`.
+
+O enum representa providers reconhecidos pela arquitetura, não providers
+operacionalmente integrados. A UI não cria opções OCI/Azure/GCP artificialmente:
+providers e contas exibidos nos filtros continuam derivados dos dados realmente
+persistidos.
+
+A apresentação dos nomes também foi centralizada no frontend. O núcleo não depende de
+comparações espalhadas como `provider == "AWS"`; verificações AWS restantes servem
+somente para enriquecimento/configuração específica desse provider.
+
+### Estratégia de identidade de conta
+
+`Finding.account_id` deixou de significar a PK interna de `aws_accounts` e passou a
+armazenar o identificador externo nativo do provider como string.
+
+Exemplos representáveis pelo mesmo domínio:
+
+```text
+aws   / 123456789012
+oci   / ocid1.tenancy...
+azure / <subscription-id>
+gcp   / <project-id>
+```
+
+Não existe validação global de 12 dígitos. O `account_id` comum suporta IDs não
+numéricos e formatos diferentes.
+
+Não foi criada uma tabela `CloudAccount` nesta etapa. `AwsAccount` continua sendo
+a configuração operacional segura do collector AWS (role ARN, external ID, regiões,
+agendamento etc.). Criar uma entidade universal de credenciais antes de existirem
+contratos reais de autenticação OCI/Azure/GCP adicionaria joins e modelagem
+especulativa sem benefício para o núcleo.
+
+Para AWS, nome amigável continua sendo enriquecido por `LEFT JOIN` usando
+`provider=aws + account_id=aws_account_id`. Providers sem configuração correspondente
+permanecem visíveis com o identificador nativo.
+
+### Resource identity e escopo
+
+`Opportunity/Finding` agora possui como contrato comum:
+
+- `provider`;
+- `account_id`;
+- `region` opcional;
+- `service`;
+- `resource_id`;
+- `resource_name`;
+- `resource_type`;
+- `rule_key`.
+
+Nenhum ARN é exigido como identidade universal. ARN, OCID, resource group,
+availability zone e outros atributos específicos podem ser preservados em
+`provider_metadata` quando necessário.
+
+`CollectionRun` ganhou `scope` JSON provider-neutral. Novas coletas AWS registram
+snapshot das regiões configuradas. Runs históricos recebem `{}`, pois a migration
+não inventa escopo passado.
+
+A comparação continua exigindo mesmo provider e mesma conta. Quando baseline e target
+possuem `scope` conhecido, escopos diferentes geram `DIFFERENT_SCOPE`. Quando um
+run histórico não possui snapshot, a comparação continua por compatibilidade
+retroativa e retorna `SCOPE_METADATA_UNAVAILABLE`.
+
+### Fingerprint e compatibilidade histórica
+
+O algoritmo `opportunity-fingerprint:v1` **não foi alterado**. Ele já inclui:
+
+```text
+provider
+account_id externo
+region/escopo
+service/scope
+resource_id
+rule_id
+```
+
+A migration não recalcula fingerprints existentes. Portanto uma implantação da Etapa
+10 não faz todas as oportunidades AWS reaparecerem como novas.
+
+Os testes confirmam:
+
+- fingerprint AWS v1 existente permanece bit a bit estável;
+- AWS e OCI com os mesmos valores lógicos de conta/recurso/regra não colidem porque o
+  provider participa da identidade.
+
+### Migration 0011
+
+Foi criada `0011_multicloud_core.py`.
+
+Para dados existentes, a migration:
+
+1. resolve cada `findings.account_id` antigo pela FK de `aws_accounts`;
+2. persiste `provider="aws"`;
+3. substitui o ID inteiro interno pelo `aws_account_id` externo;
+4. preserva `Finding.id`, fingerprint, lifecycle, evidence, observations e histórico;
+5. torna `scan_id` opcional, mantendo-o como link de compatibilidade do fluxo AWS;
+6. torna `region` opcional e amplia `region/service`;
+7. adiciona `resource_type`, `provider_metadata` e `currency`;
+8. adiciona `currency/provider_metadata` às observations;
+9. adiciona `scope` ao `CollectionRun`;
+10. recria os índices necessários para as consultas provider/account/status.
+
+Se algum Finding legado não resolver para uma conta AWS, a migration falha
+explicitamente em vez de gerar identidade incorreta. O downgrade é bloqueado porque
+reverter o significado de `account_id` seria potencialmente destrutivo; a recuperação
+indicada é backup verificado pré-0011.
+
+### OpportunityObservation e evidence
+
+`OpportunityObservation` continua provider-neutral e ganhou:
+
+- `currency`;
+- `provider_metadata`.
+
+O schema de evidence continua baseado em summary, metrics, criteria, details,
+parameters e contributors. Não foi criado um schema gigante contendo campos de todas
+as clouds.
+
+Regras AWS específicas continuam podendo produzir evidence específica de EC2/EBS/RDS,
+CloudWatch ou Cost Explorer. Para uma regra de outro provider que ainda não possua
+normalizador dedicado, o fallback não afirma mais que a fonte é `AWS inventory`.
+
+### API e filtros
+
+As APIs principais usam dimensões genéricas:
+
+```text
+provider
+account_id
+region
+service
+resource_type
+rule
+collection_run_id
+resource_id
+```
+
+Foi criado `GET /api/v1/opportunities/options`, que deriva dinamicamente providers,
+contas, regiões, serviços, tipos de recurso e regras dos dados persistidos.
+
+O filtro `account_id` utiliza o identificador provider-native. O endpoint legado
+`/findings` mantém compatibilidade temporária com a antiga PK inteira AWS,
+normalizando-a internamente para o Account ID externo.
+
+### Home e moeda
+
+A Home continua agrupando por `provider + account_id` e não depende de widgets de
+EC2/EBS/RDS.
+
+A moeda passou a ser persistida nas opportunities/observations e os agregados
+financeiros da Home são agrupados por currency. Valores de moedas diferentes não são
+somados implicitamente e não foi implementada conversão cambial.
+
+A implementação manteve o limite anterior de queries do dashboard: o summary executa
+9 statements agregados/limitados e collection-health executa 3.
+
+### Frontend
+
+A tela de Oportunidades deixou de depender de `/accounts` para construir o domínio
+dos filtros. Ela usa `/opportunities/options` e suporta:
+
+- provider dinâmico;
+- conta com ID provider-native e nome opcional;
+- região dinâmica e opcional;
+- serviço;
+- tipo de recurso;
+- regra;
+- oportunidade sem ARN;
+- oportunidade sem `AwsAccount`;
+- metadata específica de provider no detalhe.
+
+Labels de provider e formatação financeira foram centralizados em
+`frontend/lib/cloud.mjs`. Home, Oportunidades, Coletas e Comparação usam esses
+helpers.
+
+A tela de Coletas exibe o `scope` quando disponível. A comparação usa a moeda real
+das observations e não assume mais `USD_MONTH` como unidade universal.
+
+### Worker e collector architecture
+
+O worker atual continua consumindo a fila AWS existente, mas persiste a identidade
+central a partir do `CollectionRun`:
+
+```text
+provider
+account_id
+scope
+collection_run_id
+```
+
+Os logs de início/fim/falha incluem provider, conta e CollectionRun.
+
+Não foi criada uma interface vazia de collector apenas por antecipação. O contrato
+`CollectedFinding` foi generalizado para resource_type, provider_metadata, moeda e
+região opcional, preservando a assinatura posicional anterior para não quebrar
+collectors/testes AWS. Um futuro collector OCI/Azure/GCP pode emitir esse mesmo
+contrato e reutilizar o núcleo.
+
+### Índices e performance
+
+A Etapa 10 mantém/adiciona índices coerentes com os acessos comuns:
+
+- `findings(provider, account_id, status, last_seen_at)`;
+- `findings(account_id)`;
+- `findings(provider)`;
+- `collection_runs(provider, account_id, started_at)`;
+- índices existentes de status, severity, observations e histórico.
+
+Não foi adicionada cadeia obrigatória Opportunity → CloudAccount → ProviderConfig em
+toda listagem.
+
+### Segurança e credenciais
+
+Nenhum secret, access key, token, private key ou client secret foi introduzido. A
+Etapa 10 não cria armazenamento genérico de credenciais.
+
+Role ARN, External ID e STS continuam restritos ao adapter/configuração AWS existente.
+Autenticação OCI/Azure/GCP foi explicitamente deixada para etapas futuras.
+
+### Testes multi-provider
+
+Fixtures estruturais cobrem:
+
+- Opportunity OCI sem linha correspondente em `aws_accounts`;
+- account ID OCI não numérico;
+- Subscription ID estilo Azure;
+- recurso global com `region=None`;
+- `resource_type` e `provider_metadata`;
+- fingerprint diferente entre AWS e OCI;
+- fingerprint AWS v1 estável;
+- rejeição de comparação entre providers;
+- rejeição de comparação entre escopos conhecidos diferentes;
+- Home consolidando AWS + OCI;
+- evidence de provider alternativo sem origem AWS falsa;
+- filtros frontend com account/region/resource type não AWS;
+- UI sem dependência da configuração de contas AWS;
+- formatação financeira baseada em currency.
+
+### Validação automatizada
+
+Validação do head funcional da Etapa 10 no CI #130:
+
+- `ruff check .`: aprovado;
+- `ruff format --check .`: aprovado;
+- backend: **242 testes aprovados**, 1 warning, em 45,22 s;
+- frontend: **27 testes aprovados**, 0 falhas;
+- `next build`: aprovado, incluindo type-check e 21/21 páginas estáticas;
+- security job: aprovado;
+- Auto Deploy Tests: aprovado.
+
+A suíte executou PostgreSQL 17 no job backend e cobre migrations, API, worker,
+lifecycle, CollectionRun, comparação, Home e compatibilidade existente.
+
+Não houve acesso remoto à EC2 implantada nem uso de credenciais cloud reais nesta
+validação. Portanto esta etapa não afirma uma coleta real AWS/OCI/Azure/GCP em
+produção; a regressão do fluxo AWS foi validada pela suíte automatizada e contratos
+existentes.
+
+### Compatibilidade retroativa
+
+AWS permanece o único collector operacional. O fluxo existente de AwsAccount,
+Scan/worker, assume-role, collectors e rules foi preservado.
+
+A mudança de identidade de `Finding.account_id` é feita por migration integral e
+atômica; não existem duas fontes persistentes de verdade para a conta da Opportunity.
+O enriquecimento AWS por nome é opcional e não bloqueia outros providers.
+
+### Itens explicitamente não implementados
+
+Ficam fora desta etapa:
+
+- collector OCI;
+- collector Azure;
+- collector GCP;
+- autenticação/credenciais desses providers;
+- CloudAccount universal;
+- equivalência universal de regras/serviços;
+- catálogo fixo de regiões de outras clouds;
+- conversão cambial;
+- feature/capability framework completo;
+- plugin framework, SDK universal, event bus ou microservices por cloud.
+
+A próxima integração de provider pode seguir o fluxo:
+
+```text
+provider collector
+  -> CollectionRun(provider, account_id, scope)
+  -> Opportunity(provider, account_id, resource identity)
+  -> OpportunityObservation
+  -> APIs atuais
+  -> Home / Oportunidades / Coletas / Comparação
+```
+
+sem reescrever o núcleo implementado nas Etapas 1–9.
+
