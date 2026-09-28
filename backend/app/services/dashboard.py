@@ -283,7 +283,7 @@ def dashboard_summary(
         "treated": sum(int(row.treated or 0) for row in summary_rows),
         "rejected": sum(int(row.rejected or 0) for row in summary_rows),
     }
-    financial_rows = [row for row in summary_rows if row.amount]
+    financial_rows = [row for row in summary_rows if row.open]
 
     severity_rows = db.execute(
         select(current.c.severity, func.count(func.distinct(Finding.id)))
