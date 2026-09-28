@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate } from "@/lib/api";
+import { formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import type {
   CollectionComparisonCategory,
   CollectionComparisonChange,
@@ -116,10 +118,39 @@ function CollectionComparisonContent() {
   }, [searchKey, searchParams]);
   const baselineId = searchParams.get("baseline_id") || "";
 
-  const [comparison, setComparison] = useState<CollectionComparisonResponse | null>(null);
-  const [options, setOptions] = useState<CollectionComparisonRun[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const comparisonQuery = useMemo(() => {
+    const query = new URLSearchParams({
+      category,
+      page: String(page),
+      page_size: "50",
+    });
+    if (baselineId) query.set("baseline_id", baselineId);
+    return query.toString();
+  }, [baselineId, category, page]);
+
+  const comparisonRequest = useApiQuery<CollectionComparisonResponse>({
+    key: queryKeys.collections.comparison(
+      collectionId,
+      baselineId,
+      category,
+      page,
+      50,
+    ),
+    path: `/collections/${collectionId}/compare?${comparisonQuery}`,
+    ...cachePolicy.comparison,
+    keepPreviousData: true,
+    placeholderIdentity: `${collectionId}:${baselineId}:${category}`,
+  });
+  const optionsRequest = useApiQuery<CollectionComparisonRun[]>({
+    key: queryKeys.collections.comparisonOptions(collectionId),
+    path: `/collections/${collectionId}/comparison-options?limit=100`,
+    ...cachePolicy.metadata,
+  });
+
+  const comparison = comparisonRequest.data ?? null;
+  const options = optionsRequest.data ?? [];
+  const loading = comparisonRequest.isLoading;
+  const error = comparisonRequest.error?.message || "";
 
   const updateUrl = useCallback(
     (patch: Record<string, string | number | null>) => {
@@ -134,45 +165,48 @@ function CollectionComparisonContent() {
   );
 
   useEffect(() => {
-    let active = true;
-    setLoading(true);
-    setError("");
+    if (baselineId || !comparison?.baseline?.id) return;
+    const next = new URLSearchParams(searchParams.toString());
+    next.set("baseline_id", comparison.baseline.id);
+    next.set("category", category);
+    next.set("page", String(page));
+    router.replace(`/collections/${collectionId}/compare?${next.toString()}`);
+  }, [
+    baselineId,
+    category,
+    collectionId,
+    comparison?.baseline?.id,
+    page,
+    router,
+    searchParams,
+  ]);
+
+  useEffect(() => {
+    if (!comparison || comparison.page >= comparison.total_pages) return;
+    const nextPage = comparison.page + 1;
     const query = new URLSearchParams({
       category,
-      page: String(page),
+      page: String(nextPage),
       page_size: "50",
     });
     if (baselineId) query.set("baseline_id", baselineId);
-
-    Promise.all([
-      api<CollectionComparisonResponse>(`/collections/${collectionId}/compare?${query}`),
-      api<CollectionComparisonRun[]>(
-        `/collections/${collectionId}/comparison-options?limit=100`,
+    void prefetchApiQuery<CollectionComparisonResponse>({
+      key: queryKeys.collections.comparison(
+        collectionId,
+        baselineId,
+        category,
+        nextPage,
+        50,
       ),
-    ])
-      .then(([comparisonData, optionData]) => {
-        if (!active) return;
-        setComparison(comparisonData);
-        setOptions(optionData);
-        if (!baselineId && comparisonData.baseline?.id) {
-          const next = new URLSearchParams(searchParams.toString());
-          next.set("baseline_id", comparisonData.baseline.id);
-          next.set("category", category);
-          next.set("page", String(page));
-          router.replace(`/collections/${collectionId}/compare?${next.toString()}`);
-        }
-      })
-      .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "Falha ao comparar coletas.");
-      })
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
-  }, [baselineId, category, collectionId, page, router, searchKey, searchParams]);
+      path: `/collections/${collectionId}/compare?${query.toString()}`,
+      ...cachePolicy.comparison,
+    }).catch(() => undefined);
+  }, [
+    baselineId,
+    category,
+    collectionId,
+    comparison,
+  ]);
 
   if (loading && !comparison) {
     return <div className={styles.state}>Comparando CollectionRuns…</div>;
@@ -212,6 +246,16 @@ function CollectionComparisonContent() {
       />
 
       {error && <div className="alert error">{error}</div>}
+      {optionsRequest.error && comparison && (
+        <div className="alert">
+          A comparação foi carregada, mas as opções de baseline não puderam ser atualizadas.
+        </div>
+      )}
+      {comparisonRequest.isFetching && comparison && (
+        <div className="table-loading-bar" role="status">
+          <span /> Atualizando comparação…
+        </div>
+      )}
 
       <section className={`panel ${styles.compareHeader}`}>
         <div className={styles.runSide}>
@@ -423,6 +467,13 @@ function CollectionComparisonContent() {
                     </td>
                     <td>
                       <Link
+                        onMouseEnter={() => {
+                          void prefetchApiQuery({
+                            key: queryKeys.opportunities.detail(item.opportunity_id),
+                            path: `/opportunities/${item.opportunity_id}`,
+                            ...cachePolicy.detail,
+                          }).catch(() => undefined);
+                        }}
                         href={`/opportunities?opportunity_id=${encodeURIComponent(
                           item.opportunity_id,
                         )}&comparison_target=${encodeURIComponent(

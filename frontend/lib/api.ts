@@ -1,4 +1,5 @@
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+const API_TIMEOUT_MS = 30_000;
 const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
 export class ApiError extends Error {
@@ -17,15 +18,48 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       headers.set("X-CSRF-Token", csrf.csrf_token);
     }
   }
-  const response = await fetch(`${API_URL}${path}`, { ...init, headers, credentials: "include", cache: "no-store" });
+  const timeoutController = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    timeoutController.abort();
+  }, API_TIMEOUT_MS);
+  const callerSignal = init.signal;
+  const abortFromCaller = () => timeoutController.abort();
+  if (callerSignal?.aborted) timeoutController.abort();
+  else callerSignal?.addEventListener("abort", abortFromCaller, { once: true });
+
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers,
+      credentials: "include",
+      cache: "no-store",
+      signal: timeoutController.signal,
+    });
+  } catch (error) {
+    if (timedOut && !callerSignal?.aborted) {
+      throw new ApiError("A solicitação excedeu o tempo limite. Tente novamente.", 408);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+    callerSignal?.removeEventListener("abort", abortFromCaller);
+  }
+
   if (response.status === 401 && !publicWrites.has(path) && redirectOnUnauthorized) {
-    if (typeof window !== "undefined") window.location.assign("/login");
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("deepops:session-invalidated"));
+      window.location.assign("/login");
+    }
     throw new ApiError("Sessão expirada. Entre novamente.", 401);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const detail = payload?.detail;
     if (detail === "mfa_enrollment_required" && typeof window !== "undefined") {
+      window.dispatchEvent(new Event("deepops:session-invalidated"));
       window.location.assign("/mfa-setup");
       throw new ApiError("Configure o autenticador para continuar.", 403);
     }

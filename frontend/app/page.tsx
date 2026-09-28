@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   Activity,
@@ -17,7 +17,9 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate } from "@/lib/api";
+import { formatDate } from "@/lib/api";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import { useApiQuery } from "@/lib/server-state";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import {
   buildDashboardApiQuery,
@@ -76,93 +78,41 @@ function DashboardContent() {
     [state.accountId, state.provider],
   );
 
-  const [summary, setSummary] = useState<DashboardSummary | null>(null);
-  const [health, setHealth] = useState<DashboardCollectionHealth | null>(null);
-  const [options, setOptions] = useState<CollectionOptions>({
+  const optionsQuery = useMemo(() => {
+    const params = new URLSearchParams({ limit: "100" });
+    if (state.provider) params.set("provider", state.provider);
+    return params.toString();
+  }, [state.provider]);
+
+  const summaryRequest = useApiQuery<DashboardSummary>({
+    key: queryKeys.dashboard.summary(state.provider, state.accountId),
+    path: `/dashboard/summary${apiQuery ? `?${apiQuery}` : ""}`,
+    ...cachePolicy.operational,
+  });
+  const healthRequest = useApiQuery<DashboardCollectionHealth>({
+    key: queryKeys.dashboard.health(state.provider, state.accountId),
+    path: `/dashboard/collection-health${apiQuery ? `?${apiQuery}` : ""}`,
+    ...cachePolicy.operational,
+  });
+  const optionsRequest = useApiQuery<CollectionOptions>({
+    key: queryKeys.collections.options(state.provider, "", 100),
+    path: `/collections/options?${optionsQuery}`,
+    ...cachePolicy.metadata,
+  });
+
+  const summary = summaryRequest.data ?? null;
+  const health = healthRequest.data ?? null;
+  const options = optionsRequest.data ?? {
     providers: [],
     accounts: [],
     has_more_accounts: false,
-  });
-  const [summaryLoading, setSummaryLoading] = useState(true);
-  const [healthLoading, setHealthLoading] = useState(true);
-  const [optionsLoading, setOptionsLoading] = useState(true);
-  const [summaryError, setSummaryError] = useState("");
-  const [healthError, setHealthError] = useState("");
-  const [optionsError, setOptionsError] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setSummaryLoading(true);
-    setSummaryError("");
-    api<DashboardSummary>(
-      `/dashboard/summary${apiQuery ? `?${apiQuery}` : ""}`,
-      { signal: controller.signal },
-    )
-      .then(setSummary)
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setSummaryError(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar os indicadores.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setSummaryLoading(false);
-      });
-    return () => controller.abort();
-  }, [apiQuery, reloadKey]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setHealthLoading(true);
-    setHealthError("");
-    api<DashboardCollectionHealth>(
-      `/dashboard/collection-health${apiQuery ? `?${apiQuery}` : ""}`,
-      { signal: controller.signal },
-    )
-      .then(setHealth)
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setHealthError(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar a saúde das coletas.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setHealthLoading(false);
-      });
-    return () => controller.abort();
-  }, [apiQuery, reloadKey]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setOptionsLoading(true);
-    setOptionsError("");
-    const params = new URLSearchParams({ limit: "100" });
-    if (state.provider) params.set("provider", state.provider);
-    api<CollectionOptions>(`/collections/options?${params}`, {
-      signal: controller.signal,
-    })
-      .then(setOptions)
-      .catch((error) => {
-        if (!controller.signal.aborted) {
-          setOptionsError(
-            error instanceof Error
-              ? error.message
-              : "Não foi possível carregar clouds e contas.",
-          );
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setOptionsLoading(false);
-      });
-    return () => controller.abort();
-  }, [state.provider, reloadKey]);
+  };
+  const summaryLoading = summaryRequest.isLoading;
+  const healthLoading = healthRequest.isLoading;
+  const optionsLoading = optionsRequest.isLoading;
+  const summaryError = summaryRequest.error?.message || "";
+  const healthError = healthRequest.error?.message || "";
+  const optionsError = optionsRequest.error?.message || "";
 
   function updateScope(patch: Record<string, string | null>) {
     const params = patchDashboardUrl(searchKey, patch);
@@ -222,12 +172,24 @@ function DashboardContent() {
           <button
             className="button ghost"
             type="button"
-            onClick={() => setReloadKey((value) => value + 1)}
-            disabled={summaryLoading || healthLoading}
+            onClick={() => {
+              void summaryRequest.refetch();
+              void healthRequest.refetch();
+              void optionsRequest.refetch();
+            }}
+            disabled={
+              summaryRequest.isFetching ||
+              healthRequest.isFetching ||
+              optionsRequest.isFetching
+            }
           >
             <RefreshCw
               size={16}
-              className={summaryLoading || healthLoading ? "spin" : ""}
+              className={
+                summaryRequest.isFetching || healthRequest.isFetching
+                  ? "spin"
+                  : ""
+              }
             />
             Atualizar
           </button>
@@ -350,7 +312,7 @@ function DashboardContent() {
           <button
             className="button ghost"
             type="button"
-            onClick={() => setReloadKey((value) => value + 1)}
+            onClick={() => void summaryRequest.refetch()}
           >
             Tentar novamente
           </button>
@@ -605,7 +567,7 @@ function DashboardContent() {
               <button
                 className="button ghost"
                 type="button"
-                onClick={() => setReloadKey((value) => value + 1)}
+                onClick={() => void healthRequest.refetch()}
               >
                 Tentar novamente
               </button>

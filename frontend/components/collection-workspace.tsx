@@ -6,8 +6,10 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { api, ApiError, formatDate } from "@/lib/api";
+import { ApiError, formatDate } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import {
   COLLECTION_STATUSES,
   buildCollectionQuery,
@@ -74,19 +76,76 @@ export function CollectionWorkspace({
   const state = useMemo(() => parseCollectionQuery(search), [search]);
   const query = buildCollectionQuery(state);
   const [draft, setDraft] = useState(state);
-  const [data, setData] = useState<CollectionPage | null>(null);
-  const [detail, setDetail] = useState<CollectionDetail | null>(null);
-  const [options, setOptions] = useState<CollectionOptions>({
+  const [validation, setValidation] = useState("");
+  const [now, setNow] = useState(Date.now());
+  const [optionScope, setOptionScope] = useState({
+    provider: state.provider,
+    search: state.account_id,
+  });
+
+  const listPlaceholderIdentity = useMemo(
+    () =>
+      buildCollectionQuery({
+        ...state,
+        page: 1,
+      }),
+    [search],
+  );
+  const optionQuery = useMemo(() => {
+    const params = new URLSearchParams({ limit: "50" });
+    if (optionScope.provider) params.set("provider", optionScope.provider);
+    if (optionScope.search) params.set("search", optionScope.search);
+    return params.toString();
+  }, [optionScope.provider, optionScope.search]);
+
+  const listRequest = useApiQuery<CollectionPage>({
+    key: queryKeys.collections.list(query),
+    path: `/collections?${query}`,
+    enabled: !collectionId,
+    ...cachePolicy.operational,
+    keepPreviousData: true,
+    placeholderIdentity: listPlaceholderIdentity,
+  });
+  const detailRequest = useApiQuery<CollectionDetail>({
+    key: queryKeys.collections.detail(collectionId || ""),
+    path: `/collections/${encodeURIComponent(collectionId || "")}`,
+    enabled: Boolean(collectionId),
+    ...cachePolicy.detail,
+  });
+  const optionsRequest = useApiQuery<CollectionOptions>({
+    key: queryKeys.collections.options(
+      optionScope.provider,
+      optionScope.search,
+      50,
+    ),
+    path: `/collections/options?${optionQuery}`,
+    enabled: !collectionId,
+    ...cachePolicy.metadata,
+  });
+
+  const data = listRequest.data ?? null;
+  const detail = detailRequest.data ?? null;
+  const options = optionsRequest.data ?? {
     providers: [],
     accounts: [],
     has_more_accounts: false,
-  });
-  const [optionsError, setOptionsError] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [validation, setValidation] = useState("");
-  const [revision, setRevision] = useState(0);
-  const [now, setNow] = useState(Date.now());
+  };
+  const optionsError = Boolean(optionsRequest.error);
+  const loading = collectionId
+    ? detailRequest.isLoading
+    : listRequest.isLoading;
+  const refreshing = collectionId
+    ? detailRequest.isFetching && !detailRequest.isLoading
+    : listRequest.isFetching && !listRequest.isLoading;
+  const requestError = collectionId ? detailRequest.error : listRequest.error;
+  const error = requestError
+    ? requestError instanceof ApiError && requestError.status === 404
+      ? "Coleta não encontrada."
+      : collectionId
+        ? "Não foi possível carregar a coleta."
+        : "Não foi possível carregar as coletas."
+    : "";
+
   const hasFilters = Boolean(
     state.provider ||
     state.account_id ||
@@ -107,82 +166,30 @@ export function CollectionWorkspace({
   }, [state]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    if (collectionId) {
-      setDetail((current) => (current?.id === collectionId ? current : null));
-      api<CollectionDetail>(
-        `/collections/${encodeURIComponent(collectionId)}`,
-        { signal: controller.signal },
-      )
-        .then((value) => {
-          if (!controller.signal.aborted) setDetail(value);
-        })
-        .catch((err) => {
-          if (!controller.signal.aborted)
-            setError(
-              err instanceof ApiError && err.status === 404
-                ? "Coleta não encontrada."
-                : "Não foi possível carregar a coleta.",
-            );
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    } else {
-      api<CollectionPage>(`/collections?${query}`, {
-        signal: controller.signal,
-      })
-        .then((value) => {
-          if (!controller.signal.aborted) setData(value);
-        })
-        .catch(() => {
-          if (!controller.signal.aborted)
-            setError("Não foi possível carregar as coletas.");
-        })
-        .finally(() => {
-          if (!controller.signal.aborted) setLoading(false);
-        });
-    }
-    return () => controller.abort();
-  }, [collectionId, query, revision]);
-
-  useEffect(() => {
     if (collectionId) return;
-    const controller = new AbortController();
     const timer = window.setTimeout(() => {
-      const params = new URLSearchParams({ limit: "50" });
-      if (draft.provider) params.set("provider", draft.provider);
-      if (draft.account_id) params.set("search", draft.account_id);
-      api<CollectionOptions>(`/collections/options?${params}`, {
-        signal: controller.signal,
-      })
-        .then((value) => {
-          if (!controller.signal.aborted) {
-            setOptions(value);
-            setOptionsError(false);
-          }
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setOptionsError(true);
-        });
+      setOptionScope({
+        provider: draft.provider,
+        search: draft.account_id,
+      });
     }, 250);
-    return () => {
-      controller.abort();
-      window.clearTimeout(timer);
-    };
-  }, [collectionId, draft.provider, draft.account_id, revision]);
+    return () => window.clearTimeout(timer);
+  }, [collectionId, draft.provider, draft.account_id]);
+
+  const hasRunning = collectionId
+    ? detail?.status === "RUNNING"
+    : Boolean(data?.items.some((run) => run.status === "RUNNING"));
 
   useEffect(() => {
+    if (!hasRunning) return;
     const timer = window.setInterval(() => {
-      if (document.visibilityState === "visible") {
-        setNow(Date.now());
-        setRevision((value) => value + 1);
-      }
+      if (document.visibilityState !== "visible") return;
+      setNow(Date.now());
+      if (collectionId) void detailRequest.refetch();
+      else void listRequest.refetch();
     }, 15000);
     return () => window.clearInterval(timer);
-  }, []);
+  }, [collectionId, detailRequest.refetch, hasRunning, listRequest.refetch]);
 
   const statusOptions = Object.entries(COLLECTION_STATUSES);
   return (
@@ -199,12 +206,18 @@ export function CollectionWorkspace({
           </Link>
         )}
         <span>
-          Horários no fuso local do navegador · atualização a cada 15s
+          Horários no fuso local do navegador · atualização a cada 15s apenas durante coletas em andamento
         </span>
         <button
           className="button ghost"
-          disabled={loading}
-          onClick={() => setRevision((value) => value + 1)}
+          disabled={loading || refreshing}
+          onClick={() => {
+            if (collectionId) void detailRequest.refetch();
+            else {
+              void listRequest.refetch();
+              void optionsRequest.refetch();
+            }
+          }}
         >
           <RefreshCw size={16} /> Atualizar
         </button>
@@ -394,15 +407,18 @@ export function CollectionWorkspace({
           {error}{" "}
           <button
             className="button ghost"
-            onClick={() => setRevision((value) => value + 1)}
+            onClick={() => {
+              if (collectionId) void detailRequest.refetch();
+              else void listRequest.refetch();
+            }}
           >
             Tentar novamente
           </button>
         </div>
       )}
-      {loading && (
+      {(loading || refreshing) && (
         <p role="status">
-          {data || detail ? "Atualizando coletas…" : "Carregando coletas…"}
+          {loading ? "Carregando coletas…" : "Atualizando coletas…"}
         </p>
       )}
       {!collectionId && data?.account_summary && (
@@ -502,6 +518,13 @@ export function CollectionWorkspace({
                       <Link
                         className="collection-link"
                         href={detailHref(run.id)}
+                        onMouseEnter={() => {
+                          void prefetchApiQuery({
+                            key: queryKeys.collections.detail(run.id),
+                            path: `/collections/${encodeURIComponent(run.id)}`,
+                            ...cachePolicy.detail,
+                          }).catch(() => undefined);
+                        }}
                       >
                         {formatDate(run.started_at)}
                       </Link>

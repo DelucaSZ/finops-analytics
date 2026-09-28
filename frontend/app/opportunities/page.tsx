@@ -29,6 +29,12 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import {
+  invalidateApiQueries,
+  prefetchApiQuery,
+  useApiQuery,
+} from "@/lib/server-state";
 import {
   buildLifecycleRequest,
   buildOpportunityApiQuery,
@@ -119,26 +125,94 @@ function OpportunitiesContent() {
     state.resourceId, state.resourceType, state.rule, state.search, state.service, state.severity,
   ]);
 
-  const [findings, setFindings] = useState<Finding[]>([]);
-  const [options, setOptions] = useState<OpportunityOptions>({
+  const optionsQuery = useMemo(() => {
+    const params = new URLSearchParams({ limit: "300" });
+    if (state.provider) params.set("provider", state.provider);
+    if (state.accountId) params.set("account_id", state.accountId);
+    return params.toString();
+  }, [state.accountId, state.provider]);
+
+  const listPlaceholderIdentity = useMemo(
+    () =>
+      JSON.stringify({
+        status: state.status,
+        provider: state.provider,
+        accountId: state.accountId,
+        region: state.region,
+        service: state.service,
+        resourceType: state.resourceType,
+        severity: state.severity,
+        rule: state.rule,
+        collectionRunId: state.collectionRunId,
+        resourceId: state.resourceId,
+        search: state.search,
+        current: state.current,
+        pageSize: state.pageSize,
+        sort: state.sort,
+        order: state.order,
+      }),
+    [
+      state.accountId,
+      state.collectionRunId,
+      state.current,
+      state.order,
+      state.pageSize,
+      state.provider,
+      state.region,
+      state.resourceId,
+      state.resourceType,
+      state.rule,
+      state.search,
+      state.service,
+      state.severity,
+      state.sort,
+      state.status,
+    ],
+  );
+
+  const optionsRequest = useApiQuery<OpportunityOptions>({
+    key: queryKeys.opportunities.options(state.provider, state.accountId),
+    path: `/opportunities/options?${optionsQuery}`,
+    ...cachePolicy.metadata,
+  });
+  const collectionRunsRequest = useApiQuery<CollectionRun[]>({
+    key: queryKeys.collections.picker(),
+    path: "/collections?limit=100&offset=0",
+    ...cachePolicy.operational,
+  });
+  const listRequest = useApiQuery<OpportunityPage>({
+    key: queryKeys.opportunities.list(listQuery),
+    path: `/opportunities?${listQuery}`,
+    ...cachePolicy.operational,
+    keepPreviousData: true,
+    placeholderIdentity: listPlaceholderIdentity,
+  });
+  const statsRequest = useApiQuery<OpportunityStats>({
+    key: queryKeys.opportunities.stats(statsQuery),
+    path: `/opportunities/stats${statsQuery ? `?${statsQuery}` : ""}`,
+    ...cachePolicy.operational,
+  });
+
+  const findings = listRequest.data?.items ?? [];
+  const options = optionsRequest.data ?? {
     providers: [],
     accounts: [],
     regions: [],
     services: [],
     resource_types: [],
     rules: [],
-  });
-  const [collectionRuns, setCollectionRuns] = useState<CollectionRun[]>([]);
-  const [stats, setStats] = useState<OpportunityStats>({ open: 0, treated: 0, rejected: 0 });
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [statsLoading, setStatsLoading] = useState(true);
-  const [filtersLoading, setFiltersLoading] = useState(true);
-  const [listError, setListError] = useState("");
-  const [filterError, setFilterError] = useState("");
+  };
+  const collectionRuns = collectionRunsRequest.data ?? [];
+  const stats = statsRequest.data ?? { open: 0, treated: 0, rejected: 0 };
+  const total = listRequest.data?.total ?? 0;
+  const totalPages = listRequest.data?.total_pages ?? 0;
+  const loading = listRequest.isLoading || listRequest.isFetching;
+  const statsLoading = statsRequest.isLoading;
+  const filtersLoading = optionsRequest.isLoading;
+  const listError = listRequest.error?.message || "";
+  const filterError = optionsRequest.error?.message || "";
+
   const [message, setMessage] = useState("");
-  const [reloadKey, setReloadKey] = useState(0);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState(state.search);
   const [regionInput, setRegionInput] = useState(state.region);
@@ -172,71 +246,22 @@ function OpportunitiesContent() {
   }, [searchInput, state.search, updateUrl]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    setFiltersLoading(true);
-    setFilterError("");
-    const params = new URLSearchParams({ limit: "300" });
-    if (state.provider) params.set("provider", state.provider);
-    if (state.accountId) params.set("account_id", state.accountId);
-    api<OpportunityOptions>(`/opportunities/options?${params}`, { signal: controller.signal })
-      .then(setOptions)
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          setFilterError(err instanceof Error ? err.message : "Não foi possível carregar as opções de filtro.");
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setFiltersLoading(false);
-      });
-    return () => controller.abort();
-  }, [state.accountId, state.provider, reloadKey]);
+    setSelectedIds(new Set());
+  }, [listQuery]);
 
   useEffect(() => {
-    const controller = new AbortController();
-    api<CollectionRun[]>("/collections?limit=100&offset=0", { signal: controller.signal })
-      .then(setCollectionRuns)
-      .catch(() => {
-        if (!controller.signal.aborted) setCollectionRuns([]);
-      });
-    return () => controller.abort();
-  }, []);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setListError("");
-    api<OpportunityPage>(`/opportunities?${listQuery}`, { signal: controller.signal })
-      .then((data) => {
-        setFindings(data.items);
-        setTotal(data.total);
-        setTotalPages(data.total_pages);
-        setSelectedIds(new Set());
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) {
-          setListError(err instanceof Error ? err.message : "Não foi possível carregar as oportunidades.");
-        }
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [listQuery, reloadKey]);
-
-  useEffect(() => {
-    const controller = new AbortController();
-    setStatsLoading(true);
-    api<OpportunityStats>(`/opportunities/stats${statsQuery ? `?${statsQuery}` : ""}`, { signal: controller.signal })
-      .then(setStats)
-      .catch(() => {
-        if (!controller.signal.aborted) setStats({ open: 0, treated: 0, rejected: 0 });
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setStatsLoading(false);
-      });
-    return () => controller.abort();
-  }, [reloadKey, statsQuery]);
-
+    const pageData = listRequest.data;
+    if (!pageData || state.page >= pageData.total_pages) return;
+    const nextQuery = buildOpportunityApiQuery({
+      ...state,
+      page: state.page + 1,
+    });
+    void prefetchApiQuery<OpportunityPage>({
+      key: queryKeys.opportunities.list(nextQuery),
+      path: `/opportunities?${nextQuery}`,
+      ...cachePolicy.operational,
+    }).catch(() => undefined);
+  }, [listRequest.data, state]);
 
   useEffect(() => {
     if (!loading && totalPages > 0 && state.page > totalPages) {
@@ -355,7 +380,8 @@ function OpportunitiesContent() {
       setSelectedIds(new Set());
       setDecision(null);
       if (!decision.bulk && state.opportunityId) closeDetail();
-      setReloadKey((value) => value + 1);
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
       setDecisionError(err instanceof Error ? err.message : rejectionFallback);
     } finally {
@@ -599,7 +625,7 @@ function OpportunitiesContent() {
         {listError && (
           <div className="opportunity-inline-error" role="alert">
             <div><strong>Não foi possível carregar as oportunidades.</strong><span>{listError}</span></div>
-            <button className="button ghost" type="button" onClick={() => setReloadKey((value) => value + 1)}>Tentar novamente</button>
+            <button className="button ghost" type="button" onClick={() => void listRequest.refetch()}>Tentar novamente</button>
           </div>
         )}
 
@@ -619,7 +645,17 @@ function OpportunitiesContent() {
             {loading && !findings.length ? <SkeletonRows /> : (
               <tbody>
                 {findings.map((finding) => (
-                  <tr key={finding.id} className={selectedIds.has(finding.id) ? "selected-row" : undefined}>
+                  <tr
+                    key={finding.id}
+                    className={selectedIds.has(finding.id) ? "selected-row" : undefined}
+                    onMouseEnter={() => {
+                      void prefetchApiQuery({
+                        key: queryKeys.opportunities.detail(finding.id),
+                        path: `/opportunities/${finding.id}`,
+                        ...cachePolicy.detail,
+                      }).catch(() => undefined);
+                    }}
+                  >
                     <td className="selection-cell">
                       <label className="selection-control compact-check">
                         <input

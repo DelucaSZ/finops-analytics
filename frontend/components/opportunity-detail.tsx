@@ -8,6 +8,8 @@ import { FindingEvidence } from "@/components/finding-evidence";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import { useApiQuery } from "@/lib/server-state";
 import type {
   OpportunityDetail as OpportunityDetailType,
   OpportunityObservation,
@@ -38,17 +40,49 @@ type Props = {
 };
 
 export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
-  const [detail, setDetail] = useState<OpportunityDetailType | null>(null);
-  const [observations, setObservations] = useState<OpportunityObservationPage | null>(null);
-  const [decisions, setDecisions] = useState<OpportunityStatusHistoryPage | null>(null);
   const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [actionError, setActionError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
   const [historyPage, setHistoryPage] = useState(1);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const historyPageSize = historyExpanded ? 50 : 8;
+  const detailRequest = useApiQuery<OpportunityDetailType>({
+    key: queryKeys.opportunities.detail(opportunityId),
+    path: `/opportunities/${opportunityId}`,
+    ...cachePolicy.detail,
+  });
+  const observationRequest = useApiQuery<OpportunityObservationPage>({
+    key: queryKeys.opportunities.history(
+      opportunityId,
+      historyPage,
+      historyPageSize,
+    ),
+    path: `/opportunities/${opportunityId}/history?page=${historyPage}&page_size=${historyPageSize}`,
+    ...cachePolicy.detail,
+    keepPreviousData: true,
+    placeholderIdentity: `${opportunityId}:${historyPageSize}`,
+  });
+  const decisionRequest = useApiQuery<OpportunityStatusHistoryPage>({
+    key: queryKeys.opportunities.statusHistory(opportunityId),
+    path: `/opportunities/${opportunityId}/status-history?page=1&page_size=50`,
+    ...cachePolicy.detail,
+  });
+
+  const detail = detailRequest.data ?? null;
+  const observations = observationRequest.data ?? null;
+  const decisions = decisionRequest.data ?? null;
+  const loading = detailRequest.isLoading;
+  const detailError = detailRequest.error?.message || "";
+  const observationError = observationRequest.error
+    ? "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível."
+    : "";
+  const decisionError = decisionRequest.error
+    ? "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível."
+    : "";
+  const error =
+    actionError || detailError || observationError || decisionError;
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -63,36 +97,6 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     setSelectedObservation(null);
   }, [opportunityId]);
 
-  useEffect(() => {
-    const controller = new AbortController();
-    setLoading(true);
-    setError("");
-    const historyPageSize = historyExpanded ? 50 : 8;
-    Promise.allSettled([
-      api<OpportunityDetailType>(`/opportunities/${opportunityId}`, { signal: controller.signal }),
-      api<OpportunityObservationPage>(`/opportunities/${opportunityId}/history?page=${historyPage}&page_size=${historyPageSize}`, { signal: controller.signal }),
-      api<OpportunityStatusHistoryPage>(`/opportunities/${opportunityId}/status-history?page=1&page_size=50`, { signal: controller.signal }),
-    ] as const)
-      .then(([detailResult, observationResult, decisionResult]) => {
-        if (controller.signal.aborted) return;
-        if (detailResult.status === "rejected") {
-          throw detailResult.reason;
-        }
-        setDetail(detailResult.value);
-        if (observationResult.status === "fulfilled") setObservations(observationResult.value);
-        else setError("O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível.");
-        if (decisionResult.status === "fulfilled") setDecisions(decisionResult.value);
-        else setError((current) => current || "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível.");
-      })
-      .catch((err) => {
-        if (!controller.signal.aborted) setError(err instanceof Error ? err.message : "Falha ao carregar o detalhe da oportunidade");
-      })
-      .finally(() => {
-        if (!controller.signal.aborted) setLoading(false);
-      });
-    return () => controller.abort();
-  }, [historyExpanded, historyPage, opportunityId]);
-
   const currentDecision = useMemo(() => {
     if (!detail || !decisions) return null;
     return decisions.items.find((item) => item.to_status === detail.status) || null;
@@ -102,12 +106,12 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     if (!detail || aiLoading) return;
     setAiLoading(true);
     setAiInsight("");
-    setError("");
+    setActionError("");
     try {
       const result = await api<{ explanation: string }>(`/findings/${detail.id}/explain`, { method: "POST" });
       setAiInsight(result.explanation);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha na análise por IA");
+      setActionError(err instanceof Error ? err.message : "Falha na análise por IA");
     } finally {
       setAiLoading(false);
     }

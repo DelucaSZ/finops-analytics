@@ -13,6 +13,7 @@ import {
   Settings2,
 } from "lucide-react";
 import { api, ApiError } from "@/lib/api";
+import { clearApiQueryCache } from "@/lib/server-state";
 
 const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
@@ -34,14 +35,27 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const isPublic = ["/mfa-setup", "/login", "/forgot-password", "/reset-password", "/accept-invitation"].includes(pathname);
 
   useEffect(() => {
+    const clearPrivateCache = () => clearApiQueryCache();
+    window.addEventListener("deepops:session-invalidated", clearPrivateCache);
+    return () => window.removeEventListener("deepops:session-invalidated", clearPrivateCache);
+  }, []);
+
+  useEffect(() => {
     let active = true;
     window.localStorage.removeItem("nuvemiq_token");
     setReady(false);
     setError("");
-    if (isPublic) { setReady(true); return; }
+    if (isPublic) {
+      clearApiQueryCache();
+      setReady(true);
+      return;
+    }
     api("/auth/me", {}, false).then(() => { if (active) setReady(true); }).catch((err) => {
       if (!active) return;
-      if (err instanceof ApiError && err.status === 401) router.replace("/login");
+      if (err instanceof ApiError && err.status === 401) {
+        clearApiQueryCache();
+        router.replace("/login");
+      }
       else setError("Não foi possível verificar sua sessão. Tente novamente.");
     });
     return () => { active = false; };
@@ -81,7 +95,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             onClick={async () => {
               setLeaving(true);
               setError("");
-              try { await api("/auth/logout", { method: "POST" }); router.replace("/login"); }
+              try {
+                await api("/auth/logout", { method: "POST" });
+                clearApiQueryCache();
+                router.replace("/login");
+              }
               catch (err) { setError(err instanceof Error ? err.message : "Não foi possível sair."); }
               finally { setLeaving(false); }
             }}

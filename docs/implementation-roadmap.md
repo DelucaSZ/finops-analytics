@@ -1598,3 +1598,259 @@ provider collector
 
 sem reescrever o núcleo implementado nas Etapas 1–9.
 
+---
+
+## Etapa 11 — otimização de performance e navegação do frontend
+
+**Status:** implementada. A validação final é executada pelo CI da branch/PR desta
+etapa antes da publicação no `main`.
+
+### Diagnóstico
+
+A aplicação já utilizava Next.js App Router e o `AppShell` estava corretamente
+posicionado no `RootLayout`. Sidebar e navegação principal já usavam `next/link`
+e não eram remontadas entre rotas privadas. Portanto a principal sensação de reload
+não vinha de hard navigation do shell.
+
+Os gargalos encontrados estavam no server-state do cliente:
+
+- Home mantinha summary, collection-health e options em estados locais alimentados por
+  três `useEffect` independentes; ao voltar para a rota, os três GETs eram executados
+  novamente e a tela reconstruía o estado do zero;
+- Oportunidades repetia options, picker de CollectionRun, listagem e stats após
+  remontagem, apesar de filtros e paginação já estarem corretamente persistidos na URL;
+- detalhe de oportunidade executava novamente detail + observation history + status
+  history a cada abertura, sem compartilhar resultado com prefetch ou visitas recentes;
+- Coletas mantinha list/detail/options em estado local e incrementava `revision` a
+  cada 15 segundos, refazendo requests mesmo sem qualquer `CollectionRun RUNNING`;
+- Comparação buscava novamente comparação e opções de baseline em cada montagem e
+  mudança de página/categoria;
+- `api()` centralizava autenticação e erros, mas não possuía timeout de request;
+- não existia TanStack Query, SWR, RTK Query, Apollo ou outra camada de server-state.
+
+Os redirects com `window.location.assign` encontrados em `api.ts` são restritos a
+401 e enrollment MFA. Eles permanecem como navegação completa por serem fronteiras de
+sessão/autenticação, não navegação interna normal.
+
+As telas administrativas/configurações continuam usando fetching explícito onde a
+freshness de segurança é mais importante que reaproveitamento prolongado, especialmente
+sessões, MFA, usuários e TLS. O shell continua estável nessas rotas e a nova limpeza de
+cache impede reutilização de dados privados após troca de sessão.
+
+### Estratégia de server-state
+
+Foi adotada uma camada pequena e centralizada, sem dependência nova:
+
+- `frontend/lib/query-cache.mjs`: cache em memória, deduplicação de requests
+  simultâneas, stale time, retenção, invalidação por prefixo e limpeza;
+- `frontend/lib/query-keys.mjs`: keys determinísticas e políticas comuns;
+- `frontend/lib/server-state.ts`: hook `useApiQuery`, prefetch e helpers de
+  invalidação/limpeza.
+
+TanStack Query foi avaliado, mas não foi introduzido nesta etapa. A aplicação possui
+um conjunto pequeno de telas operacionais e a necessidade atual é coberta pela camada
+acima sem troca de stack nem alteração de `package-lock.json`. A implementação evita
+caches paralelos por tela: toda a nova estratégia operacional passa pelo mesmo store.
+
+O `fetch` de `api.ts` continua com `cache: "no-store"`. O cache é exclusivamente
+em memória na SPA autenticada e é descartado nas fronteiras de sessão.
+
+### Query keys principais
+
+As identidades incluem todos os parâmetros que alteram resultado. Exemplos:
+
+```text
+["dashboard", "summary", { provider, account_id }]
+["dashboard", "health", { provider, account_id }]
+
+["opportunities", "list", serialized_api_query]
+["opportunities", "stats", serialized_stats_query]
+["opportunities", "options", { provider, account_id }]
+["opportunities", "detail", opportunity_id]
+["opportunities", "history", opportunity_id, { page, page_size }]
+["opportunities", "status-history", opportunity_id]
+
+["collections", "list", serialized_api_query]
+["collections", "detail", collection_run_id]
+["collections", "options", { provider, search, limit }]
+["collections", "comparison", {
+  target_id,
+  baseline_id,
+  category,
+  page,
+  page_size
+}]
+["collections", "comparison-options", target_id]
+```
+
+A serialização do cache ordena chaves de objetos de forma determinística. Provider e
+`account_id` participam da identidade das queries em que alteram o resultado.
+
+### Políticas de stale/cache
+
+Políticas adotadas:
+
+- dados operacionais de lista/dashboard: `staleTime = 45s`, retenção de 5 min;
+- detalhes: `staleTime = 2 min`, retenção de 10 min;
+- metadata/options: `staleTime = 5 min`, retenção de 30 min;
+- comparação: `staleTime = 2 min`, retenção de 15 min.
+
+O cache não é infinito. Entradas sem listeners são removidas quando ultrapassam sua
+janela de retenção durante a manutenção oportunística do cache.
+
+### Navegação e loaders
+
+Home, Oportunidades, Coletas e Comparação agora distinguem primeiro carregamento de
+revalidação:
+
+- cache válido é renderizado imediatamente;
+- dado stale pode permanecer visível enquanto ocorre refresh em background;
+- skeleton/tela de carregamento é reservado ao primeiro carregamento sem dado;
+- filtros e shell permanecem estáveis;
+- falha de revalidação não apaga dado válido já cacheado.
+
+`keepPreviousData` foi aplicado apenas em transições seguras, como paginação dentro
+do mesmo escopo. A identidade do placeholder inclui provider, conta e demais filtros.
+Troca AWS/Conta A -> OCI/Conta B não reaproveita visualmente a página anterior.
+
+Os filtros e paginação continuam sendo preservados pela URL, conforme as Etapas 5 e
+7. O cache complementa essa persistência: voltar de detail para list consegue mostrar
+a página já visitada sem reconstruir o server-state.
+
+### Prefetch
+
+Prefetch foi mantido seletivo:
+
+- hover de uma oportunidade -> detalhe da oportunidade;
+- página de oportunidades -> próxima página, quando existe;
+- hover de uma coleta -> detalhe do CollectionRun;
+- comparação -> próxima página;
+- hover de oportunidade na comparação -> detalhe da oportunidade.
+
+Não existe prefetch em massa de todas as linhas nem preload global da aplicação.
+Next App Router já fornece code splitting por rota; não foi adicionada fragmentação
+manual de componentes pequenos.
+
+### Mutations e invalidação
+
+Após `treat/reject/reopen`, a aplicação não usa mais `reloadKey` para reconstruir
+manualmente os dados. A mutation invalida:
+
+```text
+["opportunities"]
+["dashboard"]
+```
+
+Queries montadas relacionadas revalidam; variantes não montadas ficam marcadas como
+stale e revalidam quando voltarem a ser usadas. CollectionRun não é invalidado por
+lifecycle porque `opportunities_found` representa detecção da coleta, não estado
+humano posterior.
+
+Optimistic update não foi introduzido nesta etapa. O domínio de lifecycle possui
+efeitos em listas, contagens e dashboard, e a invalidação seletiva fornece consistência
+com complexidade menor.
+
+### Deduplicação, concorrência e erros
+
+Requests simultâneas com a mesma key compartilham a mesma Promise. Respostas de filtros
+antigos são escritas somente na key antiga; por isso uma resposta lenta de um escopo
+anterior não sobrescreve o estado do escopo atual.
+
+Não há retry automático para 400/401/403/404. A camada preserva o erro e permite retry
+explícito pela UI.
+
+`api.ts` passou a aplicar timeout de 30 segundos. Sinais de abort fornecidos pelo
+caller continuam sendo respeitados. Endpoints que permanecerem lentos mesmo com cache
+devem ser tratados na Etapa 12 em vez de receber timeout artificialmente maior ou
+cache infinito.
+
+### Polling de CollectionRun
+
+O polling de 15 segundos deixou de executar em toda permanência na tela de Coletas.
+
+Agora ele só existe enquanto:
+
+```text
+detail.status == RUNNING
+ou
+algum item visível da lista está RUNNING
+```
+
+e somente com a aba visível. Ao chegar em `SUCCESS` ou `FAILED`, o polling para.
+
+### Cache, autenticação e autorização
+
+O cache é apagado quando:
+
+- logout é concluído;
+- a aplicação entra em uma rota pública de autenticação;
+- a API sinaliza 401/expiração de sessão;
+- o fluxo exige enrollment MFA.
+
+Isso cobre logout normal, logout-all/self-revocation que redirecionam para login e
+troca de sessão. Nenhum payload privado é gravado em localStorage/sessionStorage.
+
+O modelo de autorização não foi alterado.
+
+### Comparativo estático antes/depois
+
+A comparação abaixo é derivada do fluxo do código, não de benchmark inventado:
+
+- Home recém-montada: continua com três endpoints independentes, porém voltar à Home
+  dentro do `staleTime` reaproveita os três resultados em memória em vez de começar
+  com três GETs e tela vazia;
+- Oportunidades: list/stats/options/picker deixam de ser reconstruídos em toda volta à
+  rota; paginação pode reaproveitar página anterior e prefetch da próxima;
+- detalhe: detail/history/status-history passam a ter keys independentes e reutilizáveis;
+- Coletas: remove-se o refetch periódico de list/detail/options quando não existe run
+  em andamento;
+- Comparação: options de baseline deixam de ser acopladas ao fetch de cada página e a
+  resposta paginada passa a ser cacheada pela identidade completa;
+- duas solicitações simultâneas da mesma key passam a produzir uma única chamada de
+  rede.
+
+Medições de latência real e waterfall do navegador implantado não são afirmadas por
+esta etapa porque o ambiente de execução do repositório não fornece uma sessão remota
+do browser de produção.
+
+### Testes e validação
+
+Foram adicionados testes unitários do cache cobrindo:
+
+- serialização determinística;
+- isolamento provider/account;
+- identidade de comparação por baseline/categoria/página;
+- invalidação por prefixo;
+- deduplicação de requests simultâneas;
+- reaproveitamento dentro do `staleTime`;
+- refetch após invalidação;
+- limpeza de cache privado.
+
+A validação automatizada da etapa executa o conjunto existente do frontend e backend,
+`npm test`, `next build`, ruff/pytest e o job de segurança do CI. Os resultados
+finais do pipeline são registrados na entrega da Etapa 11.
+
+### Principais arquivos
+
+- `frontend/lib/query-cache.mjs` e `.d.mts`;
+- `frontend/lib/query-keys.mjs` e `.d.mts`;
+- `frontend/lib/server-state.ts`;
+- `frontend/lib/api.ts`;
+- `frontend/components/app-shell.tsx`;
+- `frontend/app/page.tsx`;
+- `frontend/app/opportunities/page.tsx`;
+- `frontend/components/opportunity-detail.tsx`;
+- `frontend/components/collection-workspace.tsx`;
+- `frontend/app/collections/[collectionId]/compare/page.tsx`;
+- `frontend/tests/server-state.test.mjs`.
+
+### Gargalos deixados para a Etapa 12
+
+Esta etapa não altera SQL, materialized views, Redis, tabelas de resumo, workers de
+agregação, particionamento ou retenção.
+
+Se `dashboard/summary`, comparação, listagens ou detalhes continuarem lentos no
+primeiro carregamento sem cache, o próximo diagnóstico deve medir o backend e o banco.
+O cache da Etapa 11 melhora navegação recorrente, mas não é tratado como correção para
+endpoint estruturalmente lento.
+
