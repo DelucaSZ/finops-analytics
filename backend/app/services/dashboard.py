@@ -248,8 +248,9 @@ def dashboard_summary(
 
     valid_scope_count = db.scalar(select(func.count()).select_from(latest_valid)) or 0
 
-    totals = db.execute(
+    summary_rows = db.execute(
         select(
+            current.c.currency,
             func.count(
                 func.distinct(case((Finding.status == "open", Finding.id), else_=None))
             ).label("open"),
@@ -259,24 +260,30 @@ def dashboard_summary(
             func.count(
                 func.distinct(case((Finding.status == "rejected", Finding.id), else_=None))
             ).label("rejected"),
+            func.coalesce(
+                func.sum(
+                    case(
+                        (
+                            Finding.status == "open",
+                            current.c.estimated_monthly_savings,
+                        ),
+                        else_=Decimal("0"),
+                    )
+                ),
+                Decimal("0"),
+            ).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
-    ).one()
-
-    financial_rows = db.execute(
-        select(
-            current.c.currency,
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "amount"
-            ),
-        )
-        .select_from(current)
-        .join(Finding, Finding.id == current.c.opportunity_id)
-        .where(Finding.status == "open")
         .group_by(current.c.currency)
         .order_by(current.c.currency)
     ).all()
+    lifecycle_totals = {
+        "open": sum(int(row.open or 0) for row in summary_rows),
+        "treated": sum(int(row.treated or 0) for row in summary_rows),
+        "rejected": sum(int(row.rejected or 0) for row in summary_rows),
+    }
+    financial_rows = [row for row in summary_rows if row.amount]
 
     severity_rows = db.execute(
         select(current.c.severity, func.count(func.distinct(Finding.id)))
@@ -363,9 +370,9 @@ def dashboard_summary(
             "has_current_data": bool(valid_scope_count),
         },
         "opportunities": {
-            "open": int(totals.open or 0),
-            "treated": int(totals.treated or 0),
-            "rejected": int(totals.rejected or 0),
+            "open": lifecycle_totals["open"],
+            "treated": lifecycle_totals["treated"],
+            "rejected": lifecycle_totals["rejected"],
             "new_since_previous": recent_changes["new"],
         },
         "severity": {
