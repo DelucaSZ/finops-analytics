@@ -156,7 +156,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                   </dd>
                 </div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
-                <div><dt>Custo mensal atual</dt><dd>{usd(detail.current_monthly_cost)}</dd></div>
+                <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
                 <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
                 <div><dt>Ocorrências registradas</dt><dd>{observations?.total ?? "—"}</dd></div>
