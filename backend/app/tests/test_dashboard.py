@@ -241,6 +241,7 @@ def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dash
             account_id="222222222222",
         )
 
+
 def test_dashboard_requires_authentication(dashboard):
     http, _ = dashboard
     http.headers.pop("Cookie")

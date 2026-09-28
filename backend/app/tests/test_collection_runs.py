@@ -128,6 +128,7 @@ def test_summary_failure_does_not_rewrite_successful_collection(db, monkeypatch)
     assert run.status == CollectionRunStatus.SUCCESS
     assert db.get(Scan, scan.id).status == "completed"
 
+
 def test_failed_scan_is_not_left_running(db):
     scan = queued_scan(db)
     claimed = worker.claim_scan(db)
