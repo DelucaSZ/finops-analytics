@@ -176,11 +176,7 @@ def list_opportunities(
 ) -> dict:
     base = select(Finding, AwsAccount).outerjoin(AwsAccount, _account_join())
     base = _apply_filters(base, filters)
-    count_query = (
-        select(func.count())
-        .select_from(Finding)
-        .outerjoin(AwsAccount, _account_join())
-    )
+    count_query = select(func.count()).select_from(Finding).outerjoin(AwsAccount, _account_join())
     count_query = _apply_filters(count_query, filters)
     total = db.scalar(count_query) or 0
 
@@ -220,9 +216,7 @@ def opportunity_options(
     limit: int = 200,
 ) -> dict:
     provider = provider.lower() if provider else None
-    providers = list(
-        db.scalars(select(Finding.provider).distinct().order_by(Finding.provider))
-    )
+    providers = list(db.scalars(select(Finding.provider).distinct().order_by(Finding.provider)))
 
     account_statement = (
         select(Finding.provider, Finding.account_id, AwsAccount.name)
