@@ -99,7 +99,7 @@ def test_pagination_and_account_rule_filters(client):
     assert len({item["id"] for item in first + second}) == 505
     filtered = http.get("/findings?account_id=1&rule_key=missing_required_tags&limit=500").json()
     assert len(filtered) == 253
-    assert all(item["account_id"] == 1 for item in filtered)
+    assert all(item["account_id"] == "000000000001" for item in filtered)
     assert http.get("/findings?offset=-1").status_code == 422
 
 
