@@ -239,7 +239,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                       </div>
                       <div><StatusBadge value={item.severity} /></div>
                       <div>
-                        <strong>{usd(item.estimated_monthly_savings)}/mês</strong>
+                        <strong>{formatMoney(item.estimated_monthly_savings, item.currency)}/mês</strong>
                         <span>economia estimada</span>
                       </div>
                       <div>
