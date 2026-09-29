@@ -129,6 +129,7 @@ def comparison_options(
             "finished_at": run.finished_at,
             "status": run.status,
             "rules_version": run.analyzer_version,
+            "detailed_observations_available": run.detailed_observations_available,
         }
         for run in baselines
     ]
