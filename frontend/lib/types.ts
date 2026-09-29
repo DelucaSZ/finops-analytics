@@ -50,6 +50,7 @@ export type Finding = {
   status: string;
   first_seen_at: string;
   last_seen_at: string;
+  total_occurrence_count: number;
   needs_review: boolean;
 };
 
@@ -160,6 +161,12 @@ export type OpportunityObservationPage = {
   page_size: number;
   total: number;
   total_pages: number;
+  retained_total: number;
+  total_occurrence_count: number;
+  history_complete: boolean;
+  retention_enabled: boolean;
+  retention_days: number;
+  retention_cutoff: string;
 };
 
 export type OpportunityStatusHistoryEntry = {
@@ -193,6 +200,7 @@ export type CollectionRun = {
   status: string;
   resources_analyzed: number;
   opportunities_found: number;
+  detailed_observations_available: boolean;
   analyzer_version: string | null;
   error_detail: string | null;
   created_at: string;
@@ -360,6 +368,7 @@ export type CollectionComparisonRun = {
   finished_at: string | null;
   status: string;
   rules_version: string | null;
+  detailed_observations_available: boolean;
 };
 
 export type CollectionComparisonWarning = {
