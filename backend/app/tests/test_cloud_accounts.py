@@ -21,9 +21,9 @@ from app.models.collection_run import CollectionRun
 from app.schemas.account import CloudAccountBase
 from app.services.cloud_accounts import UnsupportedProviderOperation, require_aws_configuration
 from app.services.oci_auth import (
-    _remote_failure,
     OciConnectionError,
     OciConnectionValidation,
+    _remote_failure,
 )
 from app.tests.test_security import auth_env as auth_env
 from app.tests.test_security import headers
