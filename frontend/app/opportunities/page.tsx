@@ -28,7 +28,7 @@ import { OpportunityDetail } from "@/components/opportunity-detail";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
-import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import {
   invalidateApiQueries,
@@ -304,6 +304,18 @@ function OpportunitiesContent() {
     state.severity || state.rule ||
     state.collectionRunId || state.resourceId || state.search || state.current,
   );
+  const activeFilters = [
+    state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
+    state.accountId ? `Conta: ${formatAccountLabel(currentAccount?.account_name, state.accountId)}` : "",
+    state.severity ? `Severidade: ${state.severity === "high" ? "Alta" : state.severity === "medium" ? "Média" : "Baixa"}` : "",
+    state.region ? `Região: ${state.region}` : "",
+    state.service ? `Serviço: ${state.service}` : "",
+    state.resourceType ? `Tipo: ${state.resourceType}` : "",
+    state.rule ? `Regra: ${state.rule}` : "",
+    state.search ? `Busca: ${state.search}` : "",
+    state.collectionRunId ? `Coleta: ${state.collectionRunId.slice(0, 8)}` : "",
+    state.current ? "Escopo: estado atual" : "",
+  ].filter(Boolean);
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -438,6 +450,11 @@ function OpportunitiesContent() {
           <div><ListFilter size={18} /><strong>Filtros</strong><span>Combinados no servidor e persistidos na URL{state.current ? " · Estado atual das últimas coletas válidas" : ""}</span></div>
           {hasFilters && <button className="filter-clear" type="button" onClick={clearFilters}><X size={15} /> Limpar filtros</button>}
         </div>
+        {activeFilters.length > 0 && (
+          <div className="active-filter-summary" aria-label="Filtros ativos">
+            {activeFilters.map((label) => <span key={label}>{label}</span>)}
+          </div>
+        )}
         <div className="opportunity-filter-grid">
           <label className="opportunity-filter search-filter">
             <span>Busca</span>
