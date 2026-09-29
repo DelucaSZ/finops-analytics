@@ -31,7 +31,6 @@ from app.services.oci_auth import (
 from app.tests.test_security import auth_env as auth_env
 from app.tests.test_security import headers
 
-
 TENANCY_OCID = "ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 USER_OCID = "ocid1.user.oc1..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 COMPARTMENT_OCID = "ocid1.compartment.oc1..cccccccccccccccccccccccccccccccc"
