@@ -28,8 +28,7 @@ from app.services.oci_auth import (
     OciConnectionValidation,
     _remote_failure,
 )
-from app.tests.test_security import auth_env as auth_env
-from app.tests.test_security import headers
+from app.tests.test_security import auth_env as auth_env, headers
 
 
 TENANCY_OCID = "ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
