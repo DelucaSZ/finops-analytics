@@ -16,6 +16,8 @@
 .opportunity-filter-heading span { color: var(--muted); font-size: .8125rem; }
 .filter-clear { min-height: 38px; display: inline-flex; align-items: center; gap: 7px; padding: 0 10px; border: 0; border-radius: 8px; color: var(--muted); background: transparent; cursor: pointer; font-weight: 650; }
 .filter-clear:hover { color: var(--text); background: rgba(255,255,255,.04); }
+.active-filter-summary { display: flex; flex-wrap: wrap; gap: 7px; padding: 12px 18px 0; }
+.active-filter-summary span { max-width: 100%; overflow: hidden; padding: 5px 9px; border: 1px solid var(--border); border-radius: 999px; color: var(--muted); background: rgba(255,255,255,.025); font-size: .75rem; white-space: nowrap; text-overflow: ellipsis; }
 .opportunity-filter-grid { display: grid; grid-template-columns: minmax(280px,1.45fr) repeat(3,minmax(170px,1fr)); gap: 12px; padding: 16px 18px 18px; }
 .opportunity-filter { min-width: 0; display: grid; gap: 6px; color: var(--muted); font-size: .75rem; font-weight: 750; }
 .opportunity-filter > div { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--border-strong); border-radius: 8px; background: #0a101b; }

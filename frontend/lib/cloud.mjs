@@ -25,3 +25,15 @@ export function formatMoney(value, currency = "USD", locale = "pt-BR") {
     })}`;
   }
 }
+
+export function formatNumber(value, locale = "pt-BR") {
+  const numeric = Number(value);
+  return new Intl.NumberFormat(locale).format(Number.isFinite(numeric) ? numeric : 0);
+}
+
+export function formatAccountLabel(accountName, accountId) {
+  const name = String(accountName || "").trim();
+  const id = String(accountId || "").trim();
+  if (name && id && name !== id) return `${name} · ${id}`;
+  return name || id || "—";
+}

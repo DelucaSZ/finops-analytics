@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { formatMoney, providerLabel } from "../lib/cloud.mjs";
+import { formatAccountLabel, formatMoney, formatNumber, providerLabel } from "../lib/cloud.mjs";
 import {
   buildOpportunityApiQuery,
   parseOpportunitySearchParams,
@@ -53,4 +53,27 @@ test("opportunity workspace no longer depends on the AWS account settings endpoi
   assert.match(page, /resource_type/);
   assert.match(detail, /provider_metadata/);
   assert.match(detail, /resource_type/);
+});
+
+
+test("shared presentation helpers keep account and numeric formatting consistent", () => {
+  assert.equal(formatAccountLabel("Produção ERP", "123456789012"), "Produção ERP · 123456789012");
+  assert.equal(formatAccountLabel(null, "ocid1.tenancy.example"), "ocid1.tenancy.example");
+  assert.equal(formatNumber(9999), new Intl.NumberFormat("pt-BR").format(9999));
+});
+
+test("stage 15 navigation removes the legacy executions duplicate and status badge normalizes API enums", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const shell = await readFile(
+    new URL("../components/app-shell.tsx", import.meta.url),
+    "utf8",
+  );
+  const badge = await readFile(
+    new URL("../components/status-badge.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(shell, /href: "\/scans"/);
+  assert.match(badge, /toLowerCase\(\)/);
+  assert.match(badge, /success: "Concluída"/);
 });

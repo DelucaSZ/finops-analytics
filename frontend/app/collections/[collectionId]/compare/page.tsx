@@ -5,9 +5,9 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
+import { StatusBadge, statusLabel } from "@/components/status-badge";
 import { formatDate } from "@/lib/api";
-import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import type {
@@ -266,7 +266,7 @@ function CollectionComparisonContent() {
                 {formatDate(selectedBaseline.started_at)}
               </Link>
               <strong>
-                {providerLabel(selectedBaseline.provider)} · {selectedBaseline.account_id}
+                {formatAccountLabel(providerLabel(selectedBaseline.provider), selectedBaseline.account_id)}
               </strong>
               <span>Rules {selectedBaseline.rules_version || "não registrada"}</span>
             </>
@@ -281,7 +281,7 @@ function CollectionComparisonContent() {
             {formatDate(comparison.target.started_at)}
           </Link>
           <strong>
-            {providerLabel(comparison.target.provider)} · {comparison.target.account_id}
+            {formatAccountLabel(providerLabel(comparison.target.provider), comparison.target.account_id)}
           </strong>
           <span>Rules {comparison.target.rules_version || "não registrada"}</span>
         </div>
@@ -297,7 +297,7 @@ function CollectionComparisonContent() {
             {!options.length && <option value="">Nenhuma coleta compatível</option>}
             {options.map((option) => (
               <option value={option.id} key={option.id}>
-                {formatDate(option.started_at)} · {option.status} · Rules{" "}
+                {formatDate(option.started_at)} · {statusLabel(option.status)} · Rules{" "}
                 {option.rules_version || "n/d"}
                 {!option.detailed_observations_available ? " · detalhe expirado" : ""}
               </option>

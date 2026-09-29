@@ -7,7 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ApiError, formatDate } from "@/lib/api";
-import { providerLabel } from "@/lib/cloud.mjs";
+import { formatAccountLabel, formatNumber, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import {
@@ -26,7 +26,7 @@ import type {
   CollectionPage,
 } from "@/lib/types";
 
-const number = (value: number) => value.toLocaleString("pt-BR");
+const number = (value: number) => formatNumber(value);
 function preciseDate(value: string | null) {
   return value ? new Date(value).toLocaleString("pt-BR") : "—";
 }
@@ -154,6 +154,17 @@ export function CollectionWorkspace({
     state.date_to ||
     state.analyzer_version,
   );
+  const selectedAccount = options.accounts.find(
+    (account) => account.account_id === state.account_id && (!state.provider || account.provider === state.provider),
+  );
+  const activeFilters = [
+    state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
+    state.account_id ? `Conta: ${formatAccountLabel(selectedAccount?.account_name, state.account_id)}` : "",
+    state.status ? `Status: ${COLLECTION_STATUSES[state.status] || state.status}` : "",
+    state.analyzer_version ? `Versão: ${state.analyzer_version}` : "",
+    state.date_from ? `A partir de: ${preciseDate(state.date_from)}` : "",
+    state.date_to ? `Até: ${preciseDate(state.date_to)}` : "",
+  ].filter(Boolean);
   const detailHref = (id: string) =>
     `/collections/${encodeURIComponent(id)}?${query}`;
   const change = (patch: Record<string, string | number>) =>
@@ -241,14 +252,21 @@ export function CollectionWorkspace({
         >
           <div className="opportunity-filter-heading">
             <strong>Filtros de coletas</strong>
-            <button
-              type="button"
-              className="filter-clear"
-              onClick={() => router.push("/collections")}
-            >
-              Limpar filtros
-            </button>
+            {hasFilters && (
+              <button
+                type="button"
+                className="filter-clear"
+                onClick={() => router.push("/collections")}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
+          {activeFilters.length > 0 && (
+            <div className="active-filter-summary" aria-label="Filtros ativos">
+              {activeFilters.map((label) => <span key={label}>{label}</span>)}
+            </div>
+          )}
           <div className="opportunity-filter-grid">
             <label className="opportunity-filter">
               <span>Cloud</span>

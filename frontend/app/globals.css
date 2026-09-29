@@ -24,6 +24,8 @@ body { line-height: 1.55; margin: 0; background: var(--bg); color: var(--text); 
 button, input, select, textarea { font: inherit; }
 button, a { -webkit-tap-highlight-color: transparent; }
 a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 0; }
 code { font-family: "SFMono-Regular", Consolas, monospace; }
 
 .boot-screen { min-height: 100vh; display: grid; place-items: center; color: var(--muted); }
@@ -97,7 +99,7 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 99px; font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .status-high, .status-error, .status-failed { color: #ff9499; background: rgba(255,107,114,.11); }
 .status-medium, .status-pending, .status-completed_with_warnings { color: #ffd176; background: rgba(249,189,79,.11); }
-.status-low, .status-connected, .status-completed, .status-open { color: #70e8c1; background: rgba(85,229,182,.1); }
+.status-low, .status-connected, .status-success, .status-completed, .status-open { color: #70e8c1; background: rgba(85,229,182,.1); }
 .status-untested, .status-rejected { color: #aab4c4; background: rgba(148,163,184,.1); }
 .status-running, .status-treated { color: #83bbff; background: rgba(97,169,255,.1); }
 .severity-panel { min-height: 390px; }
@@ -646,3 +648,9 @@ button svg, .toolbar svg, .alert svg { flex-shrink: 0; }
   .dashboard-health-summary { padding-left: 14px; padding-right: 14px; }
   .dashboard-health-table-wrap { padding-left: 14px; padding-right: 14px; }
 }
+
+/* Stage 15 — shared accessibility and technical-value affordances. */
+.technical-copy { display: flex; align-items: flex-start; gap: 8px; }
+.technical-copy code { min-width: 0; flex: 1; }
+.copy-inline { flex: 0 0 auto; width: 30px; height: 30px; display: inline-grid; place-items: center; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); background: rgba(255,255,255,.025); cursor: pointer; }
+.copy-inline:hover { color: var(--accent); border-color: rgba(85,229,182,.45); }

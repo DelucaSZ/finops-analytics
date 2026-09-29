@@ -3,7 +3,8 @@ const labels: Record<string, string> = {
   untested: "Não testada",
   error: "Erro",
   pending: "Pendente",
-  running: "Executando",
+  running: "Em andamento",
+  success: "Concluída",
   completed: "Concluída",
   completed_with_warnings: "Com alertas",
   failed: "Falhou",
@@ -15,6 +16,19 @@ const labels: Record<string, string> = {
   low: "Baixa",
 };
 
+export function statusLabel(value: string): string {
+  const normalized = String(value || "").trim().toLowerCase();
+  return labels[normalized] || value;
+}
+
 export function StatusBadge({ value }: { value: string }) {
-  return <span className={`status-badge status-${value}`}>{labels[value] || value}</span>;
+  const normalized = String(value || "").trim().toLowerCase();
+  return (
+    <span
+      className={`status-badge status-${normalized || "unknown"}`}
+      data-status={normalized || "unknown"}
+    >
+      {statusLabel(value)}
+    </span>
+  );
 }

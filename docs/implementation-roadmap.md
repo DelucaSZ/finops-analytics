@@ -169,7 +169,7 @@ PR #7 publicado por squash merge na `main`: `842c75f0ff843fd4075a458d0fea62dab2d
 
 ## Etapa 3 — Ciclo de vida das oportunidades
 
-**Status:** implementada na `main`; validação de CI pendente no momento deste registro.
+**Status:** concluída e publicada na `main`; o comportamento permanece coberto pelas suítes cumulativas executadas nas etapas posteriores.
 
 ### Estados e migração
 
@@ -636,7 +636,7 @@ Não foram implementados tela completa de CollectionRun, comparação avançada 
 
 ## Etapa 7 — Workspace de coletas
 
-**Status:** concluída e validada localmente.
+**Status:** concluída e publicada na `main`; o workspace permanece coberto pelas suítes cumulativas de frontend/backend das etapas posteriores.
 
 ### Inspeção da base antes das alterações
 
@@ -1602,7 +1602,7 @@ sem reescrever o núcleo implementado nas Etapas 1–9.
 
 ## Etapa 11 — otimização de performance e navegação do frontend
 
-**Status:** implementada. A validação final é executada pelo CI da branch/PR desta
+**Status:** concluída e publicada na `main`. A validação original e as suítes cumulativas posteriores confirmam cache, navegação e preservação de contexto. A documentação original desta
 etapa antes da publicação no `main`.
 
 ### Diagnóstico
@@ -2041,7 +2041,7 @@ de histórico. Nenhuma retenção foi implementada aqui.**
 
 ## Etapa 14 — retenção histórica controlada
 
-**Status:** implementação concluída no branch da etapa; validação CI registrada ao final desta seção.
+**Status:** concluída, validada no PR #19 e publicada na `main`; validação CI registrada ao final desta seção.
 O objetivo é limitar o crescimento de histórico repetitivo sem remover identidade lógica,
 decisões humanas, rastreabilidade de execução ou produzir interpretações temporais falsas.
 
@@ -2293,3 +2293,77 @@ fixtures sintéticos, sem execução de DELETE em produção ou acesso a contas 
 
 A Etapa 14 não altera regras FinOps, lifecycle, providers ou features de negócio e **não
 avança para a Etapa 15**.
+
+
+## Etapa 15 — refinamento final de UX e consistência integrada
+
+**Status:** implementação concluída e validada no PR #21. CI run #161 e Auto Deploy Tests run #154 aprovados no head funcional; a publicação na `main` é realizada após a revisão final do diff.
+
+### Auditoria integrada
+
+A revisão foi feita sobre Home, Oportunidades, detalhe, Coletas, comparação, configurações e navegação principal, preservando a arquitetura e as regras de negócio das Etapas 1–14. Foram confirmados diretamente no código: CollectionRun, fingerprint/deduplicação/OpportunityObservation, lifecycle OPEN/TREATED/REJECTED, API paginada, explicabilidade, comparação temporal, Home operacional, abstração multi-cloud, cache frontend, otimizações de backend, summaries persistidos e retenção histórica.
+
+Inconsistências encontradas e tratadas:
+
+- badges recebiam enums em formatos diferentes; valores como `SUCCESS` podiam aparecer crus em componentes que esperavam lowercase;
+- a navegação principal ainda expunha a tela legada de `Execuções`, duplicando o fluxo operacional já consolidado em `Coletas`;
+- formatadores de conta e número estavam duplicados em componentes;
+- a tela de Coletas sempre mostrava “Limpar filtros”, mesmo sem filtro aplicado;
+- filtros ativos eram persistidos na URL, mas não havia resumo visual imediato do contexto aplicado;
+- erros HTTP desconhecidos podiam expor texto técnico do backend diretamente;
+- identificadores técnicos importantes no detalhe não possuíam ação de cópia consistente;
+- foco por teclado não possuía um tratamento global suficientemente explícito;
+- comparação ainda exibia status técnico cru em opções de baseline.
+
+### Padronização realizada
+
+- `StatusBadge` agora normaliza enums case-insensitive e mantém labels PT-BR consistentes para lifecycle, severidade e estados de coleta;
+- `formatAccountLabel` e `formatNumber` foram centralizados junto aos formatadores de provider/moeda;
+- Home, Oportunidades, detalhe e comparação continuam usando os formatadores/provider helpers compartilhados sem introduzir dependência estrutural de AWS nas telas genéricas;
+- filtros ativos em Oportunidades e Coletas passam a ser apresentados como chips de contexto; “Limpar filtros” aparece somente quando necessário;
+- navegação principal deixa de duplicar “Execuções”; a rota legada continua disponível para compatibilidade, sem ser promovida como workspace principal;
+- mensagens 403/404/410/422/429/5xx possuem fallback amigável, preservando o detalhe técnico apenas em `ApiError.detail` para diagnóstico;
+- detalhe técnico da oportunidade ganhou copy action para ID e fingerprint, mantendo metadata provider-specific na seção técnica;
+- foco `:focus-visible` foi padronizado e estados continuam transmitidos por texto/badge, não somente por cor;
+- comparação usa labels amigáveis para status e apresentação de conta;
+- retenção continua distinguindo histórico expirado de “nunca existiu”; nenhuma semântica de `NO_LONGER_DETECTED` foi alterada.
+
+### Performance, navegação e segurança
+
+As mudanças não introduzem novo fetching, polling, animação pesada ou refetch global. O cache e as query keys da Etapa 11 foram preservados. Filtros continuam URL-driven e deep links permanecem independentes de state em memória. Não foram alterados fingerprint, deduplicação, lifecycle, comparação, retenção ou summaries. Nenhum secret, token, dump, screenshot ou artefato de profiling foi adicionado.
+
+### Código legado e escopo
+
+A entrada `/scans` foi removida apenas da navegação principal por duplicar a experiência consolidada de Coletas; a rota e API continuam preservadas para compatibilidade. “Contas AWS” e políticas AWS continuam explícitas porque o onboarding real disponível hoje ainda é AWS; providers não configurados não foram apresentados como conexões disponíveis.
+
+### Testes e validação
+
+Foram adicionadas asserções frontend para os formatadores compartilhados, preservação de identificadores provider-native, remoção da navegação duplicada e normalização de status. O CI oficial do repositório executa:
+
+- backend PostgreSQL 17: `ruff check`, `ruff format --check` e `pytest -q`;
+- frontend Node 22: `npm test` e `npm run build`;
+- validações de segurança e CloudFormation;
+- Auto Deploy Tests.
+
+Validação do head funcional no PR #21:
+- CI run #161 aprovado;
+- backend: 258 testes aprovados em PostgreSQL 17, `ruff check` e `ruff format --check` aprovados;
+- frontend: 36 testes aprovados; `next build` compilou, verificou tipos/lint e gerou 21 páginas com sucesso;
+- segurança: readiness checker, validação estática de exposição via Compose e template CloudFormation aprovados;
+- Auto Deploy Tests run #154 aprovado.
+
+O CI não sobe o stack completo `web/api/worker/db/proxy` via Docker Compose e o ambiente desta execução não possui acesso de rede para clonar o repositório localmente. Portanto não foi registrado como executado um smoke test completo de containers nem uma sessão browser E2E real. O PostgreSQL 17 de teste foi iniciado como service container e encerrou limpo. A cobertura integrada disponível permanece nas suítes backend/frontend e nos contratos de rotas, cache, lifecycle, comparação e retenção.
+
+Warnings não bloqueadores observados: uma depreciação Starlette/TestClient no backend; dependências npm reportaram 1 vulnerabilidade moderada e 1 alta durante `npm ci`; GitHub Actions reportou avisos de runtime Node deprecado em actions oficiais. Nenhum desses warnings foi introduzido pelas alterações da Etapa 15 e nenhum foi mascarado.
+
+### Débitos técnicos restantes
+
+- a rota `/scans` e o tipo `Scan` continuam necessários para compatibilidade com o fluxo AWS atual; remoção definitiva exige migração explícita do fluxo de disparo e não pertence a esta etapa;
+- onboarding/configuração de contas ainda é AWS-specific; a UI operacional comum já é provider-neutral, mas novos providers precisam de seus próprios conectores/configuração;
+- não existe suíte browser E2E real; os fluxos são cobertos por testes de contrato/unitários e validação integrada em CI, mas automação de navegador seria um roadmap separado;
+- métricas de Web Vitals/Lighthouse não possuem harness persistente no repositório, portanto nenhum número foi inventado.
+- a suíte atual não contém browser E2E nem smoke test do stack Compose completo; isso limita a validação automatizada de foco real, navegação modal e startup conjunto de web/api/worker/proxy.
+- o `npm ci` atual reporta 1 vulnerabilidade moderada e 1 alta nas dependências; deve ser tratado como manutenção de dependências separada, com análise de impacto antes de upgrades.
+- o backend emite um warning de depreciação Starlette/TestClient; deve ser absorvido em atualização futura da stack de testes.
+
+A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio.
