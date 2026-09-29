@@ -37,11 +37,7 @@ def seed(engine, accounts, per_account):
     with engine.begin() as conn:
         for a in range(accounts):
             provider = ["aws", "oci", "azure", "gcp"][a % 4]
-            native = (
-                f"ocid1.tenancy.oc1..benchmark{a}"
-                if provider == "oci"
-                else f"{a:012d}"
-            )
+            native = f"ocid1.tenancy.oc1..benchmark{a}" if provider == "oci" else f"{a:012d}"
             common = conn.execute(
                 insert(CloudAccount).values(
                     provider=provider,
