@@ -122,9 +122,13 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
 
 def _comparison_metrics(db: Session, target: CollectionRun) -> dict:
     baseline = previous_comparable_run(db, target)
-    if baseline is None:
+    if (
+        baseline is None
+        or not target.detailed_observations_available
+        or not baseline.detailed_observations_available
+    ):
         return {
-            "baseline_collection_run_id": None,
+            "baseline_collection_run_id": baseline.id if baseline is not None else None,
             "new_count": 0,
             "no_longer_detected_count": 0,
             "has_baseline": False,
