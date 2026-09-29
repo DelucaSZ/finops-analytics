@@ -4,15 +4,28 @@ O menu **Configurações** reúne:
 
 | Área | Acesso | Funções |
 | --- | --- | --- |
+| Contas | Todos para leitura; administração para administradores | Listar contas AWS; cadastrar e testar conexão quando administrador; disparar análise quando operador ou administrador |
+| Políticas | Todos para leitura; edição para administradores | Consultar políticas globais/por conta e salvar ou restaurar sobrescritas quando administrador |
 | Minha segurança | Todos | Senha, confirmação de identidade, TOTP e códigos de recuperação |
 | Sessões | Todos | Consultar e encerrar sessões da própria conta |
 | Usuários | Administradores | Criar, convidar, editar, desativar/reativar, perfis, recuperação e sessões |
 | Auditoria | Administradores | Histórico de acessos, MFA e alterações administrativas |
+| HTTPS | Administradores | Consultar e aplicar configuração de certificado conforme o fluxo existente |
 
-O endereço antigo `/security` redireciona para `/settings/security`. As permissões
-são verificadas no backend, além da navegação: conhecer a URL não concede acesso.
-Contas com cadastro MFA obrigatório pendente continuam restritas a `/mfa-setup`.
-HTTPS/certificados serão tratados na etapa 5.
+As áreas operacionais de configuração usam rotas canônicas sob `/settings`.
+Os endereços antigos são mantidos apenas como compatibilidade:
+
+- `/accounts` e subrotas → `/settings/accounts`;
+- `/policies` e subrotas → `/settings/policies`;
+- `/security` → `/settings/security`.
+
+Os redirects de Contas e Políticas preservam parâmetros de consulta e não duplicam a
+implementação das páginas. As rotas da API continuam `/api/v1/accounts`,
+`/api/v1/policies` e `/api/v1/scans`.
+
+As permissões são verificadas no backend, além da navegação: conhecer a URL não concede
+acesso. Contas com cadastro MFA obrigatório pendente continuam restritas a
+`/mfa-setup`.
 
 ## Gestão de usuários
 

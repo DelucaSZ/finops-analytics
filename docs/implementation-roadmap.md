@@ -2367,3 +2367,109 @@ Warnings não bloqueadores observados: uma depreciação Starlette/TestClient no
 - o backend emite um warning de depreciação Starlette/TestClient; deve ser absorvido em atualização futura da stack de testes.
 
 A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio.
+
+
+## Etapa 16 — Contas e Políticas dentro de Configurações
+
+**Status:** implementação concluída e validada no PR #22. A branch foi publicada,
+mas a etapa ainda não foi mergeada na `main` nem implantada no ambiente.
+
+### Objetivo e alterações
+
+A navegação foi reorganizada para tratar Contas e Políticas como configurações da
+plataforma, sem alterar contratos de API, persistência, coletores ou regras FinOps.
+
+- rotas canônicas: `/settings/accounts` e `/settings/policies`;
+- `Contas AWS` deixa de ser o nome da área geral e passa a `Contas`;
+- referências AWS tecnicamente necessárias permanecem explícitas no formulário:
+  AWS Account ID, STS AssumeRole, Role ARN e External ID;
+- cadastro continua identificado como `Cadastrar conta AWS`; nenhuma opção OCI é
+  apresentada nesta etapa;
+- Contas e Políticas saem do menu principal e aparecem na navegação interna de
+  Configurações;
+- Configurações permanece ativa nas duas páginas e a aba interna considera também
+  futuras subrotas por prefixo;
+- segurança pessoal, sessões, usuários, auditoria e HTTPS mantêm a disponibilidade
+  anterior conforme o perfil.
+
+### Compatibilidade de rotas
+
+O frontend mantém redirects temporários, sem segunda implementação das páginas:
+
+- `/accounts/:path*` → `/settings/accounts/:path*`;
+- `/policies/:path*` → `/settings/policies/:path*`.
+
+O mecanismo de redirect do Next.js preserva query string não consumida pelo destino.
+As implementações antigas em `app/accounts/page.tsx` e
+`app/policies/page.tsx` são removidas. As APIs não foram renomeadas.
+
+### Permissões preservadas
+
+A matriz foi confirmada diretamente nas dependências do backend e mantida na interface:
+
+| Operação | admin | operator | viewer |
+| --- | --- | --- | --- |
+| Ler Contas | Sim | Sim | Sim |
+| Cadastrar/alterar/excluir conta AWS | Sim | Não | Não |
+| Gerar External ID e testar conexão | Sim | Não | Não |
+| Disparar análise manual | Sim | Sim | Não |
+| Ler Políticas | Sim | Sim | Sim |
+| Salvar/restaurar Políticas | Sim | Não | Não |
+
+A interface agora oculta/desabilita ações de acordo com essa autorização efetiva; o
+backend continua sendo a camada autoritativa. Nenhuma nova permissão foi concedida.
+
+### Fluxos preservados e limites
+
+Continuam usando os mesmos endpoints e contratos: listagem de contas AWS, geração de
+External ID, cadastro STS AssumeRole, teste de conexão, disparo de análise,
+configuração de agendamento no cadastro e leitura/atualização de políticas.
+
+Não foram implementados OCI, chave privada OCI, `CloudAccount`, migração de banco,
+edição nova de contas, coletores OCI, alterações de worker/fingerprint/lifecycle ou
+reformulação ampla do sistema de permissões.
+
+### Principais arquivos
+
+- `frontend/components/app-shell.tsx`;
+- `frontend/app/settings/layout.tsx`;
+- `frontend/app/settings/accounts/page.tsx`;
+- `frontend/app/settings/policies/page.tsx`;
+- `frontend/lib/settings-navigation.mjs` e tipos;
+- `frontend/next.config.mjs`;
+- `frontend/tests/settings-navigation.test.mjs`;
+- `docs/settings.md` e este roadmap.
+
+### Validação e limitações
+
+Foi executado um teste direcionado local do novo helper/roteamento com 5 casos
+aprovados antes da publicação da branch.
+
+Validação oficial do head funcional `6e742a3` no PR #22:
+
+- CI run #164 aprovado;
+- frontend: 41 testes aprovados, `next build` compilado com sucesso, lint/type-check
+  concluído e 21 páginas estáticas geradas; o build publicou
+  `/settings/accounts` e `/settings/policies`;
+- backend: 258 testes aprovados em PostgreSQL 17, `ruff check .` e
+  `ruff format --check .` aprovados;
+- job de segurança aprovado;
+- Auto deploy tests run #157 aprovado.
+
+A documentação oficial do Next.js confirma que parâmetros `:path*` aceitam zero ou
+mais segmentos, portanto os redirects cobrem tanto `/accounts`/`/policies` quanto
+subrotas, e que query strings da requisição são repassadas ao destino do redirect.
+
+A matriz backend permanece coberta por `backend/app/tests/test_security.py` e
+`backend/app/tests/test_settings.py`. Não há navegador E2E disponível neste ambiente,
+portanto nenhuma validação visual desktop/mobile é declarada como executada. O CI também
+mantém os warnings já conhecidos: uma depreciação Starlette/TestClient e o `npm ci`
+reporta 1 vulnerabilidade moderada e 1 alta nas dependências; nenhum foi introduzido
+pela Etapa 16.
+
+### Pendências para etapas seguintes
+
+- implementar cadastro/autenticação OCI;
+- definir a generalização de conta/cloud quando o domínio exigir;
+- implementar edição de contas como funcionalidade explícita;
+- ampliar coletores/regras para OCI sem reaproveitar indevidamente contratos AWS.

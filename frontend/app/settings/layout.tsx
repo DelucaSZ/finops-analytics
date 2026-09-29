@@ -3,6 +3,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
+import {
+  isAdminOnlySettingsPath,
+  isSettingsTabActive,
+  settingsTabsForRole,
+} from "@/lib/settings-navigation.mjs";
 
 export default function SettingsLayout({
   children,
@@ -38,32 +43,23 @@ export default function SettingsLayout({
       </section>
     );
   if (!role) return <p role="status">Carregando configurações…</p>;
-  const tabs = [
-    { href: "/settings/security", label: "Minha segurança" },
-    { href: "/settings/sessions", label: "Sessões" },
-    ...(role === "admin"
-      ? [
-          { href: "/settings/users", label: "Usuários" },
-          { href: "/settings/audit", label: "Auditoria" },
-          { href: "/settings/https", label: "HTTPS" },
-        ]
-      : []),
-  ];
-  const adminOnly = ["/settings/users", "/settings/audit", "/settings/https"].some(
-    (prefix) => path.startsWith(prefix),
-  );
+  const tabs = settingsTabsForRole(role);
+  const adminOnly = isAdminOnlySettingsPath(path);
   return (
     <>
       <nav className="settings-tabs" aria-label="Configurações">
-        {tabs.map((tab) => (
-          <Link
-            key={tab.href}
-            href={tab.href}
-            aria-current={path === tab.href ? "page" : undefined}
-          >
-            {tab.label}
-          </Link>
-        ))}
+        {tabs.map((tab) => {
+          const active = isSettingsTabActive(path, tab.href);
+          return (
+            <Link
+              key={tab.href}
+              href={tab.href}
+              aria-current={active ? "page" : undefined}
+            >
+              {tab.label}
+            </Link>
+          );
+        })}
       </nav>
       {adminOnly && role !== "admin" ? (
         <section className="security-card">
