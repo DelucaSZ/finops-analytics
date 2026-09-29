@@ -32,9 +32,7 @@ class CloudAccount(TimestampMixin, Base):
     native_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    connection_status: Mapped[str] = mapped_column(
-        String(24), default="untested", nullable=False
-    )
+    connection_status: Mapped[str] = mapped_column(String(24), default="untested", nullable=False)
     last_connection_test_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

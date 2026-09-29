@@ -171,16 +171,19 @@ def upgrade():
     _constrain_aws_link()
 
     account_count = bind.scalar(sa.text("SELECT COUNT(*) FROM aws_accounts")) or 0
-    linked_count = bind.scalar(
-        sa.text(
-            """
+    linked_count = (
+        bind.scalar(
+            sa.text(
+                """
             SELECT COUNT(*)
             FROM aws_accounts a
             JOIN cloud_accounts c ON c.id = a.cloud_account_id
             WHERE c.provider = 'aws' AND c.native_account_id = a.aws_account_id
             """
+            )
         )
-    ) or 0
+        or 0
+    )
     if account_count != linked_count:
         raise RuntimeError(
             "CloudAccount migration did not produce exactly one matching row per AWS account"

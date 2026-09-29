@@ -372,12 +372,8 @@ def test_stage17_migration_preserves_history(migration_engine):
         scans_table = Table("scans", metadata, autoload_with=connection)
         runs_table = Table("collection_runs", metadata, autoload_with=connection)
         findings_table = Table("findings", metadata, autoload_with=connection)
-        observations_table = Table(
-            "opportunity_observations", metadata, autoload_with=connection
-        )
-        decisions_table = Table(
-            "opportunity_status_history", metadata, autoload_with=connection
-        )
+        observations_table = Table("opportunity_observations", metadata, autoload_with=connection)
+        decisions_table = Table("opportunity_status_history", metadata, autoload_with=connection)
         now = utcnow()
 
         connection.execute(
@@ -508,22 +504,24 @@ def test_stage17_migration_preserves_history(migration_engine):
 
         common_table = Table("cloud_accounts", MetaData(), autoload_with=connection)
         migrated_aws = Table("aws_accounts", MetaData(), autoload_with=connection)
-        cloud = connection.execute(
-            select(common_table).where(common_table.c.id == 42)
-        ).one()
+        cloud = connection.execute(select(common_table).where(common_table.c.id == 42)).one()
         assert cloud.provider == "aws"
         assert cloud.native_account_id == "444444444444"
         assert cloud.name == "Preserved AWS"
-        assert connection.scalar(
-            select(migrated_aws.c.cloud_account_id).where(migrated_aws.c.id == 42)
-        ) == 42
-        assert connection.scalar(
-            select(scans_table.c.account_id).where(scans_table.c.id == "stage17-scan")
-        ) == 42
+        assert (
+            connection.scalar(
+                select(migrated_aws.c.cloud_account_id).where(migrated_aws.c.id == 42)
+            )
+            == 42
+        )
+        assert (
+            connection.scalar(
+                select(scans_table.c.account_id).where(scans_table.c.id == "stage17-scan")
+            )
+            == 42
+        )
 
-        run = connection.execute(
-            select(runs_table).where(runs_table.c.id == "stage17-run")
-        ).one()
+        run = connection.execute(select(runs_table).where(runs_table.c.id == "stage17-run")).one()
         assert run.provider == "aws"
         assert run.account_id == "444444444444"
 
@@ -533,11 +531,14 @@ def test_stage17_migration_preserves_history(migration_engine):
         assert finding.fingerprint == "4" * 64
         assert finding.status == "rejected"
         assert finding.rejection_note == "Keep the human decision"
-        assert connection.scalar(
-            select(func.count())
-            .select_from(observations_table)
-            .where(observations_table.c.opportunity_id == "stage17-finding")
-        ) == 1
+        assert (
+            connection.scalar(
+                select(func.count())
+                .select_from(observations_table)
+                .where(observations_table.c.opportunity_id == "stage17-finding")
+            )
+            == 1
+        )
         decision = connection.execute(
             select(decisions_table).where(decisions_table.c.id == "stage17-decision")
         ).one()

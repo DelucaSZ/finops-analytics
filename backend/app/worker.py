@@ -340,8 +340,7 @@ def execute_scan(db: Session, scan: Scan) -> None:
     identity = get_caller_identity(aws_session)
     if identity.account_id != expected_account_id:
         raise RuntimeError(
-            f"Assumed role returned account {identity.account_id}; "
-            f"expected {expected_account_id}"
+            f"Assumed role returned account {identity.account_id}; expected {expected_account_id}"
         )
     collected, collector_errors, failed_rule_keys = run_collectors(
         aws_session, account.regions, policies

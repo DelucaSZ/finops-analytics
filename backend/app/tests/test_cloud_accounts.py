@@ -147,12 +147,15 @@ def test_recognized_oci_provider_is_not_registered_without_integration(auth_env)
     )
     assert response.status_code == 409
     with Session(engine) as db:
-        assert db.scalar(
-            select(CloudAccount).where(
-                CloudAccount.provider == "oci",
-                CloudAccount.native_account_id == native_id,
+        assert (
+            db.scalar(
+                select(CloudAccount).where(
+                    CloudAccount.provider == "oci",
+                    CloudAccount.native_account_id == native_id,
+                )
             )
-        ) is None
+            is None
+        )
 
 
 @pytest.mark.parametrize("role", ["operator", "viewer"])
