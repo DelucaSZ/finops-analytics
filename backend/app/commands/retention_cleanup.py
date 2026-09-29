@@ -66,9 +66,7 @@ def main() -> None:
     if args.execute and not settings.retention_enabled:
         parser.error("Retention cleanup is disabled by NUVEMIQ_RETENTION_ENABLED")
 
-    cutoff = args.before or retention_cutoff(
-        days=settings.opportunity_observation_retention_days
-    )
+    cutoff = args.before or retention_cutoff(days=settings.opportunity_observation_retention_days)
     with SessionLocal() as db:
         preview = retention_preview(
             db,
