@@ -30,7 +30,7 @@ test("decision overlays trap focus, preserve form input on backdrop clicks and e
   const hook = await read("../lib/use-dialog-focus.ts");
   const dialog = await read("../components/opportunity-decision-dialog.tsx");
 
-  assert.match(hook, /event\.key === "Tab"/);
+  assert.match(hook, /event\.key !== "Tab"/);
   assert.match(hook, /previousFocus\.focus\(\)/);
   assert.match(dialog, /useDialogFocus/);
   assert.doesNotMatch(dialog, /dialog-backdrop" role="presentation" onMouseDown/);
