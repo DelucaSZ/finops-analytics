@@ -2371,8 +2371,8 @@ A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio
 
 ## Etapa 16 — Contas e Políticas dentro de Configurações
 
-**Status:** implementação criada em branch dedicada; validação oficial do PR deve ser
-registrada nesta seção antes da publicação na `main`.
+**Status:** implementação concluída e validada no PR #22. A branch foi publicada,
+mas a etapa ainda não foi mergeada na `main` nem implantada no ambiente.
 
 ### Objetivo e alterações
 
@@ -2443,13 +2443,29 @@ reformulação ampla do sistema de permissões.
 ### Validação e limitações
 
 Foi executado um teste direcionado local do novo helper/roteamento com 5 casos
-aprovados antes da publicação da branch. A suíte oficial do repositório
-(`npm test`, `npm run build`, backend PostgreSQL/Ruff/Pytest e job de segurança)
-deve ser executada pelo CI do PR e o resultado final deve ser registrado nesta seção.
+aprovados antes da publicação da branch.
 
-A matriz backend já possui cobertura em `backend/app/tests/test_security.py` e
+Validação oficial do head funcional `6e742a3` no PR #22:
+
+- CI run #164 aprovado;
+- frontend: 41 testes aprovados, `next build` compilado com sucesso, lint/type-check
+  concluído e 21 páginas estáticas geradas; o build publicou
+  `/settings/accounts` e `/settings/policies`;
+- backend: 258 testes aprovados em PostgreSQL 17, `ruff check .` e
+  `ruff format --check .` aprovados;
+- job de segurança aprovado;
+- Auto deploy tests run #157 aprovado.
+
+A documentação oficial do Next.js confirma que parâmetros `:path*` aceitam zero ou
+mais segmentos, portanto os redirects cobrem tanto `/accounts`/`/policies` quanto
+subrotas, e que query strings da requisição são repassadas ao destino do redirect.
+
+A matriz backend permanece coberta por `backend/app/tests/test_security.py` e
 `backend/app/tests/test_settings.py`. Não há navegador E2E disponível neste ambiente,
-portanto nenhuma validação visual desktop/mobile é declarada como executada.
+portanto nenhuma validação visual desktop/mobile é declarada como executada. O CI também
+mantém os warnings já conhecidos: uma depreciação Starlette/TestClient e o `npm ci`
+reporta 1 vulnerabilidade moderada e 1 alta nas dependências; nenhum foi introduzido
+pela Etapa 16.
 
 ### Pendências para etapas seguintes
 
