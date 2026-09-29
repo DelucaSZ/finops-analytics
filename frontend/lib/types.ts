@@ -38,7 +38,7 @@ export type OciAccountConfiguration = {
   include_root_compartment: boolean;
   include_subcompartments: boolean;
   credentials_configured: boolean;
-  credential_key_version: string;
+  credential_key_version: string | null;
   credential_revision: number;
   configuration_revision: number;
   created_at: string;
