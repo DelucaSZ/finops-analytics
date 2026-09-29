@@ -150,7 +150,7 @@ export default function AccountsPage() {
       <PageHeader
         eyebrow="CONFIGURAÇÕES · CONTAS"
         title="Contas"
-        description="Gerencie as contas cloud conectadas ao DeepOps. Nesta etapa, o onboarding operacional disponível continua sendo AWS via STS AssumeRole."
+        description="Gerencie as contas cloud conectadas ao DeepOps. AWS continua disponível pela interface; a integração OCI por API Key já pode ser administrada pela API e ganhará formulário unificado na Etapa 19."
         actions={canManageAccounts ? <button className="button primary" onClick={() => void openCreateForm()}><Plus size={17} /> Adicionar conta AWS</button> : undefined}
       />
       {error && <div className="alert error"><X size={17} />{error}</div>}
@@ -176,12 +176,14 @@ export default function AccountsPage() {
       <section className="accounts-grid">
         {accounts.map((account) => {
           const aws = account.aws_configuration;
+          const oci = account.oci_configuration;
+          const connectionSupported = Boolean(aws || oci);
           return (
             <article className="account-card" key={account.id}>
               <div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>{account.name}</h3><code>{providerLabel(account.provider)} · {account.native_account_id}</code></div><StatusBadge value={account.connection_status} /></div>
-              {aws ? <dl><div><dt>Role</dt><dd title={aws.role_arn}>{aws.role_arn.split("/").pop()}</dd></div><div><dt>Regiões</dt><dd>{aws.regions.join(", ")}</dd></div><div><dt>Agendamento</dt><dd>{aws.schedule_enabled ? `A cada ${aws.scan_interval_hours}h` : "Desativado"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : <p>Provider cadastrado sem integração operacional disponível nesta etapa.</p>}
+              {aws ? <dl><div><dt>Role</dt><dd title={aws.role_arn}>{aws.role_arn.split("/").pop()}</dd></div><div><dt>Regiões</dt><dd>{aws.regions.join(", ")}</dd></div><div><dt>Agendamento</dt><dd>{aws.schedule_enabled ? `A cada ${aws.scan_interval_hours}h` : "Desativado"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : oci ? <dl><div><dt>Usuário OCI</dt><dd title={oci.user_ocid}>{oci.user_ocid}</dd></div><div><dt>Região de conexão</dt><dd>{oci.region}</dd></div><div><dt>Escopo</dt><dd>{oci.compartment_ocids.length ? `${oci.compartment_ocids.length} compartment(s)` : oci.include_root_compartment ? "Tenancy root" : "Nenhum compartment"}</dd></div><div><dt>Credencial</dt><dd>{oci.credentials_configured ? "API Key configurada" : "Não configurada"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : <p>Provider cadastrado sem integração operacional disponível nesta etapa.</p>}
               {account.last_error && <div className="account-error" title={account.last_error}>{account.last_error}</div>}
-              {(canManageAccounts || canAnalyze) && <div className="account-actions">{canManageAccounts && aws && <button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button>}{canAnalyze && aws && <button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button>}</div>}
+              {(canManageAccounts || canAnalyze) && <div className="account-actions">{canManageAccounts && connectionSupported && <button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button>}{canAnalyze && aws && <button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button>}</div>}
             </article>
           );
         })}
