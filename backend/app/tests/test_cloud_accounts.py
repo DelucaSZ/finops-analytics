@@ -232,9 +232,7 @@ def test_common_identity_is_immutable_and_uniqueness_is_database_backed(auth_env
     assert duplicate.status_code == 409
 
 
-def test_oci_create_is_encrypted_sanitized_and_duplicate_safe(
-    auth_env, oci_encryption_key
-):
+def test_oci_create_is_encrypted_sanitized_and_duplicate_safe(auth_env, oci_encryption_key):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key(marker=True)
     payload = _oci_payload(pem, fingerprint)
@@ -259,9 +257,9 @@ def test_oci_create_is_encrypted_sanitized_and_duplicate_safe(
             )
         )
         assert stored.private_key_ciphertext != pem
-        decrypted = Fernet(oci_encryption_key).decrypt(
-            stored.private_key_ciphertext.encode()
-        ).decode()
+        decrypted = (
+            Fernet(oci_encryption_key).decrypt(stored.private_key_ciphertext.encode()).decode()
+        )
         assert "BEGIN PRIVATE KEY" in decrypted
         assert "OCI_API_KEY" not in decrypted
         assert stored.credential_key_version == "test-v1"
@@ -306,9 +304,7 @@ def test_oci_rejects_wrong_ocid_types_without_echoing_secret(
     assert pem not in response.text
 
 
-def test_provider_specific_configuration_cannot_cross_providers(
-    auth_env, oci_encryption_key
-):
+def test_provider_specific_configuration_cannot_cross_providers(auth_env, oci_encryption_key):
     client, _, tokens, _ = auth_env
     pem, fingerprint = _api_key()
 
@@ -392,9 +388,12 @@ def test_oci_missing_or_invalid_encryption_key_fails_closed_without_breaking_aws
     assert aws.status_code == 200
     assert any(item["provider"] == "aws" for item in aws.json())
     with Session(engine) as db:
-        assert db.scalar(
-            select(func.count()).select_from(CloudAccount).where(CloudAccount.provider == "oci")
-        ) == 0
+        assert (
+            db.scalar(
+                select(func.count()).select_from(CloudAccount).where(CloudAccount.provider == "oci")
+            )
+            == 0
+        )
 
 
 def test_oci_update_without_key_preserves_ciphertext_and_invalidates_connection(
@@ -452,9 +451,7 @@ def test_oci_update_without_key_preserves_ciphertext_and_invalidates_connection(
     assert removal.status_code == 422
 
 
-def test_oci_explicit_credential_removal_is_unambiguous_and_audited(
-    auth_env, oci_encryption_key
-):
+def test_oci_explicit_credential_removal_is_unambiguous_and_audited(auth_env, oci_encryption_key):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     created = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()
@@ -723,18 +720,14 @@ def test_oci_connection_result_cannot_validate_a_newer_configuration(
         ),
     ],
 )
-def test_oci_sdk_errors_are_classified_without_exposing_raw_messages(
-    exception, expected_code
-):
+def test_oci_sdk_errors_are_classified_without_exposing_raw_messages(exception, expected_code):
     error = _remote_failure(exception)
     assert error.code == expected_code
     assert "raw " not in error.safe_message
     assert "internal URL" not in error.safe_message
 
 
-def test_oci_audit_is_admin_only_and_contains_no_credential_material(
-    auth_env, oci_encryption_key
-):
+def test_oci_audit_is_admin_only_and_contains_no_credential_material(auth_env, oci_encryption_key):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     account_id = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()["id"]
@@ -766,17 +759,18 @@ def test_oci_audit_is_admin_only_and_contains_no_credential_material(
         == 403
     )
     with Session(engine) as db:
-        assert db.scalar(
-            select(func.count())
-            .select_from(CloudAccountAuditEvent)
-            .where(CloudAccountAuditEvent.account_id == account_id)
-        ) >= 2
+        assert (
+            db.scalar(
+                select(func.count())
+                .select_from(CloudAccountAuditEvent)
+                .where(CloudAccountAuditEvent.account_id == account_id)
+            )
+            >= 2
+        )
 
 
 @pytest.mark.parametrize("role", ["operator", "viewer"])
-def test_oci_mutations_and_connection_test_remain_admin_only(
-    auth_env, oci_encryption_key, role
-):
+def test_oci_mutations_and_connection_test_remain_admin_only(auth_env, oci_encryption_key, role):
     client, _, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     account_id = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()["id"]
@@ -798,9 +792,7 @@ def test_oci_mutations_and_connection_test_remain_admin_only(
     )
 
 
-def test_oci_account_cannot_enter_aws_scan_pipeline(
-    auth_env, oci_encryption_key
-):
+def test_oci_account_cannot_enter_aws_scan_pipeline(auth_env, oci_encryption_key):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     created = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()
