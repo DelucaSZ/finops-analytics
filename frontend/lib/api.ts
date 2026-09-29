@@ -70,11 +70,22 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       "Administrator access required": "Acesso disponível somente para administradores.",
       "Administrator access changed; sign in again": "Suas permissões mudaram. Entre novamente.",
     };
+    const fallbackByStatus: Record<number, string> = {
+      403: "Você não tem permissão para realizar esta ação.",
+      404: "O recurso solicitado não foi encontrado.",
+      410: "Os dados históricos detalhados não estão mais disponíveis pela política de retenção.",
+      422: "Confira os campos preenchidos e tente novamente.",
+      429: "Muitas solicitações em pouco tempo. Tente novamente em instantes.",
+    };
     const message = detail === "reauthentication_required"
       ? "Confirme sua identidade em Minha segurança antes de continuar."
       : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
       : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
-      : translated[detail] || detail || `Erro HTTP ${response.status}`;
+      : translated[detail]
+        || (response.status >= 500
+          ? "Não foi possível concluir a solicitação. Tente novamente."
+          : fallbackByStatus[response.status])
+        || (typeof detail === "string" && !detail.includes("Traceback") ? detail : "Não foi possível concluir a solicitação.");
     throw new ApiError(message, response.status, typeof detail === "string" ? detail : undefined);
   }
   if (response.status === 204) return undefined as T;
