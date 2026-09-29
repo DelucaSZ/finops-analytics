@@ -1,4 +1,9 @@
-from app.models.account import AwsAccount, CloudAccount
+from app.models.account import (
+    AwsAccount,
+    CloudAccount,
+    CloudAccountAuditEvent,
+    OciAccountConfiguration,
+)
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.dashboard_summary import DashboardAccountSummary
@@ -20,6 +25,8 @@ __all__ = [
     "LoginSession",
     "AwsAccount",
     "CloudAccount",
+    "CloudAccountAuditEvent",
+    "OciAccountConfiguration",
     "CollectionRun",
     "CollectionRunStatus",
     "DashboardAccountSummary",
