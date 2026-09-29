@@ -31,9 +31,45 @@ jobs:
         run: docker compose config --quiet
       - name: Build application images
         run: docker compose build api worker web
-      - name: Start stack
-        run: docker compose up -d db api worker web proxy
-      - name: Wait for API and proxy health
+      - name: Start database
+        run: docker compose up -d db
+      - name: Wait for database
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$(docker compose ps -q db)")
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color --tail=200 db
+          exit 1
+      - name: Start API and worker
+        run: docker compose up -d --no-deps api worker
+      - name: Wait for API health
+        run: |
+          set -euo pipefail
+          api_id=$(docker compose ps -q api)
+          for attempt in $(seq 1 30); do
+            status=$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' "$api_id")
+            if [ "$status" = "healthy" ]; then
+              exit 0
+            fi
+            if [ "$(docker inspect -f '{{.State.Status}}' "$api_id")" = "exited" ]; then
+              break
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color --tail=250 api worker
+          exit 1
+      - name: Start web and proxy
+        run: |
+          docker compose up -d --no-deps web
+          docker compose up -d --no-deps proxy
+      - name: Validate proxy and application
         run: |
           set -euo pipefail
           for attempt in $(seq 1 30); do
@@ -45,7 +81,7 @@ jobs:
             sleep 2
           done
           docker compose ps
-          docker compose logs --no-color --tail=200
+          docker compose logs --no-color --tail=250 api worker web proxy
           exit 1
       - name: Check for restart loops
         run: |
