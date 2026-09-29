@@ -7,7 +7,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.cloud import CloudProvider, normalize_provider, validate_native_account_id
-from app.core.config import settings
 from app.models.account import (
     AwsAccount,
     CloudAccount,
