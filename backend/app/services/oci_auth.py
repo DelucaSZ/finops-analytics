@@ -100,6 +100,11 @@ def snapshot_from_configuration(
     account: CloudAccount,
     configuration: OciAccountConfiguration,
 ) -> OciConnectionSnapshot:
+    if not configuration.private_key_ciphertext or not configuration.credential_key_version:
+        raise OciConnectionError(
+            "local_configuration_invalid",
+            "OCI API signing credential is not configured",
+        )
     try:
         private_key_pem = decrypt_secret(
             configuration.private_key_ciphertext,
