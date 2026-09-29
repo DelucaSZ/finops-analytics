@@ -154,6 +154,27 @@ export function CollectionWorkspace({
     state.date_to ||
     state.analyzer_version,
   );
+  const selectedAccount = options.accounts.find(
+    (account) =>
+      (!state.provider || account.provider === state.provider) &&
+      account.account_id === state.account_id,
+  );
+  const activeFilters: Array<{ label: string; value: string }> = [];
+  if (state.provider) activeFilters.push({ label: "Cloud", value: providerLabel(state.provider) });
+  if (state.account_id) activeFilters.push({
+    label: "Conta",
+    value: selectedAccount?.account_name || state.account_id,
+  });
+  if (state.status) activeFilters.push({
+    label: "Status",
+    value: COLLECTION_STATUSES[state.status] || state.status,
+  });
+  if (state.date_from) activeFilters.push({ label: "Desde", value: formatDate(state.date_from) });
+  if (state.date_to) activeFilters.push({ label: "Até", value: formatDate(state.date_to) });
+  if (state.analyzer_version) activeFilters.push({
+    label: "Versão",
+    value: state.analyzer_version,
+  });
   const detailHref = (id: string) =>
     `/collections/${encodeURIComponent(id)}?${query}`;
   const change = (patch: Record<string, string | number>) =>
@@ -241,13 +262,15 @@ export function CollectionWorkspace({
         >
           <div className="opportunity-filter-heading">
             <strong>Filtros de coletas</strong>
-            <button
-              type="button"
-              className="filter-clear"
-              onClick={() => router.push("/collections")}
-            >
-              Limpar filtros
-            </button>
+            {hasFilters && (
+              <button
+                type="button"
+                className="filter-clear"
+                onClick={() => router.push("/collections")}
+              >
+                Limpar filtros
+              </button>
+            )}
           </div>
           <div className="opportunity-filter-grid">
             <label className="opportunity-filter">
@@ -367,6 +390,19 @@ export function CollectionWorkspace({
               </div>
             </label>
           </div>
+          {activeFilters.length > 0 && (
+            <div className="active-filter-summary" aria-label="Filtros ativos">
+              <strong>Filtros ativos</strong>
+              <div className="filter-chip-list">
+                {activeFilters.map((filter) => (
+                  <span className="filter-chip" key={`${filter.label}:${filter.value}`}>
+                    <span>{filter.label}</span>
+                    {filter.value}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
           {optionsError && (
             <p role="status">
               Não foi possível carregar sugestões. Você ainda pode informar a
@@ -617,7 +653,7 @@ export function CollectionWorkspace({
       {collectionId && detail && (
         <section className="panel collection-detail" aria-busy={loading}>
           <div className="collection-toolbar">
-            <h2>CollectionRun</h2>
+            <h2>Coleta</h2>
             <RunStatus run={detail} />
           </div>
           <code className="collection-id">{detail.id}</code>
@@ -627,7 +663,7 @@ export function CollectionWorkspace({
             <div className="alert" role="status">
               <strong>Detalhes históricos expirados.</strong>
               <p>
-                O resumo desta CollectionRun foi preservado, mas as observações detalhadas
+                O resumo desta coleta foi preservado, mas as observações detalhadas
                 já não estão disponíveis pela política de retenção.
               </p>
             </div>
@@ -727,8 +763,8 @@ export function CollectionWorkspace({
             </div>
           </dl>
           <p>
-            O total encontrado é persistido na CollectionRun. A contagem de detalhes
-            retidos representa apenas observations ainda disponíveis no banco; o total
+            O total encontrado é persistido no resumo da coleta. A contagem de detalhes
+            retidos representa apenas observações ainda disponíveis no banco; o total
             de recursos ainda não é medido pelo coletor atual.
           </p>
           {detail.detailed_observations_available ? (
@@ -745,7 +781,7 @@ export function CollectionWorkspace({
           ) : (
             <p className="collection-note">
               A listagem detalhada desta coleta não é exibida porque a ausência de
-              observations expiradas não significa que a coleta encontrou zero oportunidades.
+              observações expiradas não significa que a coleta encontrou zero oportunidades.
             </p>
           )}
         </section>

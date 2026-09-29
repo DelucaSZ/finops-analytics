@@ -21,7 +21,7 @@ const nav = [
   { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/accounts", label: "Contas AWS", icon: Building2 },
   { href: "/policies", label: "Políticas", icon: Settings2 },
-  { href: "/scans", label: "Execuções", icon: Activity },
+  { href: "/scans", label: "Análises AWS", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
 
@@ -36,9 +36,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const clearPrivateCache = () => clearApiQueryCache();
+    const redirectAfterAuthBoundary = (event: Event) => {
+      const path = (event as CustomEvent<{ path?: string }>).detail?.path;
+      if (!path) return;
+      clearApiQueryCache();
+      setReady(false);
+      router.replace(path);
+    };
     window.addEventListener("deepops:session-invalidated", clearPrivateCache);
-    return () => window.removeEventListener("deepops:session-invalidated", clearPrivateCache);
-  }, []);
+    window.addEventListener("deepops:auth-redirect", redirectAfterAuthBoundary);
+    return () => {
+      window.removeEventListener("deepops:session-invalidated", clearPrivateCache);
+      window.removeEventListener("deepops:auth-redirect", redirectAfterAuthBoundary);
+    };
+  }, [router]);
 
   useEffect(() => {
     let active = true;

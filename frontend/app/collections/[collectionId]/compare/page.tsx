@@ -5,8 +5,8 @@ import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useCallback, useEffect, useMemo } from "react";
 import { ArrowRight, ChevronLeft, ChevronRight, GitCompareArrows } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
-import { formatDate } from "@/lib/api";
+import { StatusBadge, statusLabel } from "@/components/status-badge";
+import { ApiError, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
@@ -95,7 +95,7 @@ function changeLabel(change: CollectionComparisonChange) {
 
 export default function CollectionComparisonPage() {
   return (
-    <Suspense fallback={<div className={styles.state}>Comparando CollectionRuns…</div>}>
+    <Suspense fallback={<div className={styles.state}>Comparando coletas…</div>}>
       <CollectionComparisonContent />
     </Suspense>
   );
@@ -150,7 +150,13 @@ function CollectionComparisonContent() {
   const comparison = comparisonRequest.data ?? null;
   const options = optionsRequest.data ?? [];
   const loading = comparisonRequest.isLoading;
-  const error = comparisonRequest.error?.message || "";
+  const error = comparisonRequest.error
+    ? comparisonRequest.error instanceof ApiError && comparisonRequest.error.status === 404
+      ? "Coleta não encontrada."
+      : comparisonRequest.error instanceof ApiError && comparisonRequest.error.status === 410
+        ? "A comparação detalhada não está mais disponível pela política de retenção."
+        : comparisonRequest.error.message
+    : "";
 
   const updateUrl = useCallback(
     (patch: Record<string, string | number | null>) => {
@@ -209,7 +215,7 @@ function CollectionComparisonContent() {
   ]);
 
   if (loading && !comparison) {
-    return <div className={styles.state}>Comparando CollectionRuns…</div>;
+    return <div className={styles.state}>Comparando coletas…</div>;
   }
 
   if (error && !comparison) {
@@ -226,6 +232,17 @@ function CollectionComparisonContent() {
   const summary = comparison.summary;
   const selectedCategory = categories.find((item) => item.value === category) ?? categories[0];
   const financial = comparison.financial_summary;
+  const comparisonReturnParams = new URLSearchParams({
+    category,
+    page: String(page),
+  });
+  if (selectedBaseline) comparisonReturnParams.set("baseline_id", selectedBaseline.id);
+  const comparisonReturnTo = `/collections/${encodeURIComponent(collectionId)}/compare?${comparisonReturnParams.toString()}`;
+  const unavailableMessage =
+    comparison.reason === "OBSERVATIONS_EXPIRED"
+      ? "A comparação detalhada está indisponível porque as observações históricas de uma das coletas expiraram pela política de retenção. Os resumos das coletas e o histórico de decisões permanecem preservados."
+      : comparison.message ||
+        "Não existe uma coleta anterior compatível disponível para comparação.";
 
   return (
     <>
@@ -238,8 +255,8 @@ function CollectionComparisonContent() {
             <Link className="button ghost" href={`/collections/${comparison.target.id}`}>
               Abrir coleta atual
             </Link>
-            <Link className="button ghost" href="/scans">
-              Execuções
+            <Link className="button ghost" href="/collections">
+              Ver todas as coletas
             </Link>
           </div>
         }
@@ -259,7 +276,7 @@ function CollectionComparisonContent() {
 
       <section className={`panel ${styles.compareHeader}`}>
         <div className={styles.runSide}>
-          <span className="eyebrow">ANTERIOR</span>
+          <span className="eyebrow">COLETA BASE</span>
           {selectedBaseline ? (
             <>
               <Link href={`/collections/${selectedBaseline.id}`}>
@@ -268,7 +285,7 @@ function CollectionComparisonContent() {
               <strong>
                 {providerLabel(selectedBaseline.provider)} · {selectedBaseline.account_id}
               </strong>
-              <span>Rules {selectedBaseline.rules_version || "não registrada"}</span>
+              <span>Regras {selectedBaseline.rules_version || "não registrada"}</span>
             </>
           ) : (
             <strong>Sem baseline disponível</strong>
@@ -276,14 +293,14 @@ function CollectionComparisonContent() {
         </div>
         <GitCompareArrows size={25} />
         <div className={styles.runSide}>
-          <span className="eyebrow">ATUAL</span>
+          <span className="eyebrow">COLETA ALVO</span>
           <Link href={`/collections/${comparison.target.id}`}>
             {formatDate(comparison.target.started_at)}
           </Link>
           <strong>
             {providerLabel(comparison.target.provider)} · {comparison.target.account_id}
           </strong>
-          <span>Rules {comparison.target.rules_version || "não registrada"}</span>
+          <span>Regras {comparison.target.rules_version || "não registrada"}</span>
         </div>
         <label className={styles.baselinePicker}>
           Comparar com
@@ -297,7 +314,7 @@ function CollectionComparisonContent() {
             {!options.length && <option value="">Nenhuma coleta compatível</option>}
             {options.map((option) => (
               <option value={option.id} key={option.id}>
-                {formatDate(option.started_at)} · {option.status} · Rules{" "}
+                {formatDate(option.started_at)} · {statusLabel(option.status)} · Regras{" "}
                 {option.rules_version || "n/d"}
                 {!option.detailed_observations_available ? " · detalhe expirado" : ""}
               </option>
@@ -308,8 +325,7 @@ function CollectionComparisonContent() {
 
       {!comparison.available && (
         <div className={`alert ${styles.notice}`}>
-          {comparison.message ||
-            "Não existe uma coleta anterior compatível disponível para comparação."}
+          {unavailableMessage}
         </div>
       )}
 
@@ -451,9 +467,13 @@ function CollectionComparisonContent() {
                             >
                               <strong>{changeLabel(change)}</strong>
                               <span>
-                                {displayValue(change.baseline, change.unit)}
+                                {change.type === "severity" || change.type === "confidence"
+                                  ? statusLabel(String(change.baseline ?? ""))
+                                  : displayValue(change.baseline, change.unit)}
                                 <ArrowRight size={13} />
-                                {displayValue(change.target, change.unit)}
+                                {change.type === "severity" || change.type === "confidence"
+                                  ? statusLabel(String(change.target ?? ""))
+                                  : displayValue(change.target, change.unit)}
                               </span>
                             </div>
                           ))}
@@ -485,7 +505,7 @@ function CollectionComparisonContent() {
                                 selectedBaseline.id,
                               )}`
                             : ""
-                        }`}
+                        }&return_to=${encodeURIComponent(comparisonReturnTo)}`}
                       >
                         Abrir oportunidade
                       </Link>

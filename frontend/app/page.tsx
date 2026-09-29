@@ -200,7 +200,7 @@ function DashboardContent() {
         <div className="dashboard-scope-copy">
           <span className="eyebrow">ESCOPO ATUAL</span>
           <strong>{scopeDescription}</strong>
-          <p>Dados consolidados das últimas coletas SUCCESS de cada cloud/conta.</p>
+          <p>Dados consolidados das últimas coletas concluídas com sucesso de cada cloud/conta.</p>
         </div>
         <div className="dashboard-scope-controls">
           <label>
@@ -299,7 +299,7 @@ function DashboardContent() {
 
       {noValidData && (
         <div className="alert error" role="alert">
-          Existem execuções neste escopo, mas nenhuma coleta SUCCESS disponível para representar o estado atual. Consulte a saúde das coletas abaixo.
+          Existem execuções neste escopo, mas nenhuma coleta concluída com sucesso está disponível para representar o estado atual. Consulte a saúde das coletas abaixo.
         </div>
       )}
 
@@ -592,7 +592,7 @@ function DashboardContent() {
                 {health.valid_with_warnings > 0 && (
                   <span>
                     <TriangleAlert size={16} />
-                    {health.valid_with_warnings} SUCCESS com avisos
+                    {health.valid_with_warnings} concluída(s) com avisos
                   </span>
                 )}
               </div>
@@ -626,10 +626,10 @@ function DashboardContent() {
                               <Link href={`/collections/${encodeURIComponent(item.latest_valid.id)}`}>
                                 {formatDate(item.latest_valid.started_at)}
                               </Link>
-                              {item.latest_valid.has_warnings && <small>SUCCESS com avisos</small>}
+                              {item.latest_valid.has_warnings && <small>Concluída com avisos</small>}
                             </>
                           ) : (
-                            <strong className="dashboard-missing-valid">Sem SUCCESS</strong>
+                            <strong className="dashboard-missing-valid">Sem coleta válida</strong>
                           )}
                         </td>
                       </tr>

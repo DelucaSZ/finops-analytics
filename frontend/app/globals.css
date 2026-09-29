@@ -55,6 +55,8 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .button.primary:hover:not(:disabled) { background: #70edc6; transform: translateY(-1px); }
 .button.ghost { color: var(--text); border-color: var(--border-strong); background: rgba(255,255,255,.025); }
 .button.ghost:hover:not(:disabled) { border-color: rgba(85,229,182,.35); background: rgba(85,229,182,.05); }
+.button.danger { color: #ffb0b4; border-color: rgba(255,107,114,.34); background: rgba(255,107,114,.07); }
+.button.danger:hover:not(:disabled) { color: #ffd0d2; border-color: rgba(255,107,114,.62); background: rgba(255,107,114,.12); }
 .button.small { min-height: 40px; padding: 0 12px; }
 .button.full { width: 100%; }
 .icon-button { width: 44px; height: 44px; display: grid; place-items: center; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: var(--surface-2); cursor: pointer; }
@@ -97,7 +99,7 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .status-badge { display: inline-flex; align-items: center; justify-content: center; min-height: 28px; padding: 3px 10px; border-radius: 99px; font-size: .75rem; font-weight: 800; white-space: nowrap; }
 .status-high, .status-error, .status-failed { color: #ff9499; background: rgba(255,107,114,.11); }
 .status-medium, .status-pending, .status-completed_with_warnings { color: #ffd176; background: rgba(249,189,79,.11); }
-.status-low, .status-connected, .status-completed, .status-open { color: #70e8c1; background: rgba(85,229,182,.1); }
+.status-low, .status-connected, .status-completed, .status-success, .status-open { color: #70e8c1; background: rgba(85,229,182,.1); }
 .status-untested, .status-rejected { color: #aab4c4; background: rgba(148,163,184,.1); }
 .status-running, .status-treated { color: #83bbff; background: rgba(97,169,255,.1); }
 .severity-panel { min-height: 390px; }
@@ -122,6 +124,8 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .alert { display: flex; align-items: center; gap: 9px; margin: -7px 0 18px; padding: 12px 15px; border-radius: 10px; font-size: .875rem; }
 .alert.error { color: #ffb0b4; border: 1px solid rgba(255,107,114,.19); background: rgba(255,107,114,.07); }
 .alert.success { color: #87edcb; border: 1px solid rgba(85,229,182,.19); background: rgba(85,229,182,.07); }
+.alert > div, .alert > p { min-width: 0; }
+.alert p { margin: 4px 0 0; color: inherit; }
 .summary-strip { display: flex; align-items: stretch; gap: 1px; width: max-content; min-width: 370px; margin-bottom: 16px; overflow: hidden; border: 1px solid var(--border); border-radius: 11px; background: var(--border); }
 .summary-strip > div { min-width: 160px; display: grid; grid-template-columns: 1fr; gap: 4px 9px; padding: 16px 20px; background: var(--surface); }
 .summary-strip > div:has(svg) { grid-template-columns: auto 1fr; }
@@ -130,6 +134,11 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .summary-strip strong { font-size: 1.25rem; font-variant-numeric: tabular-nums; }
 .table-panel { overflow: hidden; }
 .toolbar { display: flex; gap: 10px; padding: 15px 18px; border-bottom: 1px solid var(--border); }
+.active-filter-summary { display: flex; align-items: flex-start; gap: 12px; padding: 0 18px 16px; color: var(--muted); font-size: .8125rem; }
+.active-filter-summary > strong { flex: 0 0 auto; padding-top: 5px; color: var(--text); font-size: .75rem; text-transform: uppercase; letter-spacing: .45px; }
+.filter-chip-list { min-width: 0; display: flex; flex-wrap: wrap; gap: 7px; }
+.filter-chip { max-width: min(100%, 360px); overflow: hidden; padding: 5px 9px; border: 1px solid var(--border); border-radius: 99px; color: var(--text); background: rgba(255,255,255,.025); white-space: nowrap; text-overflow: ellipsis; }
+.filter-chip > span { margin-right: 5px; color: var(--muted-2); font-size: .72rem; font-weight: 750; }
 .search-field, .select-field { min-height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 11px; border: 1px solid var(--border); border-radius: 8px; color: var(--muted); background: rgba(255,255,255,.02); }
 .search-field { width: min(420px, 55%); }
 .search-field input, .select-field select { width: 100%; border: 0; outline: 0; color: var(--text); background: transparent; }

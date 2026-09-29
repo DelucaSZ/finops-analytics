@@ -57,7 +57,7 @@ test("home uses aggregated dashboard APIs and no longer rebuilds metrics from ac
   assert.match(page, /\/collections\/options/);
   assert.match(page, /current: "true"/);
   assert.match(page, /Última execução x última coleta válida/);
-  assert.match(page, /Sem SUCCESS/);
+  assert.match(page, /Sem coleta válida/);
   assert.doesNotMatch(page, /api<AwsAccount\[]>/);
   assert.doesNotMatch(page, /Cobertura inicial/);
   assert.doesNotMatch(page, />9\/9</);
