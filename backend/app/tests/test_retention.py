@@ -185,8 +185,7 @@ def test_cleanup_batches_is_idempotent_and_keeps_occurrence_total(db):
     assert db.scalar(select(func.count()).select_from(OpportunityObservation)) == 0
     assert db.get(Finding, finding.id).total_occurrence_count == 12
     assert all(
-        run.detailed_observations_available is False
-        for run in db.scalars(select(CollectionRun))
+        run.detailed_observations_available is False for run in db.scalars(select(CollectionRun))
     )
 
     second = cleanup_observations(
@@ -385,10 +384,10 @@ def test_latest_home_runs_are_protected_while_older_detail_expires(db):
         max_rows=0,
     )
     assert result.deleted_observations == 1
-    assert {
-        item.collection_run_id
-        for item in db.scalars(select(OpportunityObservation))
-    } == {"home-baseline", "home-target"}
+    assert {item.collection_run_id for item in db.scalars(select(OpportunityObservation))} == {
+        "home-baseline",
+        "home-target",
+    }
     assert db.get(CollectionRun, "home-old").detailed_observations_available is False
     assert db.get(CollectionRun, "home-baseline").detailed_observations_available is True
     assert db.get(CollectionRun, "home-target").detailed_observations_available is True
