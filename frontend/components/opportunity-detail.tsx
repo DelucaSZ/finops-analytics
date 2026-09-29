@@ -163,7 +163,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
                 <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
-                <div><dt>Ocorrências registradas</dt><dd>{observations?.total ?? "—"}</dd></div>
+                <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
+                <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
                 <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
               </dl>
             </section>
@@ -228,8 +229,24 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                   <h3 id="detection-history-title"><Clock3 size={18} /> Histórico de detecção</h3>
                   <p>Observações factuais registradas pelas coletas. A mais recente aparece primeiro.</p>
                 </div>
-                {observations && <span>{observations.total} ocorrência(s)</span>}
+                {observations && (
+                  <span>
+                    {observations.retained_total} detalhe(s) retido(s) de{" "}
+                    {observations.total_occurrence_count} ocorrência(s)
+                  </span>
+                )}
               </div>
+              {observations && !observations.history_complete && (
+                <div className="alert" role="status">
+                  <strong>Histórico detalhado parcialmente expirado.</strong>
+                  <p>
+                    A configuração atual retém observações por {observations.retention_days} dias.
+                    Evidências intermediárias fora dessa janela podem ter sido removidas; primeira
+                    e última detecção, identidade da oportunidade e decisões humanas permanecem
+                    preservadas.
+                  </p>
+                </div>
+              )}
               {observations?.items.length ? (
                 <div className="history-list">
                   {observations.items.map((item) => (
@@ -261,8 +278,14 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                     </article>
                   ))}
                 </div>
-              ) : <p className="muted-copy">Nenhuma observação histórica disponível.</p>}
-              {observations && !historyExpanded && observations.total > 8 && (
+              ) : (
+                <p className="muted-copy">
+                  {observations && !observations.history_complete
+                    ? "Nenhuma observação detalhada permanece na janela atualmente retida."
+                    : "Nenhuma observação histórica disponível."}
+                </p>
+              )}
+              {observations && !historyExpanded && observations.retained_total > 8 && (
                 <button className="button ghost history-more" type="button" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</button>
               )}
               {observations && historyExpanded && observations.total_pages > 1 && (
