@@ -558,7 +558,7 @@ def test_stage17_migration_refuses_inconsistent_aws_identity(migration_engine):
             aws_table.insert().values(
                 id=99,
                 name="Invalid legacy identity",
-                aws_account_id="not-12-digits",
+                aws_account_id="ABCDEFGHIJKL",
                 role_arn="legacy",
                 external_id="legacy",
                 regions=["sa-east-1"],
