@@ -45,10 +45,9 @@ def retention_cutoff(*, days: int, now: datetime | None = None) -> datetime:
     if days <= 0:
         raise ValueError("Retention days must be greater than zero")
     current = now or datetime.now(UTC)
-    if current.tzinfo is None:
-        current = current.replace(tzinfo=UTC)
-    else:
-        current = current.astimezone(UTC)
+    current = (
+        current.replace(tzinfo=UTC) if current.tzinfo is None else current.astimezone(UTC)
+    )
     return current - timedelta(days=days)
 
 
