@@ -45,9 +45,7 @@ def retention_cutoff(*, days: int, now: datetime | None = None) -> datetime:
     if days <= 0:
         raise ValueError("Retention days must be greater than zero")
     current = now or datetime.now(UTC)
-    current = (
-        current.replace(tzinfo=UTC) if current.tzinfo is None else current.astimezone(UTC)
-    )
+    current = current.replace(tzinfo=UTC) if current.tzinfo is None else current.astimezone(UTC)
     return current - timedelta(days=days)
 
 
@@ -125,9 +123,8 @@ def retention_preview(
     account_id: str | None = None,
 ) -> RetentionPreview:
     run = aliased(CollectionRun, name="retention_preview_run")
-    scope = (
-        select(OpportunityObservation.id, OpportunityObservation.observed_at)
-        .join(run, OpportunityObservation.collection_run_id == run.id)
+    scope = select(OpportunityObservation.id, OpportunityObservation.observed_at).join(
+        run, OpportunityObservation.collection_run_id == run.id
     )
     scope = _scope(scope, run, provider=provider, account_id=account_id).subquery()
 
@@ -141,10 +138,7 @@ def retention_preview(
         account_id=account_id,
         eligible_only=False,
     ).subquery()
-    observations_before_cutoff = (
-        db.scalar(select(func.count()).select_from(old_rows))
-        or 0
-    )
+    observations_before_cutoff = db.scalar(select(func.count()).select_from(old_rows)) or 0
 
     eligible_rows = _old_rows_statement(
         cutoff=cutoff,
@@ -240,9 +234,7 @@ def cleanup_observations(
                 .values(detailed_observations_available=False)
             )
             result = db.execute(
-                delete(OpportunityObservation).where(
-                    OpportunityObservation.id.in_(observation_ids)
-                )
+                delete(OpportunityObservation).where(OpportunityObservation.id.in_(observation_ids))
             )
             db.commit()
         except Exception:
@@ -269,9 +261,7 @@ def cleanup_observations(
         )
 
     max_rows_reached = bool(
-        max_rows
-        and deleted_total >= max_rows
-        and deleted_total < preview.eligible_observations
+        max_rows and deleted_total >= max_rows and deleted_total < preview.eligible_observations
     )
     result = RetentionResult(
         cutoff=cutoff,
