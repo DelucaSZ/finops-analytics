@@ -61,6 +61,4 @@ def upgrade():
 
 
 def downgrade():
-    raise RuntimeError(
-        "Retention metadata preserves historical semantics; do not downgrade"
-    )
+    raise RuntimeError("Retention metadata preserves historical semantics; do not downgrade")
