@@ -2297,7 +2297,7 @@ avança para a Etapa 15**.
 
 ## Etapa 15 — refinamento final de UX e consistência integrada
 
-**Status:** implementação concluída na branch `stage-15-ux-polish`; validação automatizada e publicação na `main` registradas após o CI desta etapa.
+**Status:** implementação concluída e validada no PR #21. CI run #161 e Auto Deploy Tests run #154 aprovados no head funcional; a publicação na `main` é realizada após a revisão final do diff.
 
 ### Auditoria integrada
 
@@ -2345,7 +2345,16 @@ Foram adicionadas asserções frontend para os formatadores compartilhados, pres
 - validações de segurança e CloudFormation;
 - Auto Deploy Tests.
 
-O resultado final do CI, build, suites e publicação é registrado após a execução do PR desta etapa.
+Validação do head funcional no PR #21:
+- CI run #161 aprovado;
+- backend: 258 testes aprovados em PostgreSQL 17, `ruff check` e `ruff format --check` aprovados;
+- frontend: 36 testes aprovados; `next build` compilou, verificou tipos/lint e gerou 21 páginas com sucesso;
+- segurança: readiness checker, validação estática de exposição via Compose e template CloudFormation aprovados;
+- Auto Deploy Tests run #154 aprovado.
+
+O CI não sobe o stack completo `web/api/worker/db/proxy` via Docker Compose e o ambiente desta execução não possui acesso de rede para clonar o repositório localmente. Portanto não foi registrado como executado um smoke test completo de containers nem uma sessão browser E2E real. O PostgreSQL 17 de teste foi iniciado como service container e encerrou limpo. A cobertura integrada disponível permanece nas suítes backend/frontend e nos contratos de rotas, cache, lifecycle, comparação e retenção.
+
+Warnings não bloqueadores observados: uma depreciação Starlette/TestClient no backend; dependências npm reportaram 1 vulnerabilidade moderada e 1 alta durante `npm ci`; GitHub Actions reportou avisos de runtime Node deprecado em actions oficiais. Nenhum desses warnings foi introduzido pelas alterações da Etapa 15 e nenhum foi mascarado.
 
 ### Débitos técnicos restantes
 
@@ -2353,5 +2362,8 @@ O resultado final do CI, build, suites e publicação é registrado após a exec
 - onboarding/configuração de contas ainda é AWS-specific; a UI operacional comum já é provider-neutral, mas novos providers precisam de seus próprios conectores/configuração;
 - não existe suíte browser E2E real; os fluxos são cobertos por testes de contrato/unitários e validação integrada em CI, mas automação de navegador seria um roadmap separado;
 - métricas de Web Vitals/Lighthouse não possuem harness persistente no repositório, portanto nenhum número foi inventado.
+- a suíte atual não contém browser E2E nem smoke test do stack Compose completo; isso limita a validação automatizada de foco real, navegação modal e startup conjunto de web/api/worker/proxy.
+- o `npm ci` atual reporta 1 vulnerabilidade moderada e 1 alta nas dependências; deve ser tratado como manutenção de dependências separada, com análise de impacto antes de upgrades.
+- o backend emite um warning de depreciação Starlette/TestClient; deve ser absorvido em atualização futura da stack de testes.
 
 A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio.
