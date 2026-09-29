@@ -21,7 +21,7 @@ from app.api.routes import collections, dashboard, opportunities
 from app.core.security import require_user
 from app.db.base import Base
 from app.db.session import get_db
-from app.models.account import AwsAccount, CloudAccount
+from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
@@ -36,24 +36,12 @@ def seed(engine, accounts, per_account):
     evidence = {"volume_size_gb": 100, "padding": "x" * 2048}
     with engine.begin() as conn:
         for a in range(accounts):
+            native = f"{a:012d}"
             provider = ["aws", "oci", "azure", "gcp"][a % 4]
-            native = f"ocid1.tenancy.oc1..benchmark{a}" if provider == "oci" else f"{a:012d}"
-            common = conn.execute(
-                insert(CloudAccount).values(
-                    provider=provider,
-                    native_account_id=native,
-                    name=f"Account {a}",
-                    enabled=True,
-                    connection_status="untested",
-                    created_at=start,
-                    updated_at=start,
-                )
-            )
             if provider == "aws":
                 conn.execute(
                     insert(AwsAccount),
                     dict(
-                        cloud_account_id=common.inserted_primary_key[0],
                         name=f"Account {a}",
                         aws_account_id=native,
                         role_arn="synthetic",

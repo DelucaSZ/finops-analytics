@@ -2476,7 +2476,7 @@ pela Etapa 16.
 
 ## Etapa 17 — generalização do cadastro de contas
 
-**Status:** implementação em validação na branch `stage17-cloud-accounts`.
+**Status:** implementação concluída e validada no PR #23. A branch está publicada; merge na `main` e deploy de produção ainda não foram executados.
 
 ### Modelo comum e fonte de verdade
 
