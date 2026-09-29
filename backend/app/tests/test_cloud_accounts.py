@@ -332,7 +332,8 @@ def test_oci_invalid_pem_and_fingerprint_are_sanitized(auth_env, oci_encryption_
     client, _, tokens, _ = auth_env
     pem, fingerprint = _api_key()
 
-    malformed = _oci_payload("not-a-private-key", fingerprint)
+    malformed_pem = "-----BEGIN PRIVATE KEY-----\\n" + ("A" * 96) + "\\n-----END PRIVATE KEY-----"
+    malformed = _oci_payload(malformed_pem, fingerprint)
     response = _create_oci(client, tokens, malformed)
     assert response.status_code == 422
     assert "not-a-private-key" not in response.text
