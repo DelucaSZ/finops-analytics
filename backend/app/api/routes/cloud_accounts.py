@@ -106,8 +106,9 @@ def create_account(
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ):
+    actor_id = actor.id
     try:
-        account = create_cloud_account(db, payload, actor_id=actor.id)
+        account = create_cloud_account(db, payload, actor_id=actor_id)
         account_id = account.id
         db.commit()
         return get_cloud_account(db, account_id)
@@ -115,7 +116,7 @@ def create_account(
         if payload.provider == CloudProvider.OCI.value:
             _record_failed_oci_mutation(
                 db,
-                actor_id=actor.id,
+                actor_id=actor_id,
                 account_id=None,
                 native_account_id=payload.native_account_id,
                 action="oci.account.create",
@@ -135,7 +136,7 @@ def create_account(
         if payload.provider == CloudProvider.OCI.value:
             _record_failed_oci_mutation(
                 db,
-                actor_id=actor.id,
+                actor_id=actor_id,
                 account_id=None,
                 native_account_id=payload.native_account_id,
                 action="oci.account.create",
@@ -179,6 +180,7 @@ def update_account(
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ):
+    actor_id = actor.id
     account = _get_account(db, account_id)
     native_account_id = account.native_account_id
     provider = account.provider
@@ -195,7 +197,7 @@ def update_account(
                 db,
                 account,
                 payload,
-                actor_id=actor.id,
+                actor_id=actor_id,
             )
             db.commit()
             refreshed = get_cloud_account(db, account_id)
@@ -211,7 +213,7 @@ def update_account(
         if provider == CloudProvider.OCI.value:
             _record_failed_oci_mutation(
                 db,
-                actor_id=actor.id,
+                actor_id=actor_id,
                 account_id=account_id,
                 native_account_id=native_account_id,
                 action="oci.credentials.replace"
@@ -229,7 +231,7 @@ def update_account(
     except StaleOciConfiguration as exc:
         _record_failed_oci_mutation(
             db,
-            actor_id=actor.id,
+            actor_id=actor_id,
             account_id=account_id,
             native_account_id=native_account_id,
             action="oci.credentials.replace",
@@ -257,8 +259,9 @@ def delete_account(
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ) -> None:
+    actor_id = actor.id
     account = _get_account(db, account_id)
-    delete_cloud_account(db, account, actor_id=actor.id)
+    delete_cloud_account(db, account, actor_id=actor_id)
     db.commit()
 
 
@@ -392,7 +395,7 @@ def _persist_oci_test_result(
 def _test_oci_connection(
     account,
     db: Session,
-    actor: User,
+    actor_id: str,
 ) -> ConnectionTestResult:
     configuration = require_oci_configuration(account)
     account_id = account.id
@@ -407,7 +410,7 @@ def _test_oci_connection(
             db,
             account_id=account_id,
             expected_revision=expected_revision,
-            actor_id=actor.id,
+            actor_id=actor_id,
             tested_at=tested_at,
             error=exc,
             verified_checks=(),
@@ -428,7 +431,7 @@ def _test_oci_connection(
         db,
         account_id=account_id,
         expected_revision=expected_revision,
-        actor_id=actor.id,
+        actor_id=actor_id,
         tested_at=datetime.now(UTC),
         error=remote_error,
         verified_checks=checks,
@@ -444,11 +447,12 @@ def test_connection(
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ) -> ConnectionTestResult:
+    actor_id = actor.id
     account = _get_account(db, account_id)
     if account.provider == CloudProvider.AWS.value:
         return _test_aws_connection(account, db)
     if account.provider == CloudProvider.OCI.value:
-        return _test_oci_connection(account, db, actor)
+        return _test_oci_connection(account, db, actor_id)
     raise HTTPException(
         status_code=409,
         detail=f"Provider {account.provider} does not have a connection test in this stage",
