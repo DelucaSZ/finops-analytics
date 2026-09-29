@@ -5,14 +5,15 @@ import { Check, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
 import { canManagePolicies } from "@/lib/settings-navigation.mjs";
-import type { AwsAccount, Policy } from "@/lib/types";
+import type { CloudAccount, Policy } from "@/lib/types";
 
 type CurrentUser = { role: string };
+type AwsPolicyAccount = CloudAccount & { aws_configuration: NonNullable<CloudAccount["aws_configuration"]> };
 
 export default function PoliciesPage() {
   const [scope, setScope] = useState<"global" | "account">("global");
   const [accountId, setAccountId] = useState<number | null>(null);
-  const [accounts, setAccounts] = useState<AwsAccount[]>([]);
+  const [accounts, setAccounts] = useState<AwsPolicyAccount[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [role, setRole] = useState("");
   const [message, setMessage] = useState("");
@@ -21,18 +22,23 @@ export default function PoliciesPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api<AwsAccount[]>("/accounts"), api<CurrentUser>("/auth/me")])
+    Promise.all([api<CloudAccount[]>("/cloud-accounts"), api<CurrentUser>("/auth/me")])
       .then(([data, user]) => {
         if (!active) return;
-        setAccounts(data);
+        const awsAccounts = data.filter(
+          (account): account is AwsPolicyAccount =>
+            account.provider === "aws" && account.aws_configuration !== null,
+        );
+        setAccounts(awsAccounts);
         setRole(user.role);
-        if (data[0]) setAccountId(data[0].id);
+        if (awsAccounts[0]) setAccountId(awsAccounts[0].aws_configuration.id);
       })
       .catch((err) => {
         if (active) setError(err instanceof Error ? err.message : "Falha ao carregar configurações de políticas");
       });
     return () => { active = false; };
   }, []);
+
   useEffect(() => {
     if (scope === "account" && !accountId) return;
     setError("");
@@ -51,7 +57,7 @@ export default function PoliciesPage() {
       {message && <div className="alert success"><Check size={17} />{message}</div>}
       <section className="policy-scope-bar">
         <div className="segmented"><button className={scope === "global" ? "active" : ""} onClick={() => setScope("global")}>Padrão global</button><button className={scope === "account" ? "active" : ""} onClick={() => setScope("account")} disabled={!accounts.length}>Por conta</button></div>
-        {scope === "account" && <select value={accountId || ""} onChange={(e) => setAccountId(Number(e.target.value))}>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name} · {account.aws_account_id}</option>)}</select>}
+        {scope === "account" && <select value={accountId || ""} onChange={(e) => setAccountId(Number(e.target.value))}>{accounts.map((account) => <option key={account.id} value={account.aws_configuration.id}>{account.name} · {account.native_account_id}</option>)}</select>}
         <p>{scope === "global" ? "Aplicado automaticamente a todas as contas sem sobrescrita." : "Campos não selecionados continuam herdando o padrão global."}</p>
       </section>
       <section className="policies-list">

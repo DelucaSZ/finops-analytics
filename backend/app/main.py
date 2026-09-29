@@ -10,6 +10,7 @@ from app.api.routes import (
     accounts,
     audit,
     auth,
+    cloud_accounts,
     collections,
     dashboard,
     findings,
@@ -82,6 +83,7 @@ app.include_router(mfa.router, prefix="/api/v1")
 app.include_router(users.router, prefix="/api/v1")
 app.include_router(tls.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
+app.include_router(cloud_accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")

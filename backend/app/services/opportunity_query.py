@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, defer, load_only
 
 from app.core.cloud import CloudProvider
 from app.core.config import settings
-from app.models.account import AwsAccount
+from app.models.account import AwsAccount, CloudAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
@@ -34,8 +34,8 @@ class OpportunityFilters:
 
 def _account_join():
     return and_(
-        Finding.provider == CloudProvider.AWS.value,
-        Finding.account_id == AwsAccount.aws_account_id,
+        Finding.provider == CloudAccount.provider,
+        Finding.account_id == CloudAccount.native_account_id,
     )
 
 
@@ -51,7 +51,12 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
                 and_(
                     Finding.provider == CloudProvider.AWS.value,
                     select(AwsAccount.id)
-                    .where(_account_join(), cast(AwsAccount.id, String) == filters.account_id)
+                    .join(CloudAccount, AwsAccount.cloud_account_id == CloudAccount.id)
+                    .where(
+                        CloudAccount.provider == CloudProvider.AWS.value,
+                        CloudAccount.native_account_id == Finding.account_id,
+                        cast(AwsAccount.id, String) == filters.account_id,
+                    )
                     .correlate(Finding)
                     .exists(),
                 ),
@@ -141,14 +146,18 @@ def _page_meta(total: int, page: int, page_size: int) -> dict[str, int]:
     }
 
 
-def serialize_list_item(finding: Finding, account: AwsAccount | None) -> dict:
+def serialize_list_item(
+    finding: Finding,
+    account: CloudAccount | None,
+    aws_configuration: AwsAccount | None,
+) -> dict:
     return {
         "id": finding.id,
         "fingerprint": finding.fingerprint,
         "provider": finding.provider,
         "account_id": finding.account_id,
         "account_name": account.name if account else None,
-        "legacy_account_id": account.id if account else None,
+        "legacy_account_id": aws_configuration.id if aws_configuration else None,
         "rule_key": finding.rule_key,
         "service": finding.service,
         "region": finding.region,
@@ -181,13 +190,15 @@ def list_opportunities(
     order: str,
 ) -> dict:
     base = (
-        select(Finding, AwsAccount)
-        .outerjoin(AwsAccount, _account_join())
+        select(Finding, CloudAccount, AwsAccount)
+        .outerjoin(CloudAccount, _account_join())
+        .outerjoin(AwsAccount, AwsAccount.cloud_account_id == CloudAccount.id)
         .options(
             defer(Finding.evidence, raiseload=True),
             defer(Finding.treatment_note, raiseload=True),
             defer(Finding.rejection_note, raiseload=True),
-            load_only(AwsAccount.id, AwsAccount.name, raiseload=True),
+            load_only(CloudAccount.id, CloudAccount.name, raiseload=True),
+            load_only(AwsAccount.id, raiseload=True),
         )
     )
     base = _apply_filters(base, filters)
@@ -201,7 +212,10 @@ def list_opportunities(
     statement = statement.offset((page - 1) * page_size).limit(page_size)
     rows = db.execute(statement).all()
     return {
-        "items": [serialize_list_item(finding, account) for finding, account in rows],
+        "items": [
+            serialize_list_item(finding, account, aws_configuration)
+            for finding, account, aws_configuration in rows
+        ],
         **_page_meta(total, page, page_size),
     }
 
@@ -229,9 +243,9 @@ def opportunity_options(
     providers = list(db.scalars(select(Finding.provider).distinct().order_by(Finding.provider)))
 
     account_statement = (
-        select(Finding.provider, Finding.account_id, AwsAccount.name)
+        select(Finding.provider, Finding.account_id, CloudAccount.name)
         .select_from(Finding)
-        .outerjoin(AwsAccount, _account_join())
+        .outerjoin(CloudAccount, _account_join())
         .distinct()
     )
     if provider:
@@ -239,7 +253,7 @@ def opportunity_options(
     if search:
         pattern = f"%{search.strip()}%"
         account_statement = account_statement.where(
-            or_(Finding.account_id.ilike(pattern), AwsAccount.name.ilike(pattern))
+            or_(Finding.account_id.ilike(pattern), CloudAccount.name.ilike(pattern))
         )
     account_rows = db.execute(
         account_statement.order_by(Finding.provider, Finding.account_id).limit(limit)
@@ -325,13 +339,14 @@ def _serialize_observation(
 
 def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
     row = db.execute(
-        select(Finding, AwsAccount)
-        .outerjoin(AwsAccount, _account_join())
+        select(Finding, CloudAccount, AwsAccount)
+        .outerjoin(CloudAccount, _account_join())
+        .outerjoin(AwsAccount, AwsAccount.cloud_account_id == CloudAccount.id)
         .where(Finding.id == opportunity_id)
     ).one_or_none()
     if row is None:
         return None
-    finding, account = row
+    finding, account, aws_configuration = row
 
     latest_row = db.execute(
         select(OpportunityObservation, CollectionRun)
@@ -356,7 +371,7 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
             estimated_monthly_savings=finding.estimated_monthly_savings,
         )
     )
-    return serialize_list_item(finding, account) | {
+    return serialize_list_item(finding, account, aws_configuration) | {
         "scan_id": finding.scan_id,
         "treated_at": finding.treated_at,
         "treated_by": finding.treated_by,

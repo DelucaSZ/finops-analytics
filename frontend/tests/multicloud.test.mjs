@@ -77,3 +77,23 @@ test("stage 15 navigation removes the legacy executions duplicate and status bad
   assert.match(badge, /toLowerCase\(\)/);
   assert.match(badge, /success: "Concluída"/);
 });
+
+
+test("stage 17 settings uses the common account registry and keeps AWS legacy ids explicit", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const accounts = await readFile(
+    new URL("../app/settings/accounts/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const policies = await readFile(
+    new URL("../app/settings/policies/page.tsx", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(accounts, /\/cloud-accounts/);
+  assert.match(accounts, /native_account_id/);
+  assert.match(accounts, /aws_configuration\?\.id/);
+  assert.doesNotMatch(accounts, /api<AwsAccount\[]>\("\/accounts"/);
+  assert.match(policies, /\/cloud-accounts/);
+  assert.match(policies, /aws_configuration\.id/);
+});

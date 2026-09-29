@@ -1,4 +1,4 @@
-from app.models.account import AwsAccount
+from app.models.account import AwsAccount, CloudAccount
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.dashboard_summary import DashboardAccountSummary
@@ -19,6 +19,7 @@ __all__ = [
     "AuthRateLimit",
     "LoginSession",
     "AwsAccount",
+    "CloudAccount",
     "CollectionRun",
     "CollectionRunStatus",
     "DashboardAccountSummary",

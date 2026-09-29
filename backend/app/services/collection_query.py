@@ -5,8 +5,7 @@ from math import ceil
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
-from app.core.cloud import CloudProvider
-from app.models.account import AwsAccount
+from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
@@ -43,15 +42,15 @@ def apply_filters(statement, filters: CollectionFilters):
 def account_join():
     # Name enrichment only: unknown providers/accounts remain visible through the LEFT JOIN.
     return and_(
-        CollectionRun.provider == CloudProvider.AWS.value,
-        CollectionRun.account_id == AwsAccount.aws_account_id,
+        CollectionRun.provider == CloudAccount.provider,
+        CollectionRun.account_id == CloudAccount.native_account_id,
     )
 
 
 def base_query():
     return (
-        select(CollectionRun, AwsAccount.name, Scan.status.label("scan_status"))
-        .outerjoin(AwsAccount, account_join())
+        select(CollectionRun, CloudAccount.name, Scan.status.label("scan_status"))
+        .outerjoin(CloudAccount, account_join())
         .outerjoin(Scan, CollectionRun.scan_id == Scan.id)
     )
 
@@ -131,8 +130,8 @@ def collection_options(db, *, provider, search, limit):
         db.scalars(select(CollectionRun.provider).distinct().order_by(CollectionRun.provider))
     )
     statement = (
-        select(CollectionRun.provider, CollectionRun.account_id, AwsAccount.name)
-        .outerjoin(AwsAccount, account_join())
+        select(CollectionRun.provider, CollectionRun.account_id, CloudAccount.name)
+        .outerjoin(CloudAccount, account_join())
         .distinct()
     )
     if provider:
@@ -140,7 +139,7 @@ def collection_options(db, *, provider, search, limit):
     if search:
         pattern = f"%{search}%"
         statement = statement.where(
-            or_(CollectionRun.account_id.ilike(pattern), AwsAccount.name.ilike(pattern))
+            or_(CollectionRun.account_id.ilike(pattern), CloudAccount.name.ilike(pattern))
         )
     rows = db.execute(
         statement.order_by(CollectionRun.provider, CollectionRun.account_id).limit(limit + 1)
