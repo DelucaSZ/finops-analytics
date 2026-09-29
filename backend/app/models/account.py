@@ -125,9 +125,7 @@ class OciAccountConfiguration(TimestampMixin, Base):
 class CloudAccountAuditEvent(Base):
     __tablename__ = "cloud_account_audit_events"
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     account_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
     provider: Mapped[str] = mapped_column(String(16), nullable=False)
     native_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
