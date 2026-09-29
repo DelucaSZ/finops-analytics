@@ -22,6 +22,7 @@ class CollectionRunRead(BaseModel):
     status: str
     resources_analyzed: int
     opportunities_found: int
+    detailed_observations_available: bool
     analyzer_version: str | None
     error_detail: str | None
     created_at: datetime
@@ -91,6 +92,7 @@ class CollectionComparisonRun(BaseModel):
     finished_at: datetime | None
     status: str
     rules_version: str | None
+    detailed_observations_available: bool
 
 
 class CollectionComparisonWarning(BaseModel):

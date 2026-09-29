@@ -75,6 +75,25 @@ class Settings(BaseSettings):
         return self
 
     worker_poll_seconds: int = Field(5, alias="NUVEMIQ_WORKER_POLL_SECONDS")
+    retention_enabled: bool = Field(True, alias="NUVEMIQ_RETENTION_ENABLED")
+    opportunity_observation_retention_days: int = Field(
+        90,
+        ge=1,
+        le=3650,
+        alias="NUVEMIQ_OPPORTUNITY_OBSERVATION_RETENTION_DAYS",
+    )
+    retention_batch_size: int = Field(
+        5000,
+        ge=1,
+        le=50000,
+        alias="NUVEMIQ_RETENTION_BATCH_SIZE",
+    )
+    retention_max_rows_per_run: int = Field(
+        10000,
+        ge=0,
+        le=10_000_000,
+        alias="NUVEMIQ_RETENTION_MAX_ROWS_PER_RUN",
+    )
     demo_mode: bool = Field(False, alias="NUVEMIQ_DEMO_MODE")
     aws_default_region: str = Field("sa-east-1", alias="AWS_DEFAULT_REGION")
     aws_role_session_name: str = Field("nuvemiq-collector", alias="AWS_ROLE_SESSION_NAME")

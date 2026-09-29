@@ -282,6 +282,9 @@ def persist_findings(
             observations_by_opportunity[finding.id] = observation
         _refresh_observation(observation, item)
 
+        if observation_created:
+            finding.total_occurrence_count = int(finding.total_occurrence_count or 0) + 1
+
         is_latest_observation = observation_created and (
             finding.last_seen_at is None
             or _normalized_utc(observation.observed_at) >= _normalized_utc(finding.last_seen_at)

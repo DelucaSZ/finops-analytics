@@ -95,6 +95,7 @@ class OpportunityListItem(BaseModel):
     status: str
     first_seen_at: datetime
     last_seen_at: datetime
+    total_occurrence_count: int
     needs_review: bool
 
 
@@ -165,6 +166,12 @@ class ObservationPage(BaseModel):
     page_size: int
     total: int
     total_pages: int
+    retained_total: int
+    total_occurrence_count: int
+    history_complete: bool
+    retention_enabled: bool
+    retention_days: int
+    retention_cutoff: datetime
 
 
 class StatusHistoryRead(BaseModel):

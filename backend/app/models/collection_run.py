@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import JSON, DateTime, ForeignKey, Index, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, Integer, String, Text, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, TimestampMixin
@@ -43,5 +43,8 @@ class CollectionRun(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(16), nullable=False)
     resources_analyzed: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     opportunities_found: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    detailed_observations_available: Mapped[bool] = mapped_column(
+        Boolean, default=True, server_default=true(), nullable=False
+    )
     analyzer_version: Mapped[str | None] = mapped_column(String(80), nullable=True)
     error_detail: Mapped[str | None] = mapped_column(Text, nullable=True)

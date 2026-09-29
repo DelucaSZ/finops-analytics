@@ -299,6 +299,7 @@ function CollectionComparisonContent() {
               <option value={option.id} key={option.id}>
                 {formatDate(option.started_at)} · {option.status} · Rules{" "}
                 {option.rules_version || "n/d"}
+                {!option.detailed_observations_available ? " · detalhe expirado" : ""}
               </option>
             ))}
           </select>

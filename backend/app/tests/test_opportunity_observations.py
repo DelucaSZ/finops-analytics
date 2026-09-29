@@ -143,6 +143,7 @@ def test_two_collection_runs_reuse_opportunity_and_append_observations(db):
     assert db.scalar(select(func.count()).select_from(OpportunityObservation)) == 2
 
     opportunity = db.get(Finding, opportunity_id)
+    assert opportunity.total_occurrence_count == 2
     assert normalized_timestamp(opportunity.first_seen_at) == normalized_timestamp(first_seen_at)
     assert normalized_timestamp(opportunity.last_seen_at) == second_time
     assert opportunity.estimated_monthly_savings == Decimal("35.00")
@@ -188,6 +189,7 @@ def test_retry_same_collection_run_is_idempotent(db):
 
     opportunity = db.scalar(select(Finding))
     observation = db.scalar(select(OpportunityObservation))
+    assert opportunity.total_occurrence_count == 1
     assert normalized_timestamp(opportunity.first_seen_at) == first_time
     assert normalized_timestamp(opportunity.last_seen_at) == first_time
     assert opportunity.estimated_monthly_savings == Decimal("35.00")

@@ -621,7 +621,17 @@ export function CollectionWorkspace({
             <RunStatus run={detail} />
           </div>
           <code className="collection-id">{detail.id}</code>
-          <CollectionComparisonActions run={detail} />
+          {detail.detailed_observations_available ? (
+            <CollectionComparisonActions run={detail} />
+          ) : (
+            <div className="alert" role="status">
+              <strong>Detalhes históricos expirados.</strong>
+              <p>
+                O resumo desta CollectionRun foi preservado, mas as observações detalhadas
+                já não estão disponíveis pela política de retenção.
+              </p>
+            </div>
+          )}
           {detail.status === "FAILED" && (
             <div className="alert error" role="alert">
               <strong>Falha durante a coleta</strong>
@@ -704,23 +714,40 @@ export function CollectionWorkspace({
               </dd>
             </div>
             <div>
-              <dt>Oportunidades observadas</dt>
+              <dt>Oportunidades encontradas</dt>
+              <dd>
+                {detail.status === "RUNNING"
+                  ? "Aguardando conclusão"
+                  : number(detail.opportunities_found)}
+              </dd>
+            </div>
+            <div>
+              <dt>Detalhes de observação retidos</dt>
               <dd>{number(detail.opportunities_observed)}</dd>
             </div>
           </dl>
           <p>
-            A contagem de oportunidades observadas usa os registros vinculados a
-            esta coleta. O total de recursos ainda não é medido pelo coletor
-            atual.
+            O total encontrado é persistido na CollectionRun. A contagem de detalhes
+            retidos representa apenas observations ainda disponíveis no banco; o total
+            de recursos ainda não é medido pelo coletor atual.
           </p>
-          <Link className="button primary" href={collectionOpportunitiesUrl(detail.id)}>
-            Ver oportunidades desta coleta
-          </Link>
-          <p className="collection-note">
-            A tela abre na aba Abertas. Use também Tratadas e Rejeitadas; o
-            filtro desta coleta permanece aplicado. As evidências históricas
-            estão no detalhe de cada oportunidade.
-          </p>
+          {detail.detailed_observations_available ? (
+            <>
+              <Link className="button primary" href={collectionOpportunitiesUrl(detail.id)}>
+                Ver oportunidades desta coleta
+              </Link>
+              <p className="collection-note">
+                A tela abre na aba Abertas. Use também Tratadas e Rejeitadas; o
+                filtro desta coleta permanece aplicado. As evidências históricas
+                estão no detalhe de cada oportunidade.
+              </p>
+            </>
+          ) : (
+            <p className="collection-note">
+              A listagem detalhada desta coleta não é exibida porque a ausência de
+              observations expiradas não significa que a coleta encontrou zero oportunidades.
+            </p>
+          )}
         </section>
       )}
     </>
