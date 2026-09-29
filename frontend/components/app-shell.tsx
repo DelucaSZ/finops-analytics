@@ -21,7 +21,6 @@ const nav = [
   { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/accounts", label: "Contas AWS", icon: Building2 },
   { href: "/policies", label: "Políticas", icon: Settings2 },
-  { href: "/scans", label: "Execuções", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
 
