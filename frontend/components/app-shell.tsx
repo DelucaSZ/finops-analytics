@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
   Activity,
-  Building2,
   CloudCog,
   LayoutDashboard,
   LogOut,
@@ -19,8 +18,6 @@ const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/opportunities", label: "Oportunidades", icon: ScanSearch },
   { href: "/collections", label: "Coletas", icon: Activity },
-  { href: "/accounts", label: "Contas AWS", icon: Building2 },
-  { href: "/policies", label: "Políticas", icon: Settings2 },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
 

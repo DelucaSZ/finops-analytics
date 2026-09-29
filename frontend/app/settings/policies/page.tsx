@@ -4,17 +4,35 @@ import { useEffect, useState } from "react";
 import { Check, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
+import { canManagePolicies } from "@/lib/settings-navigation.mjs";
 import type { AwsAccount, Policy } from "@/lib/types";
+
+type CurrentUser = { role: string };
 
 export default function PoliciesPage() {
   const [scope, setScope] = useState<"global" | "account">("global");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [accounts, setAccounts] = useState<AwsAccount[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
+  const [role, setRole] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
+  const canManage = canManagePolicies(role);
 
-  useEffect(() => { api<AwsAccount[]>("/accounts").then((data) => { setAccounts(data); if (data[0]) setAccountId(data[0].id); }).catch(() => undefined); }, []);
+  useEffect(() => {
+    let active = true;
+    Promise.all([api<AwsAccount[]>("/accounts"), api<CurrentUser>("/auth/me")])
+      .then(([data, user]) => {
+        if (!active) return;
+        setAccounts(data);
+        setRole(user.role);
+        if (data[0]) setAccountId(data[0].id);
+      })
+      .catch((err) => {
+        if (active) setError(err instanceof Error ? err.message : "Falha ao carregar configurações de políticas");
+      });
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     if (scope === "account" && !accountId) return;
     setError("");
@@ -28,7 +46,7 @@ export default function PoliciesPage() {
 
   return (
     <>
-      <PageHeader eyebrow="MOTOR DE REGRAS" title="Políticas de análise" description="Defina padrões universais e sobrescreva apenas os campos necessários por conta." />
+      <PageHeader eyebrow="CONFIGURAÇÕES · POLÍTICAS" title="Políticas" description="Consulte os padrões de análise e, quando autorizado, configure sobrescritas por conta AWS." />
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success"><Check size={17} />{message}</div>}
       <section className="policy-scope-bar">
@@ -37,13 +55,13 @@ export default function PoliciesPage() {
         <p>{scope === "global" ? "Aplicado automaticamente a todas as contas sem sobrescrita." : "Campos não selecionados continuam herdando o padrão global."}</p>
       </section>
       <section className="policies-list">
-        {policies.map((policy) => <PolicyCard key={`${scope}-${accountId}-${policy.rule_key}-${policy.override_fields.join(".")}`} policy={policy} scope={scope} accountId={accountId} onSaved={async (text) => { setMessage(text); await refresh(); }} />)}
+        {policies.map((policy) => <PolicyCard key={`${scope}-${accountId}-${policy.rule_key}-${policy.override_fields.join(".")}`} policy={policy} scope={scope} accountId={accountId} canManage={canManage} onSaved={async (text) => { setMessage(text); await refresh(); }} />)}
       </section>
     </>
   );
 }
 
-function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; scope: "global" | "account"; accountId: number | null; onSaved: (message: string) => Promise<void> }) {
+function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: Policy; scope: "global" | "account"; accountId: number | null; canManage: boolean; onSaved: (message: string) => Promise<void> }) {
   const [enabled, setEnabled] = useState(policy.enabled);
   const [values, setValues] = useState<Record<string, unknown>>({ ...policy.config });
   const [overrides, setOverrides] = useState<Set<string>>(new Set(policy.override_fields));
@@ -51,6 +69,7 @@ function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; sco
   const [busy, setBusy] = useState(false);
 
   function changeValue(key: string, original: unknown, raw: unknown) {
+    if (!canManage) return;
     let next: unknown = raw;
     if (typeof original === "number") next = Number(raw);
     if (Array.isArray(original)) next = String(raw).split(",").map((item) => item.trim()).filter(Boolean);
@@ -58,6 +77,7 @@ function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; sco
   }
 
   async function save() {
+    if (!canManage) return;
     setBusy(true);
     try {
       const config = scope === "global" ? values : Object.fromEntries(Object.entries(values).filter(([key]) => overrides.has(key)));
@@ -69,7 +89,7 @@ function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; sco
   }
 
   async function reset() {
-    if (scope !== "account") return;
+    if (!canManage || scope !== "account") return;
     setBusy(true);
     try { await api(`/policies/accounts/${accountId}/${policy.rule_key}`, { method: "DELETE" }); await onSaved(`“${policy.name}” voltou a herdar o padrão global.`); }
     finally { setBusy(false); }
@@ -80,20 +100,20 @@ function PolicyCard({ policy, scope, accountId, onSaved }: { policy: Policy; sco
       <div className="policy-summary">
         <span className="policy-icon"><SlidersHorizontal size={19} /></span>
         <div><div className="policy-title-line"><h3>{policy.name}</h3>{!policy.implemented && <span className="coming-soon">Próxima etapa</span>}{scope === "account" && policy.inherited && <span className="inherited">Herdada</span>}</div><p>{policy.description}</p></div>
-        <label className="switch"><input aria-label={`Ativar política ${policy.name}`} type="checkbox" checked={enabled} onChange={(e) => { setEnabled(e.target.checked); if (scope === "account") setOverrides(new Set([...overrides, "enabled"])); }} disabled={!policy.implemented} /><span /></label>
-        <button className="button small ghost" onClick={() => setOpen(!open)}>{open ? "Fechar" : "Configurar"}</button>
+        <label className="switch"><input aria-label={(canManage ? "Ativar política " : "Status da política ") + policy.name} type="checkbox" checked={enabled} onChange={(e) => { if (!canManage) return; setEnabled(e.target.checked); if (scope === "account") setOverrides(new Set([...overrides, "enabled"])); }} disabled={!policy.implemented || !canManage} /><span /></label>
+        <button className="button small ghost" onClick={() => setOpen(!open)}>{open ? "Fechar" : canManage ? "Configurar" : "Visualizar"}</button>
       </div>
       {open && (
         <div className="policy-editor">
           <div className="policy-fields">
             {Object.entries(values).map(([key, value]) => (
               <div className="policy-field" key={key}>
-                {scope === "account" && <label className="override-check" title="Sobrescrever este campo"><input type="checkbox" checked={overrides.has(key)} onChange={(e) => { const next = new Set(overrides); e.target.checked ? next.add(key) : next.delete(key); setOverrides(next); }} /></label>}
-                <label><span>{humanize(key)}</span>{renderInput(key, value, (raw) => changeValue(key, value, raw), scope === "account" && !overrides.has(key))}</label>
+                {scope === "account" && <label className="override-check" title="Sobrescrever este campo"><input type="checkbox" checked={overrides.has(key)} disabled={!canManage} onChange={(e) => { if (!canManage) return; const next = new Set(overrides); e.target.checked ? next.add(key) : next.delete(key); setOverrides(next); }} /></label>}
+                <label><span>{humanize(key)}</span>{renderInput(key, value, (raw) => changeValue(key, value, raw), !canManage || (scope === "account" && !overrides.has(key)))}</label>
               </div>
             ))}
           </div>
-          <div className="policy-actions">{scope === "account" && <button className="button ghost" onClick={() => void reset()} disabled={busy}><RotateCcw size={15} /> Restaurar herança</button>}<button className="button primary" onClick={() => void save()} disabled={busy || !policy.implemented}><Save size={15} /> {busy ? "Salvando…" : "Salvar política"}</button></div>
+          {canManage && <div className="policy-actions">{scope === "account" && <button className="button ghost" onClick={() => void reset()} disabled={busy}><RotateCcw size={15} /> Restaurar herança</button>}<button className="button primary" onClick={() => void save()} disabled={busy || !policy.implemented}><Save size={15} /> {busy ? "Salvando…" : "Salvar política"}</button></div>}
         </div>
       )}
     </article>

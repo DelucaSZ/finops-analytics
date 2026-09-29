@@ -2367,3 +2367,93 @@ Warnings não bloqueadores observados: uma depreciação Starlette/TestClient no
 - o backend emite um warning de depreciação Starlette/TestClient; deve ser absorvido em atualização futura da stack de testes.
 
 A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio.
+
+
+## Etapa 16 — Contas e Políticas dentro de Configurações
+
+**Status:** implementação criada em branch dedicada; validação oficial do PR deve ser
+registrada nesta seção antes da publicação na `main`.
+
+### Objetivo e alterações
+
+A navegação foi reorganizada para tratar Contas e Políticas como configurações da
+plataforma, sem alterar contratos de API, persistência, coletores ou regras FinOps.
+
+- rotas canônicas: `/settings/accounts` e `/settings/policies`;
+- `Contas AWS` deixa de ser o nome da área geral e passa a `Contas`;
+- referências AWS tecnicamente necessárias permanecem explícitas no formulário:
+  AWS Account ID, STS AssumeRole, Role ARN e External ID;
+- cadastro continua identificado como `Cadastrar conta AWS`; nenhuma opção OCI é
+  apresentada nesta etapa;
+- Contas e Políticas saem do menu principal e aparecem na navegação interna de
+  Configurações;
+- Configurações permanece ativa nas duas páginas e a aba interna considera também
+  futuras subrotas por prefixo;
+- segurança pessoal, sessões, usuários, auditoria e HTTPS mantêm a disponibilidade
+  anterior conforme o perfil.
+
+### Compatibilidade de rotas
+
+O frontend mantém redirects temporários, sem segunda implementação das páginas:
+
+- `/accounts/:path*` → `/settings/accounts/:path*`;
+- `/policies/:path*` → `/settings/policies/:path*`.
+
+O mecanismo de redirect do Next.js preserva query string não consumida pelo destino.
+As implementações antigas em `app/accounts/page.tsx` e
+`app/policies/page.tsx` são removidas. As APIs não foram renomeadas.
+
+### Permissões preservadas
+
+A matriz foi confirmada diretamente nas dependências do backend e mantida na interface:
+
+| Operação | admin | operator | viewer |
+| --- | --- | --- | --- |
+| Ler Contas | Sim | Sim | Sim |
+| Cadastrar/alterar/excluir conta AWS | Sim | Não | Não |
+| Gerar External ID e testar conexão | Sim | Não | Não |
+| Disparar análise manual | Sim | Sim | Não |
+| Ler Políticas | Sim | Sim | Sim |
+| Salvar/restaurar Políticas | Sim | Não | Não |
+
+A interface agora oculta/desabilita ações de acordo com essa autorização efetiva; o
+backend continua sendo a camada autoritativa. Nenhuma nova permissão foi concedida.
+
+### Fluxos preservados e limites
+
+Continuam usando os mesmos endpoints e contratos: listagem de contas AWS, geração de
+External ID, cadastro STS AssumeRole, teste de conexão, disparo de análise,
+configuração de agendamento no cadastro e leitura/atualização de políticas.
+
+Não foram implementados OCI, chave privada OCI, `CloudAccount`, migração de banco,
+edição nova de contas, coletores OCI, alterações de worker/fingerprint/lifecycle ou
+reformulação ampla do sistema de permissões.
+
+### Principais arquivos
+
+- `frontend/components/app-shell.tsx`;
+- `frontend/app/settings/layout.tsx`;
+- `frontend/app/settings/accounts/page.tsx`;
+- `frontend/app/settings/policies/page.tsx`;
+- `frontend/lib/settings-navigation.mjs` e tipos;
+- `frontend/next.config.mjs`;
+- `frontend/tests/settings-navigation.test.mjs`;
+- `docs/settings.md` e este roadmap.
+
+### Validação e limitações
+
+Foi executado um teste direcionado local do novo helper/roteamento com 5 casos
+aprovados antes da publicação da branch. A suíte oficial do repositório
+(`npm test`, `npm run build`, backend PostgreSQL/Ruff/Pytest e job de segurança)
+deve ser executada pelo CI do PR e o resultado final deve ser registrado nesta seção.
+
+A matriz backend já possui cobertura em `backend/app/tests/test_security.py` e
+`backend/app/tests/test_settings.py`. Não há navegador E2E disponível neste ambiente,
+portanto nenhuma validação visual desktop/mobile é declarada como executada.
+
+### Pendências para etapas seguintes
+
+- implementar cadastro/autenticação OCI;
+- definir a generalização de conta/cloud quando o domínio exigir;
+- implementar edição de contas como funcionalidade explícita;
+- ampliar coletores/regras para OCI sem reaproveitar indevidamente contratos AWS.
