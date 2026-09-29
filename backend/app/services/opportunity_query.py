@@ -410,9 +410,7 @@ def observation_history(
         "history_complete": int(retained_total) >= historical_total,
         "retention_enabled": settings.retention_enabled,
         "retention_days": settings.opportunity_observation_retention_days,
-        "retention_cutoff": retention_cutoff(
-            days=settings.opportunity_observation_retention_days
-        ),
+        "retention_cutoff": retention_cutoff(days=settings.opportunity_observation_retention_days),
     }
 
 
