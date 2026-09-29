@@ -2,9 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cloud import CloudProvider
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
-from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
 from app.models.scan import Scan
 from app.schemas.scan import ScanCreate, ScanRead

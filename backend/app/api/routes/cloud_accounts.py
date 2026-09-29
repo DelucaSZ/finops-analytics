@@ -8,8 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_admin, require_user
 from app.db.session import get_db
-from app.schemas.account import CloudAccountCreate, CloudAccountRead, CloudAccountUpdate
-from app.schemas.account import ConnectionTestResult
+from app.schemas.account import (
+    CloudAccountCreate,
+    CloudAccountRead,
+    CloudAccountUpdate,
+    ConnectionTestResult,
+)
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.cloud_accounts import (
     UnsupportedProviderOperation,
@@ -95,7 +99,10 @@ def update_account(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Account update conflicts with existing data") from exc
+        raise HTTPException(
+            status_code=409,
+            detail="Account update conflicts with existing data",
+        ) from exc
 
 
 @router.delete(

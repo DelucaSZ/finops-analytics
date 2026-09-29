@@ -4,7 +4,6 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 from app.core.cloud import CloudProvider, normalize_provider, validate_native_account_id
 
-
 AWS_ROLE_PATTERN = r"^arn:(aws|aws-us-gov|aws-cn):iam::[0-9]{12}:role/.+$"
 
 
