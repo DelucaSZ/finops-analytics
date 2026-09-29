@@ -11,7 +11,7 @@ from app.core.cloud import CloudProvider
 from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
-from app.models.account import AwsAccount
+from app.models.account import AwsAccount, CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
@@ -34,8 +34,11 @@ def enqueue_due_scans(db: Session) -> None:
     now = datetime.now(UTC)
     due_accounts = list(
         db.scalars(
-            select(AwsAccount).where(
-                AwsAccount.enabled.is_(True),
+            select(AwsAccount)
+            .join(CloudAccount, AwsAccount.cloud_account_id == CloudAccount.id)
+            .where(
+                CloudAccount.provider == CloudProvider.AWS.value,
+                CloudAccount.enabled.is_(True),
                 AwsAccount.schedule_enabled.is_(True),
                 AwsAccount.next_scan_at.is_not(None),
                 AwsAccount.next_scan_at <= now,
@@ -69,7 +72,12 @@ def claim_scan(db: Session) -> Scan | None:
             scan.status = "running"
             scan.started_at = started_at
             account = db.get(AwsAccount, scan.account_id)
-            account_id = account.aws_account_id if account else f"legacy:{scan.account_id}"
+            cloud_account = account.cloud_account if account else None
+            account_id = (
+                cloud_account.native_account_id
+                if cloud_account and cloud_account.provider == CloudProvider.AWS.value
+                else f"legacy:{scan.account_id}"
+            )
             db.add(
                 CollectionRun(
                     scan_id=scan.id,
@@ -304,8 +312,14 @@ def persist_findings(
 
 def execute_scan(db: Session, scan: Scan) -> None:
     account = db.get(AwsAccount, scan.account_id)
-    if account is None or not account.enabled:
-        raise RuntimeError("AWS account was removed or disabled")
+    cloud_account = account.cloud_account if account else None
+    if (
+        account is None
+        or cloud_account is None
+        or cloud_account.provider != CloudProvider.AWS.value
+        or not cloud_account.enabled
+    ):
+        raise RuntimeError("AWS account was removed, disabled or has an invalid provider")
 
     run = collection_run_for_scan(db, scan.id)
     if run is None:
@@ -314,6 +328,7 @@ def execute_scan(db: Session, scan: Scan) -> None:
     # Capture collection configuration while reading the database, then return the
     # connection before STS/cloud requests. The claim/RUNNING record is already committed.
     account_id, scan_id, run_id = account.id, scan.id, run.id
+    expected_account_id = cloud_account.native_account_id
     policies = list_effective_policies(db, account_id)
     active_rule_keys = [
         policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
@@ -323,10 +338,10 @@ def execute_scan(db: Session, scan: Scan) -> None:
 
     aws_session = assume_account_session(account)
     identity = get_caller_identity(aws_session)
-    if identity.account_id != account.aws_account_id:
+    if identity.account_id != expected_account_id:
         raise RuntimeError(
             f"Assumed role returned account {identity.account_id}; "
-            f"expected {account.aws_account_id}"
+            f"expected {expected_account_id}"
         )
     collected, collector_errors, failed_rule_keys = run_collectors(
         aws_session, account.regions, policies
@@ -358,8 +373,11 @@ def execute_scan(db: Session, scan: Scan) -> None:
     run.resources_analyzed = 0
     run.error_detail = None
 
-    account.connection_status = "connected"
-    account.last_error = None
+    cloud_account = account.cloud_account
+    if cloud_account is None or cloud_account.provider != CloudProvider.AWS.value:
+        raise RuntimeError("AWS account provider changed during collection")
+    cloud_account.connection_status = "connected"
+    cloud_account.last_error = None
     summary_provider = run.provider
     summary_account_id = run.account_id
     summary_collection_run_id = run.id
@@ -404,9 +422,10 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
         run.error_detail = error[:4000]
 
     account = db.get(AwsAccount, failed_scan.account_id)
-    if account:
-        account.connection_status = "error"
-        account.last_error = error[:2000]
+    cloud_account = account.cloud_account if account else None
+    if cloud_account and cloud_account.provider == CloudProvider.AWS.value:
+        cloud_account.connection_status = "error"
+        cloud_account.last_error = error[:2000]
     db.commit()
 
 

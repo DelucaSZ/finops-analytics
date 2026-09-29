@@ -15,7 +15,7 @@ from app.core.config import Settings
 from app.core.passwords import hash_password, verify_password
 from app.db.base import Base, utcnow
 from app.db.migrations import initialize_database, migration_config, wait_for_database
-from app.models.account import AwsAccount
+from app.models.account import AwsAccount, CloudAccount
 from app.models.user import AuthState, User
 from app.schemas.user import UserUpdate
 
@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0013_historical_retention"
+            == "0014_cloud_accounts"
         )
         assert (
             compare_metadata(
@@ -127,7 +127,14 @@ def test_existing_data_survives_migration_and_restart(migration_engine):
     )
     with Session(migration_engine) as db:
         assert db.scalar(select(func.count()).select_from(User)) == 1
-        assert db.get(AwsAccount, 9).external_id == "legacy-id"
+        aws_account = db.get(AwsAccount, 9)
+        assert aws_account.external_id == "legacy-id"
+        assert aws_account.cloud_account_id == 9
+        cloud_account = db.get(CloudAccount, 9)
+        assert cloud_account is not None
+        assert cloud_account.provider == "aws"
+        assert cloud_account.native_account_id == "123456789012"
+        assert cloud_account.name == "Existing account"
         user = db.get(User, original_id)
         assert user.email == "admin@example.com" and user.name == "Edited name"
         assert verify_password("Changed-in-database-123", user.password_hash)
@@ -351,3 +358,220 @@ def test_mfa_proofs_are_atomic_under_concurrency(migration_engine, monkeypatch, 
             connection.scalar(text("SELECT version_num FROM deepops_schema_version"))
             == "0003_auth_lifecycle"
         )
+
+
+def test_stage17_migration_preserves_history(migration_engine):
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0013_historical_retention")
+
+        metadata = MetaData()
+        aws_table = Table("aws_accounts", metadata, autoload_with=connection)
+        scans_table = Table("scans", metadata, autoload_with=connection)
+        runs_table = Table("collection_runs", metadata, autoload_with=connection)
+        findings_table = Table("findings", metadata, autoload_with=connection)
+        observations_table = Table(
+            "opportunity_observations", metadata, autoload_with=connection
+        )
+        decisions_table = Table(
+            "opportunity_status_history", metadata, autoload_with=connection
+        )
+        now = utcnow()
+
+        connection.execute(
+            aws_table.insert().values(
+                id=42,
+                name="Preserved AWS",
+                aws_account_id="444444444444",
+                role_arn="arn:aws:iam::444444444444:role/DeepOps",
+                external_id="migration-external-id",
+                regions=["sa-east-1"],
+                enabled=True,
+                is_management_account=True,
+                schedule_enabled=True,
+                scan_interval_hours=24,
+                next_scan_at=now,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            scans_table.insert().values(
+                id="stage17-scan",
+                account_id=42,
+                status="completed",
+                trigger="manual",
+                started_at=now,
+                completed_at=now,
+                findings_count=1,
+                error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            runs_table.insert().values(
+                id="stage17-run",
+                scan_id="stage17-scan",
+                provider="aws",
+                account_id="444444444444",
+                scope={"regions": ["sa-east-1"]},
+                started_at=now,
+                finished_at=now,
+                status="SUCCESS",
+                resources_analyzed=0,
+                opportunities_found=1,
+                detailed_observations_available=True,
+                analyzer_version="migration-test",
+                error_detail=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            findings_table.insert().values(
+                id="stage17-finding",
+                fingerprint="4" * 64,
+                scan_id="stage17-scan",
+                provider="aws",
+                account_id="444444444444",
+                rule_key="ebs_unattached",
+                service="EC2",
+                region="sa-east-1",
+                resource_id="vol-stage17",
+                resource_name="volume",
+                resource_type="EBS Volume",
+                provider_metadata={},
+                title="Preserved opportunity",
+                description="Migration fixture",
+                evidence={"state": "available"},
+                current_monthly_cost=10,
+                estimated_monthly_savings=10,
+                currency="USD",
+                confidence="high",
+                severity="medium",
+                status="rejected",
+                total_occurrence_count=1,
+                first_seen_at=now,
+                last_seen_at=now,
+                treated_at=None,
+                treated_by=None,
+                treatment_note=None,
+                rejected_at=now,
+                rejected_by=None,
+                rejection_reason="not_applicable",
+                rejection_note="Keep the human decision",
+                needs_review=False,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            observations_table.insert().values(
+                id="stage17-observation",
+                opportunity_id="stage17-finding",
+                collection_run_id="stage17-run",
+                observed_at=now,
+                severity="medium",
+                current_monthly_cost=10,
+                estimated_monthly_savings=10,
+                currency="USD",
+                confidence="high",
+                provider_metadata={},
+                evidence={"state": "available"},
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            decisions_table.insert().values(
+                id="stage17-decision",
+                opportunity_id="stage17-finding",
+                from_status="open",
+                to_status="rejected",
+                action="reject",
+                reason="not_applicable",
+                note="Keep the human decision",
+                changed_by=None,
+                changed_at=now,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+        command.upgrade(cfg, "head")
+
+        common_table = Table("cloud_accounts", MetaData(), autoload_with=connection)
+        migrated_aws = Table("aws_accounts", MetaData(), autoload_with=connection)
+        cloud = connection.execute(
+            select(common_table).where(common_table.c.id == 42)
+        ).one()
+        assert cloud.provider == "aws"
+        assert cloud.native_account_id == "444444444444"
+        assert cloud.name == "Preserved AWS"
+        assert connection.scalar(
+            select(migrated_aws.c.cloud_account_id).where(migrated_aws.c.id == 42)
+        ) == 42
+        assert connection.scalar(
+            select(scans_table.c.account_id).where(scans_table.c.id == "stage17-scan")
+        ) == 42
+
+        run = connection.execute(
+            select(runs_table).where(runs_table.c.id == "stage17-run")
+        ).one()
+        assert run.provider == "aws"
+        assert run.account_id == "444444444444"
+
+        finding = connection.execute(
+            select(findings_table).where(findings_table.c.id == "stage17-finding")
+        ).one()
+        assert finding.fingerprint == "4" * 64
+        assert finding.status == "rejected"
+        assert finding.rejection_note == "Keep the human decision"
+        assert connection.scalar(
+            select(func.count())
+            .select_from(observations_table)
+            .where(observations_table.c.opportunity_id == "stage17-finding")
+        ) == 1
+        decision = connection.execute(
+            select(decisions_table).where(decisions_table.c.id == "stage17-decision")
+        ).one()
+        assert decision.to_status == "rejected"
+        assert decision.note == "Keep the human decision"
+
+
+def test_stage17_migration_refuses_inconsistent_aws_identity(migration_engine):
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0013_historical_retention")
+        aws_table = Table("aws_accounts", MetaData(), autoload_with=connection)
+        now = utcnow()
+        connection.execute(
+            aws_table.insert().values(
+                id=99,
+                name="Invalid legacy identity",
+                aws_account_id="not-12-digits",
+                role_arn="legacy",
+                external_id="legacy",
+                regions=["sa-east-1"],
+                enabled=True,
+                is_management_account=False,
+                schedule_enabled=False,
+                scan_interval_hours=24,
+                next_scan_at=None,
+                connection_status="untested",
+                last_connection_test_at=None,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        with pytest.raises(RuntimeError, match="invalid AWS account identifiers"):
+            command.upgrade(cfg, "0014_cloud_accounts")

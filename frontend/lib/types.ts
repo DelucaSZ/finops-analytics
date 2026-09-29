@@ -15,6 +15,33 @@ export type AwsAccount = {
   next_scan_at: string | null;
 };
 
+export type AwsAccountConfiguration = {
+  id: number;
+  role_arn: string;
+  external_id: string;
+  regions: string[];
+  is_management_account: boolean;
+  schedule_enabled: boolean;
+  scan_interval_hours: number;
+  next_scan_at: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type CloudAccount = {
+  id: number;
+  provider: string;
+  native_account_id: string;
+  name: string;
+  enabled: boolean;
+  connection_status: "untested" | "connected" | "error";
+  last_connection_test_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+  aws_configuration: AwsAccountConfiguration | null;
+};
+
 export type Policy = {
   rule_key: string;
   name: string;

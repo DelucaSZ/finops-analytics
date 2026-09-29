@@ -4,7 +4,7 @@ O menu **Configurações** reúne:
 
 | Área | Acesso | Funções |
 | --- | --- | --- |
-| Contas | Todos para leitura; administração para administradores | Listar contas AWS; cadastrar e testar conexão quando administrador; disparar análise quando operador ou administrador |
+| Contas | Todos para leitura; administração para administradores | Listar o cadastro comum de contas; cadastrar/testar AWS quando administrador; disparar análise AWS quando operador ou administrador |
 | Políticas | Todos para leitura; edição para administradores | Consultar políticas globais/por conta e salvar ou restaurar sobrescritas quando administrador |
 | Minha segurança | Todos | Senha, confirmação de identidade, TOTP e códigos de recuperação |
 | Sessões | Todos | Consultar e encerrar sessões da própria conta |
@@ -20,8 +20,7 @@ Os endereços antigos são mantidos apenas como compatibilidade:
 - `/security` → `/settings/security`.
 
 Os redirects de Contas e Políticas preservam parâmetros de consulta e não duplicam a
-implementação das páginas. As rotas da API continuam `/api/v1/accounts`,
-`/api/v1/policies` e `/api/v1/scans`.
+implementação das páginas. A tela de Contas usa `/api/v1/cloud-accounts`. `/api/v1/accounts` permanece como contrato AWS de compatibilidade; `/api/v1/policies` e `/api/v1/scans` preservam seus contratos.
 
 As permissões são verificadas no backend, além da navegação: conhecer a URL não concede
 acesso. Contas com cadastro MFA obrigatório pendente continuam restritas a
@@ -101,3 +100,14 @@ configuração anterior em caso de falha. A chave privada não é devolvida pela
 
 Consulte docs/https.md para requisitos de DNS, armazenamento, renovação e rollback.
 A liberação externa do host permanece fora desta etapa.
+
+
+## Cadastro comum de contas — Etapa 17
+
+`CloudAccount` é o cadastro administrativo comum. Seu ID não substitui a identidade nativa do provider nem o ID legado da configuração AWS. Nome, habilitação e estado de conexão pertencem à conta comum; Role ARN, External ID, regiões e agendamento pertencem à configuração AWS.
+
+A tela `/settings/accounts` consome `/api/v1/cloud-accounts`. O onboarding disponível continua somente AWS. OCI é reconhecido estruturalmente para permitir OCIDs longos no domínio, mas o cadastro operacional é recusado até a implementação de autenticação/configuração OCI.
+
+Policies e scans continuam usando explicitamente `aws_configuration.id`. O histórico operacional permanece identificado por `provider + account_id` nativo e não depende de existir um cadastro administrativo.
+
+A migration 0014 não possui downgrade seguro. Para atualização: faça backup, pause o worker, publique a API para aplicar a migration, valide a paridade das contas e então publique worker/web da mesma versão. Rollback depois da 0014 requer restauração do backup pré-migration.

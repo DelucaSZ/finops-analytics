@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
+from app.core.cloud import CloudProvider
 from app.models.account import AwsAccount
 from app.models.scan import Scan
 from app.schemas.scan import ScanCreate, ScanRead
@@ -33,7 +34,10 @@ def create_scan(payload: ScanCreate, db: Session = Depends(get_db)) -> Scan:
     account = db.get(AwsAccount, payload.account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="AWS account not found")
-    if not account.enabled:
+    cloud_account = account.cloud_account
+    if cloud_account is None or cloud_account.provider != CloudProvider.AWS.value:
+        raise HTTPException(status_code=409, detail="AWS account configuration is invalid")
+    if not cloud_account.enabled:
         raise HTTPException(status_code=409, detail="AWS account is disabled")
     pending = db.scalar(
         select(Scan).where(

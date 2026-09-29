@@ -6,8 +6,7 @@ from decimal import Decimal
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
-from app.core.cloud import CloudProvider
-from app.models.account import AwsAccount
+from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
@@ -105,8 +104,8 @@ def _current_observations(*, provider: str | None, account_id: str | None):
 
 def _account_name_join(current):
     return and_(
-        current.c.provider == CloudProvider.AWS.value,
-        current.c.account_id == AwsAccount.aws_account_id,
+        current.c.provider == CloudAccount.provider,
+        current.c.account_id == CloudAccount.native_account_id,
     )
 
 
@@ -329,14 +328,14 @@ def _dashboard_summary_direct(
         select(
             current.c.provider,
             current.c.account_id,
-            AwsAccount.name,
+            CloudAccount.name,
             func.count(func.distinct(Finding.id)).label("open"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
-        .outerjoin(AwsAccount, _account_name_join(current))
+        .outerjoin(CloudAccount, _account_name_join(current))
         .where(Finding.status == "open")
-        .group_by(current.c.provider, current.c.account_id, AwsAccount.name)
+        .group_by(current.c.provider, current.c.account_id, CloudAccount.name)
         .order_by(
             func.count(func.distinct(Finding.id)).desc(),
             current.c.provider,
@@ -361,7 +360,7 @@ def _dashboard_summary_direct(
             Finding.region,
             current.c.provider,
             current.c.account_id,
-            AwsAccount.name,
+            CloudAccount.name,
             current.c.collection_run_id,
             current.c.severity,
             current.c.estimated_monthly_savings,
@@ -369,7 +368,7 @@ def _dashboard_summary_direct(
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
-        .outerjoin(AwsAccount, _account_name_join(current))
+        .outerjoin(CloudAccount, _account_name_join(current))
         .where(Finding.status == "open")
         .order_by(
             current.c.estimated_monthly_savings.desc(),
@@ -483,7 +482,7 @@ def _persisted_summary_rows(
             summary.rules_version_changed.label("rules_version_changed"),
             summary.rules_version_unknown.label("rules_version_unknown"),
             summary.updated_at.label("summary_updated_at"),
-            AwsAccount.name.label("account_name"),
+            CloudAccount.name.label("account_name"),
         )
         .select_from(latest_valid)
         .outerjoin(
@@ -494,10 +493,10 @@ def _persisted_summary_rows(
             ),
         )
         .outerjoin(
-            AwsAccount,
+            CloudAccount,
             and_(
-                latest_valid.c.provider == CloudProvider.AWS.value,
-                latest_valid.c.account_id == AwsAccount.aws_account_id,
+                latest_valid.c.provider == CloudAccount.provider,
+                latest_valid.c.account_id == CloudAccount.native_account_id,
             ),
         )
         .order_by(latest_valid.c.provider, latest_valid.c.account_id)
@@ -527,7 +526,7 @@ def _top_current_opportunities(
             Finding.region,
             current.c.provider,
             current.c.account_id,
-            AwsAccount.name,
+            CloudAccount.name,
             current.c.collection_run_id,
             current.c.severity,
             current.c.estimated_monthly_savings,
@@ -535,7 +534,7 @@ def _top_current_opportunities(
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
-        .outerjoin(AwsAccount, _account_name_join(current))
+        .outerjoin(CloudAccount, _account_name_join(current))
         .where(Finding.status == "open")
         .order_by(
             current.c.estimated_monthly_savings.desc(),
@@ -805,13 +804,13 @@ def collection_health(
     ).one()
 
     account_join = and_(
-        joined.c.provider == CloudProvider.AWS.value,
-        joined.c.account_id == AwsAccount.aws_account_id,
+        joined.c.provider == CloudAccount.provider,
+        joined.c.account_id == CloudAccount.native_account_id,
     )
     rows = db.execute(
-        select(joined, AwsAccount.name.label("account_name"))
+        select(joined, CloudAccount.name.label("account_name"))
         .select_from(joined)
-        .outerjoin(AwsAccount, account_join)
+        .outerjoin(CloudAccount, account_join)
         .order_by(
             case(
                 (joined.c.execution_status == "FAILED", 0),
@@ -830,11 +829,11 @@ def collection_health(
         select(
             joined.c.provider,
             joined.c.account_id,
-            AwsAccount.name.label("account_name"),
+            CloudAccount.name.label("account_name"),
             joined.c.valid_started_at,
         )
         .select_from(joined)
-        .outerjoin(AwsAccount, account_join)
+        .outerjoin(CloudAccount, account_join)
         .where(joined.c.valid_id.is_not(None))
         .order_by(joined.c.valid_started_at.asc(), joined.c.provider, joined.c.account_id)
         .limit(1)

@@ -5,11 +5,12 @@ import { Building2, Check, Copy, Play, Plus, RefreshCw, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
+import { providerLabel } from "@/lib/cloud.mjs";
 import {
   canManageCloudAccounts,
   canRunCloudAnalysis,
 } from "@/lib/settings-navigation.mjs";
-import type { AwsAccount, Scan } from "@/lib/types";
+import type { CloudAccount, Scan } from "@/lib/types";
 
 type CurrentUser = { role: string };
 
@@ -25,7 +26,7 @@ const emptyForm = {
 };
 
 export default function AccountsPage() {
-  const [accounts, setAccounts] = useState<AwsAccount[]>([]);
+  const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [role, setRole] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ ...emptyForm });
@@ -36,12 +37,13 @@ export default function AccountsPage() {
   const canAnalyze = canRunCloudAnalysis(role);
 
   async function load() {
-    try { setAccounts(await api<AwsAccount[]>("/accounts")); }
+    try { setAccounts(await api<CloudAccount[]>("/cloud-accounts")); }
     catch (err) { setError(err instanceof Error ? err.message : "Falha ao carregar contas"); }
   }
+
   useEffect(() => {
     let active = true;
-    Promise.all([api<AwsAccount[]>("/accounts"), api<CurrentUser>("/auth/me")])
+    Promise.all([api<CloudAccount[]>("/cloud-accounts"), api<CurrentUser>("/auth/me")])
       .then(([items, user]) => {
         if (!active) return;
         setAccounts(items);
@@ -57,7 +59,7 @@ export default function AccountsPage() {
     if (!canManageAccounts) return;
     setError("");
     try {
-      const generated = await api<{ external_id: string }>("/accounts/external-id");
+      const generated = await api<{ external_id: string }>("/cloud-accounts/aws/external-id");
       setForm({ ...emptyForm, external_id: generated.external_id });
       setShowForm(true);
     } catch (err) {
@@ -68,40 +70,79 @@ export default function AccountsPage() {
   async function createAccount(event: FormEvent) {
     event.preventDefault();
     if (!canManageAccounts) return;
-    setBusy("create"); setError("");
+    setBusy("create");
+    setError("");
     try {
-      await api<AwsAccount>("/accounts", {
+      await api<CloudAccount>("/cloud-accounts", {
         method: "POST",
         body: JSON.stringify({
-          ...form,
-          regions: form.regions.split(",").map((item) => item.trim()).filter(Boolean),
+          provider: "aws",
+          native_account_id: form.aws_account_id,
+          name: form.name,
           enabled: true,
+          configuration: {
+            role_arn: form.role_arn,
+            external_id: form.external_id,
+            regions: form.regions.split(",").map((item) => item.trim()).filter(Boolean),
+            is_management_account: form.is_management_account,
+            schedule_enabled: form.schedule_enabled,
+            scan_interval_hours: form.scan_interval_hours,
+          },
         }),
       });
-      setForm({ ...emptyForm }); setShowForm(false); setMessage("Conta cadastrada. Agora valide a conexão."); await load();
-    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao cadastrar"); }
-    finally { setBusy(null); }
+      setForm({ ...emptyForm });
+      setShowForm(false);
+      setMessage("Conta cadastrada. Agora valide a conexão.");
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao cadastrar");
+    } finally {
+      setBusy(null);
+    }
   }
 
-  async function test(account: AwsAccount) {
+  async function test(account: CloudAccount) {
     if (!canManageAccounts) return;
-    setBusy(account.id); setError(""); setMessage("");
+    setBusy(account.id);
+    setError("");
+    setMessage("");
     try {
-      const result = await api<{ ok: boolean; error?: string }>(`/accounts/${account.id}/test-connection`, { method: "POST" });
-      if (!result.ok) throw new Error(result.error || "A role não pôde ser assumida");
-      setMessage(`Conexão com ${account.name} validada com sucesso.`); await load();
-    } catch (err) { setError(err instanceof Error ? err.message : "Falha no teste"); await load(); }
-    finally { setBusy(null); }
+      const result = await api<{ ok: boolean; error?: string }>(
+        `/cloud-accounts/${account.id}/test-connection`,
+        { method: "POST" },
+      );
+      if (!result.ok) throw new Error(result.error || "A conexão não pôde ser validada");
+      setMessage(`Conexão com ${account.name} validada com sucesso.`);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha no teste");
+      await load();
+    } finally {
+      setBusy(null);
+    }
   }
 
-  async function scan(account: AwsAccount) {
+  async function scan(account: CloudAccount) {
     if (!canAnalyze) return;
-    setBusy(account.id); setError(""); setMessage("");
+    const legacyAwsId = account.aws_configuration?.id;
+    if (account.provider !== "aws" || !legacyAwsId) {
+      setError(`Análise manual ainda não está disponível para ${providerLabel(account.provider)}.`);
+      return;
+    }
+    setBusy(account.id);
+    setError("");
+    setMessage("");
     try {
-      await api<Scan>("/scans", { method: "POST", body: JSON.stringify({ account_id: account.id }) });
+      await api<Scan>("/scans", {
+        method: "POST",
+        body: JSON.stringify({ account_id: legacyAwsId }),
+      });
       setMessage(`Análise de ${account.name} adicionada à fila.`);
-    } catch (err) { setError(err instanceof Error ? err.message : "Falha ao iniciar análise"); }
-    finally { setBusy(null); }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Falha ao iniciar análise");
+    } finally {
+      setBusy(null);
+    }
   }
 
   return (
@@ -109,7 +150,7 @@ export default function AccountsPage() {
       <PageHeader
         eyebrow="CONFIGURAÇÕES · CONTAS"
         title="Contas"
-        description="Gerencie as contas conectadas ao DeepOps. As contas AWS usam acesso temporário e somente leitura por STS AssumeRole."
+        description="Gerencie as contas cloud conectadas ao DeepOps. Nesta etapa, o onboarding operacional disponível continua sendo AWS via STS AssumeRole."
         actions={canManageAccounts ? <button className="button primary" onClick={() => void openCreateForm()}><Plus size={17} /> Adicionar conta AWS</button> : undefined}
       />
       {error && <div className="alert error"><X size={17} />{error}</div>}
@@ -133,16 +174,19 @@ export default function AccountsPage() {
       )}
 
       <section className="accounts-grid">
-        {accounts.map((account) => (
-          <article className="account-card" key={account.id}>
-            <div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>{account.name}</h3><code>{account.aws_account_id}</code></div><StatusBadge value={account.connection_status} /></div>
-            <dl><div><dt>Role</dt><dd title={account.role_arn}>{account.role_arn.split("/").pop()}</dd></div><div><dt>Regiões</dt><dd>{account.regions.join(", ")}</dd></div><div><dt>Agendamento</dt><dd>{account.schedule_enabled ? `A cada ${account.scan_interval_hours}h` : "Desativado"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl>
-            {account.last_error && <div className="account-error" title={account.last_error}>{account.last_error}</div>}
-            {(canManageAccounts || canAnalyze) && <div className="account-actions">{canManageAccounts && <button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button>}{canAnalyze && <button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button>}</div>}
-          </article>
-        ))}
+        {accounts.map((account) => {
+          const aws = account.aws_configuration;
+          return (
+            <article className="account-card" key={account.id}>
+              <div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>{account.name}</h3><code>{providerLabel(account.provider)} · {account.native_account_id}</code></div><StatusBadge value={account.connection_status} /></div>
+              {aws ? <dl><div><dt>Role</dt><dd title={aws.role_arn}>{aws.role_arn.split("/").pop()}</dd></div><div><dt>Regiões</dt><dd>{aws.regions.join(", ")}</dd></div><div><dt>Agendamento</dt><dd>{aws.schedule_enabled ? `A cada ${aws.scan_interval_hours}h` : "Desativado"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : <p>Provider cadastrado sem integração operacional disponível nesta etapa.</p>}
+              {account.last_error && <div className="account-error" title={account.last_error}>{account.last_error}</div>}
+              {(canManageAccounts || canAnalyze) && <div className="account-actions">{canManageAccounts && aws && <button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button>}{canAnalyze && aws && <button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button>}</div>}
+            </article>
+          );
+        })}
         {!accounts.length && !showForm && canManageAccounts && <button className="account-card add-account" onClick={() => void openCreateForm()}><Plus size={25} /><strong>Adicionar a primeira conta AWS</strong><span>Configure uma role somente leitura.</span></button>}
-        {!accounts.length && !showForm && role && !canManageAccounts && <article className="account-card"><div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>Nenhuma conta AWS cadastrada</h3><code>Somente leitura</code></div></div><p>O cadastro e a configuração de contas são realizados por administradores.</p></article>}
+        {!accounts.length && !showForm && role && !canManageAccounts && <article className="account-card"><div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>Nenhuma conta cadastrada</h3><code>Somente leitura</code></div></div><p>O cadastro e a configuração de contas são realizados por administradores.</p></article>}
       </section>
     </>
   );

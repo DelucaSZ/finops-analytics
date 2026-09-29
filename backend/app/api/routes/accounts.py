@@ -1,5 +1,5 @@
 import uuid
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 
 from botocore.exceptions import BotoCoreError, ClientError
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -17,6 +17,13 @@ from app.schemas.account import (
     ConnectionTestResult,
 )
 from app.services.aws_auth import assume_account_session, get_caller_identity
+from app.services.cloud_accounts import (
+    create_legacy_aws_account,
+    delete_cloud_account,
+    set_connection_state,
+    update_legacy_aws_account,
+)
+from app.services.collection_errors import sanitize_collection_error
 
 router = APIRouter(prefix="/accounts", tags=["accounts"], dependencies=[Depends(require_user)])
 
@@ -45,14 +52,8 @@ def list_accounts(db: Session = Depends(get_db)) -> list[AwsAccount]:
     dependencies=[Depends(require_admin)],
 )
 def create_account(payload: AccountCreate, db: Session = Depends(get_db)) -> AwsAccount:
-    role_account_id = payload.role_arn.split(":")[4]
-    if role_account_id != payload.aws_account_id:
-        raise HTTPException(status_code=422, detail="Role ARN account does not match Account ID")
-    account = AwsAccount(**payload.model_dump())
-    if account.schedule_enabled:
-        account.next_scan_at = datetime.now(UTC)
-    db.add(account)
     try:
+        account = create_legacy_aws_account(db, payload)
         db.commit()
     except IntegrityError as exc:
         db.rollback()
@@ -71,19 +72,12 @@ def update_account(
     account_id: int, payload: AccountUpdate, db: Session = Depends(get_db)
 ) -> AwsAccount:
     account = _get_account(db, account_id)
-    changes = payload.model_dump(exclude_unset=True)
-    role_arn = changes.get("role_arn")
-    if role_arn and role_arn.split(":")[4] != account.aws_account_id:
-        raise HTTPException(status_code=422, detail="Role ARN account does not match Account ID")
-    for field, value in changes.items():
-        setattr(account, field, value)
-    if changes.get("schedule_enabled") is True and account.next_scan_at is None:
-        account.next_scan_at = datetime.now(UTC)
-    if changes.get("schedule_enabled") is False:
-        account.next_scan_at = None
-    if account.schedule_enabled and "scan_interval_hours" in changes:
-        account.next_scan_at = datetime.now(UTC) + timedelta(hours=account.scan_interval_hours)
-    db.commit()
+    try:
+        update_legacy_aws_account(db, account, payload)
+        db.commit()
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     db.refresh(account)
     return account
 
@@ -93,7 +87,9 @@ def update_account(
 )
 def delete_account(account_id: int, db: Session = Depends(get_db)) -> None:
     account = _get_account(db, account_id)
-    db.delete(account)
+    if account.cloud_account is None:
+        raise HTTPException(status_code=409, detail="AWS account is missing its cloud account")
+    delete_cloud_account(db, account.cloud_account)
     db.commit()
 
 
@@ -104,28 +100,42 @@ def delete_account(account_id: int, db: Session = Depends(get_db)) -> None:
 )
 def test_connection(account_id: int, db: Session = Depends(get_db)) -> ConnectionTestResult:
     account = _get_account(db, account_id)
-    account.last_connection_test_at = datetime.now(UTC)
+    cloud_account = account.cloud_account
+    if cloud_account is None:
+        raise HTTPException(status_code=409, detail="AWS account is missing its cloud account")
+
+    tested_at = datetime.now(UTC)
+    expected_account_id = cloud_account.native_account_id
     try:
         identity = get_caller_identity(assume_account_session(account))
-        if identity.account_id != account.aws_account_id:
+        if identity.account_id != expected_account_id:
             raise ValueError(
-                f"Expected account {account.aws_account_id}, received {identity.account_id}"
+                f"Expected account {expected_account_id}, received {identity.account_id}"
             )
-        account.connection_status = "connected"
-        account.last_error = None
+        set_connection_state(
+            cloud_account,
+            status="connected",
+            tested_at=tested_at,
+            error=None,
+        )
         result = ConnectionTestResult(
             ok=True,
-            expected_account_id=account.aws_account_id,
+            expected_account_id=expected_account_id,
             caller_account_id=identity.account_id,
             caller_arn=identity.arn,
         )
     except (BotoCoreError, ClientError, ValueError) as exc:
-        account.connection_status = "error"
-        account.last_error = str(exc)[:2000]
+        error = sanitize_collection_error(exc)[:2000]
+        set_connection_state(
+            cloud_account,
+            status="error",
+            tested_at=tested_at,
+            error=error,
+        )
         result = ConnectionTestResult(
             ok=False,
-            expected_account_id=account.aws_account_id,
-            error=account.last_error,
+            expected_account_id=expected_account_id,
+            error=error,
         )
     db.commit()
     return result

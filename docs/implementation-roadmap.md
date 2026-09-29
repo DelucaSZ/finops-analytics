@@ -2371,8 +2371,7 @@ A Etapa 15 encerra este roadmap sem introduzir novas funcionalidades de negócio
 
 ## Etapa 16 — Contas e Políticas dentro de Configurações
 
-**Status:** implementação concluída e validada no PR #22. A branch foi publicada,
-mas a etapa ainda não foi mergeada na `main` nem implantada no ambiente.
+**Status:** implementação concluída, validada no PR #22 e incorporada à `main` no commit `3c8b187`. A implantação do ambiente continua sendo um passo operacional separado do merge.
 
 ### Objetivo e alterações
 
@@ -2473,3 +2472,54 @@ pela Etapa 16.
 - definir a generalização de conta/cloud quando o domínio exigir;
 - implementar edição de contas como funcionalidade explícita;
 - ampliar coletores/regras para OCI sem reaproveitar indevidamente contratos AWS.
+
+
+## Etapa 17 — generalização do cadastro de contas
+
+**Status:** implementação em validação na branch `stage17-cloud-accounts`.
+
+### Modelo comum e fonte de verdade
+
+A administração de contas passa a usar `CloudAccount` como entidade comum, com ID interno estável, `provider`, `native_account_id`, nome, habilitação, estado da conexão, último teste/erro e timestamps. O banco garante unicidade de `provider + native_account_id`.
+
+`provider` e `native_account_id` são imutáveis no contrato de atualização. A validação é específica por provider: AWS exige 12 dígitos; OCI aceita estruturalmente OCID longo e preserva o casing recebido. Esse suporte estrutural não habilita cadastro nem autenticação OCI nesta etapa.
+
+`cloud_accounts` é a fonte de verdade para identidade e atributos comuns. `aws_accounts` permanece como configuração especializada e conserva Role ARN, External ID, regiões, management/payer, agendamento, intervalo e `next_scan_at`. As colunas comuns legadas em `aws_accounts` permanecem somente como espelhos de compatibilidade, sincronizados de `CloudAccount`; os contratos comum e legado delegam ao mesmo serviço transacional.
+
+### Semântica dos IDs e histórico
+
+- `CloudAccount.id`: PK do cadastro administrativo comum.
+- `AwsAccount.id`: PK legado da configuração AWS, ainda usado por `scans.account_id` e `policies.account_id`.
+- `provider + account_id` em `Finding`, `CollectionRun` e summaries: identidade histórica provider-native.
+
+O frontend usa `CloudAccount.id` para gestão/teste e passa `aws_configuration.id` explicitamente a scans/policies. Não existe resolução por tentativa entre PKs diferentes.
+
+O histórico não recebe FK obrigatória para `CloudAccount`. Findings e CollectionRuns continuam consultáveis sem cadastro administrativo correspondente. O enriquecimento de nome usa LEFT JOIN exato por `provider + native_account_id`; fingerprints, observations e decisões não são recalculados ou recriados.
+
+### Migration `0014_cloud_accounts`
+
+A migration valida as identidades AWS existentes, cria `cloud_accounts`, cria exatamente um registro comum `provider=aws` para cada cadastro AWS, preserva o ID no backfill e adiciona `aws_accounts.cloud_account_id` como FK única. Scans, policies, findings, observations, status history, CollectionRuns e summaries não são regravados.
+
+Inconsistências de identidade fazem a migration abortar. O downgrade é recusado: após a 0014, uma imagem antiga não sabe preencher o vínculo obrigatório ao criar contas. Rollback seguro exige backup pré-0014 + imagens anteriores.
+
+### API e compatibilidade
+
+O contrato canônico passa a ser `GET/POST /api/v1/cloud-accounts`, `GET/PATCH/DELETE /api/v1/cloud-accounts/{cloud_account_id}`, `GET /api/v1/cloud-accounts/aws/external-id` e `POST /api/v1/cloud-accounts/{cloud_account_id}/test-connection`.
+
+O payload comum contém provider, identidade nativa, atributos comuns e configuração provider-specific aninhada. AWS continua exigindo configuração e validação Role ARN ↔ Account ID. Providers reconhecidos sem integração operacional são recusados explicitamente e não geram coletas.
+
+`/api/v1/accounts` permanece como compatibilidade AWS e usa o mesmo serviço/fonte de dados. `/api/v1/scans` e políticas por conta continuam recebendo `AwsAccount.id` nesta etapa. Permissões existentes são preservadas.
+
+### Worker, consultas e rollout
+
+O scheduler seleciona apenas configurações AWS ligadas a `CloudAccount(provider=aws, enabled=true)`. Claim/execução validam o provider, CollectionRun continua recebendo a identidade AWS nativa e STS valida contra essa mesma identidade. Estado de conexão é persistido na conta comum.
+
+Home, Oportunidades e Coletas usam `CloudAccount` apenas para enriquecimento de nome, sem joins obrigatórios que eliminem histórico órfão.
+
+Ordem recomendada: pausar o worker e mutações de cadastro; gerar/validar backup; publicar a API nova para aplicar 0014; validar health e paridade `aws_accounts ↔ cloud_accounts`; publicar worker e web da mesma versão; reabilitar operações. Não misturar writes da API antiga depois da 0014. Falha durante migration é transacional; rollback de versão depois da migration exige restaurar o backup pré-0014.
+
+### Etapa 18 e validação
+
+A Etapa 18 poderá adicionar configuração/autenticação OCI vinculada ao mesmo `CloudAccount`, sem nova generalização do cadastro. Continuam fora desta etapa: API Key/private key OCI, formulário OCI, teste real OCI, collectors/regras OCI e generalização total da fila.
+
+Os testes adicionados cobrem contrato comum/legado, provider e identidade imutáveis, constraint de unicidade, fixture OCI estrutural, permissões, bloqueio de provider sem integração, sincronização dos espelhos, fluxos AWS e migration com scan, CollectionRun, fingerprint, observation e decisão humana preservados. Fixtures OCI não são integração cloud real.
