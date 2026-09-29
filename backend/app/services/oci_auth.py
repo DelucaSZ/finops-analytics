@@ -288,9 +288,7 @@ def validate_connection(snapshot: OciConnectionSnapshot) -> OciConnectionValidat
             retry_strategy=NO_RETRY,
         ).data
         subscribed_regions = {
-            item.region_name
-            for item in subscriptions
-            if getattr(item, "region_name", None)
+            item.region_name for item in subscriptions if getattr(item, "region_name", None)
         }
         required_regions = {snapshot.region, *snapshot.scope_regions}
         missing_regions = sorted(required_regions - subscribed_regions)
