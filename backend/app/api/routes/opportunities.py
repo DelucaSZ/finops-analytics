@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
+from app.models.collection_run import CollectionRun
 from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
 from app.schemas.opportunity import (
@@ -36,6 +37,25 @@ router = APIRouter(
     tags=["opportunities"],
     dependencies=[Depends(require_user)],
 )
+
+
+def _ensure_collection_history_available(
+    db: Session,
+    collection_run_id: str | None,
+) -> None:
+    if not collection_run_id:
+        return
+    run = db.get(CollectionRun, collection_run_id)
+    if run is None:
+        raise HTTPException(status_code=404, detail="Collection run not found")
+    if not run.detailed_observations_available:
+        raise HTTPException(
+            status_code=410,
+            detail=(
+                "COLLECTION_OBSERVATIONS_EXPIRED: As observações detalhadas desta "
+                "coleta expiraram pela política de retenção."
+            ),
+        )
 
 
 def _filters(
@@ -88,6 +108,7 @@ def list_opportunity_page(
     order: SortOrder = "desc",
     db: Session = Depends(get_db),
 ) -> dict:
+    _ensure_collection_history_available(db, collection_run_id)
     filters = _filters(
         provider,
         account_id,
@@ -127,6 +148,7 @@ def stats(
     current: bool = False,
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
+    _ensure_collection_history_available(db, collection_run_id)
     filters = _filters(
         provider,
         account_id,
