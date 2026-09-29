@@ -5,3 +5,8 @@ export function formatMoney(
   currency?: string,
   locale?: string,
 ): string;
+export function formatNumber(value: number | string, locale?: string): string;
+export function formatAccountLabel(
+  accountName: string | null | undefined,
+  accountId: string | number | null | undefined,
+): string;
