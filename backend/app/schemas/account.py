@@ -36,8 +36,7 @@ def _unique_oci_regions(regions: list[str]) -> list[str]:
 def _unique_compartments(compartments: list[str]) -> list[str]:
     return list(
         dict.fromkeys(
-            validate_oci_ocid(compartment.strip(), "compartment")
-            for compartment in compartments
+            validate_oci_ocid(compartment.strip(), "compartment") for compartment in compartments
         )
     )
 
