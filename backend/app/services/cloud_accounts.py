@@ -372,14 +372,16 @@ def update_cloud_account(
                 if getattr(configuration, field) != value:
                     setattr(configuration, field, value)
                     relevant_changed = True
-            if configuration_payload.remove_credentials:
-                if configuration.private_key_ciphertext is not None:
-                    configuration.private_key_ciphertext = None
-                    configuration.private_key_password_ciphertext = None
-                    configuration.credential_key_version = None
-                    configuration.credential_revision += 1
-                    relevant_changed = True
-                    credentials_removed = True
+            if (
+                configuration_payload.remove_credentials
+                and configuration.private_key_ciphertext is not None
+            ):
+                configuration.private_key_ciphertext = None
+                configuration.private_key_password_ciphertext = None
+                configuration.credential_key_version = None
+                configuration.credential_revision += 1
+                relevant_changed = True
+                credentials_removed = True
 
         if "name" in changes:
             account.name = changes["name"]
