@@ -30,9 +30,7 @@ class Settings(BaseSettings):
     public_url: str = Field("", alias="NUVEMIQ_PUBLIC_URL")
     mfa_required: bool = Field(False, alias="NUVEMIQ_MFA_REQUIRED")
     mfa_encryption_key: SecretStr = Field(SecretStr(""), alias="NUVEMIQ_MFA_ENCRYPTION_KEY")
-    oci_credentials_key: SecretStr = Field(
-        SecretStr(""), alias="NUVEMIQ_OCI_CREDENTIALS_KEY"
-    )
+    oci_credentials_key: SecretStr = Field(SecretStr(""), alias="NUVEMIQ_OCI_CREDENTIALS_KEY")
     oci_credentials_key_version: str = Field(
         "v1", min_length=1, max_length=32, alias="NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION"
     )
