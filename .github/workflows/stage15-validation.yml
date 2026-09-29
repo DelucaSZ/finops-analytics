@@ -1,0 +1,56 @@
+name: Stage 15 validation
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - working-directory: frontend
+        run: npm ci
+      - working-directory: frontend
+        run: npm run lint
+
+  compose-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Prepare isolated smoke-test environment
+        run: cp .env.example .env
+      - name: Validate Compose model
+        run: docker compose config --quiet
+      - name: Build application images
+        run: docker compose build api worker web
+      - name: Start stack
+        run: docker compose up -d db api worker web proxy
+      - name: Wait for API and proxy health
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://localhost/health | grep -q '"status":"ok"'; then
+              curl --fail --silent http://localhost/ >/dev/null
+              docker compose ps
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose ps
+          docker compose logs --no-color --tail=200
+          exit 1
+      - name: Check for restart loops
+        run: |
+          set -euo pipefail
+          test -z "$(docker compose ps --format json | python -c 'import json,sys; rows=[json.loads(line) for line in sys.stdin if line.strip()]; print("\n".join(r.get("Name","") for r in rows if int(r.get("RestartCount",0) or 0) > 0))')" 
+      - if: always()
+        name: Stop stack
+        run: docker compose down -v
