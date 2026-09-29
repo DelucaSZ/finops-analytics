@@ -450,6 +450,68 @@ def test_oci_update_without_key_preserves_ciphertext_and_invalidates_connection(
     assert removal.status_code == 422
 
 
+def test_oci_explicit_credential_removal_is_unambiguous_and_audited(
+    auth_env, oci_encryption_key
+):
+    client, engine, tokens, _ = auth_env
+    pem, fingerprint = _api_key()
+    created = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()
+    account_id = created["id"]
+
+    response = client.patch(
+        f"/api/v1/cloud-accounts/{account_id}",
+        headers=headers(tokens),
+        json={"configuration": {"remove_credentials": True}},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["oci_configuration"]["credentials_configured"] is False
+    assert response.json()["oci_configuration"]["credential_key_version"] is None
+    assert response.json()["connection_status"] == "untested"
+
+    with Session(engine) as db:
+        configuration = db.scalar(
+            select(OciAccountConfiguration).where(
+                OciAccountConfiguration.cloud_account_id == account_id
+            )
+        )
+        assert configuration.private_key_ciphertext is None
+        assert configuration.private_key_password_ciphertext is None
+        assert configuration.credential_key_version is None
+        event = db.scalar(
+            select(CloudAccountAuditEvent)
+            .where(
+                CloudAccountAuditEvent.account_id == account_id,
+                CloudAccountAuditEvent.action == "oci.credentials.remove",
+            )
+            .order_by(CloudAccountAuditEvent.created_at.desc())
+        )
+        assert event is not None
+        assert "credential removed" in event.detail
+
+    test_response = client.post(
+        f"/api/v1/cloud-accounts/{account_id}/test-connection",
+        headers=headers(tokens),
+    )
+    assert test_response.status_code == 200
+    assert test_response.json()["ok"] is False
+    assert test_response.json()["error_code"] == "local_configuration_invalid"
+
+    pem2, fingerprint2 = _api_key()
+    ambiguous = client.patch(
+        f"/api/v1/cloud-accounts/{account_id}",
+        headers=headers(tokens),
+        json={
+            "configuration": {
+                "remove_credentials": True,
+                "private_key_pem": pem2,
+                "fingerprint": fingerprint2,
+            }
+        },
+    )
+    assert ambiguous.status_code == 422
+    assert pem2 not in ambiguous.text
+
+
 def test_oci_credential_replacement_is_validated_before_atomic_swap(
     auth_env, oci_encryption_key, monkeypatch
 ):
