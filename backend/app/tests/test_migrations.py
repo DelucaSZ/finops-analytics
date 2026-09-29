@@ -578,7 +578,6 @@ def test_stage17_migration_refuses_inconsistent_aws_identity(migration_engine):
             command.upgrade(cfg, "0014_cloud_accounts")
 
 
-
 def test_stage18_migration_adds_oci_storage_without_rewriting_aws(migration_engine):
     with migration_engine.begin() as connection:
         cfg = migration_config()
@@ -630,9 +629,7 @@ def test_stage18_migration_adds_oci_storage_without_rewriting_aws(migration_engi
         inspector = inspect(connection)
         assert "oci_account_configurations" in inspector.get_table_names()
         assert "cloud_account_audit_events" in inspector.get_table_names()
-        preserved = connection.execute(
-            select(aws_table).where(aws_table.c.id == 77)
-        ).one()
+        preserved = connection.execute(select(aws_table).where(aws_table.c.id == 77)).one()
         assert preserved.aws_account_id == "777777777777"
         assert preserved.cloud_account_id == 77
 
