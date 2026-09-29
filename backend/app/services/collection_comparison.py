@@ -422,6 +422,7 @@ def _run_metadata(run: CollectionRun) -> dict[str, Any]:
         "finished_at": run.finished_at,
         "status": run.status,
         "rules_version": run.analyzer_version,
+        "detailed_observations_available": run.detailed_observations_available,
     }
 
 
@@ -663,6 +664,32 @@ def compare_collection_runs(
         }
 
     validate_comparable_runs(baseline, target)
+
+    expired = [
+        role
+        for role, run in (("baseline", baseline), ("target", target))
+        if not run.detailed_observations_available
+    ]
+    if expired:
+        roles = " e ".join(expired)
+        return {
+            "available": False,
+            "reason": "OBSERVATIONS_EXPIRED",
+            "message": (
+                "Não é possível comparar detalhadamente estas coletas porque as "
+                f"observações históricas de {roles} expiraram pela política de retenção. "
+                "Os resumos da CollectionRun e o histórico de decisões permanecem preservados."
+            ),
+            "baseline": _run_metadata(baseline),
+            "target": _run_metadata(target),
+            "summary": None,
+            "financial_summary": None,
+            "rules_version_warning": None,
+            "warnings": [],
+            "category": category,
+            "items": [],
+            **_page_meta(0, page, page_size),
+        }
 
     # Counts and money are reduced by the database; at most one row per run/currency.
     totals = db.execute(
