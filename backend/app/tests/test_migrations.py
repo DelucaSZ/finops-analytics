@@ -15,7 +15,7 @@ from app.core.config import Settings
 from app.core.passwords import hash_password, verify_password
 from app.db.base import Base, utcnow
 from app.db.migrations import initialize_database, migration_config, wait_for_database
-from app.models.account import AwsAccount, CloudAccount
+from app.models.account import AwsAccount, CloudAccount, OciAccountConfiguration
 from app.models.user import AuthState, User
 from app.schemas.user import UserUpdate
 
@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0014_cloud_accounts"
+            == "0015_oci_api_keys"
         )
         assert (
             compare_metadata(
@@ -576,3 +576,66 @@ def test_stage17_migration_refuses_inconsistent_aws_identity(migration_engine):
         )
         with pytest.raises(RuntimeError, match="invalid AWS account identifiers"):
             command.upgrade(cfg, "0014_cloud_accounts")
+
+
+
+def test_stage18_migration_adds_oci_storage_without_rewriting_aws(migration_engine):
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0014_cloud_accounts")
+
+        cloud_table = Table("cloud_accounts", MetaData(), autoload_with=connection)
+        aws_table = Table("aws_accounts", MetaData(), autoload_with=connection)
+        now = utcnow()
+        connection.execute(
+            cloud_table.insert().values(
+                id=77,
+                provider="aws",
+                native_account_id="777777777777",
+                name="Stage 18 preserved AWS",
+                enabled=True,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            aws_table.insert().values(
+                id=77,
+                cloud_account_id=77,
+                name="Stage 18 preserved AWS",
+                aws_account_id="777777777777",
+                enabled=True,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                role_arn="arn:aws:iam::777777777777:role/DeepOps",
+                external_id="stage18-migration-test",
+                regions=["sa-east-1"],
+                is_management_account=False,
+                schedule_enabled=False,
+                scan_interval_hours=24,
+                next_scan_at=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+        command.upgrade(cfg, "head")
+
+        inspector = inspect(connection)
+        assert "oci_account_configurations" in inspector.get_table_names()
+        assert "cloud_account_audit_events" in inspector.get_table_names()
+        preserved = connection.execute(
+            select(aws_table).where(aws_table.c.id == 77)
+        ).one()
+        assert preserved.aws_account_id == "777777777777"
+        assert preserved.cloud_account_id == 77
+
+    with Session(migration_engine) as db:
+        assert db.get(CloudAccount, 77).provider == "aws"
+        assert db.scalar(select(func.count()).select_from(OciAccountConfiguration)) == 0
