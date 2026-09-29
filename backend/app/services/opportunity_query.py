@@ -1,12 +1,11 @@
 from dataclasses import dataclass
 from math import ceil
 
-from app.core.config import settings
-
 from sqlalchemy import String, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session, defer, load_only
 
 from app.core.cloud import CloudProvider
+from app.core.config import settings
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
