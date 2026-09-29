@@ -2,6 +2,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1
 const API_TIMEOUT_MS = 30_000;
 const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
+function dispatchAuthRedirect(path: string) {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new Event("deepops:session-invalidated"));
+  window.dispatchEvent(
+    new CustomEvent("deepops:auth-redirect", { detail: { path } }),
+  );
+}
+
 export class ApiError extends Error {
   constructor(message: string, public status: number, public detail?: string) { super(message); }
 }
@@ -42,6 +50,12 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
     if (timedOut && !callerSignal?.aborted) {
       throw new ApiError("A solicitação excedeu o tempo limite. Tente novamente.", 408);
     }
+    if (!callerSignal?.aborted && error instanceof TypeError) {
+      throw new ApiError(
+        "Não foi possível conectar ao serviço. Verifique sua conexão e tente novamente.",
+        0,
+      );
+    }
     throw error;
   } finally {
     clearTimeout(timeout);
@@ -49,18 +63,14 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
   }
 
   if (response.status === 401 && !publicWrites.has(path) && redirectOnUnauthorized) {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event("deepops:session-invalidated"));
-      window.location.assign("/login");
-    }
+    dispatchAuthRedirect("/login");
     throw new ApiError("Sessão expirada. Entre novamente.", 401);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const detail = payload?.detail;
-    if (detail === "mfa_enrollment_required" && typeof window !== "undefined") {
-      window.dispatchEvent(new Event("deepops:session-invalidated"));
-      window.location.assign("/mfa-setup");
+    if (detail === "mfa_enrollment_required") {
+      dispatchAuthRedirect("/mfa-setup");
       throw new ApiError("Configure o autenticador para continuar.", 403);
     }
     const translated: Record<string, string> = {
@@ -70,11 +80,32 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       "Administrator access required": "Acesso disponível somente para administradores.",
       "Administrator access changed; sign in again": "Suas permissões mudaram. Entre novamente.",
     };
+    const retentionExpired =
+      typeof detail === "string" &&
+      detail.startsWith("COLLECTION_OBSERVATIONS_EXPIRED:");
+    const statusFallback: Record<number, string> = {
+      403: "Você não tem permissão para realizar esta ação.",
+      404: "O recurso solicitado não foi encontrado.",
+      409: "Não foi possível concluir porque o estado dos dados mudou. Atualize e tente novamente.",
+      410: "Os detalhes históricos solicitados não estão mais disponíveis pela política de retenção.",
+      422: "Confira os campos preenchidos e tente novamente.",
+      500: "O serviço encontrou um erro inesperado. Tente novamente.",
+      502: "O serviço está temporariamente indisponível. Tente novamente.",
+      503: "O serviço está temporariamente indisponível. Tente novamente.",
+      504: "O serviço demorou demais para responder. Tente novamente.",
+    };
     const message = detail === "reauthentication_required"
       ? "Confirme sua identidade em Minha segurança antes de continuar."
-      : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
-      : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
-      : translated[detail] || detail || `Erro HTTP ${response.status}`;
+      : retentionExpired
+        ? statusFallback[410]
+        : Array.isArray(detail)
+          ? statusFallback[422]
+          : detail === "Invalid email or password"
+            ? "E-mail ou senha inválidos."
+            : translated[detail] ||
+              statusFallback[response.status] ||
+              detail ||
+              "Não foi possível concluir a solicitação. Tente novamente.";
     throw new ApiError(message, response.status, typeof detail === "string" ? detail : undefined);
   }
   if (response.status === 204) return undefined as T;

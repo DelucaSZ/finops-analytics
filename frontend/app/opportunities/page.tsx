@@ -26,7 +26,7 @@ import { OpportunityDecisionDialog } from "@/components/opportunity-decision-dia
 import type { OpportunityDecisionAction } from "@/components/opportunity-decision-dialog";
 import { OpportunityDetail } from "@/components/opportunity-detail";
 import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
+import { StatusBadge, statusLabel } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
@@ -58,6 +58,11 @@ const statusTabs = [
 ] as const;
 
 const rejectionFallback = "Não foi possível atualizar a oportunidade. Nenhuma alteração foi aplicada.";
+const severityLabels: Record<string, string> = {
+  high: "Alta",
+  medium: "Média",
+  low: "Baixa",
+};
 
 const sortOptions = [
   ["last_seen_at", "Última detecção"],
@@ -304,6 +309,30 @@ function OpportunitiesContent() {
     state.severity || state.rule ||
     state.collectionRunId || state.resourceId || state.search || state.current,
   );
+  const currentCollection = collectionRuns.find((run) => run.id === state.collectionRunId);
+  const activeFilters: Array<{ label: string; value: string }> = [];
+  if (state.current) activeFilters.push({ label: "Escopo", value: "Estado atual" });
+  if (state.provider) activeFilters.push({ label: "Cloud", value: providerLabel(state.provider) });
+  if (state.accountId) activeFilters.push({
+    label: "Conta",
+    value: currentAccount?.account_name || state.accountId,
+  });
+  if (state.region) activeFilters.push({ label: "Região", value: state.region });
+  if (state.service) activeFilters.push({ label: "Serviço", value: state.service });
+  if (state.resourceType) activeFilters.push({ label: "Tipo", value: state.resourceType });
+  if (state.severity) activeFilters.push({
+    label: "Severidade",
+    value: severityLabels[state.severity] || state.severity,
+  });
+  if (state.rule) activeFilters.push({ label: "Regra", value: state.rule });
+  if (state.collectionRunId) activeFilters.push({
+    label: "Coleta",
+    value: currentCollection
+      ? `${formatDate(currentCollection.started_at)} · ${currentCollection.id.slice(0, 8)}`
+      : state.collectionRunId.slice(0, 8),
+  });
+  if (state.resourceId) activeFilters.push({ label: "Recurso", value: state.resourceId });
+  if (state.search) activeFilters.push({ label: "Busca", value: state.search });
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -350,6 +379,11 @@ function OpportunitiesContent() {
   }
 
   function closeDetail() {
+    const returnTo = searchParams.get("return_to") || "";
+    if (returnTo.startsWith("/collections/")) {
+      router.push(returnTo, { scroll: false });
+      return;
+    }
     updateUrl({ opportunity_id: null }, { resetPage: false });
   }
 
@@ -382,6 +416,7 @@ function OpportunitiesContent() {
       if (!decision.bulk && state.opportunityId) closeDetail();
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateApiQueries(["collections", "comparison"]);
     } catch (err) {
       setDecisionError(err instanceof Error ? err.message : rejectionFallback);
     } finally {
@@ -541,12 +576,25 @@ function OpportunitiesContent() {
               )}
               {visibleCollectionRuns.map((run) => (
                 <option key={run.id} value={run.id}>
-                  {formatDate(run.started_at)} · {providerLabel(run.provider)} · {run.account_id} · {run.status}
+                  {formatDate(run.started_at)} · {providerLabel(run.provider)} · {run.account_id} · {statusLabel(run.status)}
                 </option>
               ))}
             </select></div>
           </label>
         </div>
+        {activeFilters.length > 0 && (
+          <div className="active-filter-summary" aria-label="Filtros ativos">
+            <strong>Filtros ativos</strong>
+            <div className="filter-chip-list">
+              {activeFilters.map((filter) => (
+                <span className="filter-chip" key={`${filter.label}:${filter.value}`}>
+                  <span>{filter.label}</span>
+                  {filter.value}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </section>
 
       <section className="opportunity-summary-grid" aria-label="Resumo da visão atual">
@@ -595,8 +643,8 @@ function OpportunitiesContent() {
               <button className="button ghost" type="button" onClick={() => setSelectedIds(new Set())}>Limpar seleção</button>
               {state.status === "open" ? (
                 <>
-                  <button className="button ghost" type="button" onClick={() => openDecision("treat", selected.map((item) => item.id), true)}>Marcar como tratadas</button>
-                  <button className="button primary" type="button" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>Rejeitar</button>
+                  <button className="button primary" type="button" onClick={() => openDecision("treat", selected.map((item) => item.id), true)}>Marcar como tratadas</button>
+                  <button className="button danger" type="button" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>Rejeitar</button>
                 </>
               ) : (
                 <button className="button primary" type="button" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</button>

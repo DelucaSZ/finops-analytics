@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Clock3, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
-import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate } from "@/lib/api";
+import { StatusBadge, statusLabel } from "@/components/status-badge";
+import { api, ApiError, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { useApiQuery } from "@/lib/server-state";
+import { useDialogFocus } from "@/lib/use-dialog-focus";
 import type {
   OpportunityDetail as OpportunityDetailType,
   OpportunityObservation,
@@ -46,6 +47,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const [historyPage, setHistoryPage] = useState(1);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const drawerRef = useRef<HTMLElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const historyPageSize = historyExpanded ? 50 : 8;
   const detailRequest = useApiQuery<OpportunityDetailType>({
@@ -74,7 +76,11 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const observations = observationRequest.data ?? null;
   const decisions = decisionRequest.data ?? null;
   const loading = detailRequest.isLoading;
-  const detailError = detailRequest.error?.message || "";
+  const detailError = detailRequest.error
+    ? detailRequest.error instanceof ApiError && detailRequest.error.status === 404
+      ? "Oportunidade não encontrada."
+      : "Não foi possível carregar a oportunidade."
+    : "";
   const observationError = observationRequest.error
     ? "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível."
     : "";
@@ -84,14 +90,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const error =
     actionError || detailError || observationError || decisionError;
 
-  useEffect(() => {
-    closeRef.current?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
+  useDialogFocus(drawerRef, closeRef, onClose);
 
   useEffect(() => {
     setSelectedObservation(null);
@@ -121,7 +120,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
     }}>
-      <aside className="opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-detail-title">
+      <aside ref={drawerRef} tabIndex={-1} className="opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-detail-title">
         <header className="drawer-heading">
           <div>
             <span className="eyebrow">DETALHE DA OPORTUNIDADE</span>
@@ -165,7 +164,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
                 <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
                 <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
-                <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
+                <div><dt>Confiança</dt><dd>{detail.confidence ? statusLabel(detail.confidence) : "—"}</dd></div>
               </dl>
             </section>
 
@@ -256,7 +255,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                     >
                       <div>
                         <strong>{formatDate(item.observed_at)}</strong>
-                        <span>{item.collection_provider.toUpperCase()} · {item.collection_account_id}</span>
+                        <span>{providerLabel(item.collection_provider)} · {item.collection_account_id}</span>
                       </div>
                       <div><StatusBadge value={item.severity} /></div>
                       <div>
@@ -264,7 +263,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                         <span>economia estimada</span>
                       </div>
                       <div>
-                        <span>Coleta {item.collection_status}</span>
+                        <span>Coleta {statusLabel(item.collection_status)}</span>
                         <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Link>
                       </div>
                       <p className="history-evidence-summary">{item.evidence.summary}</p>
@@ -341,8 +340,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
           <footer className="drawer-actions">
             {detail.status === "open" ? (
               <>
-                <button className="button ghost" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
-                <button className="button primary" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
+                <button className="button primary" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
+                <button className="button danger" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
               </>
             ) : (
               <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>

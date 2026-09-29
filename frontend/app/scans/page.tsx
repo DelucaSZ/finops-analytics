@@ -18,6 +18,7 @@ export default function ScansPage() {
   const [accounts, setAccounts] = useState<AwsAccount[]>([]);
   const [collections, setCollections] = useState<CollectionRun[]>([]);
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const load = () =>
@@ -32,7 +33,8 @@ export default function ScansPage() {
           setCollections(collectionData);
           setError("");
         })
-        .catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar"));
+        .catch(() => setError("Não foi possível carregar as análises. Tente novamente."))
+        .finally(() => setLoading(false));
     void load();
     const timer = window.setInterval(load, 10000);
     return () => window.clearInterval(timer);
@@ -56,15 +58,15 @@ export default function ScansPage() {
     <>
       <PageHeader
         eyebrow="PROCESSAMENTO"
-        title="Execuções"
-        description="Histórico das análises manuais e agendadas, com acesso ao CollectionRun auditável."
+        title="Análises AWS"
+        description="Histórico das análises manuais e agendadas, com acesso à coleta auditável correspondente."
       />
-      {error && <div className="alert error">{error}</div>}
+      {error && <div className="alert error" role="alert">{error}</div>}
       <section className="panel table-panel">
         <div className="panel-heading">
           <div>
             <span className="eyebrow">HISTÓRICO</span>
-            <h2>Varreduras AWS</h2>
+            <h2>Histórico de análises</h2>
           </div>
           <Activity size={20} />
         </div>
@@ -87,7 +89,14 @@ export default function ScansPage() {
               </tr>
             </thead>
             <tbody>
-              {scans.map((scan) => {
+              {loading && Array.from({ length: 5 }, (_, row) => (
+                <tr key={`loading-${row}`} aria-hidden="true">
+                  {Array.from({ length: 7 }, (_, cell) => (
+                    <td key={cell}><span className="skeleton-box skeleton-line" /></td>
+                  ))}
+                </tr>
+              ))}
+              {!loading && scans.map((scan) => {
                 const run = collectionByScan[scan.id];
                 return (
                   <tr key={scan.id}>
@@ -117,7 +126,7 @@ export default function ScansPage() {
                           <StatusBadge value={collectionStatus(run.status)} />
                         </div>
                       ) : (
-                        <span>Sem CollectionRun</span>
+                        <span>Sem coleta vinculada</span>
                       )}
                     </td>
                   </tr>
@@ -125,7 +134,7 @@ export default function ScansPage() {
               })}
             </tbody>
           </table>
-          {!scans.length && <div className="empty-table">Nenhuma análise executada até agora.</div>}
+          {!loading && !error && !scans.length && <div className="empty-table">Nenhuma análise executada até agora.</div>}
         </div>
       </section>
     </>
