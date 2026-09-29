@@ -109,9 +109,9 @@ class OciAccountConfiguration(TimestampMixin, Base):
     compartment_ocids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
     include_root_compartment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     include_subcompartments: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    private_key_ciphertext: Mapped[str] = mapped_column(Text, nullable=False)
+    private_key_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
     private_key_password_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
-    credential_key_version: Mapped[str] = mapped_column(String(32), nullable=False)
+    credential_key_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     credential_revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
     configuration_revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
