@@ -3,11 +3,11 @@
 import Link from "next/link";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BrainCircuit, Clock3, History, RotateCcw, X } from "lucide-react";
+import { BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
-import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { useApiQuery } from "@/lib/server-state";
 import type {
@@ -147,7 +147,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               <p className="detail-description">{detail.description}</p>
               <dl className="detail-grid">
                 <div><dt>Cloud</dt><dd>{providerLabel(detail.provider)}</dd></div>
-                <div><dt>Conta</dt><dd>{detail.account_name || detail.account_id}<span>{detail.account_id}</span></dd></div>
+                <div><dt>Conta</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
                 <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
                 <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
                 <div><dt>Recurso</dt><dd>{detail.resource_id}</dd></div>
@@ -256,7 +256,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                     >
                       <div>
                         <strong>{formatDate(item.observed_at)}</strong>
-                        <span>{item.collection_provider.toUpperCase()} · {item.collection_account_id}</span>
+                        <span>{providerLabel(item.collection_provider)} · {item.collection_account_id}</span>
                       </div>
                       <div><StatusBadge value={item.severity} /></div>
                       <div>
@@ -264,7 +264,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                         <span>economia estimada</span>
                       </div>
                       <div>
-                        <span>Coleta {item.collection_status}</span>
+                        <span>Coleta <StatusBadge value={item.collection_status} /></span>
                         <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Link>
                       </div>
                       <p className="history-evidence-summary">{item.evidence.summary}</p>
@@ -325,8 +325,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             <details className="technical-details">
               <summary>Informações técnicas</summary>
               <dl>
-                <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code></dd></div>
-                <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code></dd></div>
+                <div><dt>ID da oportunidade</dt><dd className="technical-copy"><code>{detail.id}</code><button type="button" className="copy-inline" title="Copiar ID da oportunidade" aria-label="Copiar ID da oportunidade" onClick={() => void navigator.clipboard.writeText(detail.id)}><Copy size={14} /></button></dd></div>
+                <div><dt>Fingerprint</dt><dd className="technical-copy"><code>{detail.fingerprint}</code><button type="button" className="copy-inline" title="Copiar fingerprint" aria-label="Copiar fingerprint" onClick={() => void navigator.clipboard.writeText(detail.fingerprint)}><Copy size={14} /></button></dd></div>
                 <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
                 <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
                 {Object.keys(detail.provider_metadata || {}).length > 0 && (
