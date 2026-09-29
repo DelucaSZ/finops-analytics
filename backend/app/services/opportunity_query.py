@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from math import ceil
 
+from app.core.config import settings
+
 from sqlalchemy import String, and_, case, cast, func, or_, select
 from sqlalchemy.orm import Session, defer, load_only
 
@@ -12,6 +14,7 @@ from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
 from app.services.opportunity_evidence import normalize_persisted_evidence
+from app.services.retention import retention_cutoff
 
 
 @dataclass(frozen=True)
@@ -164,6 +167,7 @@ def serialize_list_item(finding: Finding, account: AwsAccount | None) -> dict:
         "status": finding.status,
         "first_seen_at": finding.first_seen_at,
         "last_seen_at": finding.last_seen_at,
+        "total_occurrence_count": finding.total_occurrence_count,
         "needs_review": finding.needs_review,
     }
 
@@ -378,7 +382,7 @@ def observation_history(
     finding = db.get(Finding, opportunity_id)
     if finding is None:
         return None
-    total = (
+    retained_total = (
         db.scalar(
             select(func.count())
             .select_from(OpportunityObservation)
@@ -398,7 +402,19 @@ def observation_history(
         .limit(page_size)
     ).all()
     items = [_serialize_observation(finding, observation, run) for observation, run in rows]
-    return {"items": items, **_page_meta(total, page, page_size)}
+    historical_total = max(int(finding.total_occurrence_count or 0), int(retained_total))
+    return {
+        "items": items,
+        **_page_meta(retained_total, page, page_size),
+        "retained_total": int(retained_total),
+        "total_occurrence_count": historical_total,
+        "history_complete": int(retained_total) >= historical_total,
+        "retention_enabled": settings.retention_enabled,
+        "retention_days": settings.opportunity_observation_retention_days,
+        "retention_cutoff": retention_cutoff(
+            days=settings.opportunity_observation_retention_days
+        ),
+    }
 
 
 def status_history(
