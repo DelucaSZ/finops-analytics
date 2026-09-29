@@ -20,10 +20,7 @@ def _parse_before(value: str) -> datetime:
         parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise argparse.ArgumentTypeError("Use an ISO-8601 datetime for --before") from exc
-    if parsed.tzinfo is None:
-        parsed = parsed.replace(tzinfo=UTC)
-    else:
-        parsed = parsed.astimezone(UTC)
+    parsed = parsed.replace(tzinfo=UTC) if parsed.tzinfo is None else parsed.astimezone(UTC)
     if parsed > datetime.now(UTC):
         raise argparse.ArgumentTypeError("--before cannot be in the future")
     return parsed
