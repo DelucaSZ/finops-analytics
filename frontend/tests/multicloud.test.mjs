@@ -97,3 +97,23 @@ test("stage 17 settings uses the common account registry and keeps AWS legacy id
   assert.match(policies, /\/cloud-accounts/);
   assert.match(policies, /aws_configuration\.id/);
 });
+
+
+test("stage 18 presents OCI connection state without enabling AWS scan actions", async () => {
+  const { readFile } = await import("node:fs/promises");
+  const accounts = await readFile(
+    new URL("../app/settings/accounts/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const types = await readFile(
+    new URL("../lib/types.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.match(accounts, /oci_configuration/);
+  assert.match(accounts, /connectionSupported/);
+  assert.match(accounts, /canAnalyze && aws/);
+  assert.match(types, /credentials_configured: boolean/);
+  assert.doesNotMatch(types, /private_key_pem/);
+  assert.doesNotMatch(types, /private_key_ciphertext/);
+});
