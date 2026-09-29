@@ -19,7 +19,10 @@ from app.models.account import (
 )
 from app.models.collection_run import CollectionRun
 from app.schemas.account import CloudAccountBase
-from app.services.cloud_accounts import UnsupportedProviderOperation, require_aws_configuration
+from app.services.cloud_accounts import (
+    UnsupportedProviderOperation,
+    require_aws_configuration,
+)
 from app.services.oci_auth import (
     OciConnectionError,
     OciConnectionValidation,
