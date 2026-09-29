@@ -66,9 +66,7 @@ def list_cloud_accounts(db: Session) -> list[CloudAccount]:
 
 def get_cloud_account(db: Session, cloud_account_id: int) -> CloudAccount | None:
     return db.scalar(
-        select(CloudAccount)
-        .options(*_account_options())
-        .where(CloudAccount.id == cloud_account_id)
+        select(CloudAccount).options(*_account_options()).where(CloudAccount.id == cloud_account_id)
     )
 
 
@@ -311,9 +309,7 @@ def _oci_update_values(
         "user_ocid": changes.get("user_ocid", configuration.user_ocid),
         "region": changes.get("region", configuration.region),
         "scope_regions": changes.get("scope_regions", configuration.scope_regions),
-        "compartment_ocids": changes.get(
-            "compartment_ocids", configuration.compartment_ocids
-        ),
+        "compartment_ocids": changes.get("compartment_ocids", configuration.compartment_ocids),
         "include_root_compartment": changes.get(
             "include_root_compartment", configuration.include_root_compartment
         ),
@@ -435,16 +431,12 @@ def prepare_oci_replacement(
     changes = update.model_dump(exclude_unset=True)
     fingerprint = changes.get("fingerprint", configuration.fingerprint)
     password = (
-        update.private_key_password
-        if "private_key_password" in update.model_fields_set
-        else None
+        update.private_key_password if "private_key_password" in update.model_fields_set else None
     )
     user_ocid = changes.get("user_ocid", configuration.user_ocid)
     region = changes.get("region", configuration.region)
     scope_regions = changes.get("scope_regions", configuration.scope_regions)
-    compartment_ocids = changes.get(
-        "compartment_ocids", configuration.compartment_ocids
-    )
+    compartment_ocids = changes.get("compartment_ocids", configuration.compartment_ocids)
     include_root_compartment = changes.get(
         "include_root_compartment", configuration.include_root_compartment
     )
