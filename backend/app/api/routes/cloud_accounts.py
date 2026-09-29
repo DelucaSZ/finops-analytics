@@ -206,7 +206,7 @@ def update_account(
             refreshed.last_connection_test_at = result.tested_at
             return refreshed
 
-        update_cloud_account(db, account, payload, actor_id=actor.id)
+        update_cloud_account(db, account, payload, actor_id=actor_id)
         db.commit()
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
