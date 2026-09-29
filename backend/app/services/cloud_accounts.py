@@ -365,12 +365,21 @@ def update_cloud_account(
 
         configuration = require_oci_configuration(account)
         relevant_changed = False
+        credentials_removed = False
         if configuration_payload is not None:
             values = _oci_update_values(configuration, configuration_payload)
             for field, value in values.items():
                 if getattr(configuration, field) != value:
                     setattr(configuration, field, value)
                     relevant_changed = True
+            if configuration_payload.remove_credentials:
+                if configuration.private_key_ciphertext is not None:
+                    configuration.private_key_ciphertext = None
+                    configuration.private_key_password_ciphertext = None
+                    configuration.credential_key_version = None
+                    configuration.credential_revision += 1
+                    relevant_changed = True
+                    credentials_removed = True
 
         if "name" in changes:
             account.name = changes["name"]
@@ -384,10 +393,12 @@ def update_cloud_account(
             db,
             account=account,
             actor_id=actor_id,
-            action="oci.account.update",
+            action="oci.credentials.remove" if credentials_removed else "oci.account.update",
             result="success",
             detail=(
-                "connection validation invalidated"
+                "credential removed; connection validation invalidated"
+                if credentials_removed
+                else "connection validation invalidated"
                 if relevant_changed
                 else "administrative fields updated"
             ),
