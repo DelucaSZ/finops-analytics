@@ -2274,7 +2274,11 @@ A suíte Stage 14 cobre:
 O teste integrado desta etapa usa banco/test fixtures sintéticos. Não acessa contas cloud
 reais, não executa DELETE em produção e não mede storage físico de produção.
 
-**Validação final:** pendente do CI deste branch/PR no momento deste registro.
+**Validação final:** PR #19, CI run #153 aprovado: 258 testes backend em PostgreSQL 17
+(47,30 s), `ruff check` e `ruff format --check` aprovados; 34 testes frontend
+aprovados e build Next.js concluído; job de segurança aprovado. Auto Deploy Tests
+run #146 também aprovado. O teste integrado automatizado usa banco PostgreSQL e
+fixtures sintéticos, sem execução de DELETE em produção ou acesso a contas cloud reais.
 
 ### Limitações conhecidas
 
