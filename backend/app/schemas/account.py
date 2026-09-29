@@ -207,6 +207,7 @@ class OciAccountConfigurationUpdate(BaseModel):
     include_subcompartments: bool | None = None
     private_key_pem: str | None = Field(default=None, max_length=65536)
     private_key_password: str | None = Field(default=None, max_length=1024)
+    remove_credentials: bool = False
 
     @field_validator("user_ocid")
     @classmethod
@@ -247,6 +248,22 @@ class OciAccountConfigurationUpdate(BaseModel):
             raise ValueError("OCI private key password cannot be empty")
         return value
 
+    @model_validator(mode="after")
+    def explicit_credential_semantics(self):
+        fields = self.model_fields_set
+        replacing = "private_key_pem" in fields
+        changing_password = "private_key_password" in fields
+        changing_fingerprint = "fingerprint" in fields
+        if self.remove_credentials and (replacing or changing_password or changing_fingerprint):
+            raise ValueError(
+                "remove_credentials cannot be combined with OCI credential replacement fields"
+            )
+        if changing_password and not replacing:
+            raise ValueError("OCI key passphrase can only change together with a new private key")
+        if changing_fingerprint and not replacing:
+            raise ValueError("OCI fingerprint can only change together with a new private key")
+        return self
+
 
 class OciAccountConfigurationRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -260,7 +277,7 @@ class OciAccountConfigurationRead(BaseModel):
     include_root_compartment: bool
     include_subcompartments: bool
     credentials_configured: bool
-    credential_key_version: str
+    credential_key_version: str | None
     credential_revision: int
     configuration_revision: int
     created_at: datetime
