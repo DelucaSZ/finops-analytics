@@ -2037,3 +2037,255 @@ reparado pelo rebuild.
 **Etapa 14 permanece exclusivamente para retenção, arquivamento e limpeza controlada
 de histórico. Nenhuma retenção foi implementada aqui.**
 
+
+
+## Etapa 14 — retenção histórica controlada
+
+**Status:** implementação concluída no branch da etapa; validação CI registrada ao final desta seção.
+O objetivo é limitar o crescimento de histórico repetitivo sem remover identidade lógica,
+decisões humanas, rastreabilidade de execução ou produzir interpretações temporais falsas.
+
+### Inventário e classificação semântica
+
+| Entidade | Papel | Fonte de verdade | Reconstruível | Política | Crescimento esperado / dependências |
+|---|---|---|---|---|---|
+| `Finding` / Opportunity | identidade lógica por fingerprint, snapshot corrente e lifecycle | sim | não integralmente | permanente | uma linha por problema lógico; depende de conta/provider e usuário nas decisões |
+| `OpportunityStatusHistory` | auditoria das transições manuais, motivo, nota, ator e data | sim para auditoria | não | permanente | baixo; cresce por decisão humana |
+| `OpportunityObservation` | snapshot técnico/evidence de uma oportunidade em uma coleta | histórico detalhado | não após expirar a fonte cloud | **90 dias por default**, configurável | principal crescimento: até uma linha por opportunity/run |
+| `CollectionRun` | execução, provider, conta, timestamps, status, contagens, versão e erro | sim operacional | não integralmente | permanente nesta etapa | uma linha por execução; muito menor que observations |
+| `DashboardAccountSummary` | estado consolidado corrente da Home | não; derivado | sim | sem retenção histórica; rebuild | uma linha por provider/conta; depende da última SUCCESS e baseline |
+| evidence em `Finding` | snapshot técnico corrente | parte do estado lógico corrente | atualizado por nova coleta | permanente junto da Opportunity | não cresce por ocorrência |
+| evidence em `OpportunityObservation` | evidência histórica detalhada | histórico | não | acompanha a observation | payload JSON é parte relevante do custo de storage |
+| `AwsAccount` / configuração de conta | configuração operacional AWS atual | sim | não | fora do purge | baixo; Stage 10 mantém domínio provider-neutral onde aplicável |
+| logs da aplicação | observabilidade operacional | não há tabela persistida dedicada | n/a | fora deste cleanup | stdout/logging; retenção pertence à plataforma de logs |
+
+Não existe `AccountSummaryHistory`; a estrutura criada na Etapa 13 é
+`dashboard_account_summaries` e contém somente o estado corrente derivado.
+
+No dataset sintético usado nas Etapas 12/13 havia 10.000 Opportunities, 2.000
+CollectionRuns e 98.000 OpportunityObservations. Isso não é medição de produção, mas
+confirma a assimetria esperada: observations são a tabela que multiplica por execução e
+o alvo apropriado para retenção; Opportunity, lifecycle e CollectionRun não são.
+
+### Dados permanentes e auditabilidade
+
+A política comum de retenção **não apaga**:
+
+- `Finding` / Opportunity, fingerprint, status, first/last seen e snapshot corrente;
+- TREATED/REJECTED, motivo, nota, usuário e timestamps persistidos na Opportunity;
+- `OpportunityStatusHistory`, incluindo reaberturas;
+- `CollectionRun` e suas contagens/resumos;
+- `DashboardAccountSummary` corrente, que continua reconstruível.
+
+Não foi implementado purge de Opportunity nem de StatusHistory. As FKs existentes com
+`ON DELETE CASCADE` em observations/status-history continuam documentando o
+comportamento caso um pai seja removido explicitamente no futuro, mas a rotina de
+retenção nunca remove esses pais e nunca depende de cascade.
+
+### Política default e configuração
+
+A configuração continua centralizada em `app.core.config.Settings`:
+
+```text
+NUVEMIQ_RETENTION_ENABLED=true
+NUVEMIQ_OPPORTUNITY_OBSERVATION_RETENTION_DAYS=90
+NUVEMIQ_RETENTION_BATCH_SIZE=5000
+NUVEMIQ_RETENTION_MAX_ROWS_PER_RUN=10000
+```
+
+`RETENTION_DAYS` e `BATCH_SIZE` precisam ser positivos. `MAX_ROWS_PER_RUN=0`
+significa sem limite explícito; valor negativo é inválido. O limite default de 10.000
+é deliberadamente conservador para a primeira operação real.
+
+O cutoff é calculado em UTC como `now - retention_days`. Apenas
+`observed_at < cutoff` é elegível: a observação exatamente no limite permanece. A
+arquitetura de serviço já aceita filtro por provider/conta, mas a política default é
+global; não há configuração por conta nesta etapa.
+
+### Proteções antes de qualquer DELETE
+
+Mesmo estando antes do cutoff, observations são protegidas quando pertencem:
+
+1. às **duas CollectionRuns SUCCESS mais recentes** de cada `provider/account_id`;
+2. a uma CollectionRun referenciada como target ou baseline pelo
+   `DashboardAccountSummary` corrente.
+
+Isso impede que retenção por idade quebre a Home, sua baseline corrente ou a comparação
+operacional recente em contas que coletam com baixa frequência. A rotina somente
+seleciona IDs elegíveis depois dessas proteções.
+
+Quando qualquer observation de uma CollectionRun é removida,
+`collection_runs.detailed_observations_available` passa a `false`. O summary da
+coleta (`opportunities_found`, provider, conta, timestamps, status, versão, erro)
+permanece disponível.
+
+### Contagem histórica, first seen e last seen
+
+A migration `0013_historical_retention` adiciona
+`findings.total_occurrence_count`. O contador é incrementado **somente** quando uma
+nova `OpportunityObservation` é efetivamente criada; retry da mesma CollectionRun não
+incrementa. O cleanup nunca decrementa esse campo.
+
+Na migration o valor é backfilled com o número de observations conhecidas naquele
+momento. O DeepOps não inventa ocorrências anteriores ao modelo histórico da Etapa 2 que
+não estejam materializadas no banco; essa é uma limitação de dados legados, não uma
+contagem sintetizada.
+
+`first_seen_at` e `last_seen_at` já pertencem a `Finding` e não são derivados da
+observation mais antiga/recente retida. Portanto continuam representando os timestamps
+históricos persistidos após o cleanup.
+
+### Dry-run, execução manual e batches
+
+O comando operacional é:
+
+```bash
+python -m app.commands.retention_cleanup --dry-run
+python -m app.commands.retention_cleanup --execute
+python -m app.commands.retention_cleanup --execute --batch-size 1000 --max-rows 10000
+python -m app.commands.retention_cleanup --dry-run --before 2026-06-30T00:00:00Z
+python -m app.commands.retention_cleanup --dry-run --provider aws --account-id 123456789012
+```
+
+Sem flag de modo o comando é dry-run. O preview informa cutoff, total de observations no
+escopo, quantidade anterior ao cutoff, elegíveis, protegidas, observation mais antiga e
+elegível mais antiga. Dry-run não modifica o banco.
+
+Cada batch seleciona IDs em ordem de `observed_at/id`, marca as CollectionRuns afetadas
+como histórico parcial, remove somente esses IDs e faz commit. Uma falha faz rollback
+apenas do lote corrente; batches anteriores permanecem commitados. Reexecutar é seguro:
+registros já removidos não voltam a ser elegíveis, portanto a operação é idempotente.
+
+`MAX_ROWS_PER_RUN` limita o total removido em uma execução. Não há sleep/throttle
+artificial nesta etapa; batch size + safety cap dão controle sem introduzir complexidade
+não justificada pelo volume atual.
+
+### Execução automática
+
+Não existe Celery beat, scheduler genérico ou infraestrutura equivalente no projeto.
+Por isso a Etapa 14 **não adiciona scheduler novo** e retenção não roda após cada coleta.
+
+Para operação recorrente, a CLI pode ser chamada por cron/systemd timer externo,
+tipicamente diariamente ou semanalmente. O rollout recomendado é operacional, não
+codificado como workflow obrigatório: dry-run, revisão, execução com safety cap pequeno
+e aumento posterior se necessário. `NUVEMIQ_RETENTION_ENABLED=false` bloqueia
+`--execute` sem remover a capacidade de preview.
+
+### Comparações e APIs após expiração
+
+Ausência causada por retenção nunca é interpretada como `NO_LONGER_DETECTED`.
+
+- `CollectionRun.detailed_observations_available=false` sinaliza explicitamente perda
+  de detalhe.
+- comparação envolvendo baseline ou target parcial retorna
+  `available=false`, `reason=OBSERVATIONS_EXPIRED`, sem summary/diff fabricado;
+- filtro de Opportunities por uma CollectionRun expirada retorna HTTP **410 Gone** com
+  `COLLECTION_OBSERVATIONS_EXPIRED`, em vez de `200 []`;
+- o detalhe da CollectionRun preserva o resumo e diferencia
+  `opportunities_found` do número de observations ainda retidas;
+- a tela de comparação identifica baselines cujo detalhe expirou.
+
+A Home continua baseada nas últimas coletas válidas e no summary da Etapa 13. O serviço
+de agregação também recusa usar observation sets marcados como parciais caso encontre
+essa condição defensivamente.
+
+### UI de Opportunity e histórico parcial
+
+A Opportunity expõe `total_occurrence_count`. O endpoint de histórico informa:
+
+- `retained_total`;
+- `total_occurrence_count`;
+- `history_complete`;
+- política configurada e cutoff corrente.
+
+A UI mostra ocorrências históricas separadas de detalhes retidos. Quando o histórico é
+parcial, explica que evidências intermediárias expiraram sem sugerir que nunca
+existiram. Histórico de decisões permanece separado e permanente.
+
+### Evidência ligada a decisão
+
+O modelo atual não possui FK entre `OpportunityStatusHistory` e uma
+`OpportunityObservation` específica. Criar retrospectivamente esse vínculo exigiria
+inferir qual observation embasou uma decisão, o que seria auditavelmente pior do que
+admitir a ausência do vínculo. A Etapa 14, portanto, preserva permanentemente quem,
+quando, transição, motivo e nota, além do snapshot corrente/first/last seen, mas uma
+evidência histórica intermediária não explicitamente vinculada pode expirar.
+
+Se a exigência futura for preservar a evidência exata usada na decisão, o domínio deve
+registrar explicitamente `decision_observation_id` no momento da decisão e proteger
+essa observation; não será inferido retroativamente.
+
+### Migration, índices, FKs e PostgreSQL
+
+Nova revisão: `0013_historical_retention`.
+
+A migration adiciona:
+
+- `findings.total_occurrence_count INTEGER NOT NULL DEFAULT 0`, com backfill;
+- `collection_runs.detailed_observations_available BOOLEAN NOT NULL DEFAULT TRUE`,
+  marcada como false no backfill quando a contagem detalhada existente diverge de
+  `opportunities_found`.
+
+Nenhum índice novo foi necessário. `opportunity_observations.observed_at` já possui
+índice desde a migration 0006, e `collection_run_id`/combinação run+opportunity já
+estão indexados. Não foram alteradas FKs nem cascades apenas para facilitar cleanup.
+
+No PostgreSQL, DELETE libera tuples para reutilização após VACUUM/autovacuum; não há
+`VACUUM FULL` automático porque ele pode bloquear e não deve fazer parte de cada
+retenção. Se deletes recorrentes relevantes gerarem bloat, autovacuum e bloat devem ser
+monitorados operacionalmente.
+
+### Arquivamento externo e particionamento
+
+Não foi implementado export para S3/Object Storage: não existe requisito concreto nesta
+etapa para consultar a evidence detalhada depois do prazo, e criar export, manifest,
+checksum, IAM, retry e restore aumentaria o escopo sem necessidade demonstrada.
+
+Também não foi implementado particionamento. Se o volume real tornar DELETE em batches
+insuficiente, particionamento temporal de `OpportunityObservation` é a evolução
+natural para permitir descarte por partição. Se auditoria futura exigir cold storage,
+JSONL compactado ou Parquet com manifest/checksum são preferíveis a CSV gigante; payloads
+devem continuar passando pela mesma disciplina de não persistir secrets/tokens.
+
+### Logs e métricas do cleanup
+
+Não foi criada `RetentionRun`: logs operacionais são suficientes no estágio atual.
+A execução registra início/fim, cutoff, elegíveis, batch, linhas removidas, total
+removido, CollectionRuns marcadas parciais, safety-cap e erro do lote. Esses logs podem
+ser coletados pela plataforma já usada para stdout.
+
+### Testes e critérios de regressão
+
+A suíte Stage 14 cobre:
+
+- validação da configuração;
+- borda do cutoff e dry-run sem mutação;
+- cleanup em múltiplos batches e idempotência;
+- preservação de fingerprint, first/last seen, occurrence count, TREATED/REJECTED e
+  StatusHistory;
+- nova detecção após cleanup reutilizando a mesma Opportunity;
+- comparação expirada sem falso `NO_LONGER_DETECTED`;
+- HTTP 410 para listagem de CollectionRun sem detalhe;
+- proteção das coletas usadas pela Home/summary;
+- isolamento por provider, incluindo fixture OCI;
+- migration/backfill e compatibilidade de schema através da suíte de migrations;
+- build/testes frontend para os estados de histórico parcial.
+
+O teste integrado desta etapa usa banco/test fixtures sintéticos. Não acessa contas cloud
+reais, não executa DELETE em produção e não mede storage físico de produção.
+
+**Validação final:** pendente do CI deste branch/PR no momento deste registro.
+
+### Limitações conhecidas
+
+- contagem de ocorrências anterior à materialização introduzida na Etapa 2 não pode ser
+  reconstruída se nunca existiu como observation;
+- não existe vínculo explícito decisão → observation histórica;
+- não há archive externo, particionamento nem scheduler interno;
+- o impacto de storage e bloat precisa ser medido no banco de produção antes de qualquer
+  ajuste agressivo de janela/batch;
+- a política por provider/conta pode ser adicionada futuramente sem alterar o serviço,
+  mas não é configurada por escopo nesta etapa.
+
+A Etapa 14 não altera regras FinOps, lifecycle, providers ou features de negócio e **não
+avança para a Etapa 15**.
