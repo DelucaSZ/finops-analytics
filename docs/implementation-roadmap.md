@@ -2476,7 +2476,7 @@ pela Etapa 16.
 
 ## Etapa 17 — generalização do cadastro de contas
 
-**Status:** implementação concluída e validada no PR #23. A branch está publicada; merge na `main` e deploy de produção ainda não foram executados.
+**Status:** implementação concluída e validada no PR #23; incorporada à `main` no merge commit `f93dc5157e506cf33a6c53d4909c130a701600d2`. Deploy de produção é uma etapa operacional separada.
 
 ### Modelo comum e fonte de verdade
 
@@ -2523,3 +2523,70 @@ Ordem recomendada: pausar o worker e mutações de cadastro; gerar/validar backu
 A Etapa 18 poderá adicionar configuração/autenticação OCI vinculada ao mesmo `CloudAccount`, sem nova generalização do cadastro. Continuam fora desta etapa: API Key/private key OCI, formulário OCI, teste real OCI, collectors/regras OCI e generalização total da fila.
 
 Os testes adicionados cobrem contrato comum/legado, provider e identidade imutáveis, constraint de unicidade, fixture OCI estrutural, permissões, bloqueio de provider sem integração, sincronização dos espelhos, fluxos AWS e migration com scan, CollectionRun, fingerprint, observation e decisão humana preservados. Fixtures OCI não são integração cloud real.
+
+
+## Etapa 18 — integração OCI por API Signing Key
+
+**Status:** implementação backend concluída na branch `stage18-oci-api-key`. A validação automatizada oficial deve ser conferida no CI do PR. Nenhuma conexão real com uma tenancy OCI é declarada sem credenciais disponibilizadas por mecanismo seguro.
+
+### Modelo, migration e API
+
+A integração reutiliza `CloudAccount` da Etapa 17. `CloudAccount.native_account_id` permanece como única fonte editável do Tenancy OCID e a unicidade `provider + native_account_id` continua no banco. `OciAccountConfiguration` guarda User OCID, fingerprint, região de conexão, regiões/compartments de escopo, flags de root/subcompartments, revisões e credencial criptografada.
+
+A migration `0015_oci_api_keys` cria `oci_account_configurations` e `cloud_account_audit_events` sem reescrever AWS, CollectionRuns, oportunidades, observations ou decisões humanas. Downgrade destrutivo é recusado; rollback após uso de OCI exige backup verificado pré-0015.
+
+Contratos:
+- `POST /api/v1/cloud-accounts`: cria conta OCI, configuração e credencial atomicamente;
+- `GET /api/v1/cloud-accounts` e `GET /api/v1/cloud-accounts/{id}`: retornam metadados sem PEM, passphrase ou ciphertext;
+- `PATCH /api/v1/cloud-accounts/{id}`: atualiza configuração; segredo omitido mantém o atual;
+- `{"configuration":{"remove_credentials":true}}`: única remoção explícita; vazio/null não apagam credenciais;
+- um novo PEM/fingerprint é validado e testado remotamente antes do swap; falha preserva a credencial anterior;
+- `POST /api/v1/cloud-accounts/{id}/test-connection`: testa a configuração OCI;
+- `GET /api/v1/cloud-accounts/{id}/audit`: expõe auditoria sanitizada somente para admin.
+
+Provider e identidade nativa continuam imutáveis. Configuração OCI em provider diferente e configuração AWS em OCI são recusadas.
+
+### Escopo explícito
+
+`scope_regions=[]` não significa todas as regiões. `compartment_ocids=[]` com `include_root_compartment=false` significa nenhum compartment configurado, nunca toda a tenancy. A tenancy root só é incluída por `include_root_compartment=true`. `include_subcompartments` exige root ou pelo menos um compartment-base.
+
+Regiões e compartments são configuração pretendida; seu cadastro não representa coleta executada.
+
+### API Signing Key e criptografia
+
+O backend usa o SDK oficial `oci`, instancia `Signer`/`IdentityClient` com `private_key_content` em memória, constrói endpoints pela região e não usa `~/.oci/config` ou credenciais locais como fallback. O PEM é validado como RSA >= 2048 bits, suporta passphrase e o marcador `OCI_API_KEY`; o fingerprint OCI é recalculado da chave pública e comparado antes da persistência.
+
+PEM e passphrase são protegidos com Fernet usando exclusivamente `NUVEMIQ_OCI_CREDENTIALS_KEY`, separada do banco/código e de `NUVEMIQ_SECRET_KEY`. `NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION` acompanha o ciphertext para futura rotação. Chave ausente, inválida ou versão indisponível falha fechado apenas nas operações OCI dependentes dela; AWS permanece operacional.
+
+O worker AWS-only não recebe a chave OCI no Compose. Backup do PostgreSQL sem a chave Fernet correspondente não recupera as credenciais OCI; a chave deve ser protegida e respaldada separadamente.
+
+### Teste de conexão e limites
+
+O teste executa chamadas reais do SDK em runtime:
+- `GetTenancy`;
+- `GetUser`;
+- `ListRegionSubscriptions` usando paginação oficial;
+- `GetCompartment` para compartments explícitos;
+- `ListCompartments` quando a intenção inclui subcompartments.
+
+O serviço usa timeout curto e zero retry automático para duração previsível. Os resultados distinguem configuração local inválida, autenticação, autorização/recurso oculto, rede/timeout, throttling, indisponibilidade, erro remoto e configuração concorrente obsoleta. Mensagens são sanitizadas e não persistem resposta bruta do SDK.
+
+O teste captura `configuration_revision`, encerra a transação antes das chamadas remotas e só grava o resultado se a revisão ainda for atual. Assim, um teste antigo não marca uma configuração nova como validada.
+
+Sucesso comprova somente `verified_checks`; não comprova acesso a Compute, Database, Object Storage ou futuros coletores. Permissões mínimas desta etapa: `TENANCY_INSPECT`, `USER_INSPECT` e `COMPARTMENT_INSPECT`.
+
+### Auditoria, AWS e interface
+
+Eventos OCI registram autor, conta, ação, horário e resultado sanitizado. Troca/remoção registra a ocorrência sem guardar valores antigos ou novos.
+
+STS AssumeRole, cadastro/edição AWS, scans, scheduler, worker, políticas, fingerprints, lifecycle e histórico permanecem inalterados operacionalmente. Scheduler/fila continuam baseados em `AwsAccount` e provider AWS. Uma conta OCI não possui `AwsAccount.id`, portanto não entra no coletor AWS e um teste OCI não cria `CollectionRun` ou oportunidades.
+
+A tela existente apenas apresenta conta OCI cadastrada pela API e permite teste; análise continua disponível somente para AWS. O formulário unificado/editável completo pertence à Etapa 19.
+
+### Testes e onboarding
+
+A suíte cobre cadastro válido/duplicado, provider incompatível, OCIDs, PEM/fingerprint, passphrase correta/incorreta, criptografia e ausência de segredos, chave Fernet ausente/inválida, update sem reenvio, remoção explícita, troca validada com rollback, invalidação de estado, teste concorrente obsoleto, erros do SDK, RBAC, auditoria, bloqueio de coleta OCI, regressão AWS e migration em base nova/existente.
+
+Onboarding, policies mínimas, rotação e recuperação estão em `docs/oci-onboarding.md`.
+
+Sem credenciais OCI disponibilizadas por canal seguro nesta execução, a validação real em tenancy permanece pendente. Mocks automatizados não são declarados como conexão real.
