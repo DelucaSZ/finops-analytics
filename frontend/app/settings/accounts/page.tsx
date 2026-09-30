@@ -26,11 +26,13 @@ import {
 } from "@/lib/account-form.mjs";
 import type { AccountFormState } from "@/lib/account-form.mjs";
 import { providerLabel } from "@/lib/cloud.mjs";
+import { queryKeys } from "@/lib/query-keys.mjs";
+import { invalidateApiQueries } from "@/lib/server-state";
 import {
   canManageCloudAccounts,
   canRunCloudAnalysis,
 } from "@/lib/settings-navigation.mjs";
-import type { CloudAccount, Scan } from "@/lib/types";
+import type { CloudAccount, ProviderCapabilities, Scan } from "@/lib/types";
 
 type CurrentUser = { role: string };
 type FormMode = "closed" | "create" | "edit";
@@ -65,14 +67,16 @@ function scopeSummary(account: CloudAccount) {
   return parts.length ? parts.join(" · ") : "Escopo vazio";
 }
 
-function scheduleSummary(account: CloudAccount) {
+function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
+  if (!capabilities?.scheduling) return "Não implementado";
   const aws = account.aws_configuration;
-  if (!aws) return "Coleta indisponível";
+  if (!aws) return "Indisponível";
   return aws.schedule_enabled ? "A cada " + aws.scan_interval_hours + "h" : "Desativado";
 }
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
+  const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -91,6 +95,14 @@ export default function AccountsPage() {
 
   const canManageAccounts = canManageCloudAccounts(role);
   const canAnalyze = canRunCloudAnalysis(role);
+  const capabilityByProvider = useMemo(
+    () => new Map(capabilities.map((item) => [item.provider, item])),
+    [capabilities],
+  );
+  const availableProviders = useMemo(
+    () => capabilities.filter((item) => item.registration),
+    [capabilities],
+  );
   const filteredAccounts = useMemo(
     () => filterCloudAccounts(accounts, cloudFilter, search),
     [accounts, cloudFilter, search],
@@ -130,10 +142,15 @@ export default function AccountsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api<CloudAccount[]>("/cloud-accounts"), api<CurrentUser>("/auth/me")])
-      .then(([items, user]) => {
+    Promise.all([
+      api<CloudAccount[]>("/cloud-accounts"),
+      api<ProviderCapabilities[]>("/cloud-accounts/capabilities"),
+      api<CurrentUser>("/auth/me"),
+    ])
+      .then(([items, providerCapabilities, user]) => {
         if (!active) return;
         setAccounts(items);
+        setCapabilities(providerCapabilities);
         setRole(user.role);
         setLoadError("");
       })
@@ -200,7 +217,11 @@ export default function AccountsPage() {
     }
   }
 
-  async function chooseProvider(provider: "aws" | "oci") {
+  async function chooseProvider(provider: string) {
+    if (provider !== "aws" && provider !== "oci") {
+      setError("Cadastro ainda não implementado para " + providerLabel(provider) + ".");
+      return;
+    }
     const next = createEmptyAccountForm(provider);
     next.name = form.name;
     next.enabled = form.enabled;
@@ -316,6 +337,9 @@ export default function AccountsPage() {
               : "Alterações salvas.",
         );
       }
+      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.collections.all);
       await loadAccounts();
     } catch (err) {
       setError(errorMessage(err, "Falha ao salvar a conta"));
@@ -357,19 +381,20 @@ export default function AccountsPage() {
 
   async function scan(account: CloudAccount) {
     if (!canAnalyze) return;
-    const legacyAwsId = account.aws_configuration?.id;
-    if (account.provider !== "aws" || !legacyAwsId) {
-      setError("Coleta OCI ainda não está implementada.");
+    const capability = capabilityByProvider.get(account.provider);
+    if (!capability?.manual_collection) {
+      setError("Coleta ainda não implementada para " + providerLabel(account.provider) + ".");
       return;
     }
     setAccountBusy(account.id, "scan");
     setError("");
     setMessage("");
     try {
-      await api<Scan>("/scans", {
+      await api<Scan>("/cloud-accounts/" + account.id + "/scans", {
         method: "POST",
-        body: JSON.stringify({ account_id: legacyAwsId }),
       });
+      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateApiQueries(queryKeys.collections.all);
       setMessage("Análise de " + account.name + " adicionada à fila.");
     } catch (err) {
       setError(errorMessage(err, "Falha ao iniciar análise"));
@@ -427,22 +452,17 @@ export default function AccountsPage() {
               <fieldset className="span-2 account-provider-fieldset">
                 <legend>Cloud</legend>
                 <div className="segmented account-provider-choice" aria-label="Escolha o provider">
-                  <button
-                    type="button"
-                    className={form.provider === "aws" ? "active" : ""}
-                    aria-pressed={form.provider === "aws"}
-                    onClick={() => void chooseProvider("aws")}
-                  >
-                    AWS
-                  </button>
-                  <button
-                    type="button"
-                    className={form.provider === "oci" ? "active" : ""}
-                    aria-pressed={form.provider === "oci"}
-                    onClick={() => void chooseProvider("oci")}
-                  >
-                    OCI
-                  </button>
+                  {availableProviders.map((provider) => (
+                    <button
+                      key={provider.provider}
+                      type="button"
+                      className={form.provider === provider.provider ? "active" : ""}
+                      aria-pressed={form.provider === provider.provider}
+                      onClick={() => void chooseProvider(provider.provider)}
+                    >
+                      {provider.label}
+                    </button>
+                  ))}
                 </div>
                 <small>Os campos e credenciais são isolados por provider. Selecionar OCI não dispara chamadas AWS.</small>
                 {fieldErrors.provider && <span className="field-error">{fieldErrors.provider}</span>}
@@ -799,9 +819,11 @@ export default function AccountsPage() {
                         )}
                       </>
                     )}
-                    <p className="span-2 account-form-note">
-                      Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
-                    </p>
+                    {!capabilityByProvider.get("oci")?.manual_collection && (
+                      <p className="span-2 account-form-note">
+                        Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
+                      </p>
+                    )}
                   </>
                 )}
 
@@ -834,8 +856,9 @@ export default function AccountsPage() {
             Cloud
             <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label="Filtrar por cloud">
               <option value="all">Todas</option>
-              <option value="aws">AWS</option>
-              <option value="oci">OCI</option>
+              {availableProviders.map((provider) => (
+                <option key={provider.provider} value={provider.provider}>{provider.label}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -885,9 +908,7 @@ export default function AccountsPage() {
               <tbody>
                 {filteredAccounts.map((account) => {
                   const busy = busyAccounts[account.id];
-                  const hasOperationalConnection = Boolean(
-                    account.aws_configuration || account.oci_configuration,
-                  );
+                  const capability = capabilityByProvider.get(account.provider);
                   return (
                     <tr key={account.id}>
                       <td>
@@ -915,10 +936,16 @@ export default function AccountsPage() {
                       </td>
                       <td>
                         <span title={scopeSummary(account)}>{scopeSummary(account)}</span>
-                        {account.provider === "oci" && <small className="account-capability-note">Coleta OCI ainda não implementada</small>}
+                        {capability && !capability.manual_collection && (
+                          <small className="account-capability-note">
+                            {account.connection_status === "connected"
+                              ? `Conexão validada. Coleta ${capability.label} ainda não disponível.`
+                              : `Coleta ${capability.label} ainda não disponível.`}
+                          </small>
+                        )}
                       </td>
                       <td>{formatDate(account.last_connection_test_at)}</td>
-                      <td>{scheduleSummary(account)}</td>
+                      <td>{scheduleSummary(account, capability)}</td>
                       <td>
                         <div className="settings-row-actions account-row-actions">
                           {canManageAccounts && (
@@ -930,7 +957,7 @@ export default function AccountsPage() {
                               <Edit3 size={15} /> Editar
                             </button>
                           )}
-                          {canManageAccounts && hasOperationalConnection && (
+                          {canManageAccounts && capability?.connection_test && (
                             <button
                               className="button ghost"
                               onClick={() => void testConnection(account)}
@@ -940,11 +967,15 @@ export default function AccountsPage() {
                               Testar
                             </button>
                           )}
-                          {canAnalyze && account.aws_configuration && (
+                          {canAnalyze && capability?.manual_collection && (
                             <button
                               className="button primary"
                               onClick={() => void scan(account)}
-                              disabled={Boolean(busy) || account.connection_status !== "connected"}
+                              disabled={
+                                Boolean(busy)
+                                || !account.enabled
+                                || account.connection_status !== "connected"
+                              }
                             >
                               <Play size={15} /> Analisar
                             </button>

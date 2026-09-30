@@ -22,6 +22,13 @@ from app.services.collectors import run_collectors
 from app.services.dashboard_aggregation import rebuild_account_summary
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 from app.services.policies import list_effective_policies
+from app.services.provider_capabilities import (
+    ProviderOperation,
+    UnsupportedProviderOperation,
+    providers_supporting,
+    require_provider_operation,
+)
+from app.services.scan_queue import CollectionPreconditionError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -37,7 +44,7 @@ def enqueue_due_scans(db: Session) -> None:
             select(AwsAccount)
             .join(CloudAccount, AwsAccount.cloud_account_id == CloudAccount.id)
             .where(
-                CloudAccount.provider == CloudProvider.AWS.value,
+                CloudAccount.provider.in_(providers_supporting(ProviderOperation.SCHEDULING)),
                 CloudAccount.enabled.is_(True),
                 AwsAccount.schedule_enabled.is_(True),
                 AwsAccount.next_scan_at.is_not(None),
@@ -73,21 +80,28 @@ def claim_scan(db: Session) -> Scan | None:
             scan.started_at = started_at
             account = db.get(AwsAccount, scan.account_id)
             cloud_account = account.cloud_account if account else None
-            account_id = (
-                cloud_account.native_account_id
-                if cloud_account and cloud_account.provider == CloudProvider.AWS.value
-                else f"legacy:{scan.account_id}"
-            )
-            db.add(
-                CollectionRun(
-                    scan_id=scan.id,
-                    provider=CloudProvider.AWS.value,
-                    account_id=account_id,
-                    scope={"regions": sorted(account.regions) if account else []},
-                    started_at=started_at,
-                    status=CollectionRunStatus.RUNNING,
+            collection_allowed = False
+            if account is not None and cloud_account is not None and cloud_account.enabled:
+                try:
+                    require_provider_operation(
+                        cloud_account.provider,
+                        ProviderOperation.MANUAL_COLLECTION,
+                    )
+                    collection_allowed = cloud_account.provider == CloudProvider.AWS.value
+                except UnsupportedProviderOperation:
+                    collection_allowed = False
+
+            if collection_allowed:
+                db.add(
+                    CollectionRun(
+                        scan_id=scan.id,
+                        provider=cloud_account.provider,
+                        account_id=cloud_account.native_account_id,
+                        scope={"regions": sorted(account.regions)},
+                        started_at=started_at,
+                        status=CollectionRunStatus.RUNNING,
+                    )
                 )
-            )
     return scan
 
 
@@ -313,13 +327,15 @@ def persist_findings(
 def execute_scan(db: Session, scan: Scan) -> None:
     account = db.get(AwsAccount, scan.account_id)
     cloud_account = account.cloud_account if account else None
-    if (
-        account is None
-        or cloud_account is None
-        or cloud_account.provider != CloudProvider.AWS.value
-        or not cloud_account.enabled
-    ):
-        raise RuntimeError("AWS account was removed, disabled or has an invalid provider")
+    if account is None or cloud_account is None:
+        raise CollectionPreconditionError("Collection account is missing its cloud account")
+    require_provider_operation(cloud_account.provider, ProviderOperation.MANUAL_COLLECTION)
+    if cloud_account.provider != CloudProvider.AWS.value:
+        raise UnsupportedProviderOperation(
+            "The legacy scan queue currently supports only AWS collection jobs"
+        )
+    if not cloud_account.enabled:
+        raise CollectionPreconditionError("Cloud account is disabled")
 
     run = collection_run_for_scan(db, scan.id)
     if run is None:
@@ -329,6 +345,7 @@ def execute_scan(db: Session, scan: Scan) -> None:
     # connection before STS/cloud requests. The claim/RUNNING record is already committed.
     account_id, scan_id, run_id = account.id, scan.id, run.id
     expected_account_id = cloud_account.native_account_id
+    require_provider_operation(cloud_account.provider, ProviderOperation.FINOPS_POLICIES)
     policies = list_effective_policies(db, account_id)
     active_rule_keys = [
         policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
@@ -422,7 +439,11 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
 
     account = db.get(AwsAccount, failed_scan.account_id)
     cloud_account = account.cloud_account if account else None
-    if cloud_account and cloud_account.provider == CloudProvider.AWS.value:
+    if (
+        cloud_account
+        and cloud_account.provider == CloudProvider.AWS.value
+        and not isinstance(exc, (UnsupportedProviderOperation, CollectionPreconditionError))
+    ):
         cloud_account.connection_status = "error"
         cloud_account.last_error = error[:2000]
     db.commit()

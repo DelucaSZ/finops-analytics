@@ -2594,7 +2594,7 @@ Sem credenciais OCI disponibilizadas por canal seguro nesta execução, a valida
 
 ## Etapa 19 — formulário unificado de cadastro e edição de contas AWS e OCI
 
-**Status:** implementação concluída na branch `stage19-unified-account-form`, com PR #25 aberto para `main`. O código foi validado no CI #192. Merge e deploy permanecem etapas separadas.
+**Status:** implementação concluída, validada no CI #192 e incorporada à `main` pelo merge commit `09d3580f1ad583ab529d81abc324730d437f1ead` (PR #25). Deploy permanece etapa operacional separada.
 
 ### Experiência final de Contas
 
@@ -2709,3 +2709,133 @@ Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, 
 - Etapa 20: redesenho de políticas por provider, sem antecipação nesta etapa.
 - Etapa 21: expansão operacional posterior prevista no roadmap; esta etapa não cria collectors, regras ou agendamento OCI.
 - Descoberta assistida de regiões/compartments OCI pode ser considerada futuramente se houver contrato backend específico; hoje as entradas são manuais e explícitas.
+
+
+## Etapa 20 — integração de contas, políticas e capacidades por cloud
+
+**Status:** implementação concluída em `stage20-provider-capabilities`, PR #26, validada no CI #199. O PR permanece aberto; não houve merge nem deploy nesta etapa. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
+
+### Fonte de verdade de capacidades
+
+O backend passa a expor `GET /api/v1/cloud-accounts/capabilities` como contrato autoritativo das funcionalidades implementadas por provider. O frontend não decide disponibilidade operacional pela existência de configuração AWS/OCI nem mantém uma segunda matriz de suporte.
+
+Matriz efetivamente implementada:
+
+| Capacidade | AWS | OCI | Azure | GCP |
+| --- | --- | --- | --- | --- |
+| Cadastro | Sim | Sim | Não | Não |
+| Edição | Sim | Sim | Não | Não |
+| Teste de conexão | Sim | Sim | Não | Não |
+| Coleta manual | Sim | Não | Não | Não |
+| Agendamento | Sim | Não | Não | Não |
+| Políticas FinOps | Sim | Não | Não | Não |
+
+Os conceitos permanecem independentes: suporte do provider, RBAC do usuário, `CloudAccount.enabled`, estado do teste de conexão e pré-condições da operação. Uma conta conectada não recebe capacidade de coleta automaticamente.
+
+### Disparo de coleta e bloqueios operacionais
+
+Foi adicionado o contrato canônico `POST /api/v1/cloud-accounts/{cloud_account_id}/scans`. Ele recebe o ID administrativo comum, resolve a configuração operacional correta e recusa a operação antes de criar `Scan` quando o provider não possui coleta implementada ou a conta está desabilitada.
+
+`POST /api/v1/scans` permanece disponível como contrato legado AWS e delega ao mesmo serviço de fila/precondições. Assim, o endpoint legado não possui uma regra paralela de elegibilidade.
+
+O scheduler consulta a matriz de capacidades antes de selecionar providers com agendamento. O worker também revalida a capacidade antes de criar `CollectionRun` e novamente antes de executar o coletor e carregar políticas. Trabalho antigo/incompatível já presente na fila é marcado como falha pelo mecanismo existente, sem criar um `CollectionRun` falso, sem cair no coletor AWS e sem permanecer indefinidamente em `RUNNING`.
+
+Falhas de pré-condição administrativa ou provider sem coletor não alteram `connection_status` para erro de autenticação. Falhas reais durante a coleta AWS preservam a classificação anterior.
+
+### Políticas e aplicabilidade
+
+As políticas existentes continuam com a semântica anterior:
+
+- regras globais AWS;
+- sobrescritas opcionais por `AwsAccount.id`;
+- herança e precedência preservadas;
+- valores existentes não são substituídos por defaults;
+- endpoints legados `/policies/global` e `/policies/accounts/{aws_account_id}` continuam compatíveis.
+
+O contrato `PolicyRead` agora declara `provider=aws`. A associação por conta continua protegida pelo FK existente para `aws_accounts`, portanto **não foi necessária migration** e nenhuma política legada foi regravada.
+
+Em `Configurações → Políticas`, o frontend consulta a matriz de capacidades. AWS apresenta as regras atuais. OCI apresenta estado explicativo de indisponibilidade e não chama endpoints de regras AWS. Cadastro e teste de conexão OCI não implicam existência de regras ou analisador OCI.
+
+### Identidade, histórico e caches
+
+A resolução visual de contas continua sendo feita por `provider + native_account_id` em Home, Oportunidades e Coletas, com `LEFT JOIN` para preservar dados históricos sem cadastro administrativo correspondente. O nome amigável atual é enriquecimento visual; a identidade histórica, fingerprints, observations e decisões humanas não são reescritas quando o cadastro muda.
+
+Os filtros operacionais continuam derivados das fontes operacionais de cada endpoint. Contas apenas cadastradas não são injetadas em options/agregações como se tivessem sido analisadas. URLs e parâmetros `provider + account_id` permanecem compatíveis.
+
+Após criação/edição administrativa pela interface, os caches de Dashboard, Oportunidades e Coletas são invalidados para que alterações de nome/configuração não permaneçam visivelmente obsoletas.
+
+### Saúde de coleta e ausência de dados
+
+`GET /api/v1/dashboard/collection-health` passa a separar:
+
+- cobertura cadastral;
+- contas habilitadas/desabilitadas;
+- contas cujo provider possui coletor;
+- contas elegíveis para coleta;
+- contas elegíveis ainda sem execução;
+- providers cadastrados sem coletor implementado;
+- saúde das execuções que realmente existem.
+
+`total_scopes`, falhas, `RUNNING`, `SUCCESS`, freshness e warnings continuam baseados em `CollectionRun` real. Conta OCI sem coletor não é classificada como falha ou atrasada e não recebe coleta sintética. A Home também não converte ausência de análise em economia zero.
+
+Na tela de Contas, uma OCI conectada sem coletor é apresentada como **“Conexão validada. Coleta OCI ainda não disponível.”**. Agendamento e análise são renderizados conforme o contrato do backend, e não apenas pela presença de uma configuração provider-specific.
+
+### Contratos preservados e alterados
+
+Preservados:
+
+- `GET/POST /api/v1/cloud-accounts`;
+- `GET/PATCH/DELETE /api/v1/cloud-accounts/{id}`;
+- `POST /api/v1/cloud-accounts/{id}/test-connection`;
+- `GET /api/v1/cloud-accounts/aws/external-id`;
+- `/api/v1/accounts` como compatibilidade AWS;
+- `POST /api/v1/scans` como compatibilidade de coleta manual AWS;
+- endpoints de políticas AWS;
+- identidade histórica, lifecycle, comparação, retenção e agregações financeiras por moeda.
+
+Adicionados/estendidos:
+
+- `GET /api/v1/cloud-accounts/capabilities`;
+- `POST /api/v1/cloud-accounts/{id}/scans`;
+- `PolicyRead.provider`;
+- `DashboardCollectionHealth.coverage`.
+
+Nenhuma migration foi necessária nesta etapa.
+
+### Testes adicionados e validação
+
+Foram adicionados testes estruturais para:
+
+- matriz distinta de capacidades AWS/OCI e provider desconhecido;
+- recusa de coleta OCI sem criação de `Scan` ou `CollectionRun`;
+- recusa de AWS desabilitada sem criação de scan;
+- worker recebendo trabalho incompatível sem criar `CollectionRun` e sem marcar a conexão como falha de autenticação;
+- cobertura da Home distinguindo conta OCI cadastrada sem coletor de escopos realmente executados;
+- frontend consumindo `/cloud-accounts/capabilities` em Contas e Políticas;
+- frontend usando o disparo canônico por `CloudAccount.id` e não o ID legado de scan;
+- OCI sem políticas FinOps e preservação do contrato AWS.
+
+Fixtures OCI desta etapa são estruturais/simuladas. Elas não constituem evidência de coleta ou acesso real a recursos OCI.
+
+Validação automatizada final do PR #26, CI #199:
+
+- backend: `ruff check .` aprovado;
+- backend: `ruff format --check .` aprovado;
+- backend: `pytest -q` com **297 testes aprovados** e 6 warnings de depreciação;
+- frontend: `npm test` com **51 testes aprovados**;
+- frontend: `npm run build` aprovado, incluindo geração das 21 páginas estáticas;
+- security: readiness checker, exposição pública do Compose e template de Security Group aprovados;
+- workflow separado **Auto deploy tests #192** aprovado; esse workflow testa o instalador e não representa deploy do PR.
+
+As rodadas preliminares CI #195 e #197 identificaram apenas organização/formatação de arquivos Python; os apontamentos foram corrigidos antes do CI #199. O `npm ci` continua reportando 1 vulnerabilidade moderada e 1 alta já presentes na árvore de dependências; a Etapa 20 não declara correção dessas dependências. Não há navegador E2E nem credenciais OCI reais nesta execução, portanto não é declarada validação visual completa nem coleta OCI real.
+
+### Pendências para a Etapa 21
+
+- revisão integrada e smoke tests de implantação;
+- validação do rollout real com os serviços `web/api/worker/db/proxy`;
+- confirmação operacional pós-deploy dos fluxos AWS existentes;
+- validação visual final dos estados AWS/OCI em desktop/mobile, se houver navegador E2E disponível;
+- conexão OCI real apenas quando credenciais puderem ser fornecidas por canal seguro, sem confundi-la com existência de collector;
+- tratamento de qualquer regressão encontrada na revisão integrada.
+
+Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinOps OCI, novos métodos de autenticação, Azure/GCP operacionais, conversão cambial, mudança de fingerprint/identidade de oportunidade, nova retenção e framework de plugins.

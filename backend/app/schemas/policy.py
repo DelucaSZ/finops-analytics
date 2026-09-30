@@ -7,6 +7,7 @@ class PolicyUpdate(BaseModel):
 
 
 class PolicyRead(BaseModel):
+    provider: str = "aws"
     rule_key: str
     name: str
     description: str

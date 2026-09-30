@@ -286,6 +286,17 @@ class OciAccountConfigurationRead(BaseModel):
     updated_at: datetime
 
 
+class ProviderCapabilitiesRead(BaseModel):
+    provider: str
+    label: str
+    registration: bool
+    editing: bool
+    connection_test: bool
+    manual_collection: bool
+    scheduling: bool
+    finops_policies: bool
+
+
 class CloudAccountBase(BaseModel):
     model_config = ConfigDict(extra="forbid")
 

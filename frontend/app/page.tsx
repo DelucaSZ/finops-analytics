@@ -290,8 +290,24 @@ function DashboardContent() {
         <section className="panel dashboard-empty-state">
           <Sparkles size={28} />
           <h2>Ainda não existem dados suficientes para montar a visão geral.</h2>
-          <p>Execute uma coleta para iniciar a análise operacional do DeepOps.</p>
-          <Link className="button primary" href="/accounts">
+          {health?.coverage.registered_accounts ? (
+            <>
+              <p>
+                {health.coverage.collection_eligible_accounts} conta(s) cadastrada(s) estão
+                elegíveis para coleta, mas ainda não possuem execução neste escopo.
+              </p>
+              {health.coverage.collection_unsupported_accounts > 0 && (
+                <p>
+                  {health.coverage.collection_unsupported_accounts} conta(s) cadastrada(s)
+                  pertencem a providers sem coletor implementado e não são classificadas
+                  como falha, atraso ou economia zero.
+                </p>
+              )}
+            </>
+          ) : (
+            <p>Cadastre uma conta com coleta suportada para iniciar a análise operacional do DeepOps.</p>
+          )}
+          <Link className="button primary" href="/settings/accounts">
             Ir para contas <ArrowRight size={16} />
           </Link>
         </section>
@@ -578,8 +594,12 @@ function DashboardContent() {
             <>
               <div className="dashboard-health-summary">
                 <span>
+                  <Cloud size={16} />
+                  {health.coverage.collection_eligible_accounts} conta(s) elegíveis
+                </span>
+                <span>
                   <CheckCircle2 size={16} />
-                  {health.valid_scopes} com coleta válida
+                  {health.valid_scopes} escopo(s) com coleta válida
                 </span>
                 <Link href={failedCollectionsHref}>
                   <XCircle size={16} />
@@ -595,7 +615,23 @@ function DashboardContent() {
                     {health.valid_with_warnings} SUCCESS com avisos
                   </span>
                 )}
+                {health.coverage.collection_unsupported_accounts > 0 && (
+                  <span>
+                    <Cloud size={16} />
+                    {health.coverage.collection_unsupported_accounts} sem coletor implementado
+                  </span>
+                )}
+                {health.coverage.eligible_without_execution > 0 && (
+                  <span>
+                    <RefreshCw size={16} />
+                    {health.coverage.eligible_without_execution} elegível(is) sem execução
+                  </span>
+                )}
               </div>
+              <p className="dashboard-note">
+                Falhas e freshness consideram apenas escopos com execução. Contas sem suporte
+                a coleta permanecem na cobertura cadastral, sem serem classificadas como atrasadas.
+              </p>
 
               <div className="dashboard-health-table-wrap" tabIndex={0} role="region" aria-label="Últimas coletas por conta">
                 <table className="data-table dashboard-health-table">

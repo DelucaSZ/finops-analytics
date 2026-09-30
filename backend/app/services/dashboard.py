@@ -13,6 +13,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.dashboard_aggregation import rebuild_account_summary
+from app.services.provider_capabilities import ProviderOperation, providers_supporting
 
 logger = logging.getLogger("deepops.dashboard")
 
@@ -743,6 +744,53 @@ def _health_base(*, provider: str | None, account_id: str | None):
     return execution, valid
 
 
+def _collection_coverage(
+    db: Session,
+    *,
+    provider: str | None,
+    account_id: str | None,
+) -> dict:
+    supported_providers = providers_supporting(ProviderOperation.MANUAL_COLLECTION)
+    supported = CloudAccount.provider.in_(supported_providers)
+    enabled = CloudAccount.enabled.is_(True)
+    has_execution = (
+        select(CollectionRun.id)
+        .where(
+            CollectionRun.provider == CloudAccount.provider,
+            CollectionRun.account_id == CloudAccount.native_account_id,
+        )
+        .exists()
+    )
+
+    statement = select(
+        func.count().label("registered_accounts"),
+        func.count(case((enabled, 1))).label("enabled_accounts"),
+        func.count(case((supported, 1))).label("collection_supported_accounts"),
+        func.count(case((and_(supported, enabled), 1))).label("collection_eligible_accounts"),
+        func.count(case((and_(supported, enabled, ~has_execution), 1))).label(
+            "eligible_without_execution"
+        ),
+    ).select_from(CloudAccount)
+    if provider:
+        statement = statement.where(CloudAccount.provider == provider.lower())
+    if account_id:
+        statement = statement.where(CloudAccount.native_account_id == account_id)
+
+    row = db.execute(statement).one()
+    registered = int(row.registered_accounts or 0)
+    enabled_count = int(row.enabled_accounts or 0)
+    supported_count = int(row.collection_supported_accounts or 0)
+    return {
+        "registered_accounts": registered,
+        "enabled_accounts": enabled_count,
+        "disabled_accounts": registered - enabled_count,
+        "collection_supported_accounts": supported_count,
+        "collection_eligible_accounts": int(row.collection_eligible_accounts or 0),
+        "collection_unsupported_accounts": registered - supported_count,
+        "eligible_without_execution": int(row.eligible_without_execution or 0),
+    }
+
+
 def collection_health(
     db: Session,
     *,
@@ -750,6 +798,7 @@ def collection_health(
     account_id: str | None = None,
     limit: int = 8,
 ) -> dict:
+    coverage = _collection_coverage(db, provider=provider, account_id=account_id)
     execution, valid = _health_base(provider=provider, account_id=account_id)
     execution_scan = aliased(Scan, name="dashboard_execution_scan")
     valid_scan = aliased(Scan, name="dashboard_valid_scan")
@@ -844,6 +893,7 @@ def collection_health(
             "provider": provider.lower() if provider else None,
             "account_id": account_id,
         },
+        "coverage": coverage,
         "total_scopes": int(aggregate.total_scopes or 0),
         "valid_scopes": int(aggregate.valid_scopes or 0),
         "latest_execution": {
