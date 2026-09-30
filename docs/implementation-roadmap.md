@@ -2839,3 +2839,66 @@ As rodadas preliminares CI #195 e #197 identificaram apenas organização/format
 - tratamento de qualquer regressão encontrada na revisão integrada.
 
 Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinOps OCI, novos métodos de autenticação, Azure/GCP operacionais, conversão cambial, mudança de fingerprint/identidade de oportunidade, nova retenção e framework de plugins.
+
+
+## Etapa 21 — Validação integrada e fechamento da gestão multi-cloud de contas
+
+**Status:** concluída e validada no PR #28; CI, Auto deploy tests e smoke Compose aprovados.
+
+### Objetivo
+
+Consolidar as Etapas 16 a 20 sem ampliar o escopo funcional: validar navegação, identidade comum de contas, cadastro/edição AWS e OCI, proteção de credenciais OCI, matriz de capacidades por provider, migrations e implantação integrada.
+
+### Estado confirmado antes das alterações
+
+- Base de validação: `main` em `18695f3697cd4019517e0eb2a9e71a79dbf0bfbd`, merge do PR #26.
+- A área administrativa usa `/settings/accounts` e `/settings/policies`, com redirects dos caminhos antigos.
+- AWS permanece o único provider com coleta manual, agendamento e políticas FinOps.
+- OCI suporta cadastro, edição e teste de conexão por API Signing Key; isso não representa coleta FinOps OCI.
+- A cadeia de migrations termina em `0015_oci_api_keys`.
+- O CI da revisão-base e os Auto deploy tests estavam aprovados.
+- Não foi identificado defeito funcional que justificasse refatoração ampla antes do fechamento; o gap concreto era ausência de smoke integrado do stack Compose no CI.
+
+### Entregas da Etapa 21
+
+- Adicionado `.github/workflows/stage21-compose-smoke.yml` para validar em projeto Compose isolado:
+  - configuração do Compose;
+  - build de backend e frontend;
+  - PostgreSQL 17, API, worker, web e proxy;
+  - migrations no startup;
+  - healthcheck via proxy;
+  - entrega do frontend;
+  - revisão `0015_oci_api_keys`;
+  - persistência/prontidão após restart;
+  - coleta de logs e teardown do volume isolado.
+- Adicionado `docs/stage21-validation.md` com matriz de validação, capacidades por provider, proteção de credenciais, permissões OCI, implantação e recuperação.
+- O smoke não usa credenciais cloud reais e não toca recursos ou volumes de produção.
+
+### Validação final automatizada
+
+Head validado antes da consolidação documental: `a0f483007823d0c8dc77c8669976cb05c059635f`.
+
+- CI run `36734050516`: aprovado.
+- Auto deploy tests run `36734050432`: aprovado.
+- Stage 21 Compose smoke run `36734050381`: aprovado.
+
+Foram executados os seguintes gates:
+
+- backend: `ruff check .`, `ruff format --check .`, `pytest -q`;
+- migrations em SQLite e PostgreSQL 17;
+- frontend: `npm test` e `npm run build`;
+- segurança estática existente;
+- smoke Compose da Etapa 21.
+
+Validações AWS/OCI reais, browser E2E e produção permanecem explicitamente separadas. Sem execução em ambiente autorizado, elas não devem ser declaradas como aprovadas por equivalência.
+
+### Documentação operacional
+
+Consulte `docs/stage21-validation.md` para:
+
+- cadastro/edição AWS e OCI;
+- chave Fernet de credenciais OCI;
+- permissões mínimas do teste OCI atual;
+- ordem de implantação;
+- backup e recuperação;
+- matriz de evidências e pendências.
