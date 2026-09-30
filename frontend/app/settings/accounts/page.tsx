@@ -1,10 +1,29 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
-import { Building2, Check, Copy, Play, Plus, RefreshCw, X } from "lucide-react";
+import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import {
+  Building2,
+  Check,
+  Copy,
+  Edit3,
+  FileKey2,
+  Play,
+  Plus,
+  RefreshCw,
+  Search,
+  X,
+} from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
-import { api, formatDate } from "@/lib/api";
+import { ApiError, api, formatDate } from "@/lib/api";
+import {
+  accountToForm,
+  buildCreateAccountPayload,
+  buildUpdateAccountPayload,
+  createEmptyAccountForm,
+  filterCloudAccounts,
+} from "@/lib/account-form.mjs";
+import type { AccountFormState } from "@/lib/account-form.mjs";
 import { providerLabel } from "@/lib/cloud.mjs";
 import {
   canManageCloudAccounts,
@@ -13,32 +32,88 @@ import {
 import type { CloudAccount, Scan } from "@/lib/types";
 
 type CurrentUser = { role: string };
-
-const emptyForm = {
-  name: "",
-  aws_account_id: "",
-  role_arn: "",
-  external_id: "",
-  regions: "sa-east-1",
-  is_management_account: false,
-  schedule_enabled: false,
-  scan_interval_hours: 24,
+type FormMode = "closed" | "create" | "edit";
+type ConnectionResult = {
+  ok: boolean;
+  provider: string;
+  error_code?: string | null;
+  error?: string | null;
+  verified_checks?: string[];
 };
+
+function errorMessage(error: unknown, fallback: string) {
+  if (error instanceof ApiError && error.code) {
+    return error.message + " (" + error.code + ")";
+  }
+  return error instanceof Error ? error.message : fallback;
+}
+
+function scopeSummary(account: CloudAccount) {
+  if (account.aws_configuration) {
+    return account.aws_configuration.regions.length
+      ? account.aws_configuration.regions.join(", ")
+      : "Nenhuma região";
+  }
+  const oci = account.oci_configuration;
+  if (!oci) return "Integração não disponível";
+  const parts: string[] = [];
+  if (oci.scope_regions.length) parts.push(oci.scope_regions.join(", "));
+  if (oci.include_root_compartment) parts.push("tenancy root");
+  if (oci.compartment_ocids.length) parts.push(oci.compartment_ocids.length + " compartment(s)");
+  if (oci.include_subcompartments) parts.push("inclui subcompartments");
+  return parts.length ? parts.join(" · ") : "Escopo vazio";
+}
+
+function scheduleSummary(account: CloudAccount) {
+  const aws = account.aws_configuration;
+  if (!aws) return "Coleta indisponível";
+  return aws.schedule_enabled ? "A cada " + aws.scan_interval_hours + "h" : "Desativado";
+}
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [role, setRole] = useState("");
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({ ...emptyForm });
+  const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState<FormMode>("closed");
+  const [editingAccount, setEditingAccount] = useState<CloudAccount | null>(null);
+  const [form, setForm] = useState<AccountFormState>(() => createEmptyAccountForm());
+  const [replaceCredentials, setReplaceCredentials] = useState(false);
+  const [formBusy, setFormBusy] = useState(false);
+  const [externalIdBusy, setExternalIdBusy] = useState(false);
+  const [busyAccounts, setBusyAccounts] = useState<Record<number, string>>({});
+  const [cloudFilter, setCloudFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [busy, setBusy] = useState<number | "create" | null>(null);
+
   const canManageAccounts = canManageCloudAccounts(role);
   const canAnalyze = canRunCloudAnalysis(role);
+  const filteredAccounts = useMemo(
+    () => filterCloudAccounts(accounts, cloudFilter, search),
+    [accounts, cloudFilter, search],
+  );
 
-  async function load() {
-    try { setAccounts(await api<CloudAccount[]>("/cloud-accounts")); }
-    catch (err) { setError(err instanceof Error ? err.message : "Falha ao carregar contas"); }
+  const dirty = useMemo(() => {
+    if (mode === "create") {
+      return Boolean(
+        form.provider
+        || form.name
+        || form.native_account_id
+        || form.oci.private_key_pem
+        || form.oci.private_key_password,
+      );
+    }
+    if (mode === "edit" && editingAccount) {
+      return Object.keys(
+        buildUpdateAccountPayload(editingAccount, form, { replaceCredentials }),
+      ).length > 0;
+    }
+    return false;
+  }, [editingAccount, form, mode, replaceCredentials]);
+
+  async function loadAccounts() {
+    const items = await api<CloudAccount[]>("/cloud-accounts");
+    setAccounts(items);
   }
 
   useEffect(() => {
@@ -50,75 +125,195 @@ export default function AccountsPage() {
         setRole(user.role);
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "Falha ao carregar contas");
+        if (active) setError(errorMessage(err, "Falha ao carregar contas"));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, []);
 
-  async function openCreateForm() {
+  function setAccountBusy(accountId: number, action: string | null) {
+    setBusyAccounts((current) => {
+      const next = { ...current };
+      if (action) next[accountId] = action;
+      else delete next[accountId];
+      return next;
+    });
+  }
+
+  function resetEditor() {
+    setMode("closed");
+    setEditingAccount(null);
+    setReplaceCredentials(false);
+    setForm(createEmptyAccountForm());
+  }
+
+  function closeEditor() {
+    if (dirty && !window.confirm("Descartar as alterações não salvas?")) return;
+    resetEditor();
+    setError("");
+  }
+
+  function openCreate() {
     if (!canManageAccounts) return;
+    setMessage("");
+    setError("");
+    setEditingAccount(null);
+    setReplaceCredentials(false);
+    setForm(createEmptyAccountForm());
+    setMode("create");
+  }
+
+  async function generateExternalId() {
+    setExternalIdBusy(true);
     setError("");
     try {
       const generated = await api<{ external_id: string }>("/cloud-accounts/aws/external-id");
-      setForm({ ...emptyForm, external_id: generated.external_id });
-      setShowForm(true);
+      setForm((current) => current.provider === "aws"
+        ? { ...current, aws: { ...current.aws, external_id: generated.external_id } }
+        : current);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao gerar External ID");
-    }
-  }
-
-  async function createAccount(event: FormEvent) {
-    event.preventDefault();
-    if (!canManageAccounts) return;
-    setBusy("create");
-    setError("");
-    try {
-      await api<CloudAccount>("/cloud-accounts", {
-        method: "POST",
-        body: JSON.stringify({
-          provider: "aws",
-          native_account_id: form.aws_account_id,
-          name: form.name,
-          enabled: true,
-          configuration: {
-            role_arn: form.role_arn,
-            external_id: form.external_id,
-            regions: form.regions.split(",").map((item) => item.trim()).filter(Boolean),
-            is_management_account: form.is_management_account,
-            schedule_enabled: form.schedule_enabled,
-            scan_interval_hours: form.scan_interval_hours,
-          },
-        }),
-      });
-      setForm({ ...emptyForm });
-      setShowForm(false);
-      setMessage("Conta cadastrada. Agora valide a conexão.");
-      await load();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao cadastrar");
+      setError(errorMessage(err, "Falha ao gerar External ID"));
     } finally {
-      setBusy(null);
+      setExternalIdBusy(false);
     }
   }
 
-  async function test(account: CloudAccount) {
+  async function chooseProvider(provider: "aws" | "oci") {
+    const next = createEmptyAccountForm(provider);
+    next.name = form.name;
+    next.enabled = form.enabled;
+    setReplaceCredentials(false);
+    setForm(next);
+    if (provider === "aws") await generateExternalId();
+  }
+
+  async function openEdit(account: CloudAccount) {
     if (!canManageAccounts) return;
-    setBusy(account.id);
+    if (dirty && !window.confirm("Descartar as alterações não salvas e editar outra conta?")) return;
+    setFormBusy(true);
     setError("");
     setMessage("");
     try {
-      const result = await api<{ ok: boolean; error?: string }>(
-        `/cloud-accounts/${account.id}/test-connection`,
+      const details = await api<CloudAccount>("/cloud-accounts/" + account.id);
+      setEditingAccount(details);
+      setForm(accountToForm(details));
+      setReplaceCredentials(false);
+      setMode("edit");
+    } catch (err) {
+      setError(errorMessage(err, "Falha ao carregar a conta"));
+    } finally {
+      setFormBusy(false);
+    }
+  }
+
+  async function readPemFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (file.size > 65536) {
+      setError("A chave privada excede o limite de 64 KiB aceito pelo backend.");
+      return;
+    }
+    const pem = await file.text();
+    setForm((current) => ({
+      ...current,
+      oci: { ...current.oci, private_key_pem: pem },
+    }));
+    setError("");
+  }
+
+  function cancelCredentialReplacement() {
+    setReplaceCredentials(false);
+    setForm((current) => ({
+      ...current,
+      oci: {
+        ...current.oci,
+        fingerprint: editingAccount?.oci_configuration?.fingerprint || current.oci.fingerprint,
+        private_key_pem: "",
+        private_key_password: "",
+      },
+    }));
+  }
+
+  async function submitForm(event: FormEvent) {
+    event.preventDefault();
+    if (!canManageAccounts) return;
+    setFormBusy(true);
+    setError("");
+    setMessage("");
+    try {
+      if (mode === "create") {
+        const payload = buildCreateAccountPayload(form);
+        const created = await api<CloudAccount>("/cloud-accounts", {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        resetEditor();
+        setMessage(
+          created.provider === "oci"
+            ? "Conta OCI cadastrada. A credencial foi armazenada; execute o teste de conexão antes de considerar o acesso validado."
+            : "Conta AWS cadastrada. Agora valide a conexão.",
+        );
+      } else if (mode === "edit" && editingAccount) {
+        const payload = buildUpdateAccountPayload(editingAccount, form, { replaceCredentials });
+        if (!Object.keys(payload).length) {
+          setMessage("Nenhuma alteração para salvar.");
+          setFormBusy(false);
+          return;
+        }
+        const saved = await api<CloudAccount>("/cloud-accounts/" + editingAccount.id, {
+          method: "PATCH",
+          body: JSON.stringify(payload),
+        });
+        resetEditor();
+        setMessage(
+          replaceCredentials
+            ? "Credencial OCI substituída e validada antes da ativação."
+            : saved.connection_status === "untested"
+              ? "Alterações salvas. A configuração precisa ser testada novamente."
+              : "Alterações salvas.",
+        );
+      }
+      await loadAccounts();
+    } catch (err) {
+      setError(errorMessage(err, "Falha ao salvar a conta"));
+    } finally {
+      setFormBusy(false);
+    }
+  }
+
+  async function testConnection(account: CloudAccount) {
+    if (!canManageAccounts) return;
+    if (mode === "edit" && editingAccount?.id === account.id && dirty) {
+      setError("Salve ou descarte as alterações desta conta antes de testar. O teste usa a configuração persistida.");
+      return;
+    }
+    setAccountBusy(account.id, "test");
+    setError("");
+    setMessage("");
+    try {
+      const result = await api<ConnectionResult>(
+        "/cloud-accounts/" + account.id + "/test-connection",
         { method: "POST" },
       );
-      if (!result.ok) throw new Error(result.error || "A conexão não pôde ser validada");
-      setMessage(`Conexão com ${account.name} validada com sucesso.`);
-      await load();
+      if (!result.ok) {
+        const suffix = result.error_code ? " (" + result.error_code + ")" : "";
+        throw new Error((result.error || "A conexão não pôde ser validada") + suffix);
+      }
+      const checks = result.verified_checks?.length
+        ? " Verificações: " + result.verified_checks.join(", ") + "."
+        : "";
+      setMessage("Conexão com " + account.name + " validada." + checks);
+      await loadAccounts();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha no teste");
-      await load();
+      setError(errorMessage(err, "Falha no teste de conexão"));
+      await loadAccounts().catch(() => undefined);
     } finally {
-      setBusy(null);
+      setAccountBusy(account.id, null);
     }
   }
 
@@ -126,10 +321,10 @@ export default function AccountsPage() {
     if (!canAnalyze) return;
     const legacyAwsId = account.aws_configuration?.id;
     if (account.provider !== "aws" || !legacyAwsId) {
-      setError(`Análise manual ainda não está disponível para ${providerLabel(account.provider)}.`);
+      setError("Coleta OCI ainda não está implementada.");
       return;
     }
-    setBusy(account.id);
+    setAccountBusy(account.id, "scan");
     setError("");
     setMessage("");
     try {
@@ -137,59 +332,605 @@ export default function AccountsPage() {
         method: "POST",
         body: JSON.stringify({ account_id: legacyAwsId }),
       });
-      setMessage(`Análise de ${account.name} adicionada à fila.`);
+      setMessage("Análise de " + account.name + " adicionada à fila.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Falha ao iniciar análise");
+      setError(errorMessage(err, "Falha ao iniciar análise"));
     } finally {
-      setBusy(null);
+      setAccountBusy(account.id, null);
     }
   }
+
+  async function copyText(value: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(value);
+      setMessage(label + " copiado.");
+      setError("");
+    } catch {
+      setError("Não foi possível copiar para a área de transferência.");
+    }
+  }
+
+  const editorTitle = mode === "create"
+    ? "Adicionar conta"
+    : "Editar " + (editingAccount?.name || "conta");
 
   return (
     <>
       <PageHeader
         eyebrow="CONFIGURAÇÕES · CONTAS"
         title="Contas"
-        description="Gerencie as contas cloud conectadas ao DeepOps. AWS continua disponível pela interface; a integração OCI por API Key já pode ser administrada pela API e ganhará formulário unificado na Etapa 19."
-        actions={canManageAccounts ? <button className="button primary" onClick={() => void openCreateForm()}><Plus size={17} /> Adicionar conta AWS</button> : undefined}
+        description="Cadastre e mantenha contas AWS e OCI em uma única área. O teste valida a configuração persistida; coleta e agendamento continuam disponíveis somente para AWS."
+        actions={canManageAccounts ? (
+          <button className="button primary" onClick={openCreate} disabled={mode !== "closed"}>
+            <Plus size={17} /> Adicionar conta
+          </button>
+        ) : undefined}
       />
-      {error && <div className="alert error"><X size={17} />{error}</div>}
-      {message && <div className="alert success"><Check size={17} />{message}</div>}
 
-      {showForm && canManageAccounts && (
-        <section className="panel account-form-panel">
-          <div className="panel-heading"><div><span className="eyebrow">NOVA CONEXÃO</span><h2>Cadastrar conta AWS</h2></div><button className="icon-button" aria-label="Fechar cadastro de conta AWS" onClick={() => setShowForm(false)}><X size={18} /></button></div>
-          <form className="form-grid" onSubmit={createAccount}>
-            <label>Nome da conta<input value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Produção" required /></label>
-            <label>AWS Account ID<input value={form.aws_account_id} onChange={(e) => setForm({ ...form, aws_account_id: e.target.value.replace(/\D/g, "").slice(0, 12) })} placeholder="123456789012" pattern="[0-9]{12}" required /></label>
-            <label className="span-2">Role ARN<input value={form.role_arn} onChange={(e) => setForm({ ...form, role_arn: e.target.value })} placeholder="arn:aws:iam::123456789012:role/NuvemIQReadOnly" required /></label>
-            <label className="span-2">External ID<div className="input-action"><input value={form.external_id} onChange={(e) => setForm({ ...form, external_id: e.target.value })} required /><button type="button" title="Copiar" onClick={() => void navigator.clipboard.writeText(form.external_id)}><Copy size={16} /></button></div><small>Use exatamente este valor ao criar a role na conta-alvo.</small></label>
-            <label>Regiões<input value={form.regions} onChange={(e) => setForm({ ...form, regions: e.target.value })} placeholder="sa-east-1, us-east-1" required /><small>Separadas por vírgula.</small></label>
-            <label>Intervalo de análise<select value={form.scan_interval_hours} onChange={(e) => setForm({ ...form, scan_interval_hours: Number(e.target.value) })}><option value={12}>A cada 12 horas</option><option value={24}>Diariamente</option><option value={168}>Semanalmente</option></select></label>
-            <label className="check-label"><input type="checkbox" checked={form.is_management_account} onChange={(e) => setForm({ ...form, is_management_account: e.target.checked })} /> Conta management/payer</label>
-            <label className="check-label"><input type="checkbox" checked={form.schedule_enabled} onChange={(e) => setForm({ ...form, schedule_enabled: e.target.checked })} /> Ativar análises agendadas</label>
-            <div className="form-actions span-2"><button type="button" className="button ghost" onClick={() => setShowForm(false)}>Cancelar</button><button className="button primary" disabled={busy === "create"}>{busy === "create" ? "Salvando…" : "Cadastrar conta AWS"}</button></div>
+      <div aria-live="polite">
+        {error && <div className="alert error"><X size={17} />{error}</div>}
+        {message && <div className="alert success"><Check size={17} />{message}</div>}
+      </div>
+
+      {mode !== "closed" && canManageAccounts && (
+        <section className="panel account-form-panel" aria-labelledby="account-editor-title">
+          <div className="panel-heading">
+            <div>
+              <span className="eyebrow">{mode === "create" ? "NOVA CONEXÃO" : "MANUTENÇÃO"}</span>
+              <h2 id="account-editor-title">{editorTitle}</h2>
+            </div>
+            <button className="icon-button" type="button" aria-label="Fechar formulário" onClick={closeEditor}>
+              <X size={18} />
+            </button>
+          </div>
+
+          <form className="form-grid account-unified-form" onSubmit={submitForm}>
+            {mode === "create" && (
+              <fieldset className="span-2 account-provider-fieldset">
+                <legend>Cloud</legend>
+                <div className="segmented account-provider-choice" aria-label="Escolha o provider">
+                  <button
+                    type="button"
+                    className={form.provider === "aws" ? "active" : ""}
+                    aria-pressed={form.provider === "aws"}
+                    onClick={() => void chooseProvider("aws")}
+                  >
+                    AWS
+                  </button>
+                  <button
+                    type="button"
+                    className={form.provider === "oci" ? "active" : ""}
+                    aria-pressed={form.provider === "oci"}
+                    onClick={() => void chooseProvider("oci")}
+                  >
+                    OCI
+                  </button>
+                </div>
+                <small>Os campos e credenciais são isolados por provider. Selecionar OCI não dispara chamadas AWS.</small>
+              </fieldset>
+            )}
+
+            {form.provider && (
+              <>
+                <label>
+                  Nome da conta
+                  <input
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="Produção"
+                    required
+                  />
+                </label>
+                <label>
+                  {form.provider === "aws" ? "AWS Account ID" : "Tenancy OCID"}
+                  <input
+                    value={form.native_account_id}
+                    onChange={(e) => setForm({
+                      ...form,
+                      native_account_id: form.provider === "aws"
+                        ? e.target.value.replace(/\D/g, "").slice(0, 12)
+                        : e.target.value,
+                    })}
+                    placeholder={form.provider === "aws" ? "123456789012" : "ocid1.tenancy.oc1.."}
+                    pattern={form.provider === "aws" ? "[0-9]{12}" : undefined}
+                    readOnly={mode === "edit"}
+                    required
+                  />
+                  {mode === "edit" && (
+                    <small>Provider e identidade não podem ser alterados. Cadastre outra conta para mudar essa identidade.</small>
+                  )}
+                </label>
+
+                <label className="check-label">
+                  <input
+                    type="checkbox"
+                    checked={form.enabled}
+                    onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+                  />
+                  Conta habilitada
+                </label>
+                <div />
+
+                {form.provider === "aws" && (
+                  <>
+                    <label className="span-2">
+                      Role ARN
+                      <input
+                        value={form.aws.role_arn}
+                        onChange={(e) => setForm({
+                          ...form,
+                          aws: { ...form.aws, role_arn: e.target.value },
+                        })}
+                        placeholder="arn:aws:iam::123456789012:role/DeepOpsReadOnly"
+                        required
+                      />
+                    </label>
+                    <label className="span-2">
+                      External ID
+                      <div className="input-action">
+                        <input
+                          value={form.aws.external_id}
+                          onChange={(e) => setForm({
+                            ...form,
+                            aws: { ...form.aws, external_id: e.target.value },
+                          })}
+                          required
+                        />
+                        <button
+                          type="button"
+                          title="Copiar External ID"
+                          aria-label="Copiar External ID"
+                          onClick={() => void copyText(form.aws.external_id, "External ID")}
+                        >
+                          <Copy size={16} />
+                        </button>
+                      </div>
+                      <small>
+                        {mode === "create"
+                          ? "Gerado somente depois que AWS é selecionado."
+                          : "Abrir ou salvar a edição não gera um novo External ID."}
+                      </small>
+                    </label>
+                    {mode === "create" && (
+                      <div className="span-2 account-inline-actions">
+                        <button
+                          type="button"
+                          className="button ghost"
+                          onClick={() => void generateExternalId()}
+                          disabled={externalIdBusy}
+                        >
+                          <RefreshCw size={15} className={externalIdBusy ? "spin" : ""} />
+                          {externalIdBusy ? "Gerando…" : "Gerar novo External ID"}
+                        </button>
+                      </div>
+                    )}
+                    <label>
+                      Regiões
+                      <input
+                        value={form.aws.regions}
+                        onChange={(e) => setForm({
+                          ...form,
+                          aws: { ...form.aws, regions: e.target.value },
+                        })}
+                        placeholder="sa-east-1, us-east-1"
+                        required
+                      />
+                      <small>Separadas por vírgula.</small>
+                    </label>
+                    <label>
+                      Intervalo de análise
+                      <select
+                        value={form.aws.scan_interval_hours}
+                        onChange={(e) => setForm({
+                          ...form,
+                          aws: { ...form.aws, scan_interval_hours: Number(e.target.value) },
+                        })}
+                      >
+                        <option value={12}>A cada 12 horas</option>
+                        <option value={24}>Diariamente</option>
+                        <option value={168}>Semanalmente</option>
+                      </select>
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={form.aws.is_management_account}
+                        onChange={(e) => setForm({
+                          ...form,
+                          aws: { ...form.aws, is_management_account: e.target.checked },
+                        })}
+                      />
+                      Conta management/payer
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={form.aws.schedule_enabled}
+                        onChange={(e) => setForm({
+                          ...form,
+                          aws: { ...form.aws, schedule_enabled: e.target.checked },
+                        })}
+                      />
+                      Ativar análises agendadas
+                    </label>
+                    <p className="span-2 account-form-note">
+                      Alterações de Role ARN ou External ID invalidam a validação anterior. Habilitar a conta não ativa o agendamento automaticamente.
+                    </p>
+                  </>
+                )}
+
+                {form.provider === "oci" && (
+                  <>
+                    <label className="span-2">
+                      User OCID
+                      <input
+                        value={form.oci.user_ocid}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, user_ocid: e.target.value },
+                        })}
+                        placeholder="ocid1.user.oc1.."
+                        required
+                      />
+                    </label>
+                    <label>
+                      Região de conexão
+                      <input
+                        value={form.oci.region}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, region: e.target.value },
+                        })}
+                        placeholder="sa-saopaulo-1"
+                        required
+                      />
+                      <small>Região usada pelo SDK para autenticação e chamadas de Identity.</small>
+                    </label>
+                    <label>
+                      Regiões do escopo
+                      <input
+                        value={form.oci.scope_regions}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, scope_regions: e.target.value },
+                        })}
+                        placeholder="sa-saopaulo-1, us-ashburn-1"
+                      />
+                      <small>Escopo pretendido para futuras coletas. Vazio não significa todas as regiões.</small>
+                    </label>
+                    <label className="span-2">
+                      Compartments
+                      <textarea
+                        value={form.oci.compartment_ocids}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, compartment_ocids: e.target.value },
+                        })}
+                        placeholder="ocid1.compartment.oc1..abc, ocid1.compartment.oc1..def"
+                        rows={3}
+                      />
+                      <small>Informe OCIDs separados por vírgula. Não há descoberta automática nesta etapa.</small>
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={form.oci.include_root_compartment}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, include_root_compartment: e.target.checked },
+                        })}
+                      />
+                      Incluir tenancy root
+                    </label>
+                    <label className="check-label">
+                      <input
+                        type="checkbox"
+                        checked={form.oci.include_subcompartments}
+                        onChange={(e) => setForm({
+                          ...form,
+                          oci: { ...form.oci, include_subcompartments: e.target.checked },
+                        })}
+                      />
+                      Incluir subcompartments
+                    </label>
+
+                    {mode === "create" ? (
+                      <>
+                        <label>
+                          Fingerprint
+                          <input
+                            value={form.oci.fingerprint}
+                            onChange={(e) => setForm({
+                              ...form,
+                              oci: { ...form.oci, fingerprint: e.target.value },
+                            })}
+                            placeholder="aa:bb:cc:..."
+                            required
+                          />
+                        </label>
+                        <label>
+                          Senha da chave
+                          <input
+                            type="password"
+                            autoComplete="new-password"
+                            value={form.oci.private_key_password}
+                            onChange={(e) => setForm({
+                              ...form,
+                              oci: { ...form.oci, private_key_password: e.target.value },
+                            })}
+                            placeholder="Opcional"
+                          />
+                        </label>
+                        <OciPrivateKeyFields form={form} setForm={setForm} readPemFile={readPemFile} />
+                      </>
+                    ) : (
+                      <>
+                        <div className="span-2 credential-summary">
+                          <div>
+                            <FileKey2 size={18} />
+                            <div>
+                              <strong>
+                                {editingAccount?.oci_configuration?.credentials_configured
+                                  ? "Credencial OCI configurada"
+                                  : "Credencial OCI não configurada"}
+                              </strong>
+                              <span>
+                                A chave privada e sua senha nunca são carregadas de volta para o navegador.
+                              </span>
+                            </div>
+                          </div>
+                          {!replaceCredentials ? (
+                            <button
+                              type="button"
+                              className="button ghost"
+                              onClick={() => {
+                                setReplaceCredentials(true);
+                                setForm((current) => ({
+                                  ...current,
+                                  oci: { ...current.oci, private_key_pem: "", private_key_password: "" },
+                                }));
+                              }}
+                            >
+                              Substituir credencial
+                            </button>
+                          ) : (
+                            <button type="button" className="button ghost" onClick={cancelCredentialReplacement}>
+                              Cancelar substituição
+                            </button>
+                          )}
+                        </div>
+                        {!replaceCredentials && (
+                          <label className="span-2">
+                            Fingerprint atual
+                            <input value={form.oci.fingerprint} readOnly />
+                          </label>
+                        )}
+                        {replaceCredentials && (
+                          <>
+                            <label>
+                              Novo fingerprint
+                              <input
+                                value={form.oci.fingerprint}
+                                onChange={(e) => setForm({
+                                  ...form,
+                                  oci: { ...form.oci, fingerprint: e.target.value },
+                                })}
+                                placeholder="aa:bb:cc:..."
+                                required
+                              />
+                            </label>
+                            <label>
+                              Senha da nova chave
+                              <input
+                                type="password"
+                                autoComplete="new-password"
+                                value={form.oci.private_key_password}
+                                onChange={(e) => setForm({
+                                  ...form,
+                                  oci: { ...form.oci, private_key_password: e.target.value },
+                                })}
+                                placeholder="Opcional"
+                              />
+                            </label>
+                            <OciPrivateKeyFields form={form} setForm={setForm} readPemFile={readPemFile} />
+                            <p className="span-2 account-form-note">
+                              A nova credencial é validada remotamente antes da troca atômica. Se a validação falhar, a credencial anterior permanece ativa.
+                            </p>
+                          </>
+                        )}
+                      </>
+                    )}
+                    <p className="span-2 account-form-note">
+                      Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
+                    </p>
+                  </>
+                )}
+
+                <div className="form-actions span-2">
+                  <button type="button" className="button ghost" onClick={closeEditor}>
+                    Cancelar
+                  </button>
+                  <button className="button primary" disabled={formBusy || !form.provider}>
+                    {formBusy ? "Salvando…" : mode === "create" ? "Cadastrar conta" : "Salvar alterações"}
+                  </button>
+                </div>
+              </>
+            )}
           </form>
         </section>
       )}
 
-      <section className="accounts-grid">
-        {accounts.map((account) => {
-          const aws = account.aws_configuration;
-          const oci = account.oci_configuration;
-          const connectionSupported = Boolean(aws || oci);
-          return (
-            <article className="account-card" key={account.id}>
-              <div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>{account.name}</h3><code>{providerLabel(account.provider)} · {account.native_account_id}</code></div><StatusBadge value={account.connection_status} /></div>
-              {aws ? <dl><div><dt>Role</dt><dd title={aws.role_arn}>{aws.role_arn.split("/").pop()}</dd></div><div><dt>Regiões</dt><dd>{aws.regions.join(", ")}</dd></div><div><dt>Agendamento</dt><dd>{aws.schedule_enabled ? `A cada ${aws.scan_interval_hours}h` : "Desativado"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : oci ? <dl><div><dt>Usuário OCI</dt><dd title={oci.user_ocid}>{oci.user_ocid}</dd></div><div><dt>Região de conexão</dt><dd>{oci.region}</dd></div><div><dt>Escopo</dt><dd>{oci.compartment_ocids.length ? `${oci.compartment_ocids.length} compartment(s)` : oci.include_root_compartment ? "Tenancy root" : "Nenhum compartment"}</dd></div><div><dt>Credencial</dt><dd>{oci.credentials_configured ? "API Key configurada" : "Não configurada"}</dd></div><div><dt>Último teste</dt><dd>{formatDate(account.last_connection_test_at)}</dd></div></dl> : <p>Provider cadastrado sem integração operacional disponível nesta etapa.</p>}
-              {account.last_error && <div className="account-error" title={account.last_error}>{account.last_error}</div>}
-              {(canManageAccounts || canAnalyze) && <div className="account-actions">{canManageAccounts && connectionSupported && <button className="button ghost" onClick={() => void test(account)} disabled={busy === account.id}><RefreshCw size={15} className={busy === account.id ? "spin" : ""} /> Testar conexão</button>}{canAnalyze && aws && <button className="button primary" onClick={() => void scan(account)} disabled={busy === account.id || account.connection_status !== "connected"}><Play size={15} /> Analisar</button>}</div>}
-            </article>
-          );
-        })}
-        {!accounts.length && !showForm && canManageAccounts && <button className="account-card add-account" onClick={() => void openCreateForm()}><Plus size={25} /><strong>Adicionar a primeira conta AWS</strong><span>Configure uma role somente leitura.</span></button>}
-        {!accounts.length && !showForm && role && !canManageAccounts && <article className="account-card"><div className="account-top"><span className="account-icon"><Building2 size={21} /></span><div><h3>Nenhuma conta cadastrada</h3><code>Somente leitura</code></div></div><p>O cadastro e a configuração de contas são realizados por administradores.</p></article>}
+      <section className="panel table-panel accounts-table-panel">
+        <div className="toolbar accounts-toolbar">
+          <label className="search-field">
+            <Search size={16} />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por nome ou identificador"
+              aria-label="Buscar contas"
+            />
+          </label>
+          <label className="select-field">
+            Cloud
+            <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label="Filtrar por cloud">
+              <option value="all">Todas</option>
+              <option value="aws">AWS</option>
+              <option value="oci">OCI</option>
+            </select>
+          </label>
+        </div>
+
+        {loading ? (
+          <div className="empty-state account-list-state">
+            <RefreshCw size={24} className="spin" />
+            <strong>Carregando contas</strong>
+            <p>Consultando o cadastro unificado.</p>
+          </div>
+        ) : accounts.length === 0 ? (
+          <div className="empty-state account-list-state">
+            <Building2 size={24} />
+            <strong>Nenhuma conta cadastrada</strong>
+            <p>{canManageAccounts ? "Adicione uma conta AWS ou OCI para começar." : "O cadastro é realizado por administradores."}</p>
+            {canManageAccounts && <button className="button primary" onClick={openCreate}><Plus size={16} /> Adicionar conta</button>}
+          </div>
+        ) : filteredAccounts.length === 0 ? (
+          <div className="empty-state account-list-state">
+            <Search size={24} />
+            <strong>Nenhum resultado</strong>
+            <p>Ajuste a busca ou o filtro de cloud.</p>
+          </div>
+        ) : (
+          <div className="data-table-wrap">
+            <table className="data-table settings-table accounts-table">
+              <thead>
+                <tr>
+                  <th>Conta</th>
+                  <th>Cloud / Identificador</th>
+                  <th>Estado</th>
+                  <th>Escopo</th>
+                  <th>Último teste</th>
+                  <th>Agendamento</th>
+                  <th>Ações</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAccounts.map((account) => {
+                  const busy = busyAccounts[account.id];
+                  const hasOperationalConnection = Boolean(
+                    account.aws_configuration || account.oci_configuration,
+                  );
+                  return (
+                    <tr key={account.id}>
+                      <td>
+                        <strong>{account.name}</strong>
+                        <span>{account.enabled ? "Habilitada" : "Desabilitada"}</span>
+                      </td>
+                      <td>
+                        <strong>{providerLabel(account.provider)}</strong>
+                        <div className="account-identifier">
+                          <code title={account.native_account_id}>{account.native_account_id}</code>
+                          <button
+                            type="button"
+                            className="icon-button compact"
+                            title="Copiar identificador"
+                            aria-label={"Copiar identificador de " + account.name}
+                            onClick={() => void copyText(account.native_account_id, "Identificador")}
+                          >
+                            <Copy size={14} />
+                          </button>
+                        </div>
+                      </td>
+                      <td>
+                        <StatusBadge value={account.connection_status} />
+                        {account.last_error && <span className="account-table-error" title={account.last_error}>{account.last_error}</span>}
+                      </td>
+                      <td>
+                        <span title={scopeSummary(account)}>{scopeSummary(account)}</span>
+                        {account.provider === "oci" && <small className="account-capability-note">Coleta OCI ainda não implementada</small>}
+                      </td>
+                      <td>{formatDate(account.last_connection_test_at)}</td>
+                      <td>{scheduleSummary(account)}</td>
+                      <td>
+                        <div className="settings-row-actions account-row-actions">
+                          {canManageAccounts && (
+                            <button
+                              className="button ghost"
+                              onClick={() => void openEdit(account)}
+                              disabled={Boolean(busy) || formBusy}
+                            >
+                              <Edit3 size={15} /> Editar
+                            </button>
+                          )}
+                          {canManageAccounts && hasOperationalConnection && (
+                            <button
+                              className="button ghost"
+                              onClick={() => void testConnection(account)}
+                              disabled={Boolean(busy)}
+                            >
+                              <RefreshCw size={15} className={busy === "test" ? "spin" : ""} />
+                              Testar
+                            </button>
+                          )}
+                          {canAnalyze && account.aws_configuration && (
+                            <button
+                              className="button primary"
+                              onClick={() => void scan(account)}
+                              disabled={Boolean(busy) || account.connection_status !== "connected"}
+                            >
+                              <Play size={15} /> Analisar
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </section>
+    </>
+  );
+}
+
+function OciPrivateKeyFields({
+  form,
+  setForm,
+  readPemFile,
+}: {
+  form: AccountFormState;
+  setForm: (value: AccountFormState | ((current: AccountFormState) => AccountFormState)) => void;
+  readPemFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+}) {
+  return (
+    <>
+      <label className="span-2">
+        Arquivo da chave privada PEM
+        <input
+          type="file"
+          accept=".pem,.key,text/plain,application/x-pem-file"
+          onChange={(event) => void readPemFile(event)}
+        />
+        <small>O arquivo é lido apenas para este envio e limitado a 64 KiB.</small>
+      </label>
+      <label className="span-2">
+        Chave privada PEM
+        <textarea
+          value={form.oci.private_key_pem}
+          onChange={(e) => setForm({
+            ...form,
+            oci: { ...form.oci, private_key_pem: e.target.value },
+          })}
+          placeholder="-----BEGIN PRIVATE KEY-----"
+          rows={7}
+          required
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <small>Alternativa ao arquivo: cole o PEM. O formulário não persiste segredos em storage do navegador.</small>
+      </label>
     </>
   );
 }
