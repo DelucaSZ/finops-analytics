@@ -44,9 +44,7 @@ def enqueue_due_scans(db: Session) -> None:
             select(AwsAccount)
             .join(CloudAccount, AwsAccount.cloud_account_id == CloudAccount.id)
             .where(
-                CloudAccount.provider.in_(
-                    providers_supporting(ProviderOperation.SCHEDULING)
-                ),
+                CloudAccount.provider.in_(providers_supporting(ProviderOperation.SCHEDULING)),
                 CloudAccount.enabled.is_(True),
                 AwsAccount.schedule_enabled.is_(True),
                 AwsAccount.next_scan_at.is_not(None),
