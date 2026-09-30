@@ -2590,3 +2590,113 @@ A suíte cobre cadastro válido/duplicado, provider incompatível, OCIDs, PEM/fi
 Onboarding, policies mínimas, rotação e recuperação estão em `docs/oci-onboarding.md`.
 
 Sem credenciais OCI disponibilizadas por canal seguro nesta execução, a validação real em tenancy permanece pendente. Mocks automatizados não são declarados como conexão real.
+
+
+## Etapa 19 — formulário unificado de cadastro e edição de contas AWS e OCI
+
+**Status:** implementação concluída na branch `stage19-unified-account-form`; validação automatizada do PR pendente no momento desta atualização. Merge e deploy permanecem etapas separadas.
+
+### Experiência final de Contas
+
+`Configurações → Contas` passa a usar uma única experiência para AWS e OCI, mantendo a rota canônica `/settings/accounts` e os redirects estabelecidos na Etapa 16.
+
+A listagem apresenta as duas clouds no mesmo conjunto e oferece filtro por provider e busca sobre nome ou identificador nativo. Como o contrato atual de `GET /api/v1/cloud-accounts` retorna a coleção completa sem paginação, a busca é aplicada sobre todo o resultado carregado e não simula uma busca global sobre apenas uma página. Estados de carregamento, falha de carregamento, cadastro vazio e filtros sem resultado são distintos. Identificadores longos usam truncamento visual, tooltip e ação de cópia.
+
+As ações são isoladas por conta: um teste de conexão não bloqueia as demais contas. Administradores podem adicionar, editar e testar; operadores preservam a análise manual AWS; viewers permanecem somente leitura.
+
+### Cadastro por provider
+
+O botão **Adicionar conta** abre o formulário sem provider pré-selecionado. Somente AWS e OCI são oferecidos, porque são os providers com contrato de cadastro implementado.
+
+Campos comuns:
+- nome;
+- provider no cadastro;
+- identificador nativo no cadastro;
+- habilitação.
+
+AWS:
+- AWS Account ID;
+- Role ARN;
+- External ID com geração explícita apenas depois da seleção de AWS;
+- regiões;
+- conta management/payer;
+- agendamento e intervalo.
+
+OCI:
+- Tenancy OCID;
+- User OCID;
+- fingerprint;
+- região de conexão;
+- regiões de escopo;
+- compartments;
+- inclusão explícita da tenancy root e de subcompartments;
+- chave privada PEM por arquivo ou colagem;
+- passphrase opcional.
+
+A região OCI inicia vazia e nunca herda `sa-east-1` ou outra região AWS. Regiões e compartments OCI são entradas manuais validadas, pois a API atual não expõe descoberta para preencher o formulário. Escopo vazio permanece escopo vazio; a interface não o amplia silenciosamente.
+
+Trocar de provider recria o estado provider-specific e remove os campos/segredos incompatíveis. Selecionar OCI não chama o endpoint de External ID AWS.
+
+### Edição e atualização parcial
+
+A edição carrega `GET /api/v1/cloud-accounts/{id}` somente quando necessária. Provider e identificador nativo ficam somente leitura; a interface orienta cadastrar outra conta para trocar AWS Account ID ou OCI Tenancy OCID.
+
+O frontend compara o formulário com a resposta autoritativa carregada e envia por `PATCH` apenas os campos alterados. Valores explícitos como `false` e listas vazias são preservados. Abrir ou salvar uma conta AWS não gera um novo External ID. Habilitar uma conta não habilita seu agendamento.
+
+Foi corrigida uma lacuna do contrato da Etapa 17: alteração efetiva de `role_arn` ou `external_id` AWS agora invalida o teste de conexão anterior, retornando a conta para `untested`. Alterações administrativas, como nome, não invalidam o teste STS. Em OCI, a invalidação por alterações relevantes de autenticação/escopo continua sob o comportamento implementado na Etapa 18.
+
+### Credenciais OCI
+
+As respostas de leitura continuam retornando apenas `credentials_configured` e metadados; PEM, passphrase e ciphertext não são solicitados nem reconstruídos na interface.
+
+Na edição OCI, **Substituir credencial** é uma ação explícita. Sem essa ação, `private_key_pem`, `private_key_password` e `fingerprint` de substituição são omitidos do payload. Cancelar a substituição limpa os novos valores sensíveis e mantém a credencial armazenada.
+
+Quando uma nova chave é enviada, o frontend usa o contrato da Etapa 18: o backend valida a candidata remotamente antes do swap atômico. Falha de validação mantém a credencial anterior. Sucesso retorna a conta já validada. O formulário nunca envia asteriscos como segredo e não usa URL, query string, localStorage, sessionStorage ou rascunho persistente para PEM/passphrase.
+
+O arquivo PEM é lido localmente pelo navegador e limitado a 64 KiB, coerente com o backend. Os valores sensíveis são removidos do estado ao concluir, cancelar, trocar provider ou trocar de conta; não há promessa de eliminação física imediata da memória do processo do navegador.
+
+### Teste de conexão e capacidade de coleta
+
+`POST /api/v1/cloud-accounts/{id}/test-connection` permanece o contrato único para AWS e OCI. A interface exibe progresso por conta, impede envio duplicado da mesma ação, preserva códigos/mensagens sanitizados e só marca sucesso depois da resposta da API. Alterações não salvas bloqueiam o teste da conta em edição, deixando explícito que o teste opera sobre a configuração persistida.
+
+AWS preserva análise manual e agendamento pelo `AwsAccount.id` legado. OCI exibe **“Coleta OCI ainda não implementada”** e não oferece análise nem agendamento; o bloqueio backend da Etapa 18 continua sendo a camada autoritativa. Testar OCI não cria `CollectionRun`, oportunidade ou agendamento.
+
+### Permissões e usabilidade
+
+A matriz de RBAC das Etapas 16–18 foi preservada:
+- leitura de contas: perfis autenticados já autorizados;
+- cadastro, edição e teste: admin;
+- análise manual AWS: admin e operator;
+- viewer: leitura.
+
+O formulário usa labels, controles navegáveis por teclado, mensagens em região `aria-live`, validação próxima aos campos e resumo de erro. Cancelamento com alterações pendentes pede confirmação. O layout reaproveita o sistema responsivo existente e recebeu estilos específicos para seleção de provider, credenciais, tabela e mobile.
+
+### Contratos e arquivos principais
+
+Contratos utilizados sem renomeação:
+- `GET/POST /api/v1/cloud-accounts`;
+- `GET/PATCH /api/v1/cloud-accounts/{id}`;
+- `POST /api/v1/cloud-accounts/{id}/test-connection`;
+- `GET /api/v1/cloud-accounts/aws/external-id`;
+- `POST /api/v1/scans` somente para AWS.
+
+Principais arquivos:
+- `frontend/app/settings/accounts/page.tsx`;
+- `frontend/lib/account-form.mjs` e `account-form.d.mts`;
+- `frontend/lib/api.ts`;
+- `frontend/app/globals.css`;
+- `frontend/tests/account-form.test.mjs`;
+- `backend/app/services/cloud_accounts.py`;
+- `backend/app/tests/test_cloud_accounts.py`.
+
+### Testes e limitações
+
+Foram adicionados testes de frontend para isolamento de payload entre providers, limpeza de segredos ao trocar provider, atualização parcial, preservação de `false`/listas vazias, edição OCI sem reenvio de chave, substituição explícita/cancelada, filtros mistos e validações relevantes. O backend ganhou teste para invalidação do estado de conexão AWS após mudança de autenticação sem tornar provider/identidade mutáveis.
+
+A validação oficial de lint, formatação, testes backend, testes frontend e build deve ser registrada aqui após o GitHub Actions do PR. Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, portanto nenhuma validação visual desktop/mobile ou conexão real com cloud é declarada.
+
+### Pendências para Etapas 20 e 21
+
+- Etapa 20: redesenho de políticas por provider, sem antecipação nesta etapa.
+- Etapa 21: expansão operacional posterior prevista no roadmap; esta etapa não cria collectors, regras ou agendamento OCI.
+- Descoberta assistida de regiões/compartments OCI pode ser considerada futuramente se houver contrato backend específico; hoje as entradas são manuais e explícitas.
