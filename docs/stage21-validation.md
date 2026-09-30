@@ -101,7 +101,7 @@ Não trate “voltar a imagem anterior” como rollback suficiente quando o bin�
 
 ### Baseline anterior à Etapa 21
 
-A `main` em `18695f3` possuía CI e Auto deploy tests aprovados após o merge da Etapa 20.
+A `main` em `18695f3` possuía CI e Auto deploy tests aprovados após o merge da Etapa 20. No PR #28, o head `a0f483007823d0c8dc77c8669976cb05c059635f` foi validado novamente.
 
 ### Smoke integrado adicionado na Etapa 21
 
@@ -124,14 +124,14 @@ O workflow não usa credenciais cloud reais e não toca volumes de produção.
 
 | Cenário | Ambiente/tipo | Resultado | Evidência/comando | Limitação |
 | --- | --- | --- | --- | --- |
-| Backend lint/format/pytest | GitHub Actions | ver CI do PR | `ruff check .`, `ruff format --check .`, `pytest -q` | mocks em fluxos cloud |
-| Migrations fresh/upgrade | PostgreSQL 17 + SQLite em pytest | ver CI do PR | `test_migrations.py` | não usa dump de produção |
-| Frontend unit/build | GitHub Actions | ver CI do PR | `npm test`, `npm run build` | não substitui browser E2E |
-| Navegação/redirects | testes frontend | ver CI do PR | `settings-navigation.test.mjs` | validação de browser real permanece separada |
-| AWS fluxo operacional | testes backend | ver CI do PR | suites de contas/scans/worker/policies | chamadas AWS são simuladas |
-| OCI cadastro/segredo/teste | testes backend | ver CI do PR | `test_cloud_accounts.py` | sem credencial OCI real |
-| Bloqueios OCI operacionais | testes backend | ver CI do PR | `test_provider_capabilities.py` | sem coletor OCI por design |
-| Stack Compose integrado | GitHub Actions | ver workflow Stage 21 | `docker compose -p deepops-stage21 ...` | sem cloud real |
+| Backend lint/format/pytest | GitHub Actions | aprovado | CI run `36734050516` | mocks em fluxos cloud |
+| Migrations fresh/upgrade | PostgreSQL 17 + SQLite em pytest | aprovado | CI run `36734050516`, `test_migrations.py` | não usa dump de produção |
+| Frontend unit/build | GitHub Actions | aprovado | CI run `36734050516` | não substitui browser E2E |
+| Navegação/redirects | testes frontend | aprovado | CI run `36734050516`, `settings-navigation.test.mjs` | validação de browser real permanece separada |
+| AWS fluxo operacional | testes backend | aprovado | CI run `36734050516` | chamadas AWS são simuladas |
+| OCI cadastro/segredo/teste | testes backend | aprovado | CI run `36734050516`, `test_cloud_accounts.py` | sem credencial OCI real |
+| Bloqueios OCI operacionais | testes backend | aprovado | CI run `36734050516`, `test_provider_capabilities.py` | sem coletor OCI por design |
+| Stack Compose integrado | GitHub Actions | aprovado | Stage 21 run `36734050381` | sem cloud real |
 | Cloud AWS real | ambiente autorizado | não executado nesta etapa | — | requer credenciais/ambiente operacional |
 | Cloud OCI real | ambiente autorizado | não executado nesta etapa | — | requer credencial de teste fornecida por mecanismo seguro |
 | Browser E2E real | navegador | não executado nesta etapa | — | não há suíte Playwright/Cypress no repositório |
