@@ -26,11 +26,13 @@ import {
 } from "@/lib/account-form.mjs";
 import type { AccountFormState } from "@/lib/account-form.mjs";
 import { providerLabel } from "@/lib/cloud.mjs";
+import { queryKeys } from "@/lib/query-keys.mjs";
+import { invalidateApiQueries } from "@/lib/server-state";
 import {
   canManageCloudAccounts,
   canRunCloudAnalysis,
 } from "@/lib/settings-navigation.mjs";
-import type { CloudAccount, Scan } from "@/lib/types";
+import type { CloudAccount, ProviderCapabilities, Scan } from "@/lib/types";
 
 type CurrentUser = { role: string };
 type FormMode = "closed" | "create" | "edit";
@@ -65,14 +67,16 @@ function scopeSummary(account: CloudAccount) {
   return parts.length ? parts.join(" · ") : "Escopo vazio";
 }
 
-function scheduleSummary(account: CloudAccount) {
+function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
+  if (!capabilities?.scheduling) return "Não implementado";
   const aws = account.aws_configuration;
-  if (!aws) return "Coleta indisponível";
+  if (!aws) return "Indisponível";
   return aws.schedule_enabled ? "A cada " + aws.scan_interval_hours + "h" : "Desativado";
 }
 
 export default function AccountsPage() {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
+  const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
@@ -91,6 +95,14 @@ export default function AccountsPage() {
 
   const canManageAccounts = canManageCloudAccounts(role);
   const canAnalyze = canRunCloudAnalysis(role);
+  const capabilityByProvider = useMemo(
+    () => new Map(capabilities.map((item) => [item.provider, item])),
+    [capabilities],
+  );
+  const availableProviders = useMemo(
+    () => capabilities.filter((item) => item.registration),
+    [capabilities],
+  );
   const filteredAccounts = useMemo(
     () => filterCloudAccounts(accounts, cloudFilter, search),
     [accounts, cloudFilter, search],
@@ -130,10 +142,15 @@ export default function AccountsPage() {
 
   useEffect(() => {
     let active = true;
-    Promise.all([api<CloudAccount[]>("/cloud-accounts"), api<CurrentUser>("/auth/me")])
-      .then(([items, user]) => {
+    Promise.all([
+      api<CloudAccount[]>("/cloud-accounts"),
+      api<ProviderCapabilities[]>("/cloud-accounts/capabilities"),
+      api<CurrentUser>("/auth/me"),
+    ])
+      .then(([items, providerCapabilities, user]) => {
         if (!active) return;
         setAccounts(items);
+        setCapabilities(providerCapabilities);
         setRole(user.role);
         setLoadError("");
       })
@@ -200,7 +217,11 @@ export default function AccountsPage() {
     }
   }
 
-  async function chooseProvider(provider: "aws" | "oci") {
+  async function chooseProvider(provider: string) {
+    if (provider !== "aws" && provider !== "oci") {
+      setError("Cadastro ainda não implementado para " + providerLabel(provider) + ".");
+      return;
+    }
     const next = createEmptyAccountForm(provider);
     next.name = form.name;
     next.enabled = form.enabled;
@@ -316,6 +337,9 @@ export default function AccountsPage() {
               : "Alterações salvas.",
         );
       }
+      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.collections.all);
       await loadAccounts();
     } catch (err) {
       setError(errorMessage(err, "Falha ao salvar a conta"));
@@ -357,19 +381,20 @@ export default function AccountsPage() {
 
   async function scan(account: CloudAccount) {
     if (!canAnalyze) return;
-    const legacyAwsId = account.aws_configuration?.id;
-    if (account.provider !== "aws" || !legacyAwsId) {
-      setError("Coleta OCI ainda não está implementada.");
+    const capability = capabilityByProvider.get(account.provider);
+    if (!capability?.manual_collection) {
+      setError("Coleta ainda não implementada para " + providerLabel(account.provider) + ".");
       return;
     }
     setAccountBusy(account.id, "scan");
     setError("");
     setMessage("");
     try {
-      await api<Scan>("/scans", {
+      await api<Scan>("/cloud-accounts/" + account.id + "/scans", {
         method: "POST",
-        body: JSON.stringify({ account_id: legacyAwsId }),
       });
+      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateApiQueries(queryKeys.collections.all);
       setMessage("Análise de " + account.name + " adicionada à fila.");
     } catch (err) {
       setError(errorMessage(err, "Falha ao iniciar análise"));
