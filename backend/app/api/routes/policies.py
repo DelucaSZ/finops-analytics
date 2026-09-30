@@ -1,10 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core.cloud import CloudProvider
 from app.core.security import require_admin, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.schemas.policy import PolicyRead, PolicyUpdate
+from app.services.provider_capabilities import (
+    ProviderOperation,
+    UnsupportedProviderOperation,
+    require_provider_operation,
+)
 from app.services.policies import (
     RULES,
     get_effective_policy,
@@ -22,8 +28,16 @@ def _validate_rule(rule_key: str) -> None:
 
 
 def _validate_account(db: Session, account_id: int) -> None:
-    if db.get(AwsAccount, account_id) is None:
+    account = db.get(AwsAccount, account_id)
+    if account is None:
         raise HTTPException(status_code=404, detail="AWS account not found")
+    cloud_account = account.cloud_account
+    if cloud_account is None or cloud_account.provider != CloudProvider.AWS.value:
+        raise HTTPException(status_code=409, detail="AWS account configuration is invalid")
+    try:
+        require_provider_operation(cloud_account.provider, ProviderOperation.FINOPS_POLICIES)
+    except UnsupportedProviderOperation as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/global", response_model=list[PolicyRead])
