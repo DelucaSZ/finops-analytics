@@ -79,7 +79,7 @@ test("stage 15 navigation removes the legacy executions duplicate and status bad
 });
 
 
-test("stage 17 settings uses the common account registry and keeps AWS legacy ids explicit", async () => {
+test("stage 17 settings keeps the common account registry and AWS policy legacy id explicit", async () => {
   const { readFile } = await import("node:fs/promises");
   const accounts = await readFile(
     new URL("../app/settings/accounts/page.tsx", import.meta.url),
@@ -92,17 +92,20 @@ test("stage 17 settings uses the common account registry and keeps AWS legacy id
 
   assert.match(accounts, /\/cloud-accounts/);
   assert.match(accounts, /native_account_id/);
-  assert.match(accounts, /aws_configuration\?\.id/);
   assert.doesNotMatch(accounts, /api<AwsAccount\[]>\("\/accounts"/);
   assert.match(policies, /\/cloud-accounts/);
   assert.match(policies, /aws_configuration\.id/);
 });
 
 
-test("stage 18/19 presents OCI connection state without enabling AWS scan actions", async () => {
+test("stage 20 drives account and policy capabilities from the backend contract", async () => {
   const { readFile } = await import("node:fs/promises");
   const accounts = await readFile(
     new URL("../app/settings/accounts/page.tsx", import.meta.url),
+    "utf8",
+  );
+  const policies = await readFile(
+    new URL("../app/settings/policies/page.tsx", import.meta.url),
     "utf8",
   );
   const types = await readFile(
@@ -110,10 +113,18 @@ test("stage 18/19 presents OCI connection state without enabling AWS scan action
     "utf8",
   );
 
-  assert.match(accounts, /oci_configuration/);
-  assert.match(accounts, /hasOperationalConnection/);
-  assert.match(accounts, /canAnalyze && account\.aws_configuration/);
-  assert.match(accounts, /Coleta OCI ainda não implementada/);
+  assert.match(accounts, /\/cloud-accounts\/capabilities/);
+  assert.match(accounts, /capability\?\.manual_collection/);
+  assert.match(accounts, /\/cloud-accounts\/" \+ account\.id \+ "\/scans"/);
+  assert.doesNotMatch(accounts, /api<Scan>\("\/scans"/);
+  assert.match(accounts, /Conexão validada\. Coleta/);
+
+  assert.match(policies, /\/cloud-accounts\/capabilities/);
+  assert.match(policies, /finops_policies/);
+  assert.match(policies, /Nenhuma regra AWS é aplicada/);
+
+  assert.match(types, /export type ProviderCapabilities/);
+  assert.match(types, /provider: string;/);
   assert.match(types, /credentials_configured: boolean/);
   assert.doesNotMatch(types, /private_key_pem/);
   assert.doesNotMatch(types, /private_key_ciphertext/);
