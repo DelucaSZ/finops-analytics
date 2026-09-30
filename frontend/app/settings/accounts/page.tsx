@@ -22,6 +22,7 @@ import {
   buildUpdateAccountPayload,
   createEmptyAccountForm,
   filterCloudAccounts,
+  validateAccountForm,
 } from "@/lib/account-form.mjs";
 import type { AccountFormState } from "@/lib/account-form.mjs";
 import { providerLabel } from "@/lib/cloud.mjs";
@@ -74,6 +75,8 @@ export default function AccountsPage() {
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [mode, setMode] = useState<FormMode>("closed");
   const [editingAccount, setEditingAccount] = useState<CloudAccount | null>(null);
   const [form, setForm] = useState<AccountFormState>(() => createEmptyAccountForm());
@@ -112,8 +115,17 @@ export default function AccountsPage() {
   }, [editingAccount, form, mode, replaceCredentials]);
 
   async function loadAccounts() {
-    const items = await api<CloudAccount[]>("/cloud-accounts");
-    setAccounts(items);
+    try {
+      const items = await api<CloudAccount[]>("/cloud-accounts");
+      setAccounts(items);
+      setLoadError("");
+      return true;
+    } catch (err) {
+      const message = errorMessage(err, "Falha ao carregar contas");
+      setLoadError(message);
+      setError(message);
+      return false;
+    }
   }
 
   useEffect(() => {
@@ -123,9 +135,13 @@ export default function AccountsPage() {
         if (!active) return;
         setAccounts(items);
         setRole(user.role);
+        setLoadError("");
       })
       .catch((err) => {
-        if (active) setError(errorMessage(err, "Falha ao carregar contas"));
+        if (!active) return;
+        const message = errorMessage(err, "Falha ao carregar contas");
+        setError(message);
+        setLoadError(message);
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -148,6 +164,7 @@ export default function AccountsPage() {
     setMode("closed");
     setEditingAccount(null);
     setReplaceCredentials(false);
+    setFieldErrors({});
     setForm(createEmptyAccountForm());
   }
 
@@ -163,6 +180,7 @@ export default function AccountsPage() {
     setError("");
     setEditingAccount(null);
     setReplaceCredentials(false);
+    setFieldErrors({});
     setForm(createEmptyAccountForm());
     setMode("create");
   }
@@ -187,6 +205,7 @@ export default function AccountsPage() {
     next.name = form.name;
     next.enabled = form.enabled;
     setReplaceCredentials(false);
+    setFieldErrors({});
     setForm(next);
     if (provider === "aws") await generateExternalId();
   }
@@ -202,6 +221,7 @@ export default function AccountsPage() {
       setEditingAccount(details);
       setForm(accountToForm(details));
       setReplaceCredentials(false);
+      setFieldErrors({});
       setMode("edit");
     } catch (err) {
       setError(errorMessage(err, "Falha ao carregar a conta"));
@@ -215,6 +235,10 @@ export default function AccountsPage() {
     event.target.value = "";
     if (!file) return;
     if (file.size > 65536) {
+      setFieldErrors((current) => ({
+        ...current,
+        private_key_pem: "A chave privada excede o limite de 64 KiB aceito pelo backend.",
+      }));
       setError("A chave privada excede o limite de 64 KiB aceito pelo backend.");
       return;
     }
@@ -223,6 +247,11 @@ export default function AccountsPage() {
       ...current,
       oci: { ...current.oci, private_key_pem: pem },
     }));
+    setFieldErrors((current) => {
+      const next = { ...current };
+      delete next.private_key_pem;
+      return next;
+    });
     setError("");
   }
 
@@ -242,6 +271,15 @@ export default function AccountsPage() {
   async function submitForm(event: FormEvent) {
     event.preventDefault();
     if (!canManageAccounts) return;
+    const validation = validateAccountForm(form, {
+      mode: mode === "edit" ? "edit" : "create",
+      replaceCredentials,
+    });
+    setFieldErrors(validation);
+    if (Object.keys(validation).length) {
+      setError("Confira os campos destacados antes de salvar.");
+      return;
+    }
     setFormBusy(true);
     setError("");
     setMessage("");
@@ -311,7 +349,7 @@ export default function AccountsPage() {
       await loadAccounts();
     } catch (err) {
       setError(errorMessage(err, "Falha no teste de conexão"));
-      await loadAccounts().catch(() => undefined);
+      await loadAccounts();
     } finally {
       setAccountBusy(account.id, null);
     }
@@ -407,6 +445,7 @@ export default function AccountsPage() {
                   </button>
                 </div>
                 <small>Os campos e credenciais são isolados por provider. Selecionar OCI não dispara chamadas AWS.</small>
+                {fieldErrors.provider && <span className="field-error">{fieldErrors.provider}</span>}
               </fieldset>
             )}
 
@@ -420,6 +459,7 @@ export default function AccountsPage() {
                     placeholder="Produção"
                     required
                   />
+                  {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
                 </label>
                 <label>
                   {form.provider === "aws" ? "AWS Account ID" : "Tenancy OCID"}
@@ -436,6 +476,7 @@ export default function AccountsPage() {
                     readOnly={mode === "edit"}
                     required
                   />
+                  {fieldErrors.native_account_id && <span className="field-error">{fieldErrors.native_account_id}</span>}
                   {mode === "edit" && (
                     <small>Provider e identidade não podem ser alterados. Cadastre outra conta para mudar essa identidade.</small>
                   )}
@@ -464,6 +505,7 @@ export default function AccountsPage() {
                         placeholder="arn:aws:iam::123456789012:role/DeepOpsReadOnly"
                         required
                       />
+                      {fieldErrors.role_arn && <span className="field-error">{fieldErrors.role_arn}</span>}
                     </label>
                     <label className="span-2">
                       External ID
@@ -485,6 +527,7 @@ export default function AccountsPage() {
                           <Copy size={16} />
                         </button>
                       </div>
+                      {fieldErrors.external_id && <span className="field-error">{fieldErrors.external_id}</span>}
                       <small>
                         {mode === "create"
                           ? "Gerado somente depois que AWS é selecionado."
@@ -515,6 +558,7 @@ export default function AccountsPage() {
                         placeholder="sa-east-1, us-east-1"
                         required
                       />
+                      {fieldErrors.regions && <span className="field-error">{fieldErrors.regions}</span>}
                       <small>Separadas por vírgula.</small>
                     </label>
                     <label>
@@ -572,6 +616,7 @@ export default function AccountsPage() {
                         placeholder="ocid1.user.oc1.."
                         required
                       />
+                      {fieldErrors.user_ocid && <span className="field-error">{fieldErrors.user_ocid}</span>}
                     </label>
                     <label>
                       Região de conexão
@@ -584,6 +629,7 @@ export default function AccountsPage() {
                         placeholder="sa-saopaulo-1"
                         required
                       />
+                      {fieldErrors.region && <span className="field-error">{fieldErrors.region}</span>}
                       <small>Região usada pelo SDK para autenticação e chamadas de Identity.</small>
                     </label>
                     <label>
@@ -609,6 +655,7 @@ export default function AccountsPage() {
                         placeholder="ocid1.compartment.oc1..abc, ocid1.compartment.oc1..def"
                         rows={3}
                       />
+                      {fieldErrors.compartment_ocids && <span className="field-error">{fieldErrors.compartment_ocids}</span>}
                       <small>Informe OCIDs separados por vírgula. Não há descoberta automática nesta etapa.</small>
                     </label>
                     <label className="check-label">
@@ -647,6 +694,7 @@ export default function AccountsPage() {
                             placeholder="aa:bb:cc:..."
                             required
                           />
+                          {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                         </label>
                         <label>
                           Senha da chave
@@ -661,7 +709,12 @@ export default function AccountsPage() {
                             placeholder="Opcional"
                           />
                         </label>
-                        <OciPrivateKeyFields form={form} setForm={setForm} readPemFile={readPemFile} />
+                        <OciPrivateKeyFields
+                          form={form}
+                          setForm={setForm}
+                          readPemFile={readPemFile}
+                          error={fieldErrors.private_key_pem}
+                        />
                       </>
                     ) : (
                       <>
@@ -718,6 +771,7 @@ export default function AccountsPage() {
                                 placeholder="aa:bb:cc:..."
                                 required
                               />
+                              {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                             </label>
                             <label>
                               Senha da nova chave
@@ -732,7 +786,12 @@ export default function AccountsPage() {
                                 placeholder="Opcional"
                               />
                             </label>
-                            <OciPrivateKeyFields form={form} setForm={setForm} readPemFile={readPemFile} />
+                            <OciPrivateKeyFields
+                              form={form}
+                              setForm={setForm}
+                              readPemFile={readPemFile}
+                              error={fieldErrors.private_key_pem}
+                            />
                             <p className="span-2 account-form-note">
                               A nova credencial é validada remotamente antes da troca atômica. Se a validação falhar, a credencial anterior permanece ativa.
                             </p>
@@ -786,6 +845,15 @@ export default function AccountsPage() {
             <RefreshCw size={24} className="spin" />
             <strong>Carregando contas</strong>
             <p>Consultando o cadastro unificado.</p>
+          </div>
+        ) : loadError && accounts.length === 0 ? (
+          <div className="empty-state account-list-state">
+            <X size={24} />
+            <strong>Não foi possível carregar as contas</strong>
+            <p>{loadError}</p>
+            <button className="button ghost" onClick={() => void loadAccounts()}>
+              <RefreshCw size={16} /> Tentar novamente
+            </button>
           </div>
         ) : accounts.length === 0 ? (
           <div className="empty-state account-list-state">
@@ -899,10 +967,12 @@ function OciPrivateKeyFields({
   form,
   setForm,
   readPemFile,
+  error,
 }: {
   form: AccountFormState;
   setForm: (value: AccountFormState | ((current: AccountFormState) => AccountFormState)) => void;
   readPemFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
+  error?: string;
 }) {
   return (
     <>
@@ -929,6 +999,7 @@ function OciPrivateKeyFields({
           autoComplete="off"
           spellCheck={false}
         />
+        {error && <span className="field-error">{error}</span>}
         <small>Alternativa ao arquivo: cole o PEM. O formulário não persiste segredos em storage do navegador.</small>
       </label>
     </>
