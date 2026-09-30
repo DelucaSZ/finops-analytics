@@ -28,18 +28,19 @@ validation and production deployment.
 
 | Scenario | Environment/type | Result | Evidence / command | Limitation |
 | --- | --- | --- | --- | --- |
-| Fresh database to migration head | CI, SQLite + PostgreSQL 17 | Pending CI | `pytest -q` / `test_fresh_database_matches_models_and_worker_is_ready` | No production data |
-| Upgrade from representative pre-Stage-17 database | CI, SQLite + PostgreSQL 17 | Pending CI | Stage 17 history fixture + Stage 21 sequence regression | Fixtures, not production clone |
-| Re-running normal initialization at head | CI | Pending CI | migration/bootstrap regression suite | No production restart |
-| AWS account compatibility and immutable identity | CI/API tests | Pending CI | `test_cloud_accounts.py` | AWS remote calls mocked where applicable |
-| OCI encrypted persistence and sanitized reads | CI/API tests | Pending CI | `test_cloud_accounts.py` | Test-only generated keys |
-| OCI auth/authz/network failure mapping | CI/unit integration | Pending CI | OCI service-error tests | SDK responses simulated |
-| OCI manual collection/scheduling/policies blocked | CI | Pending CI | `test_provider_capabilities.py` | No OCI collector exists by design |
-| Dashboard collection health excludes unsupported OCI | CI | Pending CI | `test_dashboard.py` | Synthetic fixtures |
-| Frontend provider-aware account/policy behavior | CI Node tests/build | Pending CI | `npm test`, `npm run build` | Not browser E2E |
-| Compose definitions, secret placement and static exposure checks | CI static security checks | Pending CI | security job | Does not start Compose stack |
-| Auto-deploy refuses migration changes before activation | CI unit tests | Pending CI | `python -m unittest discover -s scripts/tests -v` | Does not modify a real host |
-| Manual deploy stops old writers before migration owner starts | CI shell syntax + code review | Pending CI | `bash -n scripts/deploy.sh` | Real Compose smoke still separate |
+| Fresh database to migration head | CI, SQLite + PostgreSQL 17 | Approved | CI #211, `pytest -q`; migration/model parity at `0016_cloud_account_sequence` | No production data |
+| Upgrade from representative pre-Stage-17 database | CI, SQLite + PostgreSQL 17 | Approved | CI #211; history fixture + Stage 21 sequence regression | Fixtures, not production clone |
+| Re-running normal initialization at head | CI | Approved | CI #211; migration/bootstrap restart regression suite | No production restart |
+| AWS account compatibility and immutable identity | CI/API tests | Approved | CI #211; `test_cloud_accounts.py` | AWS remote calls mocked where applicable |
+| OCI encrypted persistence and sanitized reads | CI/API tests | Approved | CI #211; `test_cloud_accounts.py` | Test-only generated keys |
+| OCI auth/authz/network failure mapping | CI/unit integration | Approved | CI #211; OCI service-error tests | SDK responses simulated |
+| OCI manual collection/scheduling/policies blocked | CI | Approved | CI #211; `test_provider_capabilities.py` | No OCI collector exists by design |
+| Dashboard collection health excludes unsupported OCI | CI | Approved | CI #211; `test_dashboard.py` | Synthetic fixtures |
+| Frontend provider-aware account/policy behavior | CI Node tests/build | Approved | CI #211; 51 Node tests + production build | Browser E2E is recorded separately below |
+| Compose definitions, secret placement and static exposure checks | CI static security checks | Approved | CI #211 security job | Does not start Compose stack |
+| Auto-deploy refuses migration changes before activation | CI unit tests | Approved | Auto deploy #204; 15 tests | Does not modify a real host |
+| Manual deploy stops old writers before migration owner starts | CI shell syntax + code review | Approved | Auto deploy #204; `bash -n scripts/deploy.sh` | Real Compose smoke still separate |
+| Browser navigation and critical account/policy interactions | GitHub Actions, Chromium desktop + mobile | Approved | CI #211; 4 Playwright tests | API/cloud responses are mocked; real cloud is separate |
 | Local isolated Compose smoke test | Current runtime | Not executed | checkout blocked: runtime cannot resolve github.com | Requires Docker + source checkout |
 | Browser navigation desktop/mobile | Current runtime | Not executed | no browser E2E executor available here | Must be executed separately |
 | Real OCI connection | Authorized tenancy | Not executed | no test credential supplied through a secure mechanism | Blocks only real-cloud validation |
@@ -47,7 +48,11 @@ validation and production deployment.
 
 ## Deployment gate
 
-Do not call the phase fully validated until the branch CI passes and any required
-browser/real-cloud checks are executed for the target rollout. A failed real OCI
-connection must not be interpreted as collector support; OCI collection remains
-unsupported in this phase.
+Automated validation is complete on CI #211: backend 299 tests on SQLite/PostgreSQL 17,
+frontend 51 tests plus production build, security gates, and 4 Playwright browser
+checks. Auto-deploy #204 also passed all 15 deployment-controller tests.
+
+The phase is not declared fully validated operationally: an isolated real Compose
+smoke test, authorized real OCI connection, and production rollout/post-deploy checks
+remain explicitly unexecuted. A failed real OCI connection must not be interpreted as
+collector support; OCI collection remains unsupported in this phase.
