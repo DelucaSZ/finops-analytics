@@ -41,9 +41,13 @@ O instalador preserva a configuração existente em `/etc/deepops-deploy.json`.
 5. Verifica os healthchecks existentes, executa `SELECT 1` no banco a partir da
    API e testa HTTP da API, frontend e rotas do proxy. Exige 30 segundos estáveis,
    observando também o ID e contador de reinícios de todos os containers.
-6. Se passar, registra o SHA como saudável. Se falhar, restaura as imagens e
-   configuração anteriores e repete a validação. O commit que falhou fica bloqueado;
-   um commit novo pode ser tentado normalmente.
+6. Antes do build, compara o conteúdo de `backend/app/migrations/versions` com a
+   release saudável. Qualquer adição, remoção ou alteração de migration bloqueia o
+   auto-deploy e exige implantação manual com backup consistente.
+7. Para releases sem mudança de migration, se a ativação passar, registra o SHA como
+   saudável. Se falhar, restaura as imagens e configuração anteriores e repete a
+   validação. O commit que falhou fica bloqueado; um commit novo pode ser tentado
+   normalmente.
 
 `docker compose up --wait` aguarda containers running/healthy; por isso os testes
 HTTP/SQL e a janela de estabilidade complementam o Compose. Referência:
@@ -84,6 +88,9 @@ sudo deepops-deploy rollback
 # Desbloquear tentativas após corrigir problema externo, como disco/rede
 sudo deepops-deploy retry
 sudo systemctl start deepops-deploy.service
+
+# Depois de um deploy manual com migration, adotar a stack saudável como novo baseline
+sudo deepops-deploy adopt
 ```
 
 Um lock impede deploys simultâneos. O estado é gravado atomicamente antes da
@@ -96,9 +103,11 @@ banco estiverem indisponíveis.
 ## Dados e manutenção
 
 - O rollback é de **código, imagens e configuração**, não dos dados gravados.
-  Migrações incompatíveis de schema exigem planejamento próprio e backup. O script
-  recusa mudanças na definição do serviço `db`, redes, volumes, configs e secrets.
-  Isso não detecta SQL destrutivo executado dentro do código da aplicação.
+  O controlador recusa qualquer alteração nos arquivos versionados de migrations,
+  além de mudanças na definição do serviço `db`, redes, volumes, configs e secrets.
+  Uma release com migration exige deploy manual e backup consistente; assim uma
+  falha depois da migration nunca dispara rollback automático para imagens antigas.
+  Isso ainda não detecta SQL ad-hoc destrutivo executado fora das migrations.
 - Nunca executa `docker compose down -v`, `git reset --hard` ou limpeza de volumes.
 - Releases, configurações resolvidas, cópias do `.env` e estado ficam em
   `/var/lib/deepops-deploy`, com diretórios privados e arquivos sensíveis `0600`.
@@ -115,3 +124,29 @@ banco estiverem indisponíveis.
   um deploy. Para atualizar o controlador: pare o timer, espere qualquer execução
   ativa terminar, execute `git pull --ff-only origin main`, rode novamente o
   instalador e retome o timer. O baseline e estado são preservados.
+
+
+## Releases com migration
+
+Use este procedimento para uma release que altera `backend/app/migrations/versions`:
+
+1. Antes de publicar a revisão para o branch monitorado, pare o timer:
+   `sudo systemctl stop deepops-deploy.timer`.
+2. Faça backup validável do PostgreSQL e preserve separadamente chaves de criptografia,
+   inclusive `NUVEMIQ_OCI_CREDENTIALS_KEY` e sua versão.
+3. Atualize o checkout e reinstale o controlador caso o próprio
+   `scripts/auto_deploy.py` tenha mudado.
+4. Execute `./scripts/deploy.sh /opt/finops-analytics`. O script constrói as imagens
+   antes da indisponibilidade, para `worker` e `api`, sobe a API/migrations primeiro
+   e só retoma worker/web/proxy depois que banco e API estiverem saudáveis.
+5. Execute os smoke tests operacionais. Não volte apenas as imagens se a migration já
+   foi aplicada. Em falha incompatível, restaure um backup de banco consistente com a
+   revisão anterior.
+6. Com a nova stack saudável e o checkout no mesmo commit, execute
+   `sudo deepops-deploy adopt` para rebaselinar imagens/configuração e limpar o
+   bloqueio daquele commit.
+7. Retome o timer com `sudo systemctl start deepops-deploy.timer`.
+
+Na primeira implantação da proteção introduzida pela Etapa 21, pare o timer **antes
+do merge/publicação** dessa release. Um controlador antigo instalado em
+`/usr/local/sbin/deepops-deploy` ainda não conhece o bloqueio de migrations.

@@ -34,7 +34,11 @@ class FakeDeployer(deploy.Deployer):
         self.interrupt = False
         self.target = NEW
         self.candidate = config()
+        self.migration_change = False
         self.release(OLD).mkdir(parents=True)
+        old_migrations = self.release(OLD) / 'backend' / 'app' / 'migrations' / 'versions'
+        old_migrations.mkdir(parents=True)
+        (old_migrations / '0001.py').write_text('same migration')
         deploy.save_json(self.release(OLD) / 'source.json', config())
         deploy.save_json(self.release(OLD) / 'images.json', {name: f'old-{name}' for name in deploy.SERVICES})
         self.state = dict(current=OLD, previous=None, pending=None, failed=[])
@@ -54,6 +58,10 @@ class FakeDeployer(deploy.Deployer):
 
     def prepare(self, revision, source):
         self.release(revision).mkdir(parents=True, exist_ok=True)
+        migrations = self.release(revision) / 'backend' / 'app' / 'migrations' / 'versions'
+        migrations.mkdir(parents=True, exist_ok=True)
+        content = 'changed migration' if self.migration_change and revision == NEW else 'same migration'
+        (migrations / '0001.py').write_text(content)
         return self.candidate
 
     def compose(self, path, *args, **kwargs):
@@ -64,6 +72,9 @@ class FakeDeployer(deploy.Deployer):
 
     def pin(self, revision, configuration, images):
         self.actions.append(('pin', revision))
+
+    def container(self, service):
+        return {'Image': f'running-{service}'}
 
     def activate(self, revision):
         self.actions.append(('activate', revision))
@@ -159,6 +170,25 @@ class Transactions(unittest.TestCase):
             self.d.check()
         self.assertEqual(self.d.actions, [])
         self.assertEqual(self.d.state['current'], OLD)
+
+    def test_migration_change_requires_manual_deploy_before_build_or_activation(self):
+        self.d.migration_change = True
+        with self.assertRaisesRegex(RuntimeError, 'migrations exige deploy manual'):
+            self.d.check()
+        self.assertEqual(self.d.actions, [])
+        self.assertEqual(self.d.state['current'], OLD)
+        self.assertIn(NEW, self.d.state['failed'])
+
+    def test_adopt_rebaselines_a_manually_deployed_migration_release(self):
+        self.d.migration_change = True
+        with self.assertRaises(RuntimeError):
+            self.d.check()
+        self.d.actions.clear()
+        self.d.adopt()
+        self.assertEqual(self.d.state['current'], NEW)
+        self.assertEqual(self.d.state['previous'], OLD)
+        self.assertEqual(self.d.state['failed'], [])
+        self.assertEqual(self.d.actions, [('pin', NEW)])
 
     def test_manual_rollback_blocks_removed_commit(self):
         self.d.state.update(current=NEW, previous=OLD)

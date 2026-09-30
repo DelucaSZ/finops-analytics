@@ -2713,7 +2713,7 @@ Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, 
 
 ## Etapa 20 — integração de contas, políticas e capacidades por cloud
 
-**Status:** implementação concluída em `stage20-provider-capabilities`, PR #26, validada no CI #199. O PR permanece aberto; não houve merge nem deploy nesta etapa. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
+**Status:** implementação concluída e validada no CI #199; incorporada à `main` pelo merge commit `18695f3697cd4019517e0eb2a9e71a79dbf0bfbd` (PR #26). Deploy permanece etapa operacional separada. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
 
 ### Fonte de verdade de capacidades
 
@@ -2839,3 +2839,34 @@ As rodadas preliminares CI #195 e #197 identificaram apenas organização/format
 - tratamento de qualquer regressão encontrada na revisão integrada.
 
 Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinOps OCI, novos métodos de autenticação, Azure/GCP operacionais, conversão cambial, mudança de fingerprint/identidade de oportunidade, nova retenção e framework de plugins.
+
+
+## Etapa 21 — validação integrada e fechamento da gestão multi-cloud de contas
+
+**Status:** implementação e validação automatizada concluídas na branch `stage21-integrated-validation`. CI #211 aprovou 299 testes backend com PostgreSQL 17, 51 testes frontend + build, segurança e 4 testes Playwright em desktop/mobile; Auto deploy #204 aprovou 15 testes. Validação real em OCI, smoke Compose isolado e produção permanecem separadas.
+
+### Revisão integrada
+
+A revisão partiu da `main` no merge commit `18695f3697cd4019517e0eb2a9e71a79dbf0bfbd` e confirmou no código as entregas das Etapas 16 a 20: rotas canônicas em Configurações, registro comum `CloudAccount`, autenticação OCI por API Signing Key, formulário unificado e matriz de capacidades por provider.
+
+Foi corrigida uma inconsistência documental da Etapa 20: o PR #26 já estava incorporado à `main`, embora o roadmap ainda o descrevesse como aberto.
+
+### Correção de migration identificada
+
+A migration da Etapa 17 preserva os IDs legados ao inserir `cloud_accounts.id = aws_accounts.id`. No PostgreSQL, inserts com valor explícito não avançam a sequence associada ao PK. Sem reparo, o primeiro cadastro posterior ao upgrade poderia receber um ID já existente.
+
+A revisão `0016_cloud_account_sequence` sincroniza a sequence com o maior ID existente, sem reescrever contas ou histórico. Um teste de regressão executa upgrade a partir de `0013_historical_retention`, preserva a conta AWS legada e confirma que um novo `CloudAccount` recebe ID posterior. O teste roda em SQLite e PostgreSQL 17 pela suíte de migrations.
+
+### Implantação e recuperação
+
+A revisão encontrou duas lacunas operacionais adicionais. O `scripts/deploy.sh` mantinha API/worker antigos ativos até a recriação, criando uma janela em que writers sem `cloud_account_id` poderiam gravar contra o novo schema. O script agora constrói primeiro, interrompe os writers antigos e sobe API/migrations antes de retomar worker/web/proxy.
+
+Também foi corrigido um risco no auto-deploy: o controlador restaurava imagens anteriores em falha de healthcheck, mas não detectava alterações em Alembic. Uma migration aplicada antes da falha poderia, portanto, deixar imagens antigas escrevendo contra schema novo. O controlador agora compara o manifesto de `backend/app/migrations/versions` e recusa auto-deploy quando houver qualquer mudança, exigindo implantação manual com backup. A ação `deepops-deploy adopt` rebaselina uma implantação manual saudável.
+
+A documentação de deploy exige backup consistente antes da migração, backup separado da chave Fernet OCI, parada de writers antigos durante o rollout e verificação explícita de AWS após a atualização. Imagens antigas da API não devem escrever contra o schema Stage 17+, pois não conhecem o vínculo obrigatório `cloud_account_id`.
+
+Rollback após alteração de schema exige restaurar backup compatível; voltar apenas a imagem do container não é considerado recuperação segura. O impacto sobre dados criados após o backup deve ser tratado explicitamente.
+
+### Limites da validação
+
+O runtime desta execução não possui acesso de rede ao GitHub para checkout local, portanto o smoke test de Docker Compose isolado não é declarado como executado. A navegação real foi coberta no GitHub Actions com Chromium em viewport desktop e mobile. Conexão OCI real depende de credenciais de teste fornecidas por mecanismo seguro e não é substituída por mocks. Deploy e pós-validação em produção também não foram executados.

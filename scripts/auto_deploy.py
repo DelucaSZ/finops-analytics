@@ -3,6 +3,7 @@
 import argparse
 import copy
 import fcntl
+import hashlib
 import io
 import json
 import os
@@ -104,6 +105,15 @@ class Deployer:
     def runtime(self, revision):
         return self.release(revision) / 'runtime.json'
 
+    def migration_manifest(self, revision):
+        directory = self.release(revision) / 'backend' / 'app' / 'migrations' / 'versions'
+        if not directory.is_dir():
+            raise RuntimeError('Diretório de migrations ausente; deploy automático recusado.')
+        return {
+            path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(directory.glob('*.py'))
+        }
+
     def prepare(self, revision, source):
         directory = self.release(revision)
         if directory.exists():
@@ -201,6 +211,26 @@ for url in ('http://127.0.0.1:8000/health', 'http://web:3000/', 'http://proxy/he
                      *APP_SERVICES, timeout=self.health_timeout + 120, capture=False)
         self.healthy(read_json(self.release(revision) / 'images.json'))
 
+    def adopt(self):
+        """Adopt a manually deployed, healthy checkout as the new rollback baseline."""
+        self.clean()
+        self.healthy()
+        source = self.git('rev-parse', 'HEAD')
+        if not re.fullmatch('[0-9a-f]{40}', source):
+            raise RuntimeError('Referência Git inválida para adoção manual.')
+        previous = self.state.get('current')
+        config = self.prepare(source, source)
+        images = {name: self.container(name)['Image'] for name in SERVICES}
+        self.pin(source, config, images)
+        self.state = dict(
+            current=source,
+            previous=previous if previous != source else self.state.get('previous'),
+            pending=None,
+            failed=[],
+        )
+        self.save()
+        log(f'Deploy manual saudável adotado como baseline: {source}.')
+
     def recover(self):
         target = self.state['pending']
         current = self.state['current']
@@ -241,6 +271,11 @@ for url in ('http://127.0.0.1:8000/health', 'http://web:3000/', 'http://proxy/he
                     raise RuntimeError(f'Mudança em {key} exige deploy manual.')
             if candidate['services']['db'] != previous['services']['db']:
                 raise RuntimeError('Mudança no banco exige deploy manual.')
+            if self.migration_manifest(target) != self.migration_manifest(current):
+                raise RuntimeError(
+                    'Mudança em migrations exige deploy manual com backup consistente; '
+                    'rollback automático de imagem é inseguro.'
+                )
             build = copy.deepcopy(candidate)
             for name in ('api', 'worker', 'web'):
                 if 'build' not in build['services'][name]:
@@ -307,7 +342,9 @@ def main():
     os.environ['GIT_TERMINAL_PROMPT'] = '0'
     os.environ.setdefault('GIT_SSH_COMMAND', 'ssh -oBatchMode=yes -oConnectTimeout=15')
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('action', choices=('bootstrap', 'check', 'status', 'rollback', 'retry'))
+    parser.add_argument(
+        'action', choices=('bootstrap', 'adopt', 'check', 'status', 'rollback', 'retry')
+    )
     parser.add_argument('--config', default='/etc/deepops-deploy.json')
     args = parser.parse_args()
     deployer = Deployer(read_json(Path(args.config)))
