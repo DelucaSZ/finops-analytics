@@ -91,11 +91,18 @@ For an existing installation:
 2. Back up `NUVEMIQ_OCI_CREDENTIALS_KEY` and
    `NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION` separately from the database. A database
    backup alone cannot recover OCI private keys.
-3. Stop old API and worker writers before applying these migrations.
-4. Pull/build the new revision and start the API so it can run the migrations.
-5. Confirm the API healthcheck, then start/confirm worker, web and proxy.
+3. If the automatic deploy timer is installed, stop it before publishing or deploying
+   a migration-bearing release. For the first Stage 21 rollout this must happen
+   before merge, because an older installed controller does not yet detect migrations.
+4. Pull/build the new revision. `scripts/deploy.sh` builds before downtime, then
+   stops the old API/worker writers, starts the API/migrations first and only resumes
+   worker/web/proxy after the API is healthy.
+5. Confirm the API healthcheck and inspect migration/startup logs before resuming
+   normal operation.
 6. Verify Configurações → Contas, an existing AWS connection, the provider
    capability matrix and an AWS scan before treating the rollout as complete.
+7. If automatic deploy is used, run `sudo deepops-deploy adopt` after the manual
+   deployment is healthy, then restart the timer.
 
 Do not run an older API image against a database already migrated to Stage 17+:
 older account creation code does not populate the required `cloud_account_id`
