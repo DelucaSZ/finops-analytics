@@ -244,7 +244,4 @@ def upsert_policy(
 
 
 def serialize_catalog() -> list[dict]:
-    return [
-        {"provider": CloudProvider.AWS.value, **asdict(rule)}
-        for rule in RULES.values()
-    ]
+    return [{"provider": CloudProvider.AWS.value, **asdict(rule)} for rule in RULES.values()]
