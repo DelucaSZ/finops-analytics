@@ -1,0 +1,105 @@
+name: Stage 21 Compose smoke
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compose-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare isolated test environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          {
+            echo "POSTGRES_DB=nuvemiq"
+            echo "POSTGRES_USER=nuvemiq"
+            echo "POSTGRES_PASSWORD=stage21-ci-postgres-password"
+            echo "DATABASE_URL=postgresql+psycopg://nuvemiq:stage21-ci-postgres-password@db:5432/nuvemiq"
+            echo "NUVEMIQ_ENVIRONMENT=development"
+            echo "NUVEMIQ_SECRET_KEY=stage21-ci-secret-key-with-at-least-32-characters"
+            echo "NUVEMIQ_ADMIN_EMAIL=stage21-admin@example.com"
+            echo "NUVEMIQ_ADMIN_PASSWORD=Stage21-test-password-482!"
+            echo "NUVEMIQ_OCI_CREDENTIALS_KEY=$(python3 - <<'PY'
+import base64
+import os
+print(base64.urlsafe_b64encode(os.urandom(32)).decode())
+PY
+)"
+            echo "NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=stage21-ci"
+            echo "NEXT_PUBLIC_API_URL=/api/v1"
+          } >> .env
+
+      - name: Validate Compose configuration
+        run: docker compose -p deepops-stage21 config --quiet
+
+      - name: Build application images
+        run: docker compose -p deepops-stage21 build
+
+      - name: Start isolated stack
+        run: docker compose -p deepops-stage21 up -d
+
+      - name: Wait for proxy and API readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1/health >/tmp/health.json; then
+              cat /tmp/health.json
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -p deepops-stage21 ps
+          docker compose -p deepops-stage21 logs --no-color
+          exit 1
+
+      - name: Verify migrations, proxy routing and frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
+          test "$version" = "0015_oci_api_keys"
+          curl --fail --silent --show-error http://127.0.0.1/health | grep -q '"status":"ok"'
+          curl --fail --silent --show-error http://127.0.0.1/ >/tmp/frontend.html
+          test -s /tmp/frontend.html
+
+      - name: Verify persistence and readiness after restart
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker compose -p deepops-stage21 restart db api worker web proxy
+          for attempt in $(seq 1 60); do
+            if curl --fail --silent --show-error http://127.0.0.1/health >/dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
+          test "$version" = "0015_oci_api_keys"
+          docker compose -p deepops-stage21 ps
+
+      - name: Capture stack logs
+        if: always()
+        run: docker compose -p deepops-stage21 logs --no-color > stage21-compose.log 2>&1 || true
+
+      - name: Upload stack logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: stage21-compose-logs
+          path: stage21-compose.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Tear down isolated stack
+        if: always()
+        run: docker compose -p deepops-stage21 down -v --remove-orphans
