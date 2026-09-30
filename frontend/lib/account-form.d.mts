@@ -36,6 +36,10 @@ export function buildUpdateAccountPayload(
   form: AccountFormState,
   options?: { replaceCredentials?: boolean },
 ): Record<string, unknown>;
+export function validateAccountForm(
+  form: AccountFormState,
+  options?: { mode?: "create" | "edit"; replaceCredentials?: boolean },
+): Record<string, string>;
 export function filterCloudAccounts(
   accounts: CloudAccount[],
   provider: string,
