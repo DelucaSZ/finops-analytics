@@ -7,6 +7,7 @@ import {
   buildUpdateAccountPayload,
   createEmptyAccountForm,
   filterCloudAccounts,
+  validateAccountForm,
 } from "../lib/account-form.mjs";
 
 const awsAccount = {
@@ -141,4 +142,32 @@ test("mixed account filter searches the complete loaded list by provider, name o
   assert.deepEqual(filterCloudAccounts(accounts, "oci", "").map((item) => item.id), [2]);
   assert.deepEqual(filterCloudAccounts(accounts, "all", "123456").map((item) => item.id), [1]);
   assert.deepEqual(filterCloudAccounts(accounts, "all", "oci prod").map((item) => item.id), [2]);
+});
+
+test("form validation rejects invalid AWS identity and role mismatch before submit", () => {
+  const form = createEmptyAccountForm("aws", "nuvemiq-valid-external-id");
+  form.name = "AWS";
+  form.native_account_id = "123";
+  form.aws.role_arn = "arn:aws:iam::999999999999:role/DeepOps";
+  form.aws.regions = "sa-east-1";
+  let errors = validateAccountForm(form, { mode: "create" });
+  assert.equal(errors.native_account_id, "AWS Account ID deve conter exatamente 12 dígitos.");
+
+  form.native_account_id = "123456789012";
+  errors = validateAccountForm(form, { mode: "create" });
+  assert.equal(errors.role_arn, "O Account ID do Role ARN deve ser o mesmo da conta.");
+});
+
+test("OCI validation enforces explicit subcompartment base and replacement key", () => {
+  const form = accountToForm(ociAccount);
+  form.oci.include_subcompartments = true;
+  form.oci.include_root_compartment = false;
+  form.oci.compartment_ocids = "";
+  form.oci.private_key_pem = "short";
+  form.oci.fingerprint = "";
+
+  const errors = validateAccountForm(form, { mode: "edit", replaceCredentials: true });
+  assert.match(errors.compartment_ocids, /compartment-base/);
+  assert.match(errors.private_key_pem, /64 bytes/);
+  assert.match(errors.fingerprint, /fingerprint/);
 });
