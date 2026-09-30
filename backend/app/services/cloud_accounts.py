@@ -287,9 +287,17 @@ def _update_aws_configuration(
         role_account_id = configuration_changes["role_arn"].split(":")[4]
         if role_account_id != account.native_account_id:
             raise ValueError("Role ARN account does not match native account identifier")
+
+    authentication_changed = any(
+        field in configuration_changes
+        and getattr(aws_account, field) != configuration_changes[field]
+        for field in ("role_arn", "external_id")
+    )
     for field, value in configuration_changes.items():
         setattr(aws_account, field, value)
     _apply_schedule(aws_account, configuration_changes)
+    if authentication_changed:
+        _invalidate_connection_state(account)
 
 
 def _oci_update_values(
