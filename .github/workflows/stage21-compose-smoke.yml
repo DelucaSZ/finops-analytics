@@ -28,12 +28,7 @@ jobs:
             echo "NUVEMIQ_SECRET_KEY=stage21-ci-secret-key-with-at-least-32-characters"
             echo "NUVEMIQ_ADMIN_EMAIL=stage21-admin@example.com"
             echo "NUVEMIQ_ADMIN_PASSWORD=Stage21-test-password-482!"
-            echo "NUVEMIQ_OCI_CREDENTIALS_KEY=$(python3 - <<'PY'
-import base64
-import os
-print(base64.urlsafe_b64encode(os.urandom(32)).decode())
-PY
-)"
+            echo "NUVEMIQ_OCI_CREDENTIALS_KEY=$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
             echo "NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=stage21-ci"
             echo "NEXT_PUBLIC_API_URL=/api/v1"
           } >> .env
