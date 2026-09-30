@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.cloud import CloudProvider
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
 from app.models.scan import Scan
 from app.schemas.scan import ScanCreate, ScanRead
+from app.services.cloud_accounts import UnsupportedProviderOperation
+from app.services.scan_queue import CollectionPreconditionError, queue_manual_collection
 
 router = APIRouter(prefix="/scans", tags=["scans"], dependencies=[Depends(require_user)])
 
@@ -34,23 +35,16 @@ def create_scan(payload: ScanCreate, db: Session = Depends(get_db)) -> Scan:
     account = db.get(AwsAccount, payload.account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="AWS account not found")
-    cloud_account = account.cloud_account
-    if cloud_account is None or cloud_account.provider != CloudProvider.AWS.value:
-        raise HTTPException(status_code=409, detail="AWS account configuration is invalid")
-    if not cloud_account.enabled:
-        raise HTTPException(status_code=409, detail="AWS account is disabled")
-    pending = db.scalar(
-        select(Scan).where(
-            Scan.account_id == payload.account_id, Scan.status.in_(["pending", "running"])
-        )
-    )
-    if pending:
-        raise HTTPException(status_code=409, detail="A scan is already pending or running")
-    scan = Scan(account_id=payload.account_id, trigger="manual")
-    db.add(scan)
-    db.commit()
-    db.refresh(scan)
-    return scan
+    if account.cloud_account is None:
+        raise HTTPException(status_code=409, detail="AWS account is missing its cloud account")
+    try:
+        scan = queue_manual_collection(db, account.cloud_account)
+        db.commit()
+        db.refresh(scan)
+        return scan
+    except (UnsupportedProviderOperation, CollectionPreconditionError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get("/{scan_id}", response_model=ScanRead)
