@@ -76,3 +76,33 @@ items include:
 - use Secrets Manager or Parameter Store for runtime secrets;
 - send application and access logs to CloudWatch Logs;
 - restrict the target-account policy after measuring real API usage.
+
+
+## Multi-cloud schema rollout and recovery
+
+The Stage 17+ account model introduces a provider-neutral `cloud_accounts` row and
+a required one-to-one link from every legacy `aws_accounts` row. Stage 18 adds
+encrypted OCI configuration, and Stage 21 synchronizes the PostgreSQL sequence
+after the legacy-account backfill.
+
+For an existing installation:
+
+1. Create and verify a database backup before updating the application.
+2. Back up `NUVEMIQ_OCI_CREDENTIALS_KEY` and
+   `NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION` separately from the database. A database
+   backup alone cannot recover OCI private keys.
+3. Stop old API and worker writers before applying these migrations.
+4. Pull/build the new revision and start the API so it can run the migrations.
+5. Confirm the API healthcheck, then start/confirm worker, web and proxy.
+6. Verify Configurações → Contas, an existing AWS connection, the provider
+   capability matrix and an AWS scan before treating the rollout as complete.
+
+Do not run an older API image against a database already migrated to Stage 17+:
+older account creation code does not populate the required `cloud_account_id`
+link and is not write-compatible with the new schema.
+
+If rollout fails after the schema changed, rolling back only the container image is
+not sufficient. Stop writers and restore a database backup that is consistent with
+the older application revision. Data created after that backup will be lost unless
+it is explicitly reconciled before restoration. OCI credentials additionally
+require the matching backed-up Fernet key/version.
