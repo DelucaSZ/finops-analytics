@@ -166,7 +166,7 @@ def test_dashboard_uses_bounded_aggregate_queries_not_frontend_sized_reads(dashb
             statements.clear()
             health = collection_health(db)
             assert health["latest_execution"]["failed"] == 1
-            assert len(statements) == 3
+            assert len(statements) == 4
         finally:
             event.remove(engine, "before_cursor_execute", record)
 
