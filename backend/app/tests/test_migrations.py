@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0015_oci_api_keys"
+            == "0016_cloud_account_sequence"
         )
         assert (
             compare_metadata(
@@ -636,3 +636,54 @@ def test_stage18_migration_adds_oci_storage_without_rewriting_aws(migration_engi
     with Session(migration_engine) as db:
         assert db.get(CloudAccount, 77).provider == "aws"
         assert db.scalar(select(func.count()).select_from(OciAccountConfiguration)) == 0
+
+
+def test_stage21_cloud_account_sequence_continues_after_stage17_backfill(migration_engine):
+    """A migrated PostgreSQL database must allocate a fresh CloudAccount id."""
+
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0013_historical_retention")
+
+        aws_table = Table("aws_accounts", MetaData(), autoload_with=connection)
+        now = utcnow()
+        connection.execute(
+            aws_table.insert().values(
+                id=50,
+                name="Sequence preservation fixture",
+                aws_account_id="505050505050",
+                role_arn="arn:aws:iam::505050505050:role/DeepOps",
+                external_id="stage21-sequence-external-id",
+                regions=["sa-east-1"],
+                enabled=True,
+                is_management_account=False,
+                schedule_enabled=False,
+                scan_interval_hours=24,
+                next_scan_at=None,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        command.upgrade(cfg, "head")
+
+    with Session(migration_engine) as db:
+        migrated = db.get(CloudAccount, 50)
+        assert migrated is not None
+        assert migrated.native_account_id == "505050505050"
+
+        created = CloudAccount(
+            provider="oci",
+            native_account_id="ocid1.tenancy.oc1..stage21sequencefixture",
+            name="Post-migration account",
+            enabled=True,
+        )
+        db.add(created)
+        db.commit()
+        db.refresh(created)
+
+        assert created.id > migrated.id
