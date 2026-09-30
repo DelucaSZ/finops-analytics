@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.cloud import CloudProvider
-from app.core.security import require_admin, require_user
+from app.core.security import require_admin, require_operator, require_user
 from app.db.session import get_db
 from app.models.user import User
 from app.schemas.account import (
@@ -16,6 +16,7 @@ from app.schemas.account import (
     CloudAccountRead,
     CloudAccountUpdate,
     ConnectionTestResult,
+    ProviderCapabilitiesRead,
     OciAccountConfigurationUpdate,
 )
 from app.services.aws_auth import assume_account_session, get_caller_identity
@@ -41,6 +42,13 @@ from app.services.oci_auth import (
     snapshot_from_configuration,
     validate_connection,
 )
+from app.services.provider_capabilities import (
+    ProviderOperation,
+    list_provider_capabilities,
+    require_provider_operation,
+)
+from app.services.scan_queue import CollectionPreconditionError, queue_manual_collection
+from app.schemas.scan import ScanRead
 
 router = APIRouter(
     prefix="/cloud-accounts",
@@ -89,6 +97,11 @@ def _record_failed_oci_mutation(
 @router.get("/aws/external-id", dependencies=[Depends(require_admin)])
 def generate_aws_external_id() -> dict[str, str]:
     return {"external_id": f"nuvemiq-{uuid.uuid4()}"}
+
+
+@router.get("/capabilities", response_model=list[ProviderCapabilitiesRead])
+def provider_capabilities() -> list[dict]:
+    return list_provider_capabilities()
 
 
 @router.get("", response_model=list[CloudAccountRead])
@@ -154,6 +167,24 @@ def create_account(
 @router.get("/{account_id}", response_model=CloudAccountRead)
 def get_account(account_id: int, db: Session = Depends(get_db)):
     return _get_account(db, account_id)
+
+
+@router.post(
+    "/{account_id}/scans",
+    response_model=ScanRead,
+    status_code=status.HTTP_202_ACCEPTED,
+    dependencies=[Depends(require_operator)],
+)
+def create_account_scan(account_id: int, db: Session = Depends(get_db)):
+    account = _get_account(db, account_id)
+    try:
+        scan = queue_manual_collection(db, account)
+        db.commit()
+        db.refresh(scan)
+        return scan
+    except (UnsupportedProviderOperation, CollectionPreconditionError) as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
 @router.get(
@@ -449,6 +480,10 @@ def test_connection(
 ) -> ConnectionTestResult:
     actor_id = actor.id
     account = _get_account(db, account_id)
+    try:
+        require_provider_operation(account.provider, ProviderOperation.CONNECTION_TEST)
+    except UnsupportedProviderOperation as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     if account.provider == CloudProvider.AWS.value:
         return _test_aws_connection(account, db)
     if account.provider == CloudProvider.OCI.value:
