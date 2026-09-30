@@ -2713,7 +2713,7 @@ Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, 
 
 ## Etapa 20 — integração de contas, políticas e capacidades por cloud
 
-**Status:** implementação em `stage20-provider-capabilities`. A validação automatizada final será registrada após a execução do CI do PR. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
+**Status:** implementação concluída em `stage20-provider-capabilities`, PR #26, validada no CI #199. O PR permanece aberto; não houve merge nem deploy nesta etapa. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
 
 ### Fonte de verdade de capacidades
 
@@ -2817,7 +2817,17 @@ Foram adicionados testes estruturais para:
 
 Fixtures OCI desta etapa são estruturais/simuladas. Elas não constituem evidência de coleta ou acesso real a recursos OCI.
 
-**Validação automatizada:** pendente do CI do PR desta branch. Nenhum teste não executado deve ser interpretado como aprovado.
+Validação automatizada final do PR #26, CI #199:
+
+- backend: `ruff check .` aprovado;
+- backend: `ruff format --check .` aprovado;
+- backend: `pytest -q` com **297 testes aprovados** e 6 warnings de depreciação;
+- frontend: `npm test` com **51 testes aprovados**;
+- frontend: `npm run build` aprovado, incluindo geração das 21 páginas estáticas;
+- security: readiness checker, exposição pública do Compose e template de Security Group aprovados;
+- workflow separado **Auto deploy tests #192** aprovado; esse workflow testa o instalador e não representa deploy do PR.
+
+As rodadas preliminares CI #195 e #197 identificaram apenas organização/formatação de arquivos Python; os apontamentos foram corrigidos antes do CI #199. O `npm ci` continua reportando 1 vulnerabilidade moderada e 1 alta já presentes na árvore de dependências; a Etapa 20 não declara correção dessas dependências. Não há navegador E2E nem credenciais OCI reais nesta execução, portanto não é declarada validação visual completa nem coleta OCI real.
 
 ### Pendências para a Etapa 21
 
