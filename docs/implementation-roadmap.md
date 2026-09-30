@@ -2594,7 +2594,7 @@ Sem credenciais OCI disponibilizadas por canal seguro nesta execução, a valida
 
 ## Etapa 19 — formulário unificado de cadastro e edição de contas AWS e OCI
 
-**Status:** implementação concluída na branch `stage19-unified-account-form`; validação automatizada do PR pendente no momento desta atualização. Merge e deploy permanecem etapas separadas.
+**Status:** implementação concluída na branch `stage19-unified-account-form`, com PR #25 aberto para `main`. O código foi validado no CI #192. Merge e deploy permanecem etapas separadas.
 
 ### Experiência final de Contas
 
@@ -2693,7 +2693,16 @@ Principais arquivos:
 
 Foram adicionados testes de frontend para isolamento de payload entre providers, limpeza de segredos ao trocar provider, atualização parcial, preservação de `false`/listas vazias, edição OCI sem reenvio de chave, substituição explícita/cancelada, filtros mistos e validações relevantes. O backend ganhou teste para invalidação do estado de conexão AWS após mudança de autenticação sem tornar provider/identidade mutáveis.
 
-A validação oficial de lint, formatação, testes backend, testes frontend e build deve ser registrada aqui após o GitHub Actions do PR. Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, portanto nenhuma validação visual desktop/mobile ou conexão real com cloud é declarada.
+Validação automatizada do PR #25, CI #192:
+- backend: `ruff check .` aprovado;
+- backend: `ruff format --check .` aprovado;
+- backend: `pytest -q` com **293 testes aprovados** e 6 warnings de depreciação já existentes;
+- frontend: `npm test` com **51 testes aprovados**;
+- frontend: `npm run build` aprovado, incluindo compilação TypeScript/Next.js e geração das 21 páginas estáticas;
+- security: checks de readiness, exposição pública do Compose e template de Security Group aprovados;
+- workflow separado `Auto deploy tests`: testes do instalador de auto-deploy aprovados; esse workflow não representa deploy desta branch.
+
+Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, portanto nenhuma validação visual desktop/mobile ou conexão real com cloud é declarada.
 
 ### Pendências para Etapas 20 e 21
 
