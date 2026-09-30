@@ -6,6 +6,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from app.api.routes.dashboard import router
+from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.opportunity_observation import OpportunityObservation
@@ -37,6 +38,15 @@ def dashboard(client):  # noqa: F811
     with Session(engine) as db:
         db.get(CollectionRun, "run-a1").analyzer_version = "rules-v1"
         db.get(CollectionRun, "run-a2").analyzer_version = "rules-v2"
+        db.add(
+            CloudAccount(
+                provider="oci",
+                native_account_id="ocid1.tenancy.registered-without-collector",
+                name="OCI Registered",
+                enabled=True,
+                connection_status="connected",
+            )
+        )
         db.add_all(
             [
                 _observation("opp-002", "run-a2", savings="30", severity="low"),
@@ -110,6 +120,15 @@ def test_latest_failed_execution_does_not_replace_latest_valid_collection(dashbo
     assert health["total_scopes"] == 3
     assert health["valid_scopes"] == 3
     assert health["latest_execution"]["failed"] == 1
+    assert health["coverage"] == {
+        "registered_accounts": 3,
+        "enabled_accounts": 3,
+        "disabled_accounts": 0,
+        "collection_supported_accounts": 2,
+        "collection_eligible_accounts": 2,
+        "collection_unsupported_accounts": 1,
+        "eligible_without_execution": 0,
+    }
 
     account = next(item for item in health["items"] if item["account_id"] == "111111111111")
     assert account["latest_execution"]["id"] == "run-a3-failed"
