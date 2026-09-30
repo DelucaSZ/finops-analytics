@@ -168,6 +168,68 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
   return payload;
 }
 
+export function validateAccountForm(form, options = {}) {
+  const errors = {};
+  const creating = options.mode !== "edit";
+  const replacing = Boolean(options.replaceCredentials);
+
+  if (!String(form.name || "").trim() || String(form.name || "").trim().length < 2) {
+    errors.name = "Informe um nome com pelo menos 2 caracteres.";
+  }
+  if (!SUPPORTED_ACCOUNT_PROVIDERS.includes(form.provider)) {
+    errors.provider = "Selecione AWS ou OCI.";
+    return errors;
+  }
+
+  if (form.provider === "aws") {
+    if (!/^\d{12}$/.test(String(form.native_account_id || "").trim())) {
+      errors.native_account_id = "AWS Account ID deve conter exatamente 12 dígitos.";
+    }
+    const roleArn = String(form.aws.role_arn || "").trim();
+    if (!/^arn:aws[a-zA-Z-]*:iam::\d{12}:role\/.+/.test(roleArn)) {
+      errors.role_arn = "Informe um Role ARN IAM válido.";
+    } else if (
+      /^\d{12}$/.test(String(form.native_account_id || "").trim())
+      && roleArn.split(":")[4] !== String(form.native_account_id).trim()
+    ) {
+      errors.role_arn = "O Account ID do Role ARN deve ser o mesmo da conta.";
+    }
+    if (String(form.aws.external_id || "").trim().length < 16) {
+      errors.external_id = "External ID deve possuir pelo menos 16 caracteres.";
+    }
+    if (!csvList(form.aws.regions).length) {
+      errors.regions = "Informe pelo menos uma região AWS.";
+    }
+  }
+
+  if (form.provider === "oci") {
+    if (!String(form.native_account_id || "").trim().startsWith("ocid1.tenancy.")) {
+      errors.native_account_id = "Informe um Tenancy OCID.";
+    }
+    if (!String(form.oci.user_ocid || "").trim().startsWith("ocid1.user.")) {
+      errors.user_ocid = "Informe um User OCID.";
+    }
+    if (!String(form.oci.region || "").trim()) {
+      errors.region = "Informe a região de conexão OCI.";
+    }
+    const compartments = csvList(form.oci.compartment_ocids);
+    if (form.oci.include_subcompartments && !form.oci.include_root_compartment && !compartments.length) {
+      errors.compartment_ocids = "Para incluir subcompartments, inclua a raiz ou ao menos um compartment-base.";
+    }
+    if (creating || replacing) {
+      if (!String(form.oci.fingerprint || "").trim()) {
+        errors.fingerprint = "Informe o fingerprint da API Signing Key.";
+      }
+      const pem = String(form.oci.private_key_pem || "");
+      if (pem.length < 64 || pem.length > 65536) {
+        errors.private_key_pem = "Informe uma chave privada PEM entre 64 bytes e 64 KiB.";
+      }
+    }
+  }
+
+  return errors;
+}
+
 export function filterCloudAccounts(accounts, provider, search) {
   const needle = String(search || "").trim().toLocaleLowerCase("pt-BR");
   return accounts.filter((account) => {
