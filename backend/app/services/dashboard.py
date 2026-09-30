@@ -767,9 +767,9 @@ def _collection_coverage(
         func.count(case((enabled, 1))).label("enabled_accounts"),
         func.count(case((supported, 1))).label("collection_supported_accounts"),
         func.count(case((and_(supported, enabled), 1))).label("collection_eligible_accounts"),
-        func.count(
-            case((and_(supported, enabled, ~has_execution), 1))
-        ).label("eligible_without_execution"),
+        func.count(case((and_(supported, enabled, ~has_execution), 1))).label(
+            "eligible_without_execution"
+        ),
     ).select_from(CloudAccount)
     if provider:
         statement = statement.where(CloudAccount.provider == provider.lower())
