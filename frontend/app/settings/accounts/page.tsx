@@ -452,22 +452,17 @@ export default function AccountsPage() {
               <fieldset className="span-2 account-provider-fieldset">
                 <legend>Cloud</legend>
                 <div className="segmented account-provider-choice" aria-label="Escolha o provider">
-                  <button
-                    type="button"
-                    className={form.provider === "aws" ? "active" : ""}
-                    aria-pressed={form.provider === "aws"}
-                    onClick={() => void chooseProvider("aws")}
-                  >
-                    AWS
-                  </button>
-                  <button
-                    type="button"
-                    className={form.provider === "oci" ? "active" : ""}
-                    aria-pressed={form.provider === "oci"}
-                    onClick={() => void chooseProvider("oci")}
-                  >
-                    OCI
-                  </button>
+                  {availableProviders.map((provider) => (
+                    <button
+                      key={provider.provider}
+                      type="button"
+                      className={form.provider === provider.provider ? "active" : ""}
+                      aria-pressed={form.provider === provider.provider}
+                      onClick={() => void chooseProvider(provider.provider)}
+                    >
+                      {provider.label}
+                    </button>
+                  ))}
                 </div>
                 <small>Os campos e credenciais são isolados por provider. Selecionar OCI não dispara chamadas AWS.</small>
                 {fieldErrors.provider && <span className="field-error">{fieldErrors.provider}</span>}
@@ -824,9 +819,11 @@ export default function AccountsPage() {
                         )}
                       </>
                     )}
-                    <p className="span-2 account-form-note">
-                      Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
-                    </p>
+                    {!capabilityByProvider.get("oci")?.manual_collection && (
+                      <p className="span-2 account-form-note">
+                        Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
+                      </p>
+                    )}
                   </>
                 )}
 
@@ -859,8 +856,9 @@ export default function AccountsPage() {
             Cloud
             <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label="Filtrar por cloud">
               <option value="all">Todas</option>
-              <option value="aws">AWS</option>
-              <option value="oci">OCI</option>
+              {availableProviders.map((provider) => (
+                <option key={provider.provider} value={provider.provider}>{provider.label}</option>
+              ))}
             </select>
           </label>
         </div>
@@ -910,9 +908,7 @@ export default function AccountsPage() {
               <tbody>
                 {filteredAccounts.map((account) => {
                   const busy = busyAccounts[account.id];
-                  const hasOperationalConnection = Boolean(
-                    account.aws_configuration || account.oci_configuration,
-                  );
+                  const capability = capabilityByProvider.get(account.provider);
                   return (
                     <tr key={account.id}>
                       <td>
@@ -940,10 +936,16 @@ export default function AccountsPage() {
                       </td>
                       <td>
                         <span title={scopeSummary(account)}>{scopeSummary(account)}</span>
-                        {account.provider === "oci" && <small className="account-capability-note">Coleta OCI ainda não implementada</small>}
+                        {capability && !capability.manual_collection && (
+                          <small className="account-capability-note">
+                            {account.connection_status === "connected"
+                              ? `Conexão validada. Coleta ${capability.label} ainda não disponível.`
+                              : `Coleta ${capability.label} ainda não disponível.`}
+                          </small>
+                        )}
                       </td>
                       <td>{formatDate(account.last_connection_test_at)}</td>
-                      <td>{scheduleSummary(account)}</td>
+                      <td>{scheduleSummary(account, capability)}</td>
                       <td>
                         <div className="settings-row-actions account-row-actions">
                           {canManageAccounts && (
@@ -955,7 +957,7 @@ export default function AccountsPage() {
                               <Edit3 size={15} /> Editar
                             </button>
                           )}
-                          {canManageAccounts && hasOperationalConnection && (
+                          {canManageAccounts && capability?.connection_test && (
                             <button
                               className="button ghost"
                               onClick={() => void testConnection(account)}
@@ -965,11 +967,15 @@ export default function AccountsPage() {
                               Testar
                             </button>
                           )}
-                          {canAnalyze && account.aws_configuration && (
+                          {canAnalyze && capability?.manual_collection && (
                             <button
                               className="button primary"
                               onClick={() => void scan(account)}
-                              disabled={Boolean(busy) || account.connection_status !== "connected"}
+                              disabled={
+                                Boolean(busy)
+                                || !account.enabled
+                                || account.connection_status !== "connected"
+                              }
                             >
                               <Play size={15} /> Analisar
                             </button>
