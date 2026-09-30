@@ -2713,7 +2713,7 @@ Não há navegador E2E nem credenciais OCI reais disponíveis nesta execução, 
 
 ## Etapa 20 — integração de contas, políticas e capacidades por cloud
 
-**Status:** implementação concluída em `stage20-provider-capabilities`, PR #26, validada no CI #199. O PR permanece aberto; não houve merge nem deploy nesta etapa. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
+**Status:** implementação concluída e validada no CI #199; incorporada à `main` pelo merge commit `18695f3697cd4019517e0eb2a9e71a79dbf0bfbd` (PR #26). Deploy permanece etapa operacional separada. Esta etapa não implementa collectors, analisadores ou regras FinOps OCI.
 
 ### Fonte de verdade de capacidades
 
@@ -2839,3 +2839,30 @@ As rodadas preliminares CI #195 e #197 identificaram apenas organização/format
 - tratamento de qualquer regressão encontrada na revisão integrada.
 
 Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinOps OCI, novos métodos de autenticação, Azure/GCP operacionais, conversão cambial, mudança de fingerprint/identidade de oportunidade, nova retenção e framework de plugins.
+
+
+## Etapa 21 — validação integrada e fechamento da gestão multi-cloud de contas
+
+**Status:** implementação de correções e validação automatizada em andamento na branch `stage21-integrated-validation`. Validação real em OCI, navegador E2E e produção permanecem separadas e não são inferidas a partir de mocks ou CI.
+
+### Revisão integrada
+
+A revisão partiu da `main` no merge commit `18695f3697cd4019517e0eb2a9e71a79dbf0bfbd` e confirmou no código as entregas das Etapas 16 a 20: rotas canônicas em Configurações, registro comum `CloudAccount`, autenticação OCI por API Signing Key, formulário unificado e matriz de capacidades por provider.
+
+Foi corrigida uma inconsistência documental da Etapa 20: o PR #26 já estava incorporado à `main`, embora o roadmap ainda o descrevesse como aberto.
+
+### Correção de migration identificada
+
+A migration da Etapa 17 preserva os IDs legados ao inserir `cloud_accounts.id = aws_accounts.id`. No PostgreSQL, inserts com valor explícito não avançam a sequence associada ao PK. Sem reparo, o primeiro cadastro posterior ao upgrade poderia receber um ID já existente.
+
+A revisão `0016_cloud_account_sequence` sincroniza a sequence com o maior ID existente, sem reescrever contas ou histórico. Um teste de regressão executa upgrade a partir de `0013_historical_retention`, preserva a conta AWS legada e confirma que um novo `CloudAccount` recebe ID posterior. O teste roda em SQLite e PostgreSQL 17 pela suíte de migrations.
+
+### Implantação e recuperação
+
+A documentação de deploy agora exige backup consistente antes da migração, backup separado da chave Fernet OCI, parada de writers antigos durante o rollout e verificação explícita de AWS após a atualização. Imagens antigas da API não devem escrever contra o schema Stage 17+, pois não conhecem o vínculo obrigatório `cloud_account_id`.
+
+Rollback após alteração de schema exige restaurar backup compatível; voltar apenas a imagem do container não é considerado recuperação segura. O impacto sobre dados criados após o backup deve ser tratado explicitamente.
+
+### Limites da validação
+
+O runtime desta execução não possui acesso de rede ao GitHub para checkout local, portanto Docker Compose e navegador local não são declarados como executados. A validação automatizada oficial desta branch deve ser registrada pelo GitHub Actions com PostgreSQL 17, backend, frontend e gates de segurança. Conexão OCI real depende de credenciais de teste fornecidas por mecanismo seguro e não é substituída por mocks.
