@@ -7,7 +7,7 @@ export default defineConfig({
   fullyParallel: false,
   use: {
     baseURL: "http://127.0.0.1:3000",
-    trace: "retain-on-failure",
+    trace: "off",
   },
   projects: [
     {
