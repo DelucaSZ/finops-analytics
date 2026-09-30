@@ -45,6 +45,17 @@ export type OciAccountConfiguration = {
   updated_at: string;
 };
 
+export type ProviderCapabilities = {
+  provider: string;
+  label: string;
+  registration: boolean;
+  editing: boolean;
+  connection_test: boolean;
+  manual_collection: boolean;
+  scheduling: boolean;
+  finops_policies: boolean;
+};
+
 export type CloudAccount = {
   id: number;
   provider: string;
@@ -61,6 +72,7 @@ export type CloudAccount = {
 };
 
 export type Policy = {
+  provider: string;
   rule_key: string;
   name: string;
   description: string;
@@ -334,6 +346,15 @@ export type DashboardCollectionHealth = {
   scope: {
     provider: string | null;
     account_id: string | null;
+  };
+  coverage: {
+    registered_accounts: number;
+    enabled_accounts: number;
+    disabled_accounts: number;
+    collection_supported_accounts: number;
+    collection_eligible_accounts: number;
+    collection_unsupported_accounts: number;
+    eligible_without_execution: number;
   };
   total_scopes: number;
   valid_scopes: number;
