@@ -186,6 +186,89 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
 .add-account strong { color: var(--text); }
 .add-account span { margin-top: 5px; font-size: .8125rem; }
 
+.form-grid textarea {
+  width: 100%;
+  min-height: 112px;
+  padding: 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  outline: 0;
+  color: var(--text);
+  background: #0a101b;
+  font: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  transition: 150ms ease;
+}
+.form-grid textarea:focus { border-color: rgba(85,229,182,.55); box-shadow: 0 0 0 3px rgba(85,229,182,.07); }
+.account-provider-fieldset { margin: 0; padding: 0; border: 0; }
+.account-provider-fieldset legend { margin-bottom: 8px; color: var(--muted); font-size: .8125rem; font-weight: 700; }
+.account-provider-choice { width: max-content; margin-bottom: 8px; }
+.account-provider-fieldset > small { display: block; color: var(--muted-2); line-height: 1.5; }
+.account-inline-actions { display: flex; justify-content: flex-end; }
+.account-form-note {
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  color: var(--muted);
+  background: rgba(148,163,184,.035);
+  font-size: .8125rem;
+  line-height: 1.55;
+}
+.credential-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+.credential-summary > div { display: flex; align-items: flex-start; gap: 11px; min-width: 0; }
+.credential-summary svg { flex-shrink: 0; color: var(--accent); margin-top: 2px; }
+.credential-summary strong { display: block; margin-bottom: 4px; color: var(--text); }
+.credential-summary span { display: block; color: var(--muted); font-size: .8125rem; line-height: 1.45; }
+.accounts-table-panel { min-height: 320px; }
+.accounts-toolbar { flex-wrap: wrap; }
+.accounts-toolbar .search-field { min-width: min(360px, 100%); }
+.account-identifier {
+  display: grid;
+  grid-template-columns: minmax(0,1fr) auto;
+  align-items: center;
+  gap: 6px;
+  max-width: 330px;
+}
+.account-identifier code {
+  display: block;
+  overflow: hidden;
+  color: var(--muted);
+  font-size: .78rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.icon-button.compact { width: 31px; min-width: 31px; height: 31px; min-height: 31px; }
+.account-table-error {
+  display: block;
+  max-width: 220px;
+  margin-top: 7px;
+  overflow: hidden;
+  color: var(--danger)!important;
+  font-size: .75rem!important;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.account-capability-note {
+  display: block;
+  margin-top: 6px;
+  color: var(--muted-2);
+  font-size: .75rem;
+  line-height: 1.35;
+}
+.account-row-actions { min-width: 260px; }
+.account-list-state .button { margin-top: 12px; }
+
 .policy-scope-bar { display: grid; grid-template-columns: auto minmax(210px, 320px) 1fr; align-items: center; gap: 14px; margin-bottom: 17px; padding: 13px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); }
 .policy-scope-bar p { margin: 0 5px 0 auto; color: var(--muted); font-size: .8125rem; text-align: right; }
 .segmented { display: flex; padding: 3px; border-radius: 8px; background: #080d16; }
@@ -277,6 +360,9 @@ code { font-family: "SFMono-Regular", Consolas, monospace; }
   .policy-scope-bar { grid-template-columns: 1fr; }
   .summary-strip { width: 100%; min-width: 0; }
   .summary-strip > div { min-width: 0; flex: 1; }
+  .credential-summary { align-items: stretch; flex-direction: column; }
+  .credential-summary .button { width: 100%; }
+  .accounts-toolbar .search-field, .accounts-toolbar .select-field { width: 100%; margin-left: 0; }
 }
 
 

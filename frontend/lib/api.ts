@@ -3,7 +3,14 @@ const API_TIMEOUT_MS = 30_000;
 const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
 export class ApiError extends Error {
-  constructor(message: string, public status: number, public detail?: string) { super(message); }
+  constructor(
+    message: string,
+    public status: number,
+    public detail?: string,
+    public code?: string,
+  ) {
+    super(message);
+  }
 }
 
 export async function api<T>(path: string, init: RequestInit = {}, redirectOnUnauthorized = true): Promise<T> {
@@ -58,6 +65,15 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
     const detail = payload?.detail;
+    const structuredDetail = detail && typeof detail === "object" && !Array.isArray(detail)
+      ? detail as { code?: unknown; message?: unknown }
+      : null;
+    const detailText = typeof detail === "string"
+      ? detail
+      : typeof structuredDetail?.message === "string"
+        ? structuredDetail.message
+        : undefined;
+    const detailCode = typeof structuredDetail?.code === "string" ? structuredDetail.code : undefined;
     if (detail === "mfa_enrollment_required" && typeof window !== "undefined") {
       window.dispatchEvent(new Event("deepops:session-invalidated"));
       window.location.assign("/mfa-setup");
@@ -81,12 +97,13 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       ? "Confirme sua identidade em Minha segurança antes de continuar."
       : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
       : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
-      : translated[detail]
+      : translated[typeof detail === "string" ? detail : ""]
+        || (detailText && !detailText.includes("Traceback") ? detailText : undefined)
         || (response.status >= 500
           ? "Não foi possível concluir a solicitação. Tente novamente."
           : fallbackByStatus[response.status])
-        || (typeof detail === "string" && !detail.includes("Traceback") ? detail : "Não foi possível concluir a solicitação.");
-    throw new ApiError(message, response.status, typeof detail === "string" ? detail : undefined);
+        || "Não foi possível concluir a solicitação.";
+    throw new ApiError(message, response.status, detailText, detailCode);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
