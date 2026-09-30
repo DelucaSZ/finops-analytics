@@ -2843,7 +2843,7 @@ Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinO
 
 ## Etapa 21 — validação integrada e fechamento da gestão multi-cloud de contas
 
-**Status:** implementação de correções e validação automatizada em andamento na branch `stage21-integrated-validation`. Validação real em OCI, navegador E2E e produção permanecem separadas e não são inferidas a partir de mocks ou CI.
+**Status:** implementação e validação automatizada concluídas na branch `stage21-integrated-validation`. CI #211 aprovou 299 testes backend com PostgreSQL 17, 51 testes frontend + build, segurança e 4 testes Playwright em desktop/mobile; Auto deploy #204 aprovou 15 testes. Validação real em OCI, smoke Compose isolado e produção permanecem separadas.
 
 ### Revisão integrada
 
@@ -2869,4 +2869,4 @@ Rollback após alteração de schema exige restaurar backup compatível; voltar 
 
 ### Limites da validação
 
-O runtime desta execução não possui acesso de rede ao GitHub para checkout local, portanto Docker Compose e navegador local não são declarados como executados. A validação automatizada oficial desta branch deve ser registrada pelo GitHub Actions com PostgreSQL 17, backend, frontend e gates de segurança. Conexão OCI real depende de credenciais de teste fornecidas por mecanismo seguro e não é substituída por mocks.
+O runtime desta execução não possui acesso de rede ao GitHub para checkout local, portanto o smoke test de Docker Compose isolado não é declarado como executado. A navegação real foi coberta no GitHub Actions com Chromium em viewport desktop e mobile. Conexão OCI real depende de credenciais de teste fornecidas por mecanismo seguro e não é substituída por mocks. Deploy e pós-validação em produção também não foram executados.
