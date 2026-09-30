@@ -13,6 +13,13 @@ validation and production deployment.
   `0016_cloud_account_sequence` now synchronizes the `cloud_accounts.id` sequence.
 - Added a migration regression test that upgrades a representative pre-Stage-17
   database and then creates another CloudAccount.
+- Fixed the PostgreSQL sequence hazard after the Stage 17 explicit-ID backfill.
+- Prevented old API/worker writers from remaining active while a schema migration
+  is activated by the manual deploy script.
+- Prevented the automatic deploy controller from applying a migration-bearing
+  release and then image-rolling back against the changed schema.
+- Added an explicit `adopt` action to rebaseline a manually deployed healthy
+  migration release.
 - Added rollout/recovery guidance covering backup, Fernet key preservation and
   old-image/schema incompatibility.
 - Clarified that OCI registration/test does not imply FinOps collection support.
@@ -31,6 +38,8 @@ validation and production deployment.
 | Dashboard collection health excludes unsupported OCI | CI | Pending CI | `test_dashboard.py` | Synthetic fixtures |
 | Frontend provider-aware account/policy behavior | CI Node tests/build | Pending CI | `npm test`, `npm run build` | Not browser E2E |
 | Compose definitions, secret placement and static exposure checks | CI static security checks | Pending CI | security job | Does not start Compose stack |
+| Auto-deploy refuses migration changes before activation | CI unit tests | Pending CI | `python -m unittest discover -s scripts/tests -v` | Does not modify a real host |
+| Manual deploy stops old writers before migration owner starts | CI shell syntax + code review | Pending CI | `bash -n scripts/deploy.sh` | Real Compose smoke still separate |
 | Local isolated Compose smoke test | Current runtime | Not executed | checkout blocked: runtime cannot resolve github.com | Requires Docker + source checkout |
 | Browser navigation desktop/mobile | Current runtime | Not executed | no browser E2E executor available here | Must be executed separately |
 | Real OCI connection | Authorized tenancy | Not executed | no test credential supplied through a secure mechanism | Blocks only real-cloud validation |
