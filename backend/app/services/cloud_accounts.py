@@ -31,10 +31,11 @@ from app.services.oci_auth import (
     validate_private_key,
 )
 from app.services.oci_secrets import OciSecretKeyError, encrypt_secret
-
-
-class UnsupportedProviderOperation(ValueError):
-    pass
+from app.services.provider_capabilities import (
+    ProviderOperation,
+    UnsupportedProviderOperation,
+    require_provider_operation,
+)
 
 
 class StaleOciConfiguration(RuntimeError):
@@ -237,6 +238,7 @@ def create_cloud_account(
     actor_id: str | None = None,
 ) -> CloudAccount:
     provider = normalize_provider(payload.provider)
+    require_provider_operation(provider, ProviderOperation.REGISTRATION)
     native_account_id = validate_native_account_id(provider, payload.native_account_id)
     cloud_account = CloudAccount(
         provider=provider,
@@ -283,6 +285,8 @@ def _update_aws_configuration(
     configuration_changes: dict,
 ) -> None:
     aws_account = require_aws_configuration(account)
+    if {"schedule_enabled", "scan_interval_hours"} & configuration_changes.keys():
+        require_provider_operation(account.provider, ProviderOperation.SCHEDULING)
     if "role_arn" in configuration_changes:
         role_account_id = configuration_changes["role_arn"].split(":")[4]
         if role_account_id != account.native_account_id:
@@ -340,6 +344,7 @@ def update_cloud_account(
     *,
     actor_id: str | None = None,
 ) -> CloudAccount:
+    require_provider_operation(account.provider, ProviderOperation.EDITING)
     changes = payload.model_dump(exclude_unset=True)
     configuration_payload = payload.configuration
 
