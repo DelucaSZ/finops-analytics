@@ -304,6 +304,56 @@ def test_oci_rejects_wrong_ocid_types_without_echoing_secret(
     assert pem not in response.text
 
 
+def test_aws_authentication_update_invalidates_previous_connection_test(auth_env):
+    client, engine, tokens, _ = auth_env
+    created = client.post(
+        "/api/v1/cloud-accounts",
+        headers=headers(tokens),
+        json={
+            "provider": "aws",
+            "native_account_id": "333333333333",
+            "name": "AWS connection state",
+            "enabled": True,
+            "configuration": {
+                "role_arn": "arn:aws:iam::333333333333:role/DeepOps",
+                "external_id": "x" * 20,
+                "regions": ["sa-east-1"],
+                "schedule_enabled": False,
+                "scan_interval_hours": 24,
+            },
+        },
+    )
+    assert created.status_code == 201, created.text
+    account_id = created.json()["id"]
+
+    with Session(engine) as db:
+        account = db.get(CloudAccount, account_id)
+        account.connection_status = "connected"
+        account.last_connection_test_at = account.created_at
+        db.commit()
+
+    administrative = client.patch(
+        f"/api/v1/cloud-accounts/{account_id}",
+        headers=headers(tokens),
+        json={"name": "AWS renamed"},
+    )
+    assert administrative.status_code == 200, administrative.text
+    assert administrative.json()["connection_status"] == "connected"
+    assert administrative.json()["last_connection_test_at"] is not None
+
+    authentication = client.patch(
+        f"/api/v1/cloud-accounts/{account_id}",
+        headers=headers(tokens),
+        json={"configuration": {"external_id": "y" * 20}},
+    )
+    assert authentication.status_code == 200, authentication.text
+    assert authentication.json()["provider"] == "aws"
+    assert authentication.json()["native_account_id"] == "333333333333"
+    assert authentication.json()["connection_status"] == "untested"
+    assert authentication.json()["last_connection_test_at"] is None
+    assert authentication.json()["last_error"] is None
+
+
 def test_provider_specific_configuration_cannot_cross_providers(auth_env, oci_encryption_key):
     client, _, tokens, _ = auth_env
     pem, fingerprint = _api_key()
