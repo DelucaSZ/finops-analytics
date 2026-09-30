@@ -2859,7 +2859,11 @@ A revisão `0016_cloud_account_sequence` sincroniza a sequence com o maior ID ex
 
 ### Implantação e recuperação
 
-A documentação de deploy agora exige backup consistente antes da migração, backup separado da chave Fernet OCI, parada de writers antigos durante o rollout e verificação explícita de AWS após a atualização. Imagens antigas da API não devem escrever contra o schema Stage 17+, pois não conhecem o vínculo obrigatório `cloud_account_id`.
+A revisão encontrou duas lacunas operacionais adicionais. O `scripts/deploy.sh` mantinha API/worker antigos ativos até a recriação, criando uma janela em que writers sem `cloud_account_id` poderiam gravar contra o novo schema. O script agora constrói primeiro, interrompe os writers antigos e sobe API/migrations antes de retomar worker/web/proxy.
+
+Também foi corrigido um risco no auto-deploy: o controlador restaurava imagens anteriores em falha de healthcheck, mas não detectava alterações em Alembic. Uma migration aplicada antes da falha poderia, portanto, deixar imagens antigas escrevendo contra schema novo. O controlador agora compara o manifesto de `backend/app/migrations/versions` e recusa auto-deploy quando houver qualquer mudança, exigindo implantação manual com backup. A ação `deepops-deploy adopt` rebaselina uma implantação manual saudável.
+
+A documentação de deploy exige backup consistente antes da migração, backup separado da chave Fernet OCI, parada de writers antigos durante o rollout e verificação explícita de AWS após a atualização. Imagens antigas da API não devem escrever contra o schema Stage 17+, pois não conhecem o vínculo obrigatório `cloud_account_id`.
 
 Rollback após alteração de schema exige restaurar backup compatível; voltar apenas a imagem do container não é considerado recuperação segura. O impacto sobre dados criados após o backup deve ser tratado explicitamente.
 
