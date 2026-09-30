@@ -16,9 +16,10 @@ from app.schemas.account import (
     CloudAccountRead,
     CloudAccountUpdate,
     ConnectionTestResult,
-    ProviderCapabilitiesRead,
     OciAccountConfigurationUpdate,
+    ProviderCapabilitiesRead,
 )
+from app.schemas.scan import ScanRead
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.cloud_accounts import (
     StaleOciConfiguration,
@@ -48,7 +49,6 @@ from app.services.provider_capabilities import (
     require_provider_operation,
 )
 from app.services.scan_queue import CollectionPreconditionError, queue_manual_collection
-from app.schemas.scan import ScanRead
 
 router = APIRouter(
     prefix="/cloud-accounts",
