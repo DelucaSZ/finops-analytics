@@ -28,6 +28,23 @@ export type AwsAccountConfiguration = {
   updated_at: string;
 };
 
+export type OciAccountConfiguration = {
+  id: number;
+  user_ocid: string;
+  fingerprint: string;
+  region: string;
+  scope_regions: string[];
+  compartment_ocids: string[];
+  include_root_compartment: boolean;
+  include_subcompartments: boolean;
+  credentials_configured: boolean;
+  credential_key_version: string | null;
+  credential_revision: number;
+  configuration_revision: number;
+  created_at: string;
+  updated_at: string;
+};
+
 export type CloudAccount = {
   id: number;
   provider: string;
@@ -40,6 +57,7 @@ export type CloudAccount = {
   created_at: string;
   updated_at: string;
   aws_configuration: AwsAccountConfiguration | null;
+  oci_configuration: OciAccountConfiguration | null;
 };
 
 export type Policy = {

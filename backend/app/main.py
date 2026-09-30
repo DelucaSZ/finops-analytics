@@ -62,7 +62,7 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 async def sensitive_response_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith(
-        ("/api/v1/auth", "/api/v1/users", "/api/v1/audit", "/api/v1/tls")
+        ("/api/v1/auth", "/api/v1/users", "/api/v1/audit", "/api/v1/tls", "/api/v1/cloud-accounts")
     ):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"

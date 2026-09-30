@@ -1,3 +1,4 @@
+import uuid
 from datetime import datetime
 
 from sqlalchemy import (
@@ -14,7 +15,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
 from app.core.cloud import CloudProvider
-from app.db.base import Base, TimestampMixin
+from app.db.base import Base, TimestampMixin, utcnow
 
 
 class CloudAccount(TimestampMixin, Base):
@@ -39,6 +40,13 @@ class CloudAccount(TimestampMixin, Base):
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     aws_configuration: Mapped["AwsAccount | None"] = relationship(
+        back_populates="cloud_account",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        single_parent=True,
+        uselist=False,
+    )
+    oci_configuration: Mapped["OciAccountConfiguration | None"] = relationship(
         back_populates="cloud_account",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -83,6 +91,51 @@ class AwsAccount(TimestampMixin, Base):
     next_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     cloud_account: Mapped[CloudAccount] = relationship(back_populates="aws_configuration")
+
+
+class OciAccountConfiguration(TimestampMixin, Base):
+    __tablename__ = "oci_account_configurations"
+
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
+    cloud_account_id: Mapped[int] = mapped_column(
+        ForeignKey("cloud_accounts.id", ondelete="CASCADE"),
+        unique=True,
+        nullable=False,
+    )
+    user_ocid: Mapped[str] = mapped_column(String(255), nullable=False)
+    fingerprint: Mapped[str] = mapped_column(String(64), nullable=False)
+    region: Mapped[str] = mapped_column(String(64), nullable=False)
+    scope_regions: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    compartment_ocids: Mapped[list[str]] = mapped_column(JSON, default=list, nullable=False)
+    include_root_compartment: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    include_subcompartments: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    private_key_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
+    private_key_password_ciphertext: Mapped[str | None] = mapped_column(Text, nullable=True)
+    credential_key_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    credential_revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    configuration_revision: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+
+    cloud_account: Mapped[CloudAccount] = relationship(back_populates="oci_configuration")
+
+    @property
+    def credentials_configured(self) -> bool:
+        return bool(self.private_key_ciphertext)
+
+
+class CloudAccountAuditEvent(Base):
+    __tablename__ = "cloud_account_audit_events"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    account_id: Mapped[int | None] = mapped_column(Integer, nullable=True, index=True)
+    provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    native_account_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    actor_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"), nullable=True, index=True)
+    action: Mapped[str] = mapped_column(String(64), nullable=False)
+    result: Mapped[str] = mapped_column(String(24), nullable=False)
+    detail: Mapped[str] = mapped_column(String(500), default="", nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utcnow, nullable=False
+    )
 
 
 def _sync_aws_mirror(account: AwsAccount) -> None:
