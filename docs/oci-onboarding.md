@@ -123,6 +123,12 @@ Sucesso comprova somente as verificações executadas. Não comprova acesso a Co
 
 `GET /api/v1/cloud-accounts/{id}/audit` é admin-only. Os eventos registram ator, conta, ação, resultado e horário, mas não armazenam bodies, PEM, passphrase ou ciphertext.
 
-## Etapa 19
+## Capacidades atuais
 
-O formulário unificado deve consumir estes contratos sem criar uma segunda fonte para Tenancy OCID. Análise e agendamento OCI permanecem bloqueados até existir coletor OCI.
+O formulário unificado usa estes contratos sem criar uma segunda fonte para Tenancy OCID.
+Cadastro, edição e teste de conexão OCI estão disponíveis; coleta, agendamento e políticas
+FinOps OCI continuam bloqueados pela matriz de capacidades até existir um coletor OCI.
+
+Em backup/restore, preserve a chave Fernet e sua versão fora do PostgreSQL. Restaurar apenas
+o banco mantém o ciphertext, mas não torna a credencial utilizável sem a chave correspondente.
+Não registre PEM, passphrase ou a chave Fernet em tickets, logs ou evidências de validação.
