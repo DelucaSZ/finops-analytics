@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.cloud import CloudProvider
 from app.models.policy import Policy
 
 
@@ -197,6 +198,7 @@ def get_effective_policy(db: Session, rule_key: str, account_id: int | None = No
                 override_fields.insert(0, "enabled")
 
     return {
+        "provider": CloudProvider.AWS.value,
         "rule_key": definition.key,
         "name": definition.name,
         "description": definition.description,
@@ -242,4 +244,7 @@ def upsert_policy(
 
 
 def serialize_catalog() -> list[dict]:
-    return [asdict(rule) for rule in RULES.values()]
+    return [
+        {"provider": CloudProvider.AWS.value, **asdict(rule)}
+        for rule in RULES.values()
+    ]
