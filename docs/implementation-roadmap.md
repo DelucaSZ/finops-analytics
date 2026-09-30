@@ -2843,7 +2843,7 @@ Continuam explicitamente fora da Etapa 20: collector/analisador OCI, regras FinO
 
 ## Etapa 21 — Validação integrada e fechamento da gestão multi-cloud de contas
 
-**Status:** em validação no PR da Etapa 21.
+**Status:** concluída e validada no PR #28; CI, Auto deploy tests e smoke Compose aprovados.
 
 ### Objetivo
 
@@ -2874,9 +2874,15 @@ Consolidar as Etapas 16 a 20 sem ampliar o escopo funcional: validar navegação
 - Adicionado `docs/stage21-validation.md` com matriz de validação, capacidades por provider, proteção de credenciais, permissões OCI, implantação e recuperação.
 - O smoke não usa credenciais cloud reais e não toca recursos ou volumes de produção.
 
-### Critérios de fechamento
+### Validação final automatizada
 
-São critérios automatizáveis para o PR:
+Head validado antes da consolidação documental: `a0f483007823d0c8dc77c8669976cb05c059635f`.
+
+- CI run `36734050516`: aprovado.
+- Auto deploy tests run `36734050432`: aprovado.
+- Stage 21 Compose smoke run `36734050381`: aprovado.
+
+Foram executados os seguintes gates:
 
 - backend: `ruff check .`, `ruff format --check .`, `pytest -q`;
 - migrations em SQLite e PostgreSQL 17;
