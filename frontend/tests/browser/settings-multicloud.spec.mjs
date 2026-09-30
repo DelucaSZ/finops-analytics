@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
 
 const now = "2026-09-30T12:00:00Z";
@@ -137,15 +138,33 @@ test("legacy accounts redirect preserves query and OCI edit never restores secre
 
   await page.getByRole("button", { name: "Substituir credencial" }).click();
   const pem = page.getByPlaceholder("-----BEGIN PRIVATE KEY-----");
-  await pem.fill("TEST-ONLY-SECRET-MUST-BE-CLEARED");
-  await page.getByLabel("Senha da nova chave").fill("test-only-passphrase");
+  const runtimePem = randomUUID();
+  const runtimePassword = randomUUID();
+  await pem.fill(runtimePem);
+  await page.getByLabel("Senha da nova chave").fill(runtimePassword);
+
+  const persisted = await page.evaluate(
+    ([key, password]) => {
+      const values = [
+        ...Object.values(window.localStorage),
+        ...Object.values(window.sessionStorage),
+      ];
+      return values.some((value) => value.includes(key) || value.includes(password));
+    },
+    [runtimePem, runtimePassword],
+  );
+  expect(persisted).toBe(false);
 
   await page.getByRole("button", { name: "Cancelar substituição" }).click();
   await expect(pem).toHaveCount(0);
 
   await page.getByRole("button", { name: "Substituir credencial" }).click();
-  await expect(page.getByPlaceholder("-----BEGIN PRIVATE KEY-----")).toHaveValue("");
-  await expect(page.getByLabel("Senha da nova chave")).toHaveValue("");
+  const cleared = await page.evaluate(() => {
+    const key = document.querySelector('textarea[placeholder="-----BEGIN PRIVATE KEY-----"]');
+    const password = document.querySelector('input[placeholder="Opcional"]');
+    return key?.value === "" && password?.value === "";
+  });
+  expect(cleared).toBe(true);
 });
 
 test("legacy policies redirect preserves query and OCI policies remain unavailable", async ({ page }) => {
