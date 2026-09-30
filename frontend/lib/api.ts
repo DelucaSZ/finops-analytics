@@ -97,7 +97,7 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       ? "Confirme sua identidade em Minha segurança antes de continuar."
       : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
       : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
-      : translated[detail]
+      : translated[typeof detail === "string" ? detail : ""]
         || (detailText && !detailText.includes("Traceback") ? detailText : undefined)
         || (response.status >= 500
           ? "Não foi possível concluir a solicitação. Tente novamente."
