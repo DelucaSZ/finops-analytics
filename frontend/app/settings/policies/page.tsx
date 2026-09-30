@@ -4,32 +4,42 @@ import { useEffect, useState } from "react";
 import { Check, RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
+import { providerLabel } from "@/lib/cloud.mjs";
 import { canManagePolicies } from "@/lib/settings-navigation.mjs";
-import type { CloudAccount, Policy } from "@/lib/types";
+import type { CloudAccount, Policy, ProviderCapabilities } from "@/lib/types";
 
 type CurrentUser = { role: string };
 type AwsPolicyAccount = CloudAccount & { aws_configuration: NonNullable<CloudAccount["aws_configuration"]> };
 
 export default function PoliciesPage() {
+  const [provider, setProvider] = useState("aws");
   const [scope, setScope] = useState<"global" | "account">("global");
   const [accountId, setAccountId] = useState<number | null>(null);
   const [accounts, setAccounts] = useState<AwsPolicyAccount[]>([]);
+  const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [role, setRole] = useState("");
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
   const canManage = canManagePolicies(role);
+  const providerCapabilities = capabilities.find((item) => item.provider === provider);
+  const availableProviders = capabilities.filter((item) => item.registration);
 
   useEffect(() => {
     let active = true;
-    Promise.all([api<CloudAccount[]>("/cloud-accounts"), api<CurrentUser>("/auth/me")])
-      .then(([data, user]) => {
+    Promise.all([
+      api<CloudAccount[]>("/cloud-accounts"),
+      api<ProviderCapabilities[]>("/cloud-accounts/capabilities"),
+      api<CurrentUser>("/auth/me"),
+    ])
+      .then(([data, providerCapabilities, user]) => {
         if (!active) return;
         const awsAccounts = data.filter(
           (account): account is AwsPolicyAccount =>
             account.provider === "aws" && account.aws_configuration !== null,
         );
         setAccounts(awsAccounts);
+        setCapabilities(providerCapabilities);
         setRole(user.role);
         if (awsAccounts[0]) setAccountId(awsAccounts[0].aws_configuration.id);
       })
@@ -40,29 +50,125 @@ export default function PoliciesPage() {
   }, []);
 
   useEffect(() => {
+    if (!providerCapabilities) return;
+    if (!providerCapabilities.finops_policies) {
+      setPolicies([]);
+      setError("");
+      return;
+    }
+    if (provider !== "aws") {
+      setPolicies([]);
+      return;
+    }
     if (scope === "account" && !accountId) return;
     setError("");
     api<Policy[]>(scope === "global" ? "/policies/global" : `/policies/accounts/${accountId}`)
-      .then(setPolicies).catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar políticas"));
-  }, [scope, accountId]);
+      .then(setPolicies)
+      .catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar políticas"));
+  }, [provider, providerCapabilities, scope, accountId]);
 
   async function refresh() {
-    setPolicies(await api<Policy[]>(scope === "global" ? "/policies/global" : `/policies/accounts/${accountId}`));
+    if (!providerCapabilities?.finops_policies || provider !== "aws") return;
+    setPolicies(
+      await api<Policy[]>(
+        scope === "global" ? "/policies/global" : `/policies/accounts/${accountId}`,
+      ),
+    );
   }
 
   return (
     <>
-      <PageHeader eyebrow="CONFIGURAÇÕES · POLÍTICAS" title="Políticas" description="Consulte os padrões de análise e, quando autorizado, configure sobrescritas por conta AWS." />
+      <PageHeader
+        eyebrow="CONFIGURAÇÕES · POLÍTICAS"
+        title="Políticas"
+        description="Configure regras de análise FinOps somente onde o provider possui suporte operacional implementado."
+      />
       {error && <div className="alert error">{error}</div>}
       {message && <div className="alert success"><Check size={17} />{message}</div>}
+
       <section className="policy-scope-bar">
-        <div className="segmented"><button className={scope === "global" ? "active" : ""} onClick={() => setScope("global")}>Padrão global</button><button className={scope === "account" ? "active" : ""} onClick={() => setScope("account")} disabled={!accounts.length}>Por conta</button></div>
-        {scope === "account" && <select value={accountId || ""} onChange={(e) => setAccountId(Number(e.target.value))}>{accounts.map((account) => <option key={account.id} value={account.aws_configuration.id}>{account.name} · {account.native_account_id}</option>)}</select>}
-        <p>{scope === "global" ? "Aplicado automaticamente a todas as contas sem sobrescrita." : "Campos não selecionados continuam herdando o padrão global."}</p>
+        <div className="segmented" aria-label="Cloud das políticas">
+          {availableProviders.map((item) => (
+            <button
+              key={item.provider}
+              className={provider === item.provider ? "active" : ""}
+              onClick={() => {
+                setProvider(item.provider);
+                setScope("global");
+                setMessage("");
+              }}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <p>
+          Políticas nesta área são regras FinOps do DeepOps; não são políticas IAM de autenticação.
+        </p>
       </section>
-      <section className="policies-list">
-        {policies.map((policy) => <PolicyCard key={`${scope}-${accountId}-${policy.rule_key}-${policy.override_fields.join(".")}`} policy={policy} scope={scope} accountId={accountId} canManage={canManage} onSaved={async (text) => { setMessage(text); await refresh(); }} />)}
-      </section>
+
+      {providerCapabilities && !providerCapabilities.finops_policies ? (
+        <section className="panel empty-state">
+          <SlidersHorizontal size={22} />
+          <strong>Políticas de análise {providerCapabilities.label} ainda não disponíveis</strong>
+          <p>
+            O cadastro e o teste de conexão podem estar disponíveis sem que existam coletor
+            e regras FinOps para este provider. Nenhuma regra AWS é aplicada a esta conta.
+          </p>
+        </section>
+      ) : (
+        <>
+          <section className="policy-scope-bar">
+            <div className="segmented">
+              <button
+                className={scope === "global" ? "active" : ""}
+                onClick={() => setScope("global")}
+              >
+                Padrão global AWS
+              </button>
+              <button
+                className={scope === "account" ? "active" : ""}
+                onClick={() => setScope("account")}
+                disabled={!accounts.length}
+              >
+                Por conta AWS
+              </button>
+            </div>
+            {scope === "account" && (
+              <select
+                value={accountId || ""}
+                onChange={(e) => setAccountId(Number(e.target.value))}
+              >
+                {accounts.map((account) => (
+                  <option key={account.id} value={account.aws_configuration.id}>
+                    {account.name} · {account.native_account_id}
+                  </option>
+                ))}
+              </select>
+            )}
+            <p>
+              {scope === "global"
+                ? "Aplicado às contas AWS sem sobrescrita específica."
+                : "Campos não selecionados continuam herdando o padrão global AWS."}
+            </p>
+          </section>
+          <section className="policies-list">
+            {policies.map((policy) => (
+              <PolicyCard
+                key={`${scope}-${accountId}-${policy.rule_key}-${policy.override_fields.join(".")}`}
+                policy={policy}
+                scope={scope}
+                accountId={accountId}
+                canManage={canManage}
+                onSaved={async (text) => {
+                  setMessage(text);
+                  await refresh();
+                }}
+              />
+            ))}
+          </section>
+        </>
+      )}
     </>
   );
 }
@@ -105,7 +211,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
     <article className={`policy-card ${policy.implemented ? "" : "planned"}`}>
       <div className="policy-summary">
         <span className="policy-icon"><SlidersHorizontal size={19} /></span>
-        <div><div className="policy-title-line"><h3>{policy.name}</h3>{!policy.implemented && <span className="coming-soon">Próxima etapa</span>}{scope === "account" && policy.inherited && <span className="inherited">Herdada</span>}</div><p>{policy.description}</p></div>
+        <div><div className="policy-title-line"><h3>{policy.name}</h3><span className="inherited">{providerLabel(policy.provider)}</span>{!policy.implemented && <span className="coming-soon">Próxima etapa</span>}{scope === "account" && policy.inherited && <span className="inherited">Herdada</span>}</div><p>{policy.description}</p></div>
         <label className="switch"><input aria-label={(canManage ? "Ativar política " : "Status da política ") + policy.name} type="checkbox" checked={enabled} onChange={(e) => { if (!canManage) return; setEnabled(e.target.checked); if (scope === "account") setOverrides(new Set([...overrides, "enabled"])); }} disabled={!policy.implemented || !canManage} /><span /></label>
         <button className="button small ghost" onClick={() => setOpen(!open)}>{open ? "Fechar" : canManage ? "Configurar" : "Visualizar"}</button>
       </div>
