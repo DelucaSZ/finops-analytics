@@ -129,8 +129,19 @@ class DashboardOldestValidScope(BaseModel):
     started_at: datetime
 
 
+class DashboardCollectionCoverage(BaseModel):
+    registered_accounts: int
+    enabled_accounts: int
+    disabled_accounts: int
+    collection_supported_accounts: int
+    collection_eligible_accounts: int
+    collection_unsupported_accounts: int
+    eligible_without_execution: int
+
+
 class DashboardCollectionHealth(BaseModel):
     scope: DashboardScope
+    coverage: DashboardCollectionCoverage
     total_scopes: int
     valid_scopes: int
     latest_execution: DashboardLatestExecutionCounts
