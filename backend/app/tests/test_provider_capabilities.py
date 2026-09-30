@@ -1,8 +1,8 @@
-import app.models  # noqa: F401
 import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
 
+import app.models  # noqa: F401
 from app import worker
 from app.db.base import Base
 from app.models.account import AwsAccount, CloudAccount
