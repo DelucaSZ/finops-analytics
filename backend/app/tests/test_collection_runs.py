@@ -198,7 +198,7 @@ def test_cloud_io_does_not_hold_database_transaction(db, monkeypatch):
 
 
 def test_provider_execution_failure_marks_aws_connection_error(db, monkeypatch):
-    scan = queued_scan(db)
+    queued_scan(db)
     claimed = worker.claim_scan(db)
     assert claimed is not None
 
