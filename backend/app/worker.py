@@ -59,7 +59,13 @@ def enqueue_due_scans(db: Session) -> None:
             )
         )
         if active is None:
-            db.add(Scan(account_id=account.id, trigger="scheduled"))
+            db.add(
+                Scan(
+                    account_id=account.id,
+                    cloud_account_id=account.cloud_account_id,
+                    trigger="scheduled",
+                )
+            )
         account.next_scan_at = now + timedelta(hours=account.scan_interval_hours)
     db.commit()
 

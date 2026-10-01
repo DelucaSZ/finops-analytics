@@ -54,7 +54,14 @@ def comparison_db():
                 ),
             ]
         )
-        db.add(Scan(id="scan-findings", account_id=1))
+        db.flush()
+        db.add(
+            Scan(
+                id="scan-findings",
+                account_id=1,
+                cloud_account_id=db.get(AwsAccount, 1).cloud_account_id,
+            )
+        )
         db.flush()
 
         db.add_all(

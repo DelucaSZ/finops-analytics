@@ -2905,3 +2905,56 @@ Consulte `docs/stage21-validation.md` para:
 
 
 ## Atividade 22.1 — Reorganização da navegação de status em Oportunidades
+
+
+---
+
+## Atividade 22.2 — Generalização estrutural de Scan para CloudAccount
+
+**Status:** implementada na branch `stage22-2-provider-neutral-scan`; validação final pelo CI do PR.
+
+### Persistência e compatibilidade
+
+`Scan` passa a possuir `cloud_account_id -> cloud_accounts.id` como identidade
+administrativa provider-neutral, indexada e obrigatória. O campo legado
+`Scan.account_id -> aws_accounts.id` é preservado sem renomeação nem mudança de
+significado para manter compatibilidade com o scheduler, worker e contratos AWS
+existentes durante a transição.
+
+A migration `0016_provider_neutral_scan_queue` adiciona primeiro o novo campo como
+nullable, valida que todo scan histórico resolve `Scan.account_id -> AwsAccount ->
+CloudAccount(provider=aws)`, faz o backfill a partir de
+`AwsAccount.cloud_account_id`, verifica a invariável entre os dois vínculos e somente
+então aplica `NOT NULL`, FK e índice. Associação ausente ou cruzada com outro
+provider aborta a migration; IDs, status, triggers, timestamps, contagens, erros,
+`CollectionRun.scan_id`, oportunidades, observations, fingerprints e decisões humanas
+não são recriados nem reescritos.
+
+Novos scans AWS passam a persistir os dois identificadores em todos os pontos de
+criação existentes: fila manual compartilhada pelos endpoints canônico e legado,
+scheduler AWS e dados de demonstração. O backend deriva `cloud_account_id` da
+configuração resolvida; o cliente não informa os dois IDs e não pode criar uma
+combinação arbitrária.
+
+### Limite operacional desta atividade
+
+A execução permanece AWS-only. O scheduler continua usando os campos de agendamento
+de `AwsAccount`; claim, execução, políticas, STS e collectors continuam no caminho
+AWS existente. A matriz de capabilities não é ampliada: OCI continua com
+`manual_collection=false`, `scheduling=false` e sem políticas FinOps. Uma tentativa
+canônica de coleta OCI continua sendo recusada antes da criação de `Scan` ou
+`CollectionRun`.
+
+`CollectionRun` permanece provider-neutral no histórico, com `provider`,
+`account_id` nativo e `scan_id`; nenhuma FK nova é criada para sua identidade de
+conta. A deleção de `CloudAccount` preserva a semântica anterior: configurações AWS
+e scans associados são removidos em cascata, enquanto `CollectionRun.scan_id`
+continua `ON DELETE SET NULL`.
+
+**Persistência preparada para identidade provider-neutral; execução permanece AWS-only.**
+
+A generalização de claim/dispatch/execução/failure handling por provider pertence à
+Atividade 22.3. A disponibilização segura de credenciais OCI ao worker pertence à
+Atividade 22.4. Agendamento provider-neutral e migração dos campos de schedule ficam
+para a atividade posterior prevista para esse domínio; nenhum desses itens é
+antecipado aqui.

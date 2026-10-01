@@ -268,7 +268,12 @@ def test_cleanup_preserves_decision_identity_and_future_deduplication(
     assert db.scalar(select(func.count()).select_from(OpportunityStatusHistory)) == 1
     assert db.scalar(select(func.count()).select_from(OpportunityObservation)) == 0
 
-    scan = Scan(account_id=account.id, status="running", started_at=NOW)
+    scan = Scan(
+        account_id=account.id,
+        cloud_account_id=account.cloud_account_id,
+        status="running",
+        started_at=NOW,
+    )
     db.add(scan)
     db.flush()
     new_run = CollectionRun(

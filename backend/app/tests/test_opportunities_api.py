@@ -51,10 +51,11 @@ def client():
             ),
         ]
         db.add_all(accounts)
+        db.flush()
         scans = [
-            Scan(id="scan-a1", account_id=1),
-            Scan(id="scan-a2", account_id=1),
-            Scan(id="scan-b1", account_id=2),
+            Scan(id="scan-a1", account_id=1, cloud_account_id=accounts[0].cloud_account_id),
+            Scan(id="scan-a2", account_id=1, cloud_account_id=accounts[0].cloud_account_id),
+            Scan(id="scan-b1", account_id=2, cloud_account_id=accounts[1].cloud_account_id),
         ]
         db.add_all(scans)
         db.flush()

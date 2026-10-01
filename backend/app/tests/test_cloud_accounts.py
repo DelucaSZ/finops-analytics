@@ -18,6 +18,7 @@ from app.models.account import (
     OciAccountConfiguration,
 )
 from app.models.collection_run import CollectionRun
+from app.models.scan import Scan
 from app.schemas.account import CloudAccountBase
 from app.services.cloud_accounts import (
     UnsupportedProviderOperation,
@@ -219,6 +220,39 @@ def test_common_api_and_legacy_aws_contract_share_one_registration(auth_env):
         aws = db.get(AwsAccount, legacy_id)
         assert aws.cloud_account_id == cloud.id
         assert aws.name == cloud.name
+
+
+def test_aws_scan_endpoints_persist_provider_neutral_identity(auth_env):
+    client, engine, tokens, _ = auth_env
+    accounts = client.get("/api/v1/cloud-accounts", headers=headers(tokens)).json()
+    account = next(item for item in accounts if item["provider"] == "aws")
+    cloud_account_id = account["id"]
+    aws_account_id = account["aws_configuration"]["id"]
+
+    canonical = client.post(
+        f"/api/v1/cloud-accounts/{cloud_account_id}/scans",
+        headers=headers(tokens),
+    )
+    assert canonical.status_code == 202, canonical.text
+
+    with Session(engine) as db:
+        scan = db.get(Scan, canonical.json()["id"])
+        assert scan.account_id == aws_account_id
+        assert scan.cloud_account_id == cloud_account_id
+        scan.status = "completed"
+        db.commit()
+
+    legacy = client.post(
+        "/api/v1/scans",
+        headers=headers(tokens),
+        json={"account_id": aws_account_id},
+    )
+    assert legacy.status_code == 202, legacy.text
+
+    with Session(engine) as db:
+        scan = db.get(Scan, legacy.json()["id"])
+        assert scan.account_id == aws_account_id
+        assert scan.cloud_account_id == cloud_account_id
 
 
 def test_common_identity_is_immutable_and_uniqueness_is_database_backed(auth_env):
@@ -872,19 +906,19 @@ def test_oci_account_cannot_enter_aws_scan_pipeline(auth_env, oci_encryption_key
     created = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()
     assert created["aws_configuration"] is None
 
-    before = None
     with Session(engine) as db:
-        before = db.scalar(select(func.count()).select_from(CollectionRun))
+        scans_before = db.scalar(select(func.count()).select_from(Scan))
+        runs_before = db.scalar(select(func.count()).select_from(CollectionRun))
 
     response = client.post(
-        "/api/v1/scans",
+        f"/api/v1/cloud-accounts/{created['id']}/scans",
         headers=headers(tokens),
-        json={"account_id": created["id"]},
     )
-    assert response.status_code == 404
+    assert response.status_code == 409
 
     with Session(engine) as db:
-        assert db.scalar(select(func.count()).select_from(CollectionRun)) == before
+        assert db.scalar(select(func.count()).select_from(Scan)) == scans_before
+        assert db.scalar(select(func.count()).select_from(CollectionRun)) == runs_before
 
 
 @pytest.mark.parametrize("role", ["operator", "viewer"])

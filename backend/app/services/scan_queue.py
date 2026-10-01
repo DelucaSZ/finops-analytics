@@ -31,7 +31,11 @@ def queue_manual_collection(
     if pending is not None:
         raise CollectionPreconditionError("A scan is already pending or running")
 
-    scan = Scan(account_id=aws_account.id, trigger=trigger)
+    scan = Scan(
+        account_id=aws_account.id,
+        cloud_account_id=account.id,
+        trigger=trigger,
+    )
     db.add(scan)
     db.flush()
     return scan
