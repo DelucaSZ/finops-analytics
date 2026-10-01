@@ -190,7 +190,7 @@ def test_cloud_io_does_not_hold_database_transaction(db, monkeypatch):
         return [], [], set()
 
     monkeypatch.setattr(collection_executors, "assume_account_session", assume)
-    monkeypatch.setattr(worker, "get_caller_identity", identity)
+    monkeypatch.setattr(collection_executors, "get_caller_identity", identity)
     monkeypatch.setattr(collection_executors, "run_collectors", collect)
     worker.execute_scan(db, claimed)
     assert stages == ["sts", "identity", "collect"]
