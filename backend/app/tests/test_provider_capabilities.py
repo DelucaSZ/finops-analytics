@@ -8,6 +8,11 @@ from app.db.base import Base
 from app.models.account import AwsAccount, CloudAccount
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
+from app.services.collection_executors import (
+    CollectionExecutorUnavailable,
+    get_collection_executor,
+    has_collection_executor,
+)
 from app.services.provider_capabilities import (
     ProviderOperation,
     UnsupportedProviderOperation,
@@ -117,7 +122,7 @@ def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
 
     claimed = worker.claim_scan(db)
     assert claimed is not None
-    assert claimed.status == "running"
+    assert claimed.status == "failed"
     assert (
         db.scalar(
             select(func.count())
@@ -126,10 +131,6 @@ def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
         )
         == 0
     )
-
-    with pytest.raises(CollectionPreconditionError, match="disabled"):
-        worker.execute_scan(db, claimed)
-    worker.fail_scan(db, claimed.id, CollectionPreconditionError("Cloud account is disabled"))
 
     failed = db.get(Scan, claimed.id)
     assert failed.status == "failed"
@@ -142,3 +143,79 @@ def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
         )
         == 0
     )
+
+
+def test_collection_executor_registry_has_only_operational_aws():
+    executor = get_collection_executor("aws")
+
+    assert executor.provider == "aws"
+    assert has_collection_executor("aws") is True
+    assert has_collection_executor("oci") is False
+
+    with pytest.raises(CollectionExecutorUnavailable, match="no operational collection executor"):
+        get_collection_executor("oci")
+    with pytest.raises(CollectionExecutorUnavailable, match="Unknown cloud provider"):
+        get_collection_executor("unknown-cloud")
+
+
+def test_manual_queue_duplicate_check_uses_cloud_account_identity(db):
+    account = _aws_account(db)
+    other = AwsAccount(
+        name="Other AWS",
+        aws_account_id="210987654321",
+        role_arn="arn:aws:iam::210987654321:role/DeepOps",
+        external_id="other-external-id",
+        regions=["us-east-1"],
+    )
+    db.add(other)
+    db.commit()
+
+    db.add(
+        Scan(
+            account_id=other.id,
+            cloud_account_id=account.cloud_account_id,
+            trigger="manual",
+        )
+    )
+    db.commit()
+
+    with pytest.raises(CollectionPreconditionError, match="already pending or running"):
+        queue_manual_collection(db, account.cloud_account)
+
+    assert db.scalar(select(func.count()).select_from(Scan)) == 1
+
+
+def test_claim_resolves_provider_from_cloud_account_not_legacy_aws_link(db):
+    aws_account = _aws_account(db)
+    oci_account = CloudAccount(
+        provider="oci",
+        native_account_id="ocid1.tenancy.oc1..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        name="OCI queued corruption fixture",
+        enabled=True,
+        connection_status="connected",
+    )
+    db.add(oci_account)
+    db.commit()
+
+    scan = Scan(
+        account_id=aws_account.id,
+        cloud_account_id=oci_account.id,
+        trigger="manual",
+    )
+    db.add(scan)
+    db.commit()
+
+    claimed = worker.claim_scan(db)
+
+    assert claimed is not None
+    assert claimed.status == "failed"
+    assert (
+        db.scalar(
+            select(func.count())
+            .select_from(CollectionRun)
+            .where(CollectionRun.scan_id == scan.id)
+        )
+        == 0
+    )
+    assert oci_account.connection_status == "connected"
+    assert aws_account.cloud_account.connection_status == "untested"

@@ -2958,3 +2958,54 @@ Atividade 22.3. A disponibilização segura de credenciais OCI ao worker pertenc
 Atividade 22.4. Agendamento provider-neutral e migração dos campos de schedule ficam
 para a atividade posterior prevista para esse domínio; nenhum desses itens é
 antecipado aqui.
+
+## Atividade 22.3 — Worker e fila provider-aware
+
+**Status:** implementada na branch `stage22-3-provider-aware-worker`; validação final pelo CI do PR.
+
+### Arquitetura de execução
+
+`CloudAccount` passa a ser a identidade administrativa usada pelo worker para resolver o
+provider. A fila manual valida capabilities e resolve um executor centralizado por provider
+antes de materializar o `Scan`. A prevenção de concorrência usa
+`Scan.cloud_account_id`; o `Scan.account_id` legado permanece apenas como compatibilidade
+temporária exigida pelo schema atual.
+
+Existe agora um registry único de executores. AWS é o único provider registrado e possui
+executor operacional. O executor AWS encapsula resolução/validação de `AwsAccount`,
+`AssumeRole`, `GetCallerIdentity`, carregamento de policies e `run_collectors()`.
+O core do worker continua responsável por claim, `CollectionRun`, persistência de findings
+e observations, lifecycle, finalização do `Scan`, logs comuns e reconstrução do dashboard.
+
+O `CollectionRun` é criado somente depois das pré-condições do `CloudAccount`, capability,
+executor e configuração específica terem sido validadas. Sua identidade usa
+`CloudAccount.provider` e `CloudAccount.native_account_id`; o scope AWS continua contendo
+as regiões configuradas.
+
+### Falhas e compatibilidade
+
+Scans incompatíveis já presentes na fila são finalizados como `failed` sem criar
+`CollectionRun` falso e sem cair no executor AWS. Falhas administrativas de pré-condição
+não alteram `CloudAccount.connection_status`. Somente falhas ocorridas no trecho real de
+execução do provider são classificadas como `ProviderExecutionError` e preservam a
+semântica AWS de marcar a conexão como erro.
+
+A persistência de oportunidades permanece provider-neutral e não foi movida para o executor.
+Fingerprint, observations, lifecycle, decisões humanas, evidências, savings, severidade e
+reconstrução de summary permanecem com a semântica existente. O scheduler continua AWS-only
+e continua usando os campos de agendamento de `AwsAccount`, mas seus scans entram no mesmo
+pipeline provider-aware.
+
+### Limite operacional
+
+O resultado desta atividade é **pipeline provider-aware com AWS como único executor
+operacional**.
+
+OCI continua com `manual_collection=false`, `scheduling=false` e
+`finops_policies=false`. Não existe executor OCI funcional, nenhuma API OCI é chamada pelo
+worker e a chave `NUVEMIQ_OCI_CREDENTIALS_KEY` não foi disponibilizada ao runtime do worker.
+Nenhuma migration foi criada.
+
+A Atividade 22.4 preparará de forma segura as credenciais OCI no runtime do worker. A
+Atividade 22.5 iniciará o OCI Discovery.
+

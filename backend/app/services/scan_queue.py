@@ -3,12 +3,11 @@ from sqlalchemy.orm import Session
 
 from app.models.account import CloudAccount
 from app.models.scan import Scan
-from app.services.cloud_accounts import require_aws_configuration
+from app.services.collection_executors import (
+    CollectionPreconditionError,
+    get_collection_executor,
+)
 from app.services.provider_capabilities import ProviderOperation, require_provider_operation
-
-
-class CollectionPreconditionError(ValueError):
-    """Raised when collection is implemented but the account cannot run it now."""
 
 
 def queue_manual_collection(
@@ -21,10 +20,11 @@ def queue_manual_collection(
     if not account.enabled:
         raise CollectionPreconditionError("Cloud account is disabled")
 
-    aws_account = require_aws_configuration(account)
+    executor = get_collection_executor(account.provider)
+    preparation = executor.prepare(db, account)
     pending = db.scalar(
         select(Scan).where(
-            Scan.account_id == aws_account.id,
+            Scan.cloud_account_id == account.id,
             Scan.status.in_(["pending", "running"]),
         )
     )
@@ -32,7 +32,7 @@ def queue_manual_collection(
         raise CollectionPreconditionError("A scan is already pending or running")
 
     scan = Scan(
-        account_id=aws_account.id,
+        account_id=preparation.legacy_scan_account_id,
         cloud_account_id=account.id,
         trigger=trigger,
     )
