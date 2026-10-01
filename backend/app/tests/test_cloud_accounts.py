@@ -26,7 +26,9 @@ from app.services.cloud_accounts import (
 from app.services.oci_auth import (
     OciConnectionError,
     OciConnectionValidation,
+    _client,
     _remote_failure,
+    candidate_snapshot,
 )
 from app.tests.test_security import auth_env as auth_env
 from app.tests.test_security import headers
@@ -100,6 +102,28 @@ def _create_oci(client, tokens, payload):
         headers=headers(tokens),
         json=payload,
     )
+
+
+def test_oci_client_accepts_in_memory_private_key_content():
+    pem, fingerprint = _api_key()
+    snapshot = candidate_snapshot(
+        cloud_account_id=1,
+        configuration_revision=1,
+        tenancy_ocid=TENANCY_OCID,
+        user_ocid=USER_OCID,
+        fingerprint=fingerprint,
+        region="sa-saopaulo-1",
+        scope_regions=["sa-saopaulo-1"],
+        compartment_ocids=[COMPARTMENT_OCID],
+        include_root_compartment=False,
+        include_subcompartments=False,
+        private_key_pem=pem,
+        private_key_password=None,
+    )
+
+    client = _client(snapshot)
+
+    assert isinstance(client, oci.identity.IdentityClient)
 
 
 def test_structural_oci_identity_accepts_long_tenancy_ocid_without_aws_fields():
