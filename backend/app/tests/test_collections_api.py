@@ -5,6 +5,7 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from app import worker
+from app.services import collection_executors
 from app.api.routes.collections import router
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
@@ -185,13 +186,13 @@ def test_worker_failure_and_warning_flow_are_sanitized(collections, monkeypatch)
     assert http.get("/collections/run-a1").json()["status"] == "FAILED"
     with Session(engine) as db:
         scan = db.get(Scan, "scan-a2")
-        monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+        monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
         monkeypatch.setattr(
             worker,
             "get_caller_identity",
             lambda _: type("Identity", (), {"account_id": "111111111111"})(),
         )
-        monkeypatch.setattr(worker, "list_effective_policies", lambda *_: [])
+        monkeypatch.setattr(collection_executors, "list_effective_policies", lambda *_: [])
         monkeypatch.setattr(
             worker, "run_collectors", lambda *_: ([], ["AccessDenied secret=PRIVATE"], set())
         )
