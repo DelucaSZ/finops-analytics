@@ -81,6 +81,16 @@ def test_unsupported_oci_collection_does_not_create_scan_or_collection_run(db):
     assert db.scalar(select(func.count()).select_from(CollectionRun)) == 0
 
 
+def test_manual_aws_collection_populates_both_account_identifiers(db):
+    account = _aws_account(db)
+
+    scan = queue_manual_collection(db, account.cloud_account)
+
+    assert scan.account_id == account.id
+    assert scan.cloud_account_id == account.cloud_account_id
+    assert scan.cloud_account_id == account.cloud_account.id
+
+
 def test_disabled_aws_collection_is_rejected_without_creating_a_scan(db):
     account = _aws_account(db)
     account.cloud_account.enabled = False
@@ -94,7 +104,11 @@ def test_disabled_aws_collection_is_rejected_without_creating_a_scan(db):
 
 def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
     account = _aws_account(db)
-    scan = Scan(account_id=account.id, trigger="manual")
+    scan = Scan(
+        account_id=account.id,
+        cloud_account_id=account.cloud_account_id,
+        trigger="manual",
+    )
     db.add(scan)
     db.commit()
 

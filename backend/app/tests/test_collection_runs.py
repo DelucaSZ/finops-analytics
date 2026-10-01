@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
@@ -34,10 +36,28 @@ def queued_scan(db: Session) -> Scan:
     aws_account = account()
     db.add(aws_account)
     db.commit()
-    scan = Scan(account_id=aws_account.id)
+    scan = Scan(
+        account_id=aws_account.id,
+        cloud_account_id=aws_account.cloud_account_id,
+    )
     db.add(scan)
     db.commit()
     return scan
+
+
+def test_scheduler_aws_scan_populates_both_account_identifiers(db):
+    aws_account = account()
+    aws_account.schedule_enabled = True
+    aws_account.next_scan_at = datetime.now(UTC) - timedelta(minutes=1)
+    db.add(aws_account)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+
+    scan = db.scalar(select(Scan))
+    assert scan is not None
+    assert scan.account_id == aws_account.id
+    assert scan.cloud_account_id == aws_account.cloud_account_id
 
 
 def test_claim_creates_running_collection_run(db):

@@ -52,7 +52,14 @@ def auth_env(tmp_path, monkeypatch):
             )
         )
         db.flush()
-        db.add(Scan(id="existing", account_id=1, status="completed"))
+        db.add(
+            Scan(
+                id="existing",
+                account_id=1,
+                cloud_account_id=db.get(AwsAccount, 1).cloud_account_id,
+                status="completed",
+            )
+        )
         db.flush()
         db.add(
             Finding(

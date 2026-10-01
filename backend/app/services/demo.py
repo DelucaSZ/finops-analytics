@@ -28,6 +28,7 @@ def seed_demo_data(db: Session) -> None:
     now = datetime.now(UTC)
     scan = Scan(
         account_id=account.id,
+        cloud_account_id=account.cloud_account_id,
         status="completed",
         trigger="manual",
         started_at=now - timedelta(minutes=4),

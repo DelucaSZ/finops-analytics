@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0015_oci_api_keys"
+            == "0016_provider_neutral_scan_queue"
         )
         assert (
             compare_metadata(
@@ -514,12 +514,12 @@ def test_stage17_migration_preserves_history(migration_engine):
             )
             == 42
         )
-        assert (
-            connection.scalar(
-                select(scans_table.c.account_id).where(scans_table.c.id == "stage17-scan")
-            )
-            == 42
-        )
+        migrated_scans = Table("scans", MetaData(), autoload_with=connection)
+        migrated_scan = connection.execute(
+            select(migrated_scans).where(migrated_scans.c.id == "stage17-scan")
+        ).one()
+        assert migrated_scan.account_id == 42
+        assert migrated_scan.cloud_account_id == 42
 
         run = connection.execute(select(runs_table).where(runs_table.c.id == "stage17-run")).one()
         assert run.provider == "aws"
@@ -636,3 +636,223 @@ def test_stage18_migration_adds_oci_storage_without_rewriting_aws(migration_engi
     with Session(migration_engine) as db:
         assert db.get(CloudAccount, 77).provider == "aws"
         assert db.scalar(select(func.count()).select_from(OciAccountConfiguration)) == 0
+
+
+def test_stage22_2_migration_backfills_provider_neutral_scan_identity(migration_engine):
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0015_oci_api_keys")
+
+        metadata = MetaData()
+        cloud_table = Table("cloud_accounts", metadata, autoload_with=connection)
+        aws_table = Table("aws_accounts", metadata, autoload_with=connection)
+        scans_table = Table("scans", metadata, autoload_with=connection)
+        runs_table = Table("collection_runs", metadata, autoload_with=connection)
+        now = utcnow()
+
+        for cloud_id, aws_id, native_id in (
+            (101, 11, "111111111111"),
+            (202, 22, "222222222222"),
+        ):
+            connection.execute(
+                cloud_table.insert().values(
+                    id=cloud_id,
+                    provider="aws",
+                    native_account_id=native_id,
+                    name=f"AWS {native_id}",
+                    enabled=True,
+                    connection_status="connected",
+                    last_connection_test_at=now,
+                    last_error=None,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+            connection.execute(
+                aws_table.insert().values(
+                    id=aws_id,
+                    cloud_account_id=cloud_id,
+                    name=f"AWS {native_id}",
+                    aws_account_id=native_id,
+                    enabled=True,
+                    connection_status="connected",
+                    last_connection_test_at=now,
+                    last_error=None,
+                    role_arn=f"arn:aws:iam::{native_id}:role/DeepOps",
+                    external_id=f"stage22-{aws_id}",
+                    regions=["sa-east-1"],
+                    is_management_account=False,
+                    schedule_enabled=False,
+                    scan_interval_hours=24,
+                    next_scan_at=None,
+                    created_at=now,
+                    updated_at=now,
+                )
+            )
+
+        connection.execute(
+            scans_table.insert(),
+            [
+                {
+                    "id": "stage22-scan-a1",
+                    "account_id": 11,
+                    "status": "completed",
+                    "trigger": "manual",
+                    "started_at": now,
+                    "completed_at": now,
+                    "findings_count": 3,
+                    "error": None,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+                {
+                    "id": "stage22-scan-a2",
+                    "account_id": 11,
+                    "status": "failed",
+                    "trigger": "scheduled",
+                    "started_at": now,
+                    "completed_at": now,
+                    "findings_count": 0,
+                    "error": "preserved error",
+                    "created_at": now,
+                    "updated_at": now,
+                },
+                {
+                    "id": "stage22-scan-b1",
+                    "account_id": 22,
+                    "status": "pending",
+                    "trigger": "manual",
+                    "started_at": None,
+                    "completed_at": None,
+                    "findings_count": 0,
+                    "error": None,
+                    "created_at": now,
+                    "updated_at": now,
+                },
+            ],
+        )
+        connection.execute(
+            runs_table.insert().values(
+                id="stage22-run",
+                scan_id="stage22-scan-a1",
+                provider="aws",
+                account_id="111111111111",
+                scope={"regions": ["sa-east-1"]},
+                started_at=now,
+                finished_at=now,
+                status="SUCCESS",
+                resources_analyzed=0,
+                opportunities_found=3,
+                detailed_observations_available=True,
+                analyzer_version="stage22-test",
+                error_detail=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+        command.upgrade(cfg, "0016_provider_neutral_scan_queue")
+
+        migrated_scans = Table("scans", MetaData(), autoload_with=connection)
+        scans = {
+            row.id: row
+            for row in connection.execute(select(migrated_scans).order_by(migrated_scans.c.id))
+        }
+        assert len(scans) == 3
+        assert scans["stage22-scan-a1"].account_id == 11
+        assert scans["stage22-scan-a1"].cloud_account_id == 101
+        assert scans["stage22-scan-a1"].status == "completed"
+        assert scans["stage22-scan-a1"].trigger == "manual"
+        assert scans["stage22-scan-a1"].findings_count == 3
+        assert scans["stage22-scan-a2"].account_id == 11
+        assert scans["stage22-scan-a2"].cloud_account_id == 101
+        assert scans["stage22-scan-a2"].status == "failed"
+        assert scans["stage22-scan-a2"].error == "preserved error"
+        assert scans["stage22-scan-b1"].account_id == 22
+        assert scans["stage22-scan-b1"].cloud_account_id == 202
+        assert scans["stage22-scan-b1"].status == "pending"
+
+        run = connection.execute(select(runs_table).where(runs_table.c.id == "stage22-run")).one()
+        assert run.scan_id == "stage22-scan-a1"
+
+        inspector = inspect(connection)
+        columns = {column["name"]: column for column in inspector.get_columns("scans")}
+        assert columns["cloud_account_id"]["nullable"] is False
+        assert "ix_scans_cloud_account_id" in {
+            index["name"] for index in inspector.get_indexes("scans")
+        }
+        cloud_fk = next(
+            foreign_key
+            for foreign_key in inspector.get_foreign_keys("scans")
+            if foreign_key["constrained_columns"] == ["cloud_account_id"]
+        )
+        assert cloud_fk["referred_table"] == "cloud_accounts"
+
+
+def test_stage22_2_migration_refuses_invalid_scan_cloud_account_link(migration_engine):
+    with migration_engine.begin() as connection:
+        cfg = migration_config()
+        cfg.attributes["connection"] = connection
+        cfg.attributes["version_table"] = "deepops_mfa_schema_version"
+        command.upgrade(cfg, "0015_oci_api_keys")
+
+        metadata = MetaData()
+        cloud_table = Table("cloud_accounts", metadata, autoload_with=connection)
+        aws_table = Table("aws_accounts", metadata, autoload_with=connection)
+        scans_table = Table("scans", metadata, autoload_with=connection)
+        now = utcnow()
+
+        connection.execute(
+            cloud_table.insert().values(
+                id=303,
+                provider="oci",
+                native_account_id="ocid1.tenancy.oc1..stage22invalid",
+                name="Invalid cross-provider link",
+                enabled=True,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            aws_table.insert().values(
+                id=33,
+                cloud_account_id=303,
+                name="Invalid AWS link",
+                aws_account_id="333333333333",
+                enabled=True,
+                connection_status="connected",
+                last_connection_test_at=now,
+                last_error=None,
+                role_arn="arn:aws:iam::333333333333:role/DeepOps",
+                external_id="stage22-invalid",
+                regions=["sa-east-1"],
+                is_management_account=False,
+                schedule_enabled=False,
+                scan_interval_hours=24,
+                next_scan_at=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+        connection.execute(
+            scans_table.insert().values(
+                id="stage22-invalid-scan",
+                account_id=33,
+                status="completed",
+                trigger="manual",
+                started_at=now,
+                completed_at=now,
+                findings_count=0,
+                error=None,
+                created_at=now,
+                updated_at=now,
+            )
+        )
+
+        with pytest.raises(RuntimeError, match="valid AWS CloudAccount"):
+            command.upgrade(cfg, "0016_provider_neutral_scan_queue")

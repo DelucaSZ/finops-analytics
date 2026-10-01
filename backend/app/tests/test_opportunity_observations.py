@@ -44,6 +44,7 @@ def collection_run(
 ) -> tuple[Scan, CollectionRun]:
     scan = Scan(
         account_id=aws_account.id,
+        cloud_account_id=aws_account.cloud_account_id,
         status="running",
         started_at=started_at,
     )
@@ -243,7 +244,10 @@ def test_execute_scan_twice_keeps_one_opportunity_and_two_observations(db, monke
         lambda *_: ([current_finding["value"]], [], set()),
     )
 
-    scan_a = Scan(account_id=aws_account.id)
+    scan_a = Scan(
+        account_id=aws_account.id,
+        cloud_account_id=aws_account.cloud_account_id,
+    )
     db.add(scan_a)
     db.commit()
     claimed_a = worker.claim_scan(db)
@@ -256,7 +260,10 @@ def test_execute_scan_twice_keeps_one_opportunity_and_two_observations(db, monke
     first_seen_at = normalized_timestamp(opportunity.first_seen_at)
 
     current_finding["value"] = collected_finding(savings="35.00", stopped_days=15)
-    scan_b = Scan(account_id=aws_account.id)
+    scan_b = Scan(
+        account_id=aws_account.id,
+        cloud_account_id=aws_account.cloud_account_id,
+    )
     db.add(scan_b)
     db.commit()
     claimed_b = worker.claim_scan(db)

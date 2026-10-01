@@ -14,6 +14,9 @@ class Scan(TimestampMixin, Base):
     account_id: Mapped[int] = mapped_column(
         ForeignKey("aws_accounts.id", ondelete="CASCADE"), index=True, nullable=False
     )
+    cloud_account_id: Mapped[int] = mapped_column(
+        ForeignKey("cloud_accounts.id", ondelete="CASCADE"), index=True, nullable=False
+    )
     status: Mapped[str] = mapped_column(String(24), default="pending", index=True)
     trigger: Mapped[str] = mapped_column(String(24), default="manual")
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

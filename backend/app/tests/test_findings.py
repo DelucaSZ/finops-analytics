@@ -38,7 +38,13 @@ def client():
             ]
         )
         db.flush()
-        db.add(Scan(id="scan", account_id=1))
+        db.add(
+            Scan(
+                id="scan",
+                account_id=1,
+                cloud_account_id=db.get(AwsAccount, 1).cloud_account_id,
+            )
+        )
         db.flush()
         for i in range(505):
             db.add(

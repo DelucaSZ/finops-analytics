@@ -37,7 +37,14 @@ def client():
                 external_id="x",
             )
         )
-        db.add(Scan(id="scan", account_id=1))
+        db.flush()
+        db.add(
+            Scan(
+                id="scan",
+                account_id=1,
+                cloud_account_id=db.get(AwsAccount, 1).cloud_account_id,
+            )
+        )
         db.flush()
         db.add(
             Finding(
