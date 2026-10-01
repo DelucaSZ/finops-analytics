@@ -122,9 +122,7 @@ def claim_scan(db: Session) -> Scan | None:
                 _fail_claimed_precondition(scan, exc)
                 provider = cloud_account.provider if cloud_account is not None else "unknown"
                 native_account_id = (
-                    cloud_account.native_account_id
-                    if cloud_account is not None
-                    else "unknown"
+                    cloud_account.native_account_id if cloud_account is not None else "unknown"
                 )
                 logger.warning(
                     "Collection precondition rejected provider=%s cloud_account_id=%s "

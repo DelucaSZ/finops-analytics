@@ -211,9 +211,7 @@ def test_claim_resolves_provider_from_cloud_account_not_legacy_aws_link(db):
     assert claimed.status == "failed"
     assert (
         db.scalar(
-            select(func.count())
-            .select_from(CollectionRun)
-            .where(CollectionRun.scan_id == scan.id)
+            select(func.count()).select_from(CollectionRun).where(CollectionRun.scan_id == scan.id)
         )
         == 0
     )

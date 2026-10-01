@@ -81,9 +81,7 @@ class AwsCollectionExecutor:
         if account.provider != CloudProvider.AWS.value:
             raise CollectionPreconditionError("AWS executor received a non-AWS CloudAccount")
 
-        aws_account = db.scalar(
-            select(AwsAccount).where(AwsAccount.cloud_account_id == account.id)
-        )
+        aws_account = db.scalar(select(AwsAccount).where(AwsAccount.cloud_account_id == account.id))
         if aws_account is None:
             raise CollectionPreconditionError("AWS operational configuration is missing")
         if aws_account.aws_account_id != account.native_account_id:
@@ -119,9 +117,7 @@ class AwsCollectionExecutor:
         require_provider_operation(account.provider, ProviderOperation.FINOPS_POLICIES)
         policies = list_effective_policies(db, aws_account.id)
         active_rule_keys = [
-            policy["rule_key"]
-            for policy in policies
-            if policy["enabled"] and policy["implemented"]
+            policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
         ]
         expected_account_id = account.native_account_id
         regions = list(aws_account.regions)
