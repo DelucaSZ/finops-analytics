@@ -180,6 +180,7 @@ def _client(snapshot: OciConnectionSnapshot):
             tenancy=snapshot.tenancy_ocid,
             user=snapshot.user_ocid,
             fingerprint=snapshot.fingerprint,
+            private_key_file_location=None,
             private_key_content=snapshot.private_key_pem,
             pass_phrase=snapshot.private_key_password,
         )
