@@ -187,11 +187,16 @@ def test_worker_failure_and_warning_flow_are_sanitized(collections, monkeypatch)
     with Session(engine) as db:
         scan = db.get(Scan, "scan-a2")
         monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
-        monkeypatch.setattr(collection_executors, "get_caller_identity",
+        monkeypatch.setattr(
+            collection_executors,
+            "get_caller_identity",
             lambda _: type("Identity", (), {"account_id": "111111111111"})(),
         )
         monkeypatch.setattr(collection_executors, "list_effective_policies", lambda *_: [])
-        monkeypatch.setattr(collection_executors, "run_collectors", lambda *_: ([], ["AccessDenied secret=PRIVATE"], set())
+        monkeypatch.setattr(
+            collection_executors,
+            "run_collectors",
+            lambda *_: ([], ["AccessDenied secret=PRIVATE"], set()),
         )
         worker.execute_scan(db, scan)
     detail = http.get("/collections/run-a2").json()
