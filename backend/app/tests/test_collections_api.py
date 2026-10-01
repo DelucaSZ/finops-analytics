@@ -186,6 +186,12 @@ def test_worker_failure_and_warning_flow_are_sanitized(collections, monkeypatch)
     assert http.get("/collections/run-a1").json()["status"] == "FAILED"
     with Session(engine) as db:
         scan = db.get(Scan, "scan-a2")
+        run = db.get(CollectionRun, "run-a2")
+        scan.status = "running"
+        scan.started_at = run.started_at
+        run.status = "RUNNING"
+        run.finished_at = None
+        db.commit()
         monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
         monkeypatch.setattr(
             collection_executors,
