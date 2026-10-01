@@ -7,7 +7,6 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401
-from app.core.cloud import CloudProvider
 from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
@@ -16,19 +15,20 @@ from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
-from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.collection_errors import sanitize_collection_error
-from app.services.collectors import run_collectors
+from app.services.collection_executors import (
+    CollectionPreconditionError,
+    ProviderExecutionError,
+    get_collection_executor,
+)
 from app.services.dashboard_aggregation import rebuild_account_summary
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
-from app.services.policies import list_effective_policies
 from app.services.provider_capabilities import (
     ProviderOperation,
     UnsupportedProviderOperation,
     providers_supporting,
     require_provider_operation,
 )
-from app.services.scan_queue import CollectionPreconditionError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +55,8 @@ def enqueue_due_scans(db: Session) -> None:
     for account in due_accounts:
         active = db.scalar(
             select(Scan).where(
-                Scan.account_id == account.id, Scan.status.in_(["pending", "running"])
+                Scan.cloud_account_id == account.cloud_account_id,
+                Scan.status.in_(["pending", "running"]),
             )
         )
         if active is None:
@@ -68,6 +69,19 @@ def enqueue_due_scans(db: Session) -> None:
             )
         account.next_scan_at = now + timedelta(hours=account.scan_interval_hours)
     db.commit()
+
+
+def _scan_operation(scan: Scan) -> ProviderOperation:
+    if scan.trigger == "scheduled":
+        return ProviderOperation.SCHEDULING
+    return ProviderOperation.MANUAL_COLLECTION
+
+
+def _fail_claimed_precondition(scan: Scan, exc: Exception) -> None:
+    error = sanitize_collection_error(exc) or "Collection precondition failed"
+    scan.status = "failed"
+    scan.completed_at = datetime.now(UTC)
+    scan.error = error[:4000]
 
 
 def claim_scan(db: Session) -> Scan | None:
@@ -84,29 +98,41 @@ def claim_scan(db: Session) -> Scan | None:
             started_at = datetime.now(UTC)
             scan.status = "running"
             scan.started_at = started_at
-            account = db.get(AwsAccount, scan.account_id)
-            cloud_account = account.cloud_account if account else None
-            collection_allowed = False
-            if account is not None and cloud_account is not None and cloud_account.enabled:
-                try:
-                    require_provider_operation(
-                        cloud_account.provider,
-                        ProviderOperation.MANUAL_COLLECTION,
-                    )
-                    collection_allowed = cloud_account.provider == CloudProvider.AWS.value
-                except UnsupportedProviderOperation:
-                    collection_allowed = False
+            cloud_account = db.get(CloudAccount, scan.cloud_account_id)
+            try:
+                if cloud_account is None:
+                    raise CollectionPreconditionError("CloudAccount for scan does not exist")
+                if not cloud_account.enabled:
+                    raise CollectionPreconditionError("Cloud account is disabled")
 
-            if collection_allowed:
+                require_provider_operation(cloud_account.provider, _scan_operation(scan))
+                executor = get_collection_executor(cloud_account.provider)
+                preparation = executor.prepare(db, cloud_account, scan=scan)
                 db.add(
                     CollectionRun(
                         scan_id=scan.id,
                         provider=cloud_account.provider,
                         account_id=cloud_account.native_account_id,
-                        scope={"regions": sorted(account.regions)},
+                        scope=dict(preparation.scope),
                         started_at=started_at,
                         status=CollectionRunStatus.RUNNING,
                     )
+                )
+            except (UnsupportedProviderOperation, CollectionPreconditionError) as exc:
+                _fail_claimed_precondition(scan, exc)
+                provider = cloud_account.provider if cloud_account is not None else "unknown"
+                native_account_id = (
+                    cloud_account.native_account_id if cloud_account is not None else "unknown"
+                )
+                logger.warning(
+                    "Collection precondition rejected provider=%s cloud_account_id=%s "
+                    "native_account_id=%s scan_id=%s trigger=%s error=%s",
+                    provider,
+                    scan.cloud_account_id,
+                    native_account_id,
+                    scan.id,
+                    scan.trigger,
+                    sanitize_collection_error(exc),
                 )
     return scan
 
@@ -331,75 +357,64 @@ def persist_findings(
 
 
 def execute_scan(db: Session, scan: Scan) -> None:
-    account = db.get(AwsAccount, scan.account_id)
-    cloud_account = account.cloud_account if account else None
-    if account is None or cloud_account is None:
-        raise CollectionPreconditionError("Collection account is missing its cloud account")
-    require_provider_operation(cloud_account.provider, ProviderOperation.MANUAL_COLLECTION)
-    if cloud_account.provider != CloudProvider.AWS.value:
-        raise UnsupportedProviderOperation(
-            "The legacy scan queue currently supports only AWS collection jobs"
-        )
+    if scan.status != "running":
+        raise CollectionPreconditionError("Scan is not running")
+
+    cloud_account = db.get(CloudAccount, scan.cloud_account_id)
+    if cloud_account is None:
+        raise CollectionPreconditionError("CloudAccount for scan does not exist")
     if not cloud_account.enabled:
         raise CollectionPreconditionError("Cloud account is disabled")
 
+    require_provider_operation(cloud_account.provider, _scan_operation(scan))
+    executor = get_collection_executor(cloud_account.provider)
+    executor.prepare(db, cloud_account, scan=scan)
+
     run = collection_run_for_scan(db, scan.id)
     if run is None:
-        raise RuntimeError("CollectionRun missing for claimed scan")
-
-    # Capture collection configuration while reading the database, then return the
-    # connection before STS/cloud requests. The claim/RUNNING record is already committed.
-    account_id, scan_id, run_id = account.id, scan.id, run.id
-    expected_account_id = cloud_account.native_account_id
-    require_provider_operation(cloud_account.provider, ProviderOperation.FINOPS_POLICIES)
-    policies = list_effective_policies(db, account_id)
-    active_rule_keys = [
-        policy["rule_key"] for policy in policies if policy["enabled"] and policy["implemented"]
-    ]
-    db.expunge(account)
-    db.commit()
-
-    aws_session = assume_account_session(account)
-    identity = get_caller_identity(aws_session)
-    if identity.account_id != expected_account_id:
-        raise RuntimeError(
-            f"Assumed role returned account {identity.account_id}; expected {expected_account_id}"
+        raise CollectionPreconditionError("CollectionRun missing for claimed scan")
+    if run.provider != cloud_account.provider or run.account_id != cloud_account.native_account_id:
+        raise CollectionPreconditionError(
+            "CollectionRun identity does not match the scan CloudAccount"
         )
-    collected, collector_errors, failed_rule_keys = run_collectors(
-        aws_session, account.regions, policies
-    )
-    active_rule_keys = [key for key in active_rule_keys if key not in failed_rule_keys]
+
+    result = executor.execute(db, cloud_account, scan)
 
     # Start the persistence transaction only after cloud I/O finishes; reload state
     # that may have changed during collection. Fingerprint locks/savepoints stay intact.
-    account = db.get(AwsAccount, account_id, populate_existing=True)
-    scan = db.get(Scan, scan_id, populate_existing=True)
-    run = db.get(CollectionRun, run_id, populate_existing=True)
-    if account is None or scan is None or run is None:
-        raise RuntimeError("Collection account, scan or run was removed during collection")
-    opportunity_count = persist_findings(db, scan, run, collected, active_rule_keys)
+    scan = db.get(Scan, scan.id, populate_existing=True)
+    run = db.get(CollectionRun, run.id, populate_existing=True)
+    cloud_account = db.get(CloudAccount, cloud_account.id, populate_existing=True)
+    if scan is None or run is None or cloud_account is None:
+        raise CollectionPreconditionError("Collection state was removed during provider execution")
+    if run.provider != cloud_account.provider or run.account_id != cloud_account.native_account_id:
+        raise CollectionPreconditionError("CloudAccount identity changed during provider execution")
+
+    opportunity_count = persist_findings(
+        db,
+        scan,
+        run,
+        result.findings,
+        result.active_rule_keys,
+    )
     scan.findings_count = opportunity_count
-    scan.status = "completed_with_warnings" if collector_errors else "completed"
+    scan.status = "completed_with_warnings" if result.collector_errors else "completed"
     scan.completed_at = datetime.now(UTC)
     scan.error = (
-        "\n".join(sanitize_collection_error(error) for error in collector_errors)[:4000]
-        if collector_errors
+        "\n".join(sanitize_collection_error(error) or "" for error in result.collector_errors)[
+            :4000
+        ]
+        if result.collector_errors
         else None
     )
 
     run.status = CollectionRunStatus.SUCCESS
     run.finished_at = scan.completed_at
     run.opportunities_found = opportunity_count
-    # The current collector contract does not expose total evaluated resources.
-    # Keep this explicit rather than equating resources analyzed with findings.
-    run.resources_analyzed = 0
+    run.resources_analyzed = result.resources_analyzed
     run.error_detail = None
 
-    cloud_account = account.cloud_account
-    if cloud_account is None or cloud_account.provider != CloudProvider.AWS.value:
-        raise RuntimeError("AWS account provider changed during collection")
-    cloud_account.connection_status = "connected"
-    cloud_account.last_error = None
+    executor.mark_connection_success(cloud_account)
     summary_provider = run.provider
     summary_account_id = run.account_id
     summary_collection_run_id = run.id
@@ -432,7 +447,7 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
         return
 
     finished_at = datetime.now(UTC)
-    error = sanitize_collection_error(exc)
+    error = sanitize_collection_error(exc) or "Collection failed"
     failed_scan.status = "failed"
     failed_scan.completed_at = finished_at
     failed_scan.error = error[:4000]
@@ -443,15 +458,18 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
         run.finished_at = finished_at
         run.error_detail = error[:4000]
 
-    account = db.get(AwsAccount, failed_scan.account_id)
-    cloud_account = account.cloud_account if account else None
+    cloud_account = db.get(CloudAccount, failed_scan.cloud_account_id)
     if (
-        cloud_account
-        and cloud_account.provider == CloudProvider.AWS.value
-        and not isinstance(exc, (UnsupportedProviderOperation, CollectionPreconditionError))
+        cloud_account is not None
+        and isinstance(exc, ProviderExecutionError)
+        and exc.provider == cloud_account.provider
     ):
-        cloud_account.connection_status = "error"
-        cloud_account.last_error = error[:2000]
+        try:
+            executor = get_collection_executor(cloud_account.provider)
+        except CollectionPreconditionError:
+            executor = None
+        if executor is not None:
+            executor.mark_connection_failure(cloud_account, error)
     db.commit()
 
 
@@ -461,33 +479,69 @@ def process_once() -> bool:
         scan = claim_scan(db)
         if scan is None:
             return False
+
+        cloud_account = db.get(CloudAccount, scan.cloud_account_id)
         run = collection_run_for_scan(db, scan.id)
-        provider = run.provider if run else "unknown"
-        account_id = run.account_id if run else str(scan.account_id)
+        if cloud_account is not None:
+            provider = cloud_account.provider
+            native_account_id = cloud_account.native_account_id
+        elif run is not None:
+            provider = run.provider
+            native_account_id = run.account_id
+        else:
+            provider = "unknown"
+            native_account_id = "unknown"
         collection_run_id = run.id if run else "missing"
+
+        if scan.status != "running":
+            logger.warning(
+                "Collection skipped provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s status=%s error=%s",
+                provider,
+                scan.cloud_account_id,
+                native_account_id,
+                scan.id,
+                collection_run_id,
+                scan.trigger,
+                scan.status,
+                scan.error,
+            )
+            return True
+
         try:
             logger.info(
-                "Starting collection provider=%s account_id=%s collection_run_id=%s scan_id=%s",
+                "Starting collection provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s",
                 provider,
-                account_id,
-                collection_run_id,
+                scan.cloud_account_id,
+                native_account_id,
                 scan.id,
+                collection_run_id,
+                scan.trigger,
             )
             execute_scan(db, scan)
+            completed_scan = db.get(Scan, scan.id)
             logger.info(
-                "Completed collection provider=%s account_id=%s collection_run_id=%s "
-                "opportunities=%s",
+                "Completed collection provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s opportunities=%s",
                 provider,
-                account_id,
+                scan.cloud_account_id,
+                native_account_id,
+                scan.id,
                 collection_run_id,
-                scan.findings_count,
+                scan.trigger,
+                completed_scan.findings_count if completed_scan is not None else 0,
             )
         except Exception as exc:  # worker boundary: persist errors and continue
             logger.error(
-                "Collection failed provider=%s account_id=%s collection_run_id=%s error=%s",
+                "Collection failed provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s error=%s",
                 provider,
-                account_id,
+                scan.cloud_account_id,
+                native_account_id,
+                scan.id,
                 collection_run_id,
+                scan.trigger,
                 sanitize_collection_error(exc),
             )
             fail_scan(db, scan.id, exc)

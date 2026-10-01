@@ -8,6 +8,7 @@ from app import worker
 from app.api.routes.collections import router
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
+from app.services import collection_executors
 from app.services.collection_errors import GENERIC_ERROR, sanitize_collection_error
 from app.services.collection_query import CollectionFilters, list_collections
 from app.tests.test_opportunities_api import START, client  # noqa: F401
@@ -185,15 +186,23 @@ def test_worker_failure_and_warning_flow_are_sanitized(collections, monkeypatch)
     assert http.get("/collections/run-a1").json()["status"] == "FAILED"
     with Session(engine) as db:
         scan = db.get(Scan, "scan-a2")
-        monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+        run = db.get(CollectionRun, "run-a2")
+        scan.status = "running"
+        scan.started_at = run.started_at
+        run.status = "RUNNING"
+        run.finished_at = None
+        db.commit()
+        monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
         monkeypatch.setattr(
-            worker,
+            collection_executors,
             "get_caller_identity",
             lambda _: type("Identity", (), {"account_id": "111111111111"})(),
         )
-        monkeypatch.setattr(worker, "list_effective_policies", lambda *_: [])
+        monkeypatch.setattr(collection_executors, "list_effective_policies", lambda *_: [])
         monkeypatch.setattr(
-            worker, "run_collectors", lambda *_: ([], ["AccessDenied secret=PRIVATE"], set())
+            collection_executors,
+            "run_collectors",
+            lambda *_: ([], ["AccessDenied secret=PRIVATE"], set()),
         )
         worker.execute_scan(db, scan)
     detail = http.get("/collections/run-a2").json()

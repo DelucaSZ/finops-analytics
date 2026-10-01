@@ -10,6 +10,7 @@ from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.scan import Scan
+from app.services import collection_executors
 from app.services.collector_types import CollectedFinding
 
 
@@ -71,6 +72,7 @@ def test_claim_creates_running_collection_run(db):
     assert run.provider == "aws"
     assert run.account_id == "123456789012"
     assert run.status == CollectionRunStatus.RUNNING
+    assert run.scope == {"regions": ["sa-east-1"]}
     assert run.started_at is not None
     assert run.finished_at is None
 
@@ -80,14 +82,14 @@ def test_successful_scan_finishes_collection_run(db, monkeypatch):
     claimed = worker.claim_scan(db)
     assert claimed is not None
 
-    monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+    monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "get_caller_identity",
         lambda _: type("Identity", (), {"account_id": "123456789012"})(),
     )
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "list_effective_policies",
         lambda *_: [{"rule_key": "test_rule", "enabled": True, "implemented": True}],
     )
@@ -105,7 +107,7 @@ def test_successful_scan_finishes_collection_run(db, monkeypatch):
         confidence="high",
         severity="low",
     )
-    monkeypatch.setattr(worker, "run_collectors", lambda *_: ([finding], [], set()))
+    monkeypatch.setattr(collection_executors, "run_collectors", lambda *_: ([finding], [], set()))
 
     worker.execute_scan(db, claimed)
 
@@ -127,14 +129,14 @@ def test_summary_failure_does_not_rewrite_successful_collection(db, monkeypatch)
     claimed = worker.claim_scan(db)
     assert claimed is not None
 
-    monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+    monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "get_caller_identity",
         lambda _: type("Identity", (), {"account_id": "123456789012"})(),
     )
-    monkeypatch.setattr(worker, "list_effective_policies", lambda *_: [])
-    monkeypatch.setattr(worker, "run_collectors", lambda *_: ([], [], set()))
+    monkeypatch.setattr(collection_executors, "list_effective_policies", lambda *_: [])
+    monkeypatch.setattr(collection_executors, "run_collectors", lambda *_: ([], [], set()))
 
     def fail_summary(*_args, **_kwargs):
         raise RuntimeError("derived summary unavailable")
@@ -187,9 +189,34 @@ def test_cloud_io_does_not_hold_database_transaction(db, monkeypatch):
         stages.append("collect")
         return [], [], set()
 
-    monkeypatch.setattr(worker, "assume_account_session", assume)
-    monkeypatch.setattr(worker, "get_caller_identity", identity)
-    monkeypatch.setattr(worker, "run_collectors", collect)
+    monkeypatch.setattr(collection_executors, "assume_account_session", assume)
+    monkeypatch.setattr(collection_executors, "get_caller_identity", identity)
+    monkeypatch.setattr(collection_executors, "run_collectors", collect)
     worker.execute_scan(db, claimed)
     assert stages == ["sts", "identity", "collect"]
     assert db.get(Scan, claimed.id).status == "completed"
+
+
+def test_provider_execution_failure_marks_aws_connection_error(db, monkeypatch):
+    queued_scan(db)
+    claimed = worker.claim_scan(db)
+    assert claimed is not None
+
+    def deny(_):
+        raise RuntimeError("AccessDenied")
+
+    monkeypatch.setattr(collection_executors, "assume_account_session", deny)
+
+    with pytest.raises(collection_executors.ProviderExecutionError) as exc_info:
+        worker.execute_scan(db, claimed)
+
+    worker.fail_scan(db, claimed.id, exc_info.value)
+
+    failed_scan = db.get(Scan, claimed.id)
+    aws_account = db.get(AwsAccount, failed_scan.account_id)
+    run = db.scalar(select(CollectionRun).where(CollectionRun.scan_id == claimed.id))
+
+    assert failed_scan.status == "failed"
+    assert run is not None and run.status == CollectionRunStatus.FAILED
+    assert aws_account.cloud_account.connection_status == "error"
+    assert "Acesso negado" in aws_account.cloud_account.last_error

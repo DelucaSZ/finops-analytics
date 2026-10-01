@@ -13,6 +13,7 @@ from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
+from app.services import collection_executors
 from app.services.collector_types import CollectedFinding
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 
@@ -227,19 +228,19 @@ def test_execute_scan_twice_keeps_one_opportunity_and_two_observations(db, monke
     aws_account = account(db)
     current_finding = {"value": collected_finding(savings="20.00", stopped_days=14)}
 
-    monkeypatch.setattr(worker, "assume_account_session", lambda _: object())
+    monkeypatch.setattr(collection_executors, "assume_account_session", lambda _: object())
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "get_caller_identity",
         lambda _: type("Identity", (), {"account_id": aws_account.aws_account_id})(),
     )
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "list_effective_policies",
         lambda *_: [{"rule_key": "ec2_stopped", "enabled": True, "implemented": True}],
     )
     monkeypatch.setattr(
-        worker,
+        collection_executors,
         "run_collectors",
         lambda *_: ([current_finding["value"]], [], set()),
     )
