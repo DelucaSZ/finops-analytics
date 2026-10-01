@@ -98,6 +98,46 @@ test("changing a filter resets page while explicit pagination does not", () => {
   assert.equal(paged.get("page"), "3");
 });
 
+test("changing lifecycle status preserves filters, page size and sorting while keeping the existing page reset", () => {
+  const current = [
+    "status=open",
+    "provider=oci",
+    "account_id=ocid1.tenancy.oc1..example",
+    "region=sa-saopaulo-1",
+    "service=compute",
+    "resource_type=instance",
+    "severity=high",
+    "rule=idle_instance",
+    "collection_run_id=run-22",
+    "resource_id=instance-1",
+    "search=idle",
+    "page=4",
+    "page_size=100",
+    "sort=severity",
+    "order=asc",
+    "current=true",
+  ].join("&");
+
+  const next = patchOpportunityUrl(current, { status: "treated" });
+
+  assert.equal(next.get("status"), "treated");
+  assert.equal(next.get("provider"), "oci");
+  assert.equal(next.get("account_id"), "ocid1.tenancy.oc1..example");
+  assert.equal(next.get("region"), "sa-saopaulo-1");
+  assert.equal(next.get("service"), "compute");
+  assert.equal(next.get("resource_type"), "instance");
+  assert.equal(next.get("severity"), "high");
+  assert.equal(next.get("rule"), "idle_instance");
+  assert.equal(next.get("collection_run_id"), "run-22");
+  assert.equal(next.get("resource_id"), "instance-1");
+  assert.equal(next.get("search"), "idle");
+  assert.equal(next.get("current"), "true");
+  assert.equal(next.get("page"), "1");
+  assert.equal(next.get("page_size"), "100");
+  assert.equal(next.get("sort"), "severity");
+  assert.equal(next.get("order"), "asc");
+});
+
 test("builds individual and bulk lifecycle requests without optimistic semantics", () => {
   assert.deepEqual(
     buildLifecycleRequest({ action: "treat", opportunityIds: ["opp-1"], note: "feito", bulk: false }),
@@ -135,6 +175,14 @@ test("workspace source keeps Stage 5 operational semantics without legacy prompt
   assert.match(page, /Abertas/);
   assert.match(page, /Tratadas/);
   assert.match(page, /Rejeitadas/);
+  const filterPosition = page.indexOf('className="panel opportunity-filter-panel"');
+  const tabsPosition = page.indexOf('className="opportunity-tabs"');
+  const summaryPosition = page.indexOf('className="opportunity-summary-grid"');
+  assert.ok(filterPosition >= 0 && filterPosition < tabsPosition);
+  assert.ok(tabsPosition < summaryPosition);
+  assert.match(page, /const active = state\.status === tab\.value/);
+  assert.match(page, /const count = stats\[tab\.value\]/);
+  assert.match(page, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(page, /\/opportunities\/stats/);
   assert.match(page, /opportunity_id/);
   assert.match(page, /Selecionar página atual/);

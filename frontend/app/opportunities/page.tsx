@@ -426,24 +426,7 @@ function OpportunitiesContent() {
       {message && <div className="alert success opportunity-feedback" role="status">{message}</div>}
       {filterError && <div className="alert error opportunity-feedback" role="alert">{filterError}</div>}
 
-      <nav className="opportunity-tabs" aria-label="Estado das oportunidades">
-        {statusTabs.map((tab) => {
-          const count = stats[tab.value];
-          const active = state.status === tab.value;
-          return (
-            <button
-              key={tab.value}
-              type="button"
-              className={active ? "opportunity-tab active" : "opportunity-tab"}
-              aria-current={active ? "page" : undefined}
-              onClick={() => changeStatus(tab.value)}
-            >
-              <span>{tab.label}</span>
-              <strong aria-label={`${count} oportunidades`}>{statsLoading ? "…" : count}</strong>
-            </button>
-          );
-        })}
-      </nav>
+
 
       <section className="panel opportunity-filter-panel" aria-label="Filtros de oportunidades">
         <div className="opportunity-filter-heading">
@@ -565,6 +548,25 @@ function OpportunitiesContent() {
           </label>
         </div>
       </section>
+
+      <nav className="opportunity-tabs" aria-label="Estado das oportunidades">
+        {statusTabs.map((tab) => {
+          const count = stats[tab.value];
+          const active = state.status === tab.value;
+          return (
+            <button
+              key={tab.value}
+              type="button"
+              className={active ? "opportunity-tab active" : "opportunity-tab"}
+              aria-current={active ? "page" : undefined}
+              onClick={() => changeStatus(tab.value)}
+            >
+              <span>{tab.label}</span>
+              <strong aria-label={`${count} oportunidades`}>{statsLoading ? "…" : count}</strong>
+            </button>
+          );
+        })}
+      </nav>
 
       <section className="opportunity-summary-grid" aria-label="Resumo da visão atual">
         <div className="opportunity-summary-card">

@@ -2902,3 +2902,6 @@ Consulte `docs/stage21-validation.md` para:
 - ordem de implantação;
 - backup e recuperação;
 - matriz de evidências e pendências.
+
+
+## Atividade 22.1 — Reorganização da navegação de status em Oportunidades
