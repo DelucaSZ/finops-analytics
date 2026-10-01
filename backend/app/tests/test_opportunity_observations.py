@@ -7,13 +7,13 @@ from sqlalchemy.orm import Session
 
 import app.models  # noqa: F401
 from app import worker
-from app.services import collection_executors
 from app.db.base import Base
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
+from app.services import collection_executors
 from app.services.collector_types import CollectedFinding
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 

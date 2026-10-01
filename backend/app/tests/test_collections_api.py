@@ -5,10 +5,10 @@ from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from app import worker
-from app.services import collection_executors
 from app.api.routes.collections import router
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
+from app.services import collection_executors
 from app.services.collection_errors import GENERIC_ERROR, sanitize_collection_error
 from app.services.collection_query import CollectionFilters, list_collections
 from app.tests.test_opportunities_api import START, client  # noqa: F401
