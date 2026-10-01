@@ -4,22 +4,32 @@ from app.core.config import settings
 
 
 class OciSecretKeyError(RuntimeError):
-    pass
+    def __init__(self, code: str, message: str):
+        self.code = code
+        self.safe_message = message
+        super().__init__(message)
 
 
 def _cipher(key_version: str) -> Fernet:
     configured_version = settings.oci_credentials_key_version
     if key_version != configured_version:
         raise OciSecretKeyError(
-            "OCI credential encryption key version is unavailable on this server"
+            "encryption_key_version_unavailable",
+            "OCI credential encryption key version is unavailable on this server",
         )
     raw = settings.oci_credentials_key.get_secret_value()
     if not raw:
-        raise OciSecretKeyError("OCI credential encryption key is not configured")
+        raise OciSecretKeyError(
+            "encryption_key_missing",
+            "OCI credential encryption key is not configured",
+        )
     try:
         return Fernet(raw.encode())
     except (TypeError, ValueError):
-        raise OciSecretKeyError("OCI credential encryption key is invalid") from None
+        raise OciSecretKeyError(
+            "encryption_key_invalid",
+            "OCI credential encryption key is invalid",
+        ) from None
 
 
 def encrypt_secret(value: str, *, key_version: str | None = None) -> tuple[str, str]:
@@ -30,7 +40,8 @@ def encrypt_secret(value: str, *, key_version: str | None = None) -> tuple[str, 
 def decrypt_secret(value: str, *, key_version: str) -> str:
     try:
         return _cipher(key_version).decrypt(value.encode()).decode()
-    except InvalidToken:
+    except (InvalidToken, UnicodeDecodeError):
         raise OciSecretKeyError(
-            "OCI credential encryption key cannot decrypt the stored credential"
+            "credential_decryption_failed",
+            "OCI credential encryption key cannot decrypt the stored credential",
         ) from None

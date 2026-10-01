@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import oci
 from cryptography.hazmat.primitives import serialization
@@ -17,10 +17,11 @@ NO_RETRY = oci.retry.NoneRetryStrategy()
 
 
 class OciConnectionError(RuntimeError):
-    def __init__(self, code: str, message: str):
+    def __init__(self, code: str, message: str, *, internal_code: str | None = None):
         super().__init__(message)
         self.code = code
         self.safe_message = message
+        self.internal_code = internal_code
 
 
 @dataclass(frozen=True)
@@ -35,8 +36,8 @@ class OciConnectionSnapshot:
     compartment_ocids: tuple[str, ...]
     include_root_compartment: bool
     include_subcompartments: bool
-    private_key_pem: str
-    private_key_password: str | None
+    private_key_pem: str = field(repr=False)
+    private_key_password: str | None = field(repr=False)
 
 
 @dataclass(frozen=True)
@@ -119,7 +120,11 @@ def snapshot_from_configuration(
             else None
         )
     except OciSecretKeyError as exc:
-        raise OciConnectionError("local_configuration_invalid", str(exc)) from None
+        raise OciConnectionError(
+            "local_configuration_invalid",
+            exc.safe_message,
+            internal_code=exc.code,
+        ) from None
 
     cleaned = validate_private_key(
         private_key_pem,

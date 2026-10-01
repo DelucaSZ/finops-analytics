@@ -3009,3 +3009,35 @@ Nenhuma migration foi criada.
 A Atividade 22.4 preparará de forma segura as credenciais OCI no runtime do worker. A
 Atividade 22.5 iniciará o OCI Discovery.
 
+## Atividade 22.4 — Disponibilização segura das credenciais OCI ao worker
+
+**Status:** implementada na branch `stage22-4-oci-worker-credentials`; validação final pelo CI do PR.
+
+O runtime do worker passa a receber a mesma configuração estável
+`NUVEMIQ_OCI_CREDENTIALS_KEY` usada pela API quando OCI estiver configurada. O
+Compose deixa de sobrescrever deliberadamente essa variável com valor vazio no worker; API
+e worker continuam carregando configuração pelo mesmo `Settings` centralizado. A ausência
+ou má formação da chave não impede um ambiente AWS-only de iniciar: a validação permanece
+lazy e ocorre somente quando uma operação interna tenta resolver credenciais OCI.
+
+Foi adicionado um resolver interno de credenciais OCI que recebe apenas
+`cloud_account_id`, valida provider/configuração e reutiliza a infraestrutura existente de
+`oci_secrets` e `snapshot_from_configuration()`. Não existe segunda implementação
+criptográfica. Private key e passphrase continuam persistidas somente como ciphertext e o
+plaintext existe apenas em memória durante a resolução. Erros de chave, versão e
+descriptografia são categorizados internamente com mensagens sanitizadas, sem incluir chave,
+ciphertext, PEM ou passphrase.
+
+O snapshot interno de credenciais passou a omitir private key e passphrase de `repr`. O
+teste de conexão OCI da API usa o mesmo resolver compartilhado que ficará disponível ao
+worker, preservando o contrato HTTP, auditoria e estado de conexão já existentes.
+
+O limite operacional permanece inalterado: OCI continua com
+`manual_collection=false`, `scheduling=false` e `finops_policies=false`; não existe
+`OciCollectionExecutor` funcional, OCI não está registrado no executor registry e o worker
+não realiza chamadas às APIs OCI. Nenhuma migration, coluna de plaintext, endpoint de
+credenciais ou novo secret manager foi criado.
+
+A Atividade 22.5 implementará a primeira camada operacional OCI, Discovery/Inventory,
+consumindo este resolver sem alterar a proteção de credenciais estabelecida aqui.
+
