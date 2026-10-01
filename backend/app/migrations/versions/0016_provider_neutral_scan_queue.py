@@ -140,9 +140,7 @@ def upgrade():
 
     scan_count_after = bind.scalar(sa.text("SELECT COUNT(*) FROM scans")) or 0
     if scan_count_before != scan_count_after:
-        raise RuntimeError(
-            "Scan CloudAccount migration changed the number of scans unexpectedly"
-        )
+        raise RuntimeError("Scan CloudAccount migration changed the number of scans unexpectedly")
 
 
 def downgrade():

@@ -774,9 +774,7 @@ def test_stage22_2_migration_backfills_provider_neutral_scan_identity(migration_
         assert scans["stage22-scan-b1"].cloud_account_id == 202
         assert scans["stage22-scan-b1"].status == "pending"
 
-        run = connection.execute(
-            select(runs_table).where(runs_table.c.id == "stage22-run")
-        ).one()
+        run = connection.execute(select(runs_table).where(runs_table.c.id == "stage22-run")).one()
         assert run.scan_id == "stage22-scan-a1"
 
         inspector = inspect(connection)
