@@ -176,17 +176,18 @@ def candidate_snapshot(
 
 def _client(snapshot: OciConnectionSnapshot):
     try:
-        signer = oci.signer.Signer(
-            tenancy=snapshot.tenancy_ocid,
-            user=snapshot.user_ocid,
-            fingerprint=snapshot.fingerprint,
-            private_key_file_location=None,
-            private_key_content=snapshot.private_key_pem,
-            pass_phrase=snapshot.private_key_password,
-        )
+        config = {
+            "tenancy": snapshot.tenancy_ocid,
+            "user": snapshot.user_ocid,
+            "fingerprint": snapshot.fingerprint,
+            "region": snapshot.region,
+            "key_content": snapshot.private_key_pem,
+        }
+        if snapshot.private_key_password is not None:
+            config["pass_phrase"] = snapshot.private_key_password
+
         return oci.identity.IdentityClient(
-            {"region": snapshot.region},
-            signer=signer,
+            config,
             timeout=(CONNECT_TIMEOUT_SECONDS, READ_TIMEOUT_SECONDS),
             retry_strategy=NO_RETRY,
         )
