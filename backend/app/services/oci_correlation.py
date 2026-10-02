@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, is_dataclass
 from decimal import Decimal
-from typing import Any, TypeVar
+from typing import Any
 
 from app.services.oci_cloud_advisor_models import OciCloudAdvisorResult
 from app.services.oci_correlation_models import (
@@ -20,23 +20,20 @@ from app.services.oci_discovery_models import OciDiscoveryResult
 from app.services.oci_monitoring_models import OciMetricSeries, OciMonitoringResult
 from app.services.oci_usage_models import OciUsageRecord, OciUsageResult
 
-T = TypeVar("T")
-
-
 def _stable_token(value: Any) -> str:
     if is_dataclass(value):
         value = asdict(value)
     return json.dumps(value, sort_keys=True, default=str, separators=(",", ":"))
 
 
-def _stable_unique(items: list[T]) -> list[T]:
+def _stable_unique[T](items: list[T]) -> list[T]:
     by_token: dict[str, T] = {}
     for item in items:
         by_token.setdefault(_stable_token(item), item)
     return [by_token[token] for token in sorted(by_token)]
 
 
-def _stable_unique_by_id(items: list[T], id_getter) -> list[T]:
+def _stable_unique_by_id[T](items: list[T], id_getter) -> list[T]:
     grouped: dict[str, list[T]] = {}
     without_id: list[T] = []
     for item in items:
@@ -46,9 +43,11 @@ def _stable_unique_by_id(items: list[T], id_getter) -> list[T]:
         else:
             without_id.append(item)
     selected = [min(group, key=_stable_token) for group in grouped.values()]
-    return sorted(selected, key=lambda item: (str(id_getter(item)), _stable_token(item))) + _stable_unique(
-        without_id
+    ordered = sorted(
+        selected,
+        key=lambda item: (str(id_getter(item)), _stable_token(item)),
     )
+    return ordered + _stable_unique(without_id)
 
 
 def _totals_by_currency(records: list[OciUsageRecord]) -> dict[str, Decimal]:
@@ -291,8 +290,12 @@ def correlate_oci_datasets(
 
     unmatched = {
         "advisor": tuple(sorted(set(actions_by_resource) - inventory_ids)),
-        "usage": tuple(sorted((set(usage_by_resource) | set(sku_usage_by_resource)) - inventory_ids)),
-        "monitoring": tuple(sorted((set(metrics_by_resource) | set(series_by_resource)) - inventory_ids)),
+        "usage": tuple(
+            sorted((set(usage_by_resource) | set(sku_usage_by_resource)) - inventory_ids)
+        ),
+        "monitoring": tuple(
+            sorted((set(metrics_by_resource) | set(series_by_resource)) - inventory_ids)
+        ),
     }
     coverage = {
         "inventory": _source_coverage(discovery),
