@@ -191,7 +191,7 @@ def _list_block_volumes(factory, operations, region, compartment_id):
         region=region,
         compartment_id=compartment_id,
         call=client.list_volumes,
-        args=(compartment_id,),
+        kwargs={"compartment_id": compartment_id},
         resource_type="block_volume",
     )
 
