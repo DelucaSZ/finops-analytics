@@ -173,3 +173,22 @@ A camada Monitoring usa `oci.monitoring.MonitoringClient.summarize_metrics_data(
 Para uma janela padrão de 30 dias, a implementação usa intervalo de 1 hora. CPU e memória preservam mean/max agregados server-side; P95 do contexto interno é calculado sobre os datapoints horários retornados. `NetworksBytesIn` e `NetworksBytesOut` são tratados como contadores cumulativos e consultados com `increment()`, preservando unidade nativa.
 
 Nenhuma Opportunity, Finding, regra de rightsizing ou saving DeepOps é produzida por Monitoring. `manual_collection=false`, `scheduling=false` e a ausência de executor OCI público continuam inalterados. A próxima camada é o Correlation Engine da Atividade 22.9.
+
+## Correlation Engine da Atividade 22.9
+
+Discovery, Cloud Advisor, Usage API e Monitoring podem ser consolidados internamente em um contexto
+analítico por recurso. O OCID/resource ID nativo é a chave de correlação; nomes não são usados como
+fallback automático.
+
+A camada preserva relationships, Recommendation→ResourceAction, custos por moeda, breakdown de SKU,
+métricas/coverage, janelas temporais, provenance e falhas parciais. Dados sem resource ID ficam em
+contexto account/unallocated e dados com OCID ausente do Inventory permanecem representados como
+contextos não inventariados.
+
+O Correlation Engine é local/puro: não recebe credenciais, não chama OCI novamente, não persiste
+snapshots e não gera recomendações DeepOps. Finding, Opportunity, thresholds, confidence, severity e
+saving DeepOps continuam responsabilidade das etapas de analyzers.
+
+OCI permanece com coleta manual e agendamento públicos desabilitados. A próxima atividade é a 22.10,
+com os primeiros analyzers OCI sobre o contexto correlacionado.
+
