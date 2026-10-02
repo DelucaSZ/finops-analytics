@@ -196,12 +196,8 @@ def test_cpu_mean_max_and_local_p95_use_returned_hourly_points():
     rid = "ocid1.instance.cpu"
     client = FakeMonitoringClient(
         {
-            query("CpuUtilization", "mean"): [
-                metric_data("CpuUtilization", rid, [10, 20, 30, 40])
-            ],
-            query("CpuUtilization", "max"): [
-                metric_data("CpuUtilization", rid, [30, 50, 60, 70])
-            ],
+            query("CpuUtilization", "mean"): [metric_data("CpuUtilization", rid, [10, 20, 30, 40])],
+            query("CpuUtilization", "max"): [metric_data("CpuUtilization", rid, [30, 50, 60, 70])],
         }
     )
     result = run({REGION: client}, resources=[compute_resource(rid)])
@@ -260,12 +256,8 @@ def test_recent_resource_preserves_reduced_window_reason_without_zero_fill():
     created = datetime(2026, 9, 30, tzinfo=UTC)
     client = FakeMonitoringClient(
         {
-            query("CpuUtilization", "mean"): [
-                metric_data("CpuUtilization", rid, [25])
-            ],
-            query("CpuUtilization", "max"): [
-                metric_data("CpuUtilization", rid, [30])
-            ],
+            query("CpuUtilization", "mean"): [metric_data("CpuUtilization", rid, [25])],
+            query("CpuUtilization", "max"): [metric_data("CpuUtilization", rid, [30])],
         }
     )
     result = run(
@@ -332,12 +324,8 @@ def test_permission_failure_is_partial_and_never_becomes_zero_utilization():
     rid = "ocid1.instance.permission"
     client = FakeMonitoringClient(
         data={
-            query("CpuUtilization", "mean"): [
-                metric_data("CpuUtilization", rid, [20, 30])
-            ],
-            query("CpuUtilization", "max"): [
-                metric_data("CpuUtilization", rid, [35, 45])
-            ],
+            query("CpuUtilization", "mean"): [metric_data("CpuUtilization", rid, [20, 30])],
+            query("CpuUtilization", "max"): [metric_data("CpuUtilization", rid, [35, 45])],
         },
         errors={"MemoryUtilization": service_error(403, "NotAuthorized")},
     )
@@ -396,11 +384,7 @@ def test_result_never_contains_credentials_signer_or_secrets():
     result = run(
         {
             REGION: FakeMonitoringClient(
-                {
-                    query("CpuUtilization", "mean"): [
-                        metric_data("CpuUtilization", rid, [10])
-                    ]
-                }
+                {query("CpuUtilization", "mean"): [metric_data("CpuUtilization", rid, [10])]}
             )
         },
         resources=[compute_resource(rid)],
