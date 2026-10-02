@@ -529,8 +529,7 @@ def test_large_dataset_uses_indexed_resource_identity_and_preserves_1000_resourc
     rows = [usage_record(f"ocid1.instance.{index}", "1") for index in range(count)]
     metrics = [metric_summary(f"ocid1.instance.{index}") for index in range(count)]
     actions = [
-        action(f"action-{index}", resource_id=f"ocid1.instance.{index}")
-        for index in range(count)
+        action(f"action-{index}", resource_id=f"ocid1.instance.{index}") for index in range(count)
     ]
     result = correlate(
         discovery(resources),
