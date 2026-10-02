@@ -291,9 +291,7 @@ class OciCloudAdvisorService:
                 kept_recommendations.append(recommendation)
 
         status = (
-            "partial"
-            if errors or not recommendation_complete or not action_complete
-            else "success"
+            "partial" if errors or not recommendation_complete or not action_complete else "success"
         )
         return self._result(
             status=status,
