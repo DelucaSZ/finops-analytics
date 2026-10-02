@@ -3112,3 +3112,28 @@ Private key, passphrase, signer/config e payloads OCI completos não entram no r
 A Atividade 22.6 não cria Opportunity, Finding, OpportunityObservation, analyzer, cost snapshot ou correlação analítica. Também não consulta Usage API nem Monitoring/MQL. OCI continua com `manual_collection=false`, `scheduling=false` e `finops_policies=false`, permanece fora do `CollectionExecutorRegistry` e sem Scan público.
 
 A próxima atividade planejada é **22.7 — Integração com OCI Usage API**, responsável por custos e consumo reais.
+
+
+## Atividade 22.7 — Integração com OCI Usage API
+
+**Status:** implementada na branch `stage22-7-oci-usage-api`; validação final pelo CI do PR.
+
+Foi adicionada a terceira camada interna de aquisição OCI: custos e consumo observados via Usage API oficial. A implementação reutiliza `OciCredentialResolver`/credenciais da 22.4, `OciClientFactory`, paginação, retry e classificação de falhas introduzidos nas 22.5/22.6. O client utilizado é `oci.usage_api.UsageapiClient` e a operação read-only é `request_summarized_usages()`.
+
+A janela temporal é explícita e UTC-aware. O padrão interno é os últimos 30 dias completos, com granularidade `DAILY`, respeitando o limite oficial de 90 dias e a semântica de início inclusivo/fim exclusivo da OCI. O endpoint é derivado pelo SDK a partir da região de conexão configurada; não é criado um client por `scope_region`.
+
+O dataset principal usa `query_type=COST` e `groupBy=[resourceId, service, region, compartmentId]`. Como a Usage API aceita no máximo quatro dimensões, um breakdown auxiliar independente usa `groupBy=[resourceId, service, skuPartNumber, unit]` para preservar SKU/unidade/quantidade quando disponíveis. O breakdown auxiliar nunca é concatenado ao dataset principal para somar custo, evitando dupla contagem. Todas as páginas `opc-next-page` são percorridas.
+
+Os contratos `OciUsageRecord` e `OciUsageResult` normalizam período, resource ID, serviço, região, compartment, SKU, unidade, quantidade, custo observado, moeda, coverage, páginas, warnings/errors e correlação factual com Inventory. `Decimal(str(value))` é usado no boundary de normalização para evitar cálculos monetários internos em `float`. Moeda ausente permanece ausente; totais são mantidos por moeda e múltiplas moedas não são somadas. Valores negativos/créditos são preservados sem virar saving DeepOps.
+
+Registros sem `resourceId` são preservados. Quando Inventory é fornecido, `inventory_match` representa apenas a presença factual do OCID atual; custo histórico de recurso removido continua válido. Scope é marcado como `in`, `out` ou `unknown`; ausência de metadata não é convertida em descarte silencioso.
+
+403/NotAuthorized da Usage API gera coverage parcial e não `cost=0`. 401 e configuração local inválida permanecem fatais segundo a taxonomia OCI existente. Falhas de um breakdown preservam o outro quando possível. Logs contêm apenas metadados agregados, sem payload financeiro detalhado ou credenciais.
+
+A quantidade de requests da Usage API é constante em relação ao número de recursos: normalmente duas consultas agregadas, acrescidas apenas de suas páginas. Não há query por recurso. Expansão de subcompartments, quando configurada, reutiliza a resolução de scope da 22.5 e pode adicionar chamadas de Identity proporcionais à configuração de compartments, não ao inventário.
+
+Nenhuma migration ou tabela de billing foi criada. A Usage API não cria Opportunity, OpportunityObservation, Finding, analyzer, fingerprint OCI, CollectionRun OCI ou saving DeepOps. Monitoring/MQL e correlation engine completo permanecem fora do escopo.
+
+OCI continua com `manual_collection=false`, `scheduling=false` e `finops_policies=false`, permanece fora do `CollectionExecutorRegistry` e sem Scan público. Discovery e Cloud Advisor continuam como camadas internas existentes. AWS permanece como único executor operacional público.
+
+A próxima atividade é **22.8 — Integração com OCI Monitoring/MQL**.
