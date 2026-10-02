@@ -109,6 +109,7 @@ def _base_evidence(context: OciResourceAnalysisContext) -> dict[str, Any]:
         "coverage": {
             "inventory": context.coverage.get("inventory", "unknown"),
             "inventory_by_type": dict(sorted(context.inventory_coverage.items())),
+            "relationships": dict(sorted(context.relationship_coverage.items())),
         },
         "provenance": {key: list(values) for key, values in sorted(context.provenance.items())},
         "inventory": {
@@ -275,6 +276,11 @@ class OciStoppedComputeWithStorageAnalyzer:
             "compute_instance",
             "block_volume",
             "boot_volume",
+        ):
+            return []
+        if any(
+            context.relationship_coverage.get(relation_type) != "complete"
+            for relation_type in ("volume_attachment", "boot_volume_attachment")
         ):
             return []
         if not _authoritative_inventory(context, "compute_api"):
