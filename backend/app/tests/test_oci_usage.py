@@ -72,8 +72,8 @@ def usage_item(
 
 class FakeUsageClient:
     def __init__(self, primary_pages=None, sku_pages=None, primary_error=None, sku_error=None):
-        self.primary_pages = primary_pages or [[]]
-        self.sku_pages = sku_pages or [[]]
+        self.primary_pages = [[]] if primary_pages is None else primary_pages
+        self.sku_pages = [[]] if sku_pages is None else sku_pages
         self.primary_error = primary_error
         self.sku_error = sku_error
         self.calls = []
