@@ -235,8 +235,17 @@ class OciUsageService:
         coverage["sku_usage"] = auxiliary_ok
         if auxiliary_fatal:
             return self._result(
-                "failed", period_start, period_end, records, sku_records, warnings, errors, coverage,
-                pages, request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                records,
+                sku_records,
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
 
         status = "success" if all(coverage.values()) and not errors else "partial"
