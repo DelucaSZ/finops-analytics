@@ -123,7 +123,7 @@ def run(client, *, inventory=None, start=None, end=None):
 
 
 def service_error(status, code="Error"):
-    return oci.exceptions.ServiceError(status, code, "raw-sensitive-message", {}, "request-id")
+    return oci.exceptions.ServiceError(status, code, {}, "raw-sensitive-message")
 
 
 def test_default_window_is_last_30_complete_utc_days():
