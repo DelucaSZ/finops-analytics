@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from datetime import UTC, datetime
 from time import perf_counter
-from collections.abc import Callable
 from typing import Any
 
 from sqlalchemy.orm import Session
