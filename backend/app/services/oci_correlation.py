@@ -68,10 +68,23 @@ def _time_alignment(usage: OciUsageResult, monitoring: OciMonitoringResult) -> s
     return "disjoint"
 
 
+def _coverage_map(result) -> dict[str, bool]:
+    coverage = getattr(result, "coverage", None)
+    if coverage is not None:
+        return dict(sorted(coverage.items()))
+    counts_by_type = getattr(result, "counts_by_type", None)
+    if counts_by_type is not None:
+        return {
+            resource_type: count is not None
+            for resource_type, count in sorted(counts_by_type.items())
+        }
+    return {}
+
+
 def _source_coverage(result) -> OciCorrelationSourceCoverage:
     return OciCorrelationSourceCoverage(
         status=result.status,
-        coverage=dict(sorted(result.coverage.items())),
+        coverage=_coverage_map(result),
         warning_count=len(result.warnings),
         error_count=len(result.errors),
     )
