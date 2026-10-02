@@ -341,10 +341,12 @@ def test_subcompartments_expand_only_configured_roots_and_deduplicate_child():
 
 def test_root_subtree_uses_single_tenancy_subtree_listing_with_pagination():
     listing = PagedCall([[obj(id=COMP_A)], [obj(id=COMP_B)], [obj(id=COMP_C)]])
-    factory = FakeFactory(identity=obj(
-        list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
-        list_compartments=listing,
-    ))
+    factory = FakeFactory(
+        identity=obj(
+            list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
+            list_compartments=listing,
+        )
+    )
 
     result = run(
         factory,
@@ -364,10 +366,12 @@ def test_identity_authorization_failure_is_partial_not_empty_scope_success():
         failure_page=0,
         failure=service_error(403, "NotAuthorizedOrNotFound"),
     )
-    factory = FakeFactory(identity=obj(
-        list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
-        list_compartments=listing,
-    ))
+    factory = FakeFactory(
+        identity=obj(
+            list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
+            list_compartments=listing,
+        )
+    )
 
     result = run(factory, snapshot(include_subcompartments=True))
 
