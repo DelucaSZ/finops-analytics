@@ -87,9 +87,7 @@ def _native_recommendations(context: OciResourceAnalysisContext) -> list[dict[st
                     else link.action.native_estimated_savings
                 ),
                 "currency": (
-                    recommendation.currency
-                    if recommendation is not None
-                    else link.action.currency
+                    recommendation.currency if recommendation is not None else link.action.currency
                 ),
             }
         )
@@ -112,9 +110,7 @@ def _base_evidence(context: OciResourceAnalysisContext) -> dict[str, Any]:
             "inventory": context.coverage.get("inventory", "unknown"),
             "inventory_by_type": dict(sorted(context.inventory_coverage.items())),
         },
-        "provenance": {
-            key: list(values) for key, values in sorted(context.provenance.items())
-        },
+        "provenance": {key: list(values) for key, values in sorted(context.provenance.items())},
         "inventory": {
             "resource_id": context.resource_id,
             "resource_type": context.resource_type,
