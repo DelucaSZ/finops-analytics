@@ -9,8 +9,8 @@ from requests import exceptions as requests_exceptions
 
 from app.services.collection_executors import has_collection_executor
 from app.services.oci_auth import OciConnectionSnapshot
-from app.services.oci_cloud_advisor import OciCloudAdvisorService
 from app.services.oci_clients import OciClientFactory
+from app.services.oci_cloud_advisor import OciCloudAdvisorService
 from app.services.oci_credentials import OciCredentialResolutionError
 from app.services.provider_capabilities import get_provider_capabilities
 
@@ -25,9 +25,10 @@ def obj(**kwargs):
     return SimpleNamespace(**kwargs)
 
 
-def response(items, next_page=None):
+def response(items, next_page=None, *, collection=True):
+    data = obj(items=items) if collection else items
     return obj(
-        data=obj(items=items),
+        data=data,
         headers={"opc-next-page": next_page} if next_page else {},
     )
 
@@ -401,7 +402,14 @@ def test_scope_unknown_is_explicit_and_not_silently_dropped():
 
 
 def test_root_subtree_uses_one_server_side_subtree_query():
-    identity_listing = PagedCall([[obj(id=COMP_A)], [obj(id=COMP_B)]])
+    class IdentityPagedCall(PagedCall):
+        def __call__(self, *args, page=None, **kwargs):
+            self.calls.append((args, dict(kwargs, page=page)))
+            index = 0 if page is None else int(str(page).split("-")[-1]) - 1
+            next_page = f"page-{index + 2}" if index + 1 < len(self.pages) else None
+            return response(self.pages[index], next_page, collection=False)
+
+    identity_listing = IdentityPagedCall([[obj(id=COMP_A)], [obj(id=COMP_B)]])
     rec_listing = PagedCall([[recommendation()]])
     action_listing = PagedCall([[resource_action(compartment_id=COMP_A)]])
     factory = FakeFactory(
@@ -428,7 +436,10 @@ def test_explicit_subcompartment_scope_is_resolved_then_queried_without_tenancy_
     def list_compartments(compartment_id, page=None, **kwargs):
         assert page is None
         assert kwargs["access_level"] == "ACCESSIBLE"
-        return response([obj(id=COMP_B)] if compartment_id == COMP_A else [])
+        return response(
+            [obj(id=COMP_B)] if compartment_id == COMP_A else [],
+            collection=False,
+        )
 
     rec_listing = PagedCall([[]])
     action_listing = PagedCall([[]])
