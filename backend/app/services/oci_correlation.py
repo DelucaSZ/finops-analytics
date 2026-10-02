@@ -108,7 +108,10 @@ def _relationship_coverage(discovery: OciDiscoveryResult) -> dict[str, str]:
             if resource.resource_type == resource_type
             and "block_storage_api" in resource.sources
         ]
-        if any(resource.attributes.get("attachment_coverage") != "complete" for resource in resources):
+        if any(
+            resource.attributes.get("attachment_coverage") != "complete"
+            for resource in resources
+        ):
             return "incomplete"
         return "complete"
 
