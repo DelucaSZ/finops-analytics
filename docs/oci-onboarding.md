@@ -162,3 +162,14 @@ Registros sem `resourceId` são preservados. Quando um `resourceId` existe e um 
 Falta de autorização na Usage API é cobertura incompleta, não custo zero e não altera automaticamente o `CloudAccount.connection_status`. A camada não cria Opportunity, Finding, CollectionRun OCI, analyzer, saving DeepOps ou snapshot persistido, e não implementa Monitoring/MQL.
 
 O fluxo público permanece com `manual_collection=false` e `scheduling=false`; OCI continua fora do executor público de scans. A próxima atividade é **22.8 — OCI Monitoring/MQL**.
+
+
+## Monitoring/MQL da Atividade 22.8
+
+Discovery, Cloud Advisor, Usage API e Monitoring estão implementados como camadas internas read-only de aquisição de dados OCI. OCI permanece sem coleta pública até a conclusão da correlação e dos analyzers.
+
+A camada Monitoring usa `oci.monitoring.MonitoringClient.summarize_metrics_data()` com MQL no namespace `oci_computeagent`, consultando CPU, memória quando disponível e rede quando disponível por região/compartment e agrupando séries por `resourceId`. A implementação evita queries por recurso como estratégia padrão. Métrica ausente não é interpretada como zero, e falhas de autorização são representadas separadamente de uma consulta bem-sucedida sem datapoints.
+
+Para uma janela padrão de 30 dias, a implementação usa intervalo de 1 hora. CPU e memória preservam mean/max agregados server-side; P95 do contexto interno é calculado sobre os datapoints horários retornados. `NetworksBytesIn` e `NetworksBytesOut` são tratados como contadores cumulativos e consultados com `increment()`, preservando unidade nativa.
+
+Nenhuma Opportunity, Finding, regra de rightsizing ou saving DeepOps é produzida por Monitoring. `manual_collection=false`, `scheduling=false` e a ausência de executor OCI público continuam inalterados. A próxima camada é o Correlation Engine da Atividade 22.9.
