@@ -69,7 +69,12 @@ def validate_monitoring_window(
     return start, end
 
 
-def build_compute_query(metric_name: str, statistic: str, *, interval: str = DEFAULT_INTERVAL) -> str:
+def build_compute_query(
+    metric_name: str,
+    statistic: str,
+    *,
+    interval: str = DEFAULT_INTERVAL,
+) -> str:
     allowed = set(_QUERY_DEFINITIONS)
     if (metric_name, statistic) not in allowed:
         raise ValueError("Unsupported OCI compute metric/statistic")
