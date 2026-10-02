@@ -20,6 +20,7 @@ from app.services.oci_discovery_models import OciDiscoveryResult
 from app.services.oci_monitoring_models import OciMetricSeries, OciMonitoringResult
 from app.services.oci_usage_models import OciUsageRecord, OciUsageResult
 
+
 def _stable_token(value: Any) -> str:
     if is_dataclass(value):
         value = asdict(value)
