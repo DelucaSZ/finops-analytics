@@ -119,8 +119,17 @@ class OciUsageService:
                 )
             )
             return self._result(
-                "failed", period_start, period_end, [], [], warnings, errors, coverage, pages,
-                request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                [],
+                [],
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
         except OciDiscoveryClientConfigurationError:
             errors.append(
@@ -133,8 +142,17 @@ class OciUsageService:
                 )
             )
             return self._result(
-                "failed", period_start, period_end, [], [], warnings, errors, coverage, pages,
-                request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                [],
+                [],
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
 
         scope_regions = tuple(dict.fromkeys(snapshot.scope_regions))
@@ -167,8 +185,17 @@ class OciUsageService:
                 )
             )
             return self._result(
-                "failed", period_start, period_end, [], [], warnings, errors, coverage, pages,
-                request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                [],
+                [],
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
 
         inventory_ids = (
@@ -190,8 +217,17 @@ class OciUsageService:
                 )
             )
             return self._result(
-                "failed", period_start, period_end, [], [], warnings, errors, coverage, pages,
-                request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                [],
+                [],
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
 
         records: list[OciUsageRecord] = []
@@ -208,14 +244,21 @@ class OciUsageService:
         )
         request_count += max(primary_pages, 1)
         pages["resource_cost"] = primary_pages
-        records = self._normalize(
-            primary, scope_regions, scope_compartments, inventory_ids
-        )
+        records = self._normalize(primary, scope_regions, scope_compartments, inventory_ids)
         coverage["resource_cost"] = primary_ok
         if primary_fatal:
             return self._result(
-                "failed", period_start, period_end, records, [], warnings, errors, coverage, pages,
-                request_count, started_at
+                "failed",
+                period_start,
+                period_end,
+                records,
+                [],
+                warnings,
+                errors,
+                coverage,
+                pages,
+                request_count,
+                started_at,
             )
 
         auxiliary, auxiliary_pages, auxiliary_ok, auxiliary_fatal = self._query(
@@ -229,9 +272,7 @@ class OciUsageService:
         )
         request_count += max(auxiliary_pages, 1)
         pages["sku_usage"] = auxiliary_pages
-        sku_records = self._normalize(
-            auxiliary, scope_regions, scope_compartments, inventory_ids
-        )
+        sku_records = self._normalize(auxiliary, scope_regions, scope_compartments, inventory_ids)
         coverage["sku_usage"] = auxiliary_ok
         if auxiliary_fatal:
             return self._result(
@@ -250,8 +291,17 @@ class OciUsageService:
 
         status = "success" if all(coverage.values()) and not errors else "partial"
         result = self._result(
-            status, period_start, period_end, records, sku_records, warnings, errors, coverage,
-            pages, request_count, started_at
+            status,
+            period_start,
+            period_end,
+            records,
+            sku_records,
+            warnings,
+            errors,
+            coverage,
+            pages,
+            request_count,
+            started_at,
         )
         logger.info(
             "OCI usage cloud_account_id=%s provider=oci operation=request_summarized_usages "
