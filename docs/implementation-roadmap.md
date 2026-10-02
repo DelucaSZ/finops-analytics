@@ -3137,3 +3137,22 @@ Nenhuma migration ou tabela de billing foi criada. A Usage API não cria Opportu
 OCI continua com `manual_collection=false`, `scheduling=false` e `finops_policies=false`, permanece fora do `CollectionExecutorRegistry` e sem Scan público. Discovery e Cloud Advisor continuam como camadas internas existentes. AWS permanece como único executor operacional público.
 
 A próxima atividade é **22.8 — Integração com OCI Monitoring/MQL**.
+
+
+## Atividade 22.8 — Integração com OCI Monitoring/MQL
+
+**Status:** implementada em camada interna read-only; OCI continua fora da coleta pública.
+
+A camada interna `OciMonitoringService` utiliza o SDK oficial OCI, `oci.monitoring.MonitoringClient`, e a operação `summarize_metrics_data()`. A factory compartilhada de clients foi estendida para cachear `MonitoringClient` por região, reutilizando as credenciais OCI resolvidas em memória pela infraestrutura da Atividade 22.4 e a mesma semântica de scope usada pelo Discovery da Atividade 22.5.
+
+O foco inicial é Compute, no namespace oficial `oci_computeagent`. As queries MQL são construídas centralmente e usam `groupBy(resourceId)`, evitando o padrão N+1 por recurso. Para cada combinação região/compartment, a primeira versão executa seis queries agregadas: `CpuUtilization.mean`, `CpuUtilization.max`, `MemoryUtilization.mean`, `MemoryUtilization.max`, `NetworksBytesIn.increment` e `NetworksBytesOut.increment`. A quantidade de requests depende de regiões, compartments e queries, não do número de instâncias inventariadas.
+
+A janela padrão interna é de 30 dias em UTC, com override explícito de `start_time`/`end_time`. O intervalo MQL usado é `1h`, adequado à janela de 30 dias e aos limites de retenção/resolução do Monitoring. CPU e memória preservam séries horárias server-side para mean/max. P95 é calculado localmente sobre os datapoints horários reais da série de mean, por interpolação linear; ele não é derivado de uma média única nem apresentado como percentil dos samples brutos de 1 minuto. Rede usa `increment()`, pois `NetworksBytesIn` e `NetworksBytesOut` são contadores cumulativos do Compute Agent que podem reiniciar com o sistema operacional/agent.
+
+Os resultados são desacoplados do SDK em `OciMetricSeries`, `OciResourceMetrics` e `OciMonitoringResult`. Unidades e dimensões retornadas são preservadas. A correlação com o inventário é feita exclusivamente por `resourceId`/OCID. Séries órfãs são mantidas com `inventory_match=false`; Compute inventariado sem série permanece explicitamente com `metrics_available=false`. Ausência de série nunca é convertida em zero.
+
+Coverage distingue dados disponíveis, ausência de datapoints e falhas de query. Erros 403/404 são cobertura/autorização incompleta do serviço e não alteram automaticamente `CloudAccount.connection_status`. Falhas 401/configuração de signing continuam fatais conforme a taxonomia OCI compartilhada. Recursos STOPPED e recursos criados dentro da janela recebem razões factuais de coverage quando aplicável, sem criar Finding ou Opportunity.
+
+Nenhuma persistência nova foi adicionada e nenhuma migration foi criada. Não foram adicionados thresholds, analyzer OCI, rightsizing, saving DeepOps, Finding, Opportunity, OpportunityObservation ou `CollectionRun` OCI. As capabilities permanecem `manual_collection=false` e `scheduling=false`, e não existe `OciCollectionExecutor` registrado.
+
+A próxima atividade é **22.9 — OCI Correlation Engine**, que unificará Inventory + Cloud Advisor + Usage/Cost + Monitoring em um contexto analítico por recurso antes dos analyzers OCI.
