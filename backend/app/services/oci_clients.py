@@ -188,3 +188,6 @@ class OciClientFactory:
 
     def virtual_network(self, region: str):
         return self._get("virtual_network", region, oci.core.VirtualNetworkClient)
+
+    def optimizer(self, region: str):
+        return self._get("optimizer", region, oci.optimizer.OptimizerClient)
