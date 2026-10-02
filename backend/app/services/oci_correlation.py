@@ -105,12 +105,10 @@ def _relationship_coverage(discovery: OciDiscoveryResult) -> dict[str, str]:
         resources = [
             resource
             for resource in discovery.resources
-            if resource.resource_type == resource_type
-            and "block_storage_api" in resource.sources
+            if resource.resource_type == resource_type and "block_storage_api" in resource.sources
         ]
         if any(
-            resource.attributes.get("attachment_coverage") != "complete"
-            for resource in resources
+            resource.attributes.get("attachment_coverage") != "complete" for resource in resources
         ):
             return "incomplete"
         return "complete"
@@ -119,9 +117,7 @@ def _relationship_coverage(discovery: OciDiscoveryResult) -> dict[str, str]:
         "volume_attachment": attachment_status("block_volume"),
         "boot_volume_attachment": attachment_status("boot_volume"),
         "public_ip_assignment": (
-            "complete"
-            if discovery.counts_by_type.get("public_ip") is not None
-            else "incomplete"
+            "complete" if discovery.counts_by_type.get("public_ip") is not None else "incomplete"
         ),
     }
 
