@@ -36,7 +36,10 @@ class OciAnalyzer(Protocol):
 def _inventory_complete(context: OciResourceAnalysisContext, *resource_types: str) -> bool:
     if context.coverage.get("inventory") != "complete":
         return False
-    return all(context.inventory_coverage.get(resource_type) == "complete" for resource_type in resource_types)
+    return all(
+        context.inventory_coverage.get(resource_type) == "complete"
+        for resource_type in resource_types
+    )
 
 
 def _authoritative_inventory(context: OciResourceAnalysisContext, source: str) -> bool:
@@ -51,7 +54,9 @@ def _cost_evidence(context: OciResourceAnalysisContext) -> dict[str, Any]:
     return {
         "source": "oci_usage_api",
         "available": bool(totals),
-        "period_start": context.usage.period_start.isoformat() if context.usage.period_start else None,
+        "period_start": (
+            context.usage.period_start.isoformat() if context.usage.period_start else None
+        ),
         "period_end": context.usage.period_end.isoformat() if context.usage.period_end else None,
         "totals_by_currency": totals,
         "direct_resource_attribution": bool(context.usage.records),
@@ -73,7 +78,9 @@ def _native_recommendations(context: OciResourceAnalysisContext) -> list[dict[st
                 ),
                 "name": recommendation.name if recommendation is not None else link.action.name,
                 "category_id": recommendation.category_id if recommendation is not None else None,
-                "status": recommendation.status if recommendation is not None else link.action.status,
+                "status": (
+                    recommendation.status if recommendation is not None else link.action.status
+                ),
                 "native_estimated_savings": (
                     recommendation.native_estimated_savings
                     if recommendation is not None
@@ -240,7 +247,8 @@ class OciPublicIpUnassignedAnalyzer:
             service="OCI Networking",
             title="Public IP reservado OCI sem associação",
             description=(
-                "O Public IP é reservado e a coleta confirmou que ele não está associado a uma entidade."
+                "O Public IP é reservado e a coleta confirmou que ele não está "
+                "associado a uma entidade."
             ),
             recommendation=(
                 "Validar a necessidade do Public IP reservado sem associação e liberá-lo caso "
@@ -349,7 +357,8 @@ class OciUntaggedResourceAnalyzer:
             service="OCI Governance",
             title="Recurso OCI sem tags",
             description=(
-                "O recurso suportado não possui freeform tags nem defined tags no inventário coletado."
+                "O recurso suportado não possui freeform tags nem defined tags no "
+                "inventário coletado."
             ),
             recommendation=(
                 "Adicionar metadados de governança e custo conforme a política da organização."
