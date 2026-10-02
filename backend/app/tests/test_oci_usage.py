@@ -273,7 +273,12 @@ def test_scope_in_out_and_unknown_are_explicit_and_out_of_scope_is_not_totaled()
 
 
 def test_usage_permission_failure_is_not_reported_as_zero_cost():
-    result = run(FakeUsageClient(primary_pages=[], primary_error=service_error(403, "NotAuthorized")))
+    result = run(
+        FakeUsageClient(
+            primary_pages=[],
+            primary_error=service_error(403, "NotAuthorized"),
+        )
+    )
     assert result.status == "partial"
     assert result.coverage["resource_cost"] is False
     assert result.totals_by_currency == {}
@@ -297,7 +302,12 @@ def test_transient_and_service_failures_are_structured(error, category):
 
 
 def test_401_is_fatal_but_does_not_mutate_account_connection_state():
-    result = run(FakeUsageClient(primary_pages=[], primary_error=service_error(401, "NotAuthenticated")))
+    result = run(
+        FakeUsageClient(
+            primary_pages=[],
+            primary_error=service_error(401, "NotAuthenticated"),
+        )
+    )
     assert result.status == "failed"
     assert any(e.fatal and e.category == "authentication_failed" for e in result.errors)
 
