@@ -271,6 +271,10 @@ def correlate_oci_datasets(
                     "usage": _context_source_status(usage),
                     "monitoring": _context_source_status(monitoring),
                 },
+                inventory_coverage={
+                    resource_type: ("complete" if count is not None else "incomplete")
+                    for resource_type, count in sorted(discovery.counts_by_type.items())
+                },
                 provenance=provenance,
                 warnings=warnings,
             )
