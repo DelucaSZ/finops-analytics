@@ -126,3 +126,11 @@ Sucesso comprova somente as verificações executadas. Não comprova acesso a Co
 ## Etapa 19
 
 O formulário unificado deve consumir estes contratos sem criar uma segunda fonte para Tenancy OCID. Análise e agendamento OCI permanecem bloqueados até existir coletor OCI.
+
+## Discovery da Atividade 22.5
+
+O worker agora possui a infraestrutura de credenciais e uma camada interna de Discovery/Inventory OCI read-only. Essa camada usa Resource Search para descoberta ampla e APIs `List` de Identity, Compute, Block Storage e Virtual Network para normalizar o inventário inicial de Compute Instances, Block Volumes, Boot Volumes, attachments e Public IPs dentro de `scope_regions` e dos compartments configurados.
+
+O fluxo público de coleta OCI permanece desabilitado até a conclusão das camadas de análise necessárias. Não existe `OciCollectionExecutor` operacional, `manual_collection` e `scheduling` permanecem desabilitados, e a Atividade 22.5 não cria oportunidades, não consulta custo/Usage API, não consulta Monitoring e não usa Cloud Advisor.
+
+A execução interna do Discovery é somente leitura. Além das permissões de Identity já usadas no onboarding/teste de conexão, a identidade OCI destinada às próximas etapas deverá receber permissões de leitura/inspeção estritamente suficientes para Resource Search e para as listagens Wave 1 efetivamente habilitadas. Ausência de permissão é registrada como cobertura incompleta; ela não é interpretada como ausência de recursos.
