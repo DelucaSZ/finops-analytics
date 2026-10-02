@@ -3083,3 +3083,32 @@ Falhas de uma fonte, região ou compartment preservam os dados válidos já cole
 A Atividade 22.5 não cria findings/oportunidades OCI, não calcula custo/saving, não consulta Usage API, Monitoring/MQL ou Cloud Advisor e não habilita políticas FinOps OCI. `manual_collection=false`, `scheduling=false` e `finops_policies=false` permanecem inalterados; OCI continua fora do `CollectionExecutorRegistry`, sem `OciCollectionExecutor`, sem endpoint temporário e sem botão de coleta.
 
 AWS continua como o único executor operacional. A próxima atividade planejada é **22.6 — Integração com OCI Cloud Advisor**.
+
+
+## Atividade 22.6 — Integração com OCI Cloud Advisor
+
+**Status:** implementada na branch `stage22-6-oci-cloud-advisor`; validação final pelo CI do PR.
+
+### Arquitetura e contrato
+
+Foi adicionada uma camada interna read-only `OciCloudAdvisorService`, separada do Discovery e do worker, que reutiliza o resolver de credenciais da Atividade 22.4 e o `OciClientFactory` criado na 22.5. O client oficial utilizado é `oci.optimizer.OptimizerClient`.
+
+A coleta usa exclusivamente `list_recommendations()` e `list_resource_actions()`, com paginação por `opc-next-page`. O serviço não chama `Get` por recommendation/action e não executa endpoints de aplicação, update, dismiss ou postpone. Recommendations e Resource Actions permanecem entidades distintas e são deduplicadas pelos respectivos IDs nativos da OCI.
+
+Os contratos normalizados preservam IDs, nomes, descrição, category ID, importance, lifecycle/status OCI, timestamps, relação recommendation -> resource action, resource ID/type, action metadata e `estimated_cost_saving` como `native_estimated_savings`. Esse valor continua sendo evidência nativa da Oracle e não é tratado como saving DeepOps. O SDK expõe o saving em "dollars", mas não fornece um campo de currency/currency code nesses modelos; por isso `currency` permanece `None` e nenhuma moeda é inferida.
+
+### Escopo, correlação e cobertura
+
+O escopo configurado continua sendo derivado das mesmas regras de regions/compartments da 22.5. Quando root + subcompartments estão habilitados, o Cloud Advisor usa o filtro oficial `compartment_id_in_subtree=true` no root. Para scopes explícitos, compartments resolvidos são consultados individualmente e os resultados são filtrados deterministicamente por compartment e, quando presente no metadata nativo, por region.
+
+Resource Actions podem ser correlacionadas factual e opcionalmente com um `OciDiscoveryResult` já coletado. O campo `inventory_match` indica somente presença/ausência do OCID no inventário fornecido; ausência não cria erro de recurso inexistente, confidence, finding ou oportunidade. Quando não há metadata suficiente para decidir o scope, o item permanece com `scope_match=unknown` e gera warning, em vez de ser descartado silenciosamente.
+
+### Falhas, segurança e limites operacionais
+
+A resposta diferencia `success`, `partial` e `failed`. Falta de permissão específica no Optimizer é registrada como coverage/service error e não é convertida em "zero recommendations". Recommendations válidas são preservadas se Resource Actions falharem, e vice-versa quando aplicável. 401/configuração local inválida continuam fatais; 403/404, throttling, timeout e indisponibilidade são classificados sem alterar a semântica de `CloudAccount.connection_status`.
+
+Private key, passphrase, signer/config e payloads OCI completos não entram no result object. Metadata é whitelisted e chaves com indícios de material de autenticação são removidas. Nenhuma migration foi criada.
+
+A Atividade 22.6 não cria Opportunity, Finding, OpportunityObservation, analyzer, cost snapshot ou correlação analítica. Também não consulta Usage API nem Monitoring/MQL. OCI continua com `manual_collection=false`, `scheduling=false` e `finops_policies=false`, permanece fora do `CollectionExecutorRegistry` e sem Scan público.
+
+A próxima atividade planejada é **22.7 — Integração com OCI Usage API**, responsável por custos e consumo reais.
