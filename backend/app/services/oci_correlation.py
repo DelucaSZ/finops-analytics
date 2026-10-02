@@ -98,6 +98,30 @@ def _context_source_status(result) -> str:
     return "unavailable"
 
 
+def _relationship_coverage(discovery: OciDiscoveryResult) -> dict[str, str]:
+    def attachment_status(resource_type: str) -> str:
+        if discovery.counts_by_type.get(resource_type) is None:
+            return "incomplete"
+        resources = [
+            resource
+            for resource in discovery.resources
+            if resource.resource_type == resource_type and "block_storage_api" in resource.sources
+        ]
+        if any(
+            resource.attributes.get("attachment_coverage") != "complete" for resource in resources
+        ):
+            return "incomplete"
+        return "complete"
+
+    return {
+        "volume_attachment": attachment_status("block_volume"),
+        "boot_volume_attachment": attachment_status("boot_volume"),
+        "public_ip_assignment": (
+            "complete" if discovery.counts_by_type.get("public_ip") is not None else "incomplete"
+        ),
+    }
+
+
 def correlate_oci_datasets(
     discovery: OciDiscoveryResult,
     advisor: OciCloudAdvisorResult,
@@ -178,6 +202,7 @@ def correlate_oci_datasets(
         | set(series_by_resource)
     )
 
+    relationship_coverage = _relationship_coverage(discovery)
     contexts: list[OciResourceAnalysisContext] = []
     correlation_warnings: list[OciCorrelationWarning] = []
     for resource_id in all_resource_ids:
@@ -271,6 +296,11 @@ def correlate_oci_datasets(
                     "usage": _context_source_status(usage),
                     "monitoring": _context_source_status(monitoring),
                 },
+                inventory_coverage={
+                    resource_type: ("complete" if count is not None else "incomplete")
+                    for resource_type, count in sorted(discovery.counts_by_type.items())
+                },
+                relationship_coverage=dict(relationship_coverage),
                 provenance=provenance,
                 warnings=warnings,
             )

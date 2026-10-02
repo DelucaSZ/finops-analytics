@@ -63,6 +63,8 @@ class OciResourceAnalysisContext:
     usage: OciResourceUsageContext = field(default_factory=OciResourceUsageContext)
     monitoring: OciResourceMonitoringContext = field(default_factory=OciResourceMonitoringContext)
     coverage: dict[str, str] = field(default_factory=dict)
+    inventory_coverage: dict[str, str] = field(default_factory=dict)
+    relationship_coverage: dict[str, str] = field(default_factory=dict)
     provenance: dict[str, tuple[str, ...]] = field(default_factory=dict)
     warnings: list[OciCorrelationWarning] = field(default_factory=list)
 

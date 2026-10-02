@@ -3233,3 +3233,86 @@ parado com storage/custo e conformidade de tags). Rightsizing permanece posterio
 métricas, custo e recomendações nativas sem transformar automaticamente Cloud Advisor em decisão
 DeepOps.
 
+
+
+## Atividade 22.10 — Primeiros analyzers FinOps OCI
+
+**Status:** implementada em branch dedicada; aguardando validação/merge.
+
+### Arquitetura
+
+A primeira Wave de analyzers OCI opera exclusivamente sobre o `OciResourceAnalysisContext`
+produzido pelo Correlation Engine da 22.9. Os analyzers são funções determinísticas e locais:
+não recebem credenciais, não instanciam clientes OCI, não consultam Discovery, Cloud Advisor,
+Usage API ou Monitoring novamente e não persistem `Finding`, `Opportunity`, `Scan` ou
+`CollectionRun`.
+
+O `OciAnalyzerRegistry` centraliza a resolução de regras e permite múltiplos analyzers por
+recurso. `OciAnalysisService` apenas itera os contextos correlacionados e agrega
+`CollectedFinding[]`, preservando a fronteira de persistência para a Atividade 22.11.
+
+O contrato provider-neutral reutilizado é `CollectedFinding`. Nenhum segundo modelo de Finding
+foi criado.
+
+### Regras da primeira Wave
+
+- `oci_block_volume_unattached`: Block Volume `AVAILABLE`, confirmado pela Block Storage API,
+  com cobertura de attachment completa e zero attachments ativos.
+- `oci_public_ip_unassigned`: Public IP de lifetime `RESERVED`, confirmado pela Virtual Network
+  API, com associação explicitamente falsa e cobertura completa.
+- `oci_stopped_compute_with_storage`: Compute `STOPPED`, confirmado pela Compute API, mantendo
+  pelo menos um Boot Volume ou Block Volume relacionado, com coverage completa de Compute e
+  storage Wave 1.
+- `oci_untagged_resource`: regra factual e conservadora para recursos Wave 1 suportados, emitida
+  apenas quando freeform tags e defined tags estão ambos vazios. Nenhuma required-tag policy foi
+  inventada.
+
+Não foram implementados rightsizing, CPU threshold, idle compute genérico, DB, Load Balancer ou
+Object Storage analyzers.
+
+### Coverage, provenance e falsos positivos
+
+O contexto correlacionado passou a expor também `inventory_coverage` por resource type, derivado
+do contrato real de Discovery. Os analyzers exigem coverage completa da fonte necessária e, quando
+aplicável, confirmação da API de serviço autoritativa. `unknown`, `partial` e falhas não são
+tratados como ausência.
+
+Block Volume também exige `attachment_coverage=complete`; Public IP exige
+`is_associated is False`; stopped Compute exige relações reais de
+`boot_volume_attachment`/`volume_attachment`. Tipos desconhecidos retornam zero findings.
+
+Evidence separa `analysis_source=deepops` de recommendations nativas OCI. Cloud Advisor é apenas
+evidência corroborativa e nunca cria automaticamente um Finding. A evidence contém somente fatos
+normalizados, coverage, provenance, custo observado e metadados mínimos da recommendation; payloads
+brutos do SDK não são persistidos.
+
+### Custos, savings e determinismo
+
+Custos observados da Usage API permanecem em evidence por moeda e período. Múltiplas moedas são
+mantidas separadamente e não são somadas. Native estimated savings do Cloud Advisor permanece
+identificado como dado nativo.
+
+Nesta primeira Wave, `current_monthly_cost` e `estimated_monthly_savings` do Finding não são
+preenchidos a partir desses valores, porque a normalização mensal e a semântica de economia evitável
+ainda não são universalmente defensáveis. Nenhum preço público, conversão cambial ou saving
+inventado foi introduzido.
+
+As rule keys e `ANALYZER_VERSION=1.0` são estáveis. Arrays de relationships e recommendations são
+normalizados/ordenados antes de entrar em evidence, e a identidade futura continua compatível com o
+fingerprint v1 provider-aware existente: provider + account + region + resource ID + rule.
+
+### Limites preservados
+
+- OCI continua com `manual_collection=false`.
+- OCI continua com `scheduling=false`.
+- OCI continua fora do executor público de scans.
+- `POST /api/v1/cloud-accounts/{oci_id}/scans` continua indisponível.
+- Nenhuma Opportunity ou CollectionRun OCI pública é criada.
+- AWS não teve seus analyzers, fingerprint ou capabilities alterados.
+- Nenhuma migration foi criada.
+
+### Próxima atividade
+
+**22.11 — Habilitação operacional da coleta OCI**, conectando Discovery + Cloud Advisor + Usage +
+Monitoring + Correlation Engine + OCI Analyzers ao pipeline comum de Findings/Opportunities. Somente
+após a validação desse pipeline as capabilities de coleta manual OCI poderão ser alteradas.
