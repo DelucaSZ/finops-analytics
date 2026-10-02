@@ -3156,3 +3156,80 @@ Coverage distingue dados disponíveis, ausência de datapoints e falhas de query
 Nenhuma persistência nova foi adicionada e nenhuma migration foi criada. Não foram adicionados thresholds, analyzer OCI, rightsizing, saving DeepOps, Finding, Opportunity, OpportunityObservation ou `CollectionRun` OCI. As capabilities permanecem `manual_collection=false` e `scheduling=false`, e não existe `OciCollectionExecutor` registrado.
 
 A próxima atividade é **22.9 — OCI Correlation Engine**, que unificará Inventory + Cloud Advisor + Usage/Cost + Monitoring em um contexto analítico por recurso antes dos analyzers OCI.
+
+## Atividade 22.9 — OCI Correlation Engine
+
+**Status:** implementada em branch dedicada; aguardando validação/merge.
+
+### Objetivo
+
+Foi adicionada a camada interna e provider-specific de correlação OCI que recebe exclusivamente os
+datasets normalizados de Discovery/Inventory, Cloud Advisor, Usage API e Monitoring e produz
+contextos analíticos por recurso. O engine não autentica na OCI, não instancia SDK clients, não faz
+requests de rede, não persiste snapshots e não cria Finding ou Opportunity.
+
+### Identidade e correlação
+
+- O resource_id/OCID nativo é a única chave primária de correlação automática.
+- Display name, hostname, shape, IP e tags não são usados como fallback de identidade.
+- Inventory é a âncora para recursos atualmente descobertos.
+- OCIDs presentes apenas em Advisor, Usage ou Monitoring geram contexto não inventariado, sem
+  fabricar atributos de Inventory.
+- Dados sem resource_id permanecem no OciAccountAnalysisContext; nenhum OCID sintético é criado.
+
+### Contratos
+
+- OciResourceAnalysisContext preserva Inventory, relationships, Recommendation→ResourceAction,
+  Usage, Monitoring, coverage, provenance e warnings de conflito.
+- OciCorrelationResult preserva os contextos por recurso, dados account/unallocated, IDs sem match
+  de Inventory por fonte, erros/warnings estruturados, coverage, freshness e alinhamento temporal.
+- As estruturas existentes das quatro fontes são referenciadas/reutilizadas; payloads brutos do SDK
+  não são introduzidos no contrato de correlação.
+
+### Semântica financeira e temporal
+
+- Usage principal é agregado por recurso somente com soma segura dentro da mesma moeda.
+- Múltiplas moedas permanecem em totals_by_currency; não existe conversão cambial.
+- Créditos e valores negativos são preservados.
+- O breakdown por SKU permanece separado do dataset principal para evitar dupla contagem.
+- As janelas de Usage e Monitoring permanecem explícitas e o resultado registra apenas
+  exact, overlapping ou disjoint; dados não são descartados por desalinhamento.
+
+### Advisor, Monitoring e provenance
+
+- ResourceActions continuam vinculadas à Recommendation pai; múltiplas actions/recommendations por
+  recurso são preservadas.
+- Lifecycle/status nativos e native estimated savings continuam fatos OCI e não viram decisão DeepOps.
+- Monitoring preserva summaries, séries, missing metrics, sample counts e coverage sem transformar
+  ausência de métrica em zero.
+- Inventory conserva suas fontes (compute_api, resource_search etc.); Advisor, Usage e Monitoring
+  mantêm provenance separado.
+- Conflitos factuais não sobrescrevem a fonte autoritativa de Inventory; quando detectável, o engine
+  registra warning mantendo ambos os valores.
+
+### Falhas parciais, determinismo e performance
+
+- Falha de uma fonte permanece erro/coverage daquela fonte e não é tratada como dataset vazio.
+- A correlação é determinística e idempotente para os mesmos datasets: recursos, actions, records,
+  séries e relações são ordenados/deduplicados por chaves estáveis.
+- Índices/maps por resource_id evitam scans cruzados O(N²) entre datasets.
+- O engine não usa now(), UUID aleatório ou estado externo para formar o resultado lógico.
+- Não há chamadas OCI adicionais para completar informação ausente.
+
+### Limites preservados
+
+- Nenhum Finding ou Opportunity OCI é criado.
+- Nenhum fingerprint, severity, confidence, priority, rank, threshold ou saving DeepOps é calculado.
+- Nenhum analyzer OCI foi implementado.
+- Nenhuma migration foi criada.
+- OCI continua com manual_collection=false, scheduling=false e fora do executor público.
+- AWS permanece o único executor operacional.
+
+### Próxima atividade
+
+**22.10 — primeiros analyzers OCI**, consumindo exclusivamente o contexto correlacionado e começando
+por regras objetivas de alta confiança (volumes sem attachment, Public IP sem associação, Compute
+parado com storage/custo e conformidade de tags). Rightsizing permanece posterior e deverá combinar
+métricas, custo e recomendações nativas sem transformar automaticamente Cloud Advisor em decisão
+DeepOps.
+
