@@ -191,3 +191,6 @@ class OciClientFactory:
 
     def optimizer(self, region: str):
         return self._get("optimizer", region, oci.optimizer.OptimizerClient)
+
+    def usage(self, region: str):
+        return self._get("usage_api", region, oci.usage_api.UsageapiClient)
