@@ -194,3 +194,6 @@ class OciClientFactory:
 
     def usage(self, region: str):
         return self._get("usage_api", region, oci.usage_api.UsageapiClient)
+
+    def monitoring(self, region: str):
+        return self._get("monitoring", region, oci.monitoring.MonitoringClient)
