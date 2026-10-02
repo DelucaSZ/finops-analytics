@@ -134,3 +134,14 @@ O worker agora possui a infraestrutura de credenciais e uma camada interna de Di
 O fluxo público de coleta OCI permanece desabilitado até a conclusão das camadas de análise necessárias. Não existe `OciCollectionExecutor` operacional, `manual_collection` e `scheduling` permanecem desabilitados, e a Atividade 22.5 não cria oportunidades, não consulta custo/Usage API, não consulta Monitoring e não usa Cloud Advisor.
 
 A execução interna do Discovery é somente leitura. Além das permissões de Identity já usadas no onboarding/teste de conexão, a identidade OCI destinada às próximas etapas deverá receber permissões de leitura/inspeção estritamente suficientes para Resource Search e para as listagens Wave 1 efetivamente habilitadas. Ausência de permissão é registrada como cobertura incompleta; ela não é interpretada como ausência de recursos.
+
+
+## Cloud Advisor da Atividade 22.6
+
+Discovery e Cloud Advisor estão implementados como camadas internas de aquisição de dados OCI, mas o fluxo público de coleta OCI permanece desabilitado até a conclusão das etapas de custo, métricas, correlação e analyzers.
+
+A camada de Cloud Advisor usa o client oficial `oci.optimizer.OptimizerClient` em modo exclusivamente read-only. Ela lista recommendations e resource actions, percorre todas as páginas, preserva lifecycle/status nativos e mantém savings estimados como informação fornecida pela Oracle. Nenhuma recommendation é aplicada, descartada, postergada ou convertida automaticamente em Opportunity DeepOps.
+
+Permissões ausentes para Cloud Advisor são tratadas como cobertura incompleta do serviço, não como ausência de recommendations e não como falha geral das credenciais OCI quando outras APIs permanecem acessíveis.
+
+O fluxo público permanece com `manual_collection=false` e `scheduling=false`; não existe `OciCollectionExecutor` registrado e `POST /api/v1/cloud-accounts/{oci_id}/scans` continua indisponível para OCI. Usage API, Monitoring/MQL, correlation engine e analyzers OCI ainda não fazem parte desta etapa.
