@@ -49,7 +49,6 @@ class PagedCall:
         return response(self.wrap(self.pages[index]), next_page)
 
 
-
 class FakeFactory:
     def __init__(
         self,
@@ -179,9 +178,7 @@ def instance(
     defined_tags=None,
 ):
     shape_config = (
-        None
-        if ocpus is None and memory is None
-        else obj(ocpus=ocpus, memory_in_gbs=memory)
+        None if ocpus is None and memory is None else obj(ocpus=ocpus, memory_in_gbs=memory)
     )
     return obj(
         id=resource_id,
@@ -302,10 +299,12 @@ def test_root_inclusion_and_exclusion_are_deterministic():
 
 def test_subcompartments_disabled_does_not_call_list_compartments():
     listing = PagedCall([[obj(id=COMP_B)]])
-    factory = FakeFactory(identity=obj(
-        list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
-        list_compartments=listing,
-    ))
+    factory = FakeFactory(
+        identity=obj(
+            list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
+            list_compartments=listing,
+        )
+    )
 
     result = run(factory, snapshot(include_subcompartments=False))
 
@@ -323,10 +322,12 @@ def test_subcompartments_expand_only_configured_roots_and_deduplicate_child():
         }
         return response(mapping.get(compartment_id, []))
 
-    factory = FakeFactory(identity=obj(
-        list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
-        list_compartments=list_children,
-    ))
+    factory = FakeFactory(
+        identity=obj(
+            list_availability_domains=lambda _tenancy: response([obj(name=AD1)]),
+            list_compartments=list_children,
+        )
+    )
     snap = snapshot(
         compartments=(COMP_A, COMP_B),
         include_subcompartments=True,
@@ -409,11 +410,13 @@ def test_resource_search_three_pages_tags_and_unknown_type():
 def test_resource_search_discards_out_of_scope_region_and_compartment():
     search = obj(
         search_resources=PagedCall(
-            [[
-                search_item("ocid1.instance.good", "Instance"),
-                search_item("ocid1.instance.region", "Instance", region="us-phoenix-1"),
-                search_item("ocid1.instance.comp", "Instance", compartment=COMP_B),
-            ]],
+            [
+                [
+                    search_item("ocid1.instance.good", "Instance"),
+                    search_item("ocid1.instance.region", "Instance", region="us-phoenix-1"),
+                    search_item("ocid1.instance.comp", "Instance", compartment=COMP_B),
+                ]
+            ],
             wrap=lambda items: obj(items=items),
         )
     )
@@ -427,12 +430,14 @@ def test_resource_search_discards_out_of_scope_region_and_compartment():
 
 
 def test_resource_search_authorization_error_preserves_wave1_lists_and_marks_partial():
-    search = obj(search_resources=PagedCall(
-        [[]],
-        wrap=lambda items: obj(items=items),
-        failure_page=0,
-        failure=service_error(403, "NotAuthorized"),
-    ))
+    search = obj(
+        search_resources=PagedCall(
+            [[]],
+            wrap=lambda items: obj(items=items),
+            failure_page=0,
+            failure=service_error(403, "NotAuthorized"),
+        )
+    )
     compute = obj(
         list_instances=PagedCall([[instance("ocid1.instance.listed")]]),
         list_volume_attachments=PagedCall([[]]),
@@ -504,10 +509,14 @@ def test_compute_partial_failure_in_one_region_preserves_other_region():
 
 def test_compute_running_stopped_flex_and_non_flex_are_normalized():
     compute = obj(
-        list_instances=PagedCall([[
-            instance("ocid1.instance.running", state="RUNNING"),
-            instance("ocid1.instance.stopped", state="STOPPED", ocpus=None, memory=None),
-        ]]),
+        list_instances=PagedCall(
+            [
+                [
+                    instance("ocid1.instance.running", state="RUNNING"),
+                    instance("ocid1.instance.stopped", state="STOPPED", ocpus=None, memory=None),
+                ]
+            ]
+        ),
         list_volume_attachments=PagedCall([[]]),
         list_boot_volume_attachments=PagedCall([[]]),
     )
@@ -567,19 +576,25 @@ def test_one_hundred_instances_do_not_trigger_n_plus_one_get_calls():
 
 def test_search_and_compute_deduplicate_by_ocid_and_service_state_wins():
     resource_id = "ocid1.instance.same"
-    search = obj(search_resources=PagedCall(
-        [[search_item(resource_id, "Instance", state="RUNNING", freeform_tags={"old": "tag"})]],
-        wrap=lambda items: obj(items=items),
-    ))
+    search = obj(
+        search_resources=PagedCall(
+            [[search_item(resource_id, "Instance", state="RUNNING", freeform_tags={"old": "tag"})]],
+            wrap=lambda items: obj(items=items),
+        )
+    )
     compute = obj(
-        list_instances=PagedCall([[
-            instance(
-                resource_id,
-                state="STOPPED",
-                freeform_tags={"Owner": "Platform"},
-                defined_tags={"Operations": {"Status": "Ativo"}},
-            )
-        ]]),
+        list_instances=PagedCall(
+            [
+                [
+                    instance(
+                        resource_id,
+                        state="STOPPED",
+                        freeform_tags={"Owner": "Platform"},
+                        defined_tags={"Operations": {"Status": "Ativo"}},
+                    )
+                ]
+            ]
+        ),
         list_volume_attachments=PagedCall([[]]),
         list_boot_volume_attachments=PagedCall([[]]),
     )
@@ -598,10 +613,12 @@ def test_search_and_compute_deduplicate_by_ocid_and_service_state_wins():
 
 
 def test_service_only_and_search_only_resources_get_consistency_state_without_failure():
-    search = obj(search_resources=PagedCall(
-        [[search_item("ocid1.instance.searchonly", "Instance")]],
-        wrap=lambda items: obj(items=items),
-    ))
+    search = obj(
+        search_resources=PagedCall(
+            [[search_item("ocid1.instance.searchonly", "Instance")]],
+            wrap=lambda items: obj(items=items),
+        )
+    )
     compute = obj(
         list_instances=PagedCall([[instance("ocid1.instance.serviceonly")]]),
         list_volume_attachments=PagedCall([[]]),
@@ -674,9 +691,9 @@ def test_boot_volume_attachment_relationship_and_unrelated_boot_volume():
     compute = obj(
         list_instances=PagedCall([[]]),
         list_volume_attachments=PagedCall([[]]),
-        list_boot_volume_attachments=PagedCall([[
-            obj(boot_volume_id=b1, instance_id="ocid1.instance.1", lifecycle_state="ATTACHED")
-        ]]),
+        list_boot_volume_attachments=PagedCall(
+            [[obj(boot_volume_id=b1, instance_id="ocid1.instance.1", lifecycle_state="ATTACHED")]]
+        ),
     )
 
     result = run(FakeFactory(block=block, compute=compute))
@@ -685,8 +702,7 @@ def test_boot_volume_attachment_relationship_and_unrelated_boot_volume():
     assert by_id[b1].attributes["attachment_count"] == 1
     assert by_id[b2].attributes["attachment_count"] == 0
     assert any(
-        r.source_id == b1 and r.target_id == "ocid1.instance.1"
-        for r in result.relationships
+        r.source_id == b1 and r.target_id == "ocid1.instance.1" for r in result.relationships
     )
 
 
@@ -796,12 +812,8 @@ def test_public_ip_pagination_collects_every_page():
 
 
 def test_public_ip_region_is_taken_from_each_scanned_region():
-    sa_network = obj(
-        list_public_ips=PagedCall([[public_ip("ocid1.publicip.sa")]])
-    )
-    ashburn_network = obj(
-        list_public_ips=PagedCall([[public_ip("ocid1.publicip.ashburn")]])
-    )
+    sa_network = obj(list_public_ips=PagedCall([[public_ip("ocid1.publicip.sa")]]))
+    ashburn_network = obj(list_public_ips=PagedCall([[public_ip("ocid1.publicip.ashburn")]]))
     factory = RegionalFactory(
         network_by_region={
             "sa-saopaulo-1": sa_network,
@@ -817,11 +829,13 @@ def test_public_ip_region_is_taken_from_each_scanned_region():
 
 
 def test_network_failure_marks_public_ip_count_unknown_without_erasing_other_resources():
-    network = obj(list_public_ips=PagedCall(
-        [[]],
-        failure_page=0,
-        failure=service_error(403, "NotAuthorized"),
-    ))
+    network = obj(
+        list_public_ips=PagedCall(
+            [[]],
+            failure_page=0,
+            failure=service_error(403, "NotAuthorized"),
+        )
+    )
     compute = obj(
         list_instances=PagedCall([[instance("ocid1.instance.ok")]]),
         list_volume_attachments=PagedCall([[]]),
