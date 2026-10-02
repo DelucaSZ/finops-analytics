@@ -150,10 +150,7 @@ def context(
     recommendations: list[OciResourceRecommendationLink] | None = None,
 ) -> OciResourceAnalysisContext:
     resource_id = inventory.resource_id if inventory is not None else "ocid1.unknown.test"
-    records = [
-        usage_record(resource_id, value, currency)
-        for value, currency in costs or []
-    ]
+    records = [usage_record(resource_id, value, currency) for value, currency in costs or []]
     totals: dict[str, Decimal] = {}
     for record in records:
         assert record.actual_cost is not None
@@ -339,9 +336,7 @@ def test_block_volume_incomplete_coverage_has_no_false_positive(
 
 @pytest.mark.parametrize("state", ["TERMINATED", "TERMINATING", "DELETED", "FAULTY"])
 def test_block_volume_incompatible_lifecycle_is_skipped(state):
-    assert OciBlockVolumeUnattachedAnalyzer().analyze(
-        block_volume_context(state=state)
-    ) == []
+    assert OciBlockVolumeUnattachedAnalyzer().analyze(block_volume_context(state=state)) == []
 
 
 def test_block_volume_without_cost_emits_high_confidence_finding_without_savings():
@@ -356,9 +351,7 @@ def test_block_volume_without_cost_emits_high_confidence_finding_without_savings
 def test_block_volume_observed_cost_and_native_advisor_are_evidence_only():
     ctx = block_volume_context(
         costs=[("87.42", "USD")],
-        recommendations=[
-            native_link("ocid1.volume.oc1.sa-saopaulo-1.test", saving=40.0)
-        ],
+        recommendations=[native_link("ocid1.volume.oc1.sa-saopaulo-1.test", saving=40.0)],
     )
     finding = OciBlockVolumeUnattachedAnalyzer().analyze(ctx)[0]
     assert finding.evidence["observed_cost"]["totals_by_currency"] == [
@@ -386,9 +379,9 @@ def test_native_recommendation_order_is_deterministic():
         native_link("ocid1.volume.oc1.sa-saopaulo-1.test", recommendation_id="b"),
         native_link("ocid1.volume.oc1.sa-saopaulo-1.test", recommendation_id="a"),
     ]
-    first = OciBlockVolumeUnattachedAnalyzer().analyze(
-        block_volume_context(recommendations=links)
-    )[0]
+    first = OciBlockVolumeUnattachedAnalyzer().analyze(block_volume_context(recommendations=links))[
+        0
+    ]
     second = OciBlockVolumeUnattachedAnalyzer().analyze(
         block_volume_context(recommendations=list(reversed(links)))
     )[0]
@@ -406,21 +399,22 @@ def test_public_ip_reserved_unassigned_emits_finding():
     [(True, "RESERVED"), (None, "RESERVED"), (False, "EPHEMERAL")],
 )
 def test_public_ip_unknown_associated_or_nonreserved_is_skipped(associated, lifetime):
-    assert OciPublicIpUnassignedAnalyzer().analyze(
-        public_ip_context(associated=associated, lifetime=lifetime)
-    ) == []
+    assert (
+        OciPublicIpUnassignedAnalyzer().analyze(
+            public_ip_context(associated=associated, lifetime=lifetime)
+        )
+        == []
+    )
 
 
 def test_public_ip_networking_failure_has_no_false_positive():
-    assert OciPublicIpUnassignedAnalyzer().analyze(
-        public_ip_context(inventory_status="partial")
-    ) == []
+    assert (
+        OciPublicIpUnassignedAnalyzer().analyze(public_ip_context(inventory_status="partial")) == []
+    )
 
 
 def test_public_ip_cost_is_evidence_not_invented_savings():
-    finding = OciPublicIpUnassignedAnalyzer().analyze(
-        public_ip_context(costs=[("3.21", "USD")])
-    )[0]
+    finding = OciPublicIpUnassignedAnalyzer().analyze(public_ip_context(costs=[("3.21", "USD")]))[0]
     assert finding.evidence["observed_cost"]["available"] is True
     assert finding.estimated_monthly_savings == Decimal("0")
 
@@ -452,15 +446,16 @@ def test_stopped_compute_with_both_and_duplicates_emits_one_deduplicated_finding
 
 @pytest.mark.parametrize("state", ["RUNNING", "STARTING"])
 def test_nonstopped_compute_is_skipped(state):
-    assert OciStoppedComputeWithStorageAnalyzer().analyze(
-        stopped_compute_context(state=state, relationships=[boot_relationship()])
-    ) == []
+    assert (
+        OciStoppedComputeWithStorageAnalyzer().analyze(
+            stopped_compute_context(state=state, relationships=[boot_relationship()])
+        )
+        == []
+    )
 
 
 def test_stopped_compute_without_storage_is_skipped():
-    assert OciStoppedComputeWithStorageAnalyzer().analyze(
-        stopped_compute_context()
-    ) == []
+    assert OciStoppedComputeWithStorageAnalyzer().analyze(stopped_compute_context()) == []
 
 
 def test_stopped_compute_incomplete_storage_coverage_is_skipped():
@@ -469,12 +464,15 @@ def test_stopped_compute_incomplete_storage_coverage_is_skipped():
         "block_volume": "incomplete",
         "boot_volume": "complete",
     }
-    assert OciStoppedComputeWithStorageAnalyzer().analyze(
-        stopped_compute_context(
-            relationships=[boot_relationship()],
-            coverage=coverage,
+    assert (
+        OciStoppedComputeWithStorageAnalyzer().analyze(
+            stopped_compute_context(
+                relationships=[boot_relationship()],
+                coverage=coverage,
+            )
         )
-    ) == []
+        == []
+    )
 
 
 def test_stopped_compute_cost_is_preserved_but_not_promoted_to_savings():
@@ -563,9 +561,7 @@ def test_evidence_contains_no_raw_sdk_objects():
 
 def test_same_input_returns_same_finding_and_input_is_not_mutated():
     analyzer = OciStoppedComputeWithStorageAnalyzer()
-    ctx = stopped_compute_context(
-        relationships=[block_relationship(), boot_relationship()]
-    )
+    ctx = stopped_compute_context(relationships=[block_relationship(), boot_relationship()])
     before = deepcopy(ctx)
     first = analyzer.analyze(ctx)
     second = analyzer.analyze(ctx)
@@ -577,9 +573,7 @@ def test_relationship_order_does_not_change_finding():
     analyzer = OciStoppedComputeWithStorageAnalyzer()
     rels = [block_relationship(), boot_relationship()]
     first = analyzer.analyze(stopped_compute_context(relationships=rels))
-    second = analyzer.analyze(
-        stopped_compute_context(relationships=list(reversed(rels)))
-    )
+    second = analyzer.analyze(stopped_compute_context(relationships=list(reversed(rels))))
     assert first == second
 
 
