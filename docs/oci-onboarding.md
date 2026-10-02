@@ -192,3 +192,19 @@ saving DeepOps continuam responsabilidade das etapas de analyzers.
 OCI permanece com coleta manual e agendamento públicos desabilitados. A próxima atividade é a 22.10,
 com os primeiros analyzers OCI sobre o contexto correlacionado.
 
+
+
+## Analyzers OCI internos da Atividade 22.10
+
+O DeepOps já possui uma primeira Wave de analyzers OCI internos operando exclusivamente sobre os
+dados normalizados pelo Correlation Engine. Eles cobrem Block Volume sem attachment, Public IP
+reservado sem associação, Compute parado mantendo storage persistente e ausência total de tags nos
+resource types Wave 1 tecnicamente suportados.
+
+Esses analyzers não fazem chamadas OCI, não recebem credenciais e não transformam automaticamente
+Cloud Advisor em decisão DeepOps. Recommendations nativas e custos observados podem aparecer como
+evidência com provenance explícito, mas savings DeepOps não são inventados.
+
+Os analyzers ainda não são expostos pelo fluxo público de Scan. OCI permanece com
+`manual_collection=false`, `scheduling=false`, sem `Scan` público e sem `CollectionRun` público.
+A habilitação operacional ocorrerá na Atividade 22.11, após conectar e validar o pipeline completo.
