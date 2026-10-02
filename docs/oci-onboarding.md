@@ -145,3 +145,20 @@ A camada de Cloud Advisor usa o client oficial `oci.optimizer.OptimizerClient` e
 Permissões ausentes para Cloud Advisor são tratadas como cobertura incompleta do serviço, não como ausência de recommendations e não como falha geral das credenciais OCI quando outras APIs permanecem acessíveis.
 
 O fluxo público permanece com `manual_collection=false` e `scheduling=false`; não existe `OciCollectionExecutor` registrado e `POST /api/v1/cloud-accounts/{oci_id}/scans` continua indisponível para OCI. Usage API, Monitoring/MQL, correlation engine e analyzers OCI ainda não fazem parte desta etapa.
+
+
+## Usage API da Atividade 22.7
+
+Discovery, Cloud Advisor e Usage API estão implementados como camadas internas read-only de aquisição de dados OCI. A coleta OCI pública permanece desabilitada até a conclusão de Monitoring/MQL, correlação e analyzers.
+
+A camada de Usage API utiliza o client oficial `oci.usage_api.UsageapiClient` e `request_summarized_usages()`. A janela padrão interna corresponde aos últimos 30 dias completos em UTC, usando granularidade `DAILY`; chamadas internas também podem informar `start_time` e `end_time` explicitamente. A API suporta paginação e a implementação percorre `opc-next-page` até o fim.
+
+O dataset financeiro principal agrupa custo observado por `resourceId`, `service`, `region` e `compartmentId`. Um breakdown auxiliar separado agrupa por `resourceId`, `service`, `skuPartNumber` e `unit` para preservar SKU e quantidade de uso quando a API os fornece. Esses conjuntos não são concatenados para cálculo de total, evitando dupla contagem. O limite oficial de quatro dimensões de `groupBy` é respeitado.
+
+`computedAmount` é tratado como custo observado e `computedQuantity` como quantidade de consumo. Moeda e unidade são preservadas exatamente quando retornadas; moeda ausente não é inferida, múltiplas moedas são agregadas separadamente e nenhuma conversão cambial é executada. Valores negativos/créditos permanecem fatos financeiros nativos e não são classificados como saving DeepOps.
+
+Registros sem `resourceId` são preservados. Quando um `resourceId` existe e um resultado de Discovery é fornecido, a correlação é factual (`inventory_match=true|false`); ausência de correspondência não cria Finding ou Opportunity. Scope de região/compartment é marcado como `in`, `out` ou `unknown`, preservando registros cuja pertença não pode ser determinada.
+
+Falta de autorização na Usage API é cobertura incompleta, não custo zero e não altera automaticamente o `CloudAccount.connection_status`. A camada não cria Opportunity, Finding, CollectionRun OCI, analyzer, saving DeepOps ou snapshot persistido, e não implementa Monitoring/MQL.
+
+O fluxo público permanece com `manual_collection=false` e `scheduling=false`; OCI continua fora do executor público de scans. A próxima atividade é **22.8 — OCI Monitoring/MQL**.
