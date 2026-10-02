@@ -179,6 +179,11 @@ def context(
             "monitoring": "complete",
         },
         inventory_coverage=inferred_coverage,
+        relationship_coverage={
+            "volume_attachment": "complete",
+            "boot_volume_attachment": "complete",
+            "public_ip_assignment": "complete",
+        },
         provenance={"inventory": tuple(inventory.sources) if inventory is not None else ()},
     )
 
@@ -473,6 +478,12 @@ def test_stopped_compute_incomplete_storage_coverage_is_skipped():
         )
         == []
     )
+
+
+def test_stopped_compute_incomplete_relationship_coverage_is_skipped():
+    ctx = stopped_compute_context(relationships=[boot_relationship()])
+    ctx.relationship_coverage["boot_volume_attachment"] = "incomplete"
+    assert OciStoppedComputeWithStorageAnalyzer().analyze(ctx) == []
 
 
 def test_stopped_compute_cost_is_preserved_but_not_promoted_to_savings():
