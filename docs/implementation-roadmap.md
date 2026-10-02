@@ -3041,3 +3041,45 @@ credenciais ou novo secret manager foi criado.
 A Atividade 22.5 implementará a primeira camada operacional OCI, Discovery/Inventory,
 consumindo este resolver sem alterar a proteção de credenciais estabelecida aqui.
 
+## Atividade 22.5 — OCI Discovery e inventário
+
+**Status:** implementada na branch `stage22-5-oci-discovery`; validação final pelo CI do PR.
+
+### Arquitetura
+
+Foi adicionada a primeira camada operacional read-only do provider OCI, consumindo o resolver de credenciais seguro da Atividade 22.4 sem registrar um executor OCI no pipeline público de scans. A implementação é dividida entre factory de clients, execução paginada/falhas, resolução de escopo, inventário Wave 1 e coordenação/normalização do Discovery.
+
+O Discovery usa OCI Resource Search como acelerador de descoberta ampla e as APIs `List` dos serviços como fonte autoritativa dos atributos necessários para a Wave 1. Os recursos são correlacionados em memória pelo OCID; quando Search e service API divergem, o valor do service API prevalece para os atributos autoritativos e a inconsistência fica registrada como warning/proveniência. Não existe persistência de payload OCI bruto nem nova migration.
+
+### Escopo, clients e paginação
+
+- `scope_regions` é respeitado literalmente; lista vazia não é expandida para todas as regiões.
+- `compartment_ocids`, `include_root_compartment` e `include_subcompartments` continuam sendo derivados da configuração persistida da conta.
+- Subcompartments são expandidos somente a partir dos roots configurados; OCIDs repetidos são deduplicados.
+- Os clients de Resource Search, Identity, Compute, Block Storage e Virtual Network são reutilizados por serviço/região durante a execução.
+- Todos os endpoints de listagem usados pelo Discovery percorrem `opc-next-page` até o fim.
+- O retry padrão do OCI Python SDK é usado na camada de Discovery, com timeout finito e sem loops próprios agressivos.
+
+### Inventário Wave 1
+
+O contrato normalizado cobre:
+
+- Compute Instances: OCID, nome, região, compartment, lifecycle state, shape, AD, fault domain, OCPUs/memória de flex shape quando presentes, criação e tags;
+- Block Volumes: OCID, nome, região, compartment, lifecycle state, AD, tamanho, VPU/GB, auto tune quando presente, criação, tags e relações de attachment;
+- Boot Volumes: atributos estruturais equivalentes necessários para correlacionar storage com Compute e relações de boot attachment;
+- Public IPs: OCID, nome, região, compartment, lifecycle state, lifetime/scope, endereço quando retornado, associação (`assigned_entity_id`/tipo), criação e tags;
+- recursos adicionais encontrados naturalmente pelo Resource Search podem permanecer como metadados genéricos `oci_resource`, sem collector específico nesta atividade.
+
+Defined tags permanecem aninhadas por namespace. Attachments são fatos/relacionamentos, não oportunidades. Public IP usa os campos de associação fornecidos pela própria API de Networking, evitando `Get` por recurso.
+
+### Cobertura e falhas parciais
+
+Falhas de uma fonte, região ou compartment preservam os dados válidos já coletados. O resultado diferencia `success`, `partial` e `failed`, contém warnings/errors estruturados e separa `observed_counts_by_type` das contagens com cobertura completa. Se uma listagem ou a expansão de escopo falhar, a contagem correspondente fica desconhecida (`None`) em vez de ser convertida em zero.
+
+401 e configuração local inválida são tratadas como falhas fatais. 403/404 mascarados por autorização, throttling, timeout, falha de rede e indisponibilidade de serviço são registrados sem expor payloads ou credenciais. Private key e passphrase continuam somente em memória e não fazem parte do contrato de Discovery.
+
+### Limite operacional preservado
+
+A Atividade 22.5 não cria findings/oportunidades OCI, não calcula custo/saving, não consulta Usage API, Monitoring/MQL ou Cloud Advisor e não habilita políticas FinOps OCI. `manual_collection=false`, `scheduling=false` e `finops_policies=false` permanecem inalterados; OCI continua fora do `CollectionExecutorRegistry`, sem `OciCollectionExecutor`, sem endpoint temporário e sem botão de coleta.
+
+AWS continua como o único executor operacional. A próxima atividade planejada é **22.6 — Integração com OCI Cloud Advisor**.
