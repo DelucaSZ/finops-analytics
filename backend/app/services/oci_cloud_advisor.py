@@ -3,7 +3,8 @@ from __future__ import annotations
 import logging
 from datetime import UTC, datetime
 from time import perf_counter
-from typing import Any, Callable
+from collections.abc import Callable
+from typing import Any
 
 from sqlalchemy.orm import Session
 
@@ -45,7 +46,8 @@ def _safe_metadata(value: Any) -> dict[str, Any]:
         if not isinstance(key, str):
             continue
         lowered = key.lower()
-        if any(token in lowered for token in ("credential", "private", "passphrase", "signer", "key_content")):
+        secret_tokens = ("credential", "private", "passphrase", "signer", "key_content")
+        if any(token in lowered for token in secret_tokens):
             continue
         if isinstance(item, (str, int, float, bool)) or item is None:
             allowed[key] = item
@@ -217,7 +219,9 @@ class OciCloudAdvisorService:
         allowed_compartments = set(scope.compartment_ids)
         allowed_regions = set(scope.regions)
         inventory_ids = (
-            {resource.resource_id for resource in discovery.resources} if discovery is not None else None
+            {resource.resource_id for resource in discovery.resources}
+            if discovery is not None
+            else None
         )
         for action in actions.values():
             action.scope_match = self._scope_match(
@@ -233,7 +237,10 @@ class OciCloudAdvisorService:
                             category="resource_not_in_discovery_inventory",
                             source="cloud_advisor",
                             operation="correlate_inventory",
-                            message="Cloud Advisor resource was not found in the provided Discovery inventory",
+                            message=(
+                                "Cloud Advisor resource was not found in the provided "
+                                "Discovery inventory"
+                            ),
                             compartment_id=action.compartment_id,
                         )
                     )
@@ -243,7 +250,10 @@ class OciCloudAdvisorService:
                         category="scope_unknown",
                         source="cloud_advisor",
                         operation="scope_resource_action",
-                        message="Cloud Advisor resource action lacks enough metadata to determine configured scope",
+                        message=(
+                            "Cloud Advisor resource action lacks enough metadata to "
+                            "determine configured scope"
+                        ),
                         compartment_id=action.compartment_id,
                     )
                 )
@@ -271,13 +281,20 @@ class OciCloudAdvisorService:
                         category="scope_unknown",
                         source="cloud_advisor",
                         operation="scope_recommendation",
-                        message="Cloud Advisor recommendation has no resource action metadata for scope evaluation",
+                        message=(
+                            "Cloud Advisor recommendation has no resource action metadata "
+                            "for scope evaluation"
+                        ),
                     )
                 )
             if recommendation.scope_match != "outside":
                 kept_recommendations.append(recommendation)
 
-        status = "partial" if errors or not recommendation_complete or not action_complete else "success"
+        status = (
+            "partial"
+            if errors or not recommendation_complete or not action_complete
+            else "success"
+        )
         return self._result(
             status=status,
             recommendations=kept_recommendations,
@@ -295,7 +312,9 @@ class OciCloudAdvisorService:
         discovery_errors: list[OciDiscoveryIssue] = []
         operations = OciDiscoveryOperations(snapshot, discovery_errors)
         scope = resolve_oci_discovery_scope(snapshot, factory, operations)
-        errors.extend(OciCloudAdvisorService._from_discovery_issue(item) for item in discovery_errors)
+        errors.extend(
+            OciCloudAdvisorService._from_discovery_issue(item) for item in discovery_errors
+        )
         return scope
 
     @staticmethod
@@ -357,7 +376,8 @@ class OciCloudAdvisorService:
             errors.append(issue)
             logger.info(
                 "OCI Cloud Advisor cloud_account_id=%s provider=oci operation=%s "
-                "compartment_id=%s count=%s pages=%s duration_ms=%s status=partial error_category=%s",
+                "compartment_id=%s count=%s pages=%s duration_ms=%s status=partial "
+                "error_category=%s",
                 snapshot.cloud_account_id,
                 operation,
                 compartment_id,
@@ -425,7 +445,9 @@ class OciCloudAdvisorService:
         region = action.raw_metadata.get("region") or action.raw_metadata.get("Region")
         if region and allowed_regions and region not in allowed_regions:
             return "outside"
-        if action.compartment_id in allowed_compartments and (not region or region in allowed_regions):
+        if action.compartment_id in allowed_compartments and (
+            not region or region in allowed_regions
+        ):
             return "inside"
         return "unknown"
 
