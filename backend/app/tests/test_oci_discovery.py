@@ -655,6 +655,8 @@ def test_block_volume_pagination_collects_all_pages_and_marks_service_only_resou
 
     assert result.counts_by_type["block_volume"] == 3
     assert len(list_volumes.calls) == 3
+    assert list_volumes.calls[0][0] == ()
+    assert list_volumes.calls[0][1]["compartment_id"] == COMP_A
     by_id = {resource.resource_id: resource for resource in result.resources}
     assert by_id["ocid1.volume.page1"].attributes["discovery_consistency"] == "service_only"
 
