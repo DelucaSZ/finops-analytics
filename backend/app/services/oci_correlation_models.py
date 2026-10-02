@@ -116,7 +116,9 @@ class OciResourceAnalysisContext:
 @dataclass
 class OciAccountAnalysisContext:
     recommendations: list[OciNativeRecommendation] = field(default_factory=list)
-    resource_actions_without_resource_id: list[OciNativeResourceAction] = field(default_factory=list)
+    resource_actions_without_resource_id: list[OciNativeResourceAction] = field(
+        default_factory=list
+    )
     usage_records_without_resource_id: list[OciUsageRecord] = field(default_factory=list)
     sku_usage_records_without_resource_id: list[OciUsageRecord] = field(default_factory=list)
     metric_series_without_resource_id: list[OciMetricSeries] = field(default_factory=list)
