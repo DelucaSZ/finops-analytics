@@ -312,11 +312,7 @@ def correlate_oci_datasets(
     }
     statuses = {result.status for result in source_results.values()}
     status = (
-        "success"
-        if statuses == {"success"}
-        else "failed"
-        if statuses == {"failed"}
-        else "partial"
+        "success" if statuses == {"success"} else "failed" if statuses == {"failed"} else "partial"
     )
 
     return OciCorrelationResult(
@@ -335,7 +331,5 @@ def correlate_oci_datasets(
         },
         warnings=_stable_unique(correlation_warnings),
         time_alignment=_time_alignment(usage, monitoring),
-        source_freshness={
-            source: result.completed_at for source, result in source_results.items()
-        },
+        source_freshness={source: result.completed_at for source, result in source_results.items()},
     )
