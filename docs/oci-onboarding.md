@@ -45,7 +45,7 @@ NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=v1
 
 A chave Fernet deve ser gerada e armazenada fora do repositório e respaldada separadamente do PostgreSQL. O DeepOps não deriva essa chave de dados públicos, não a regenera no startup e não usa `NUVEMIQ_SECRET_KEY` como fallback.
 
-No Compose da Etapa 18, o worker AWS-only recebe a variável OCI vazia porque não precisa descriptografar credenciais OCI.
+A partir da Atividade 22.4, API e worker recebem a mesma chave estável quando OCI está configurada. O worker pode resolver credenciais OCI em memória por meio do serviço interno compartilhado, mas o provider OCI ainda não possui executor de coleta operacional, coleta manual ou agendamento.
 
 Um backup do banco contém somente ciphertext. Para recuperar uma credencial OCI é obrigatório possuir a chave Fernet correspondente à versão gravada. Perder a chave de criptografia não quebra AWS, mas impede o uso das credenciais OCI armazenadas até que sejam substituídas.
 

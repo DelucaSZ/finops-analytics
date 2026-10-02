@@ -38,10 +38,8 @@ services:
       context: ./backend
     restart: unless-stopped
     env_file: .env
-    # Stage 18 OCI credentials are only required by the API for onboarding/tests.
-    # Prevent the AWS-only worker from receiving the OCI encryption key.
-    environment:
-      NUVEMIQ_OCI_CREDENTIALS_KEY: ""
+    # OCI credentials remain encrypted at rest. When configured, the worker
+    # receives the same decryption key as the API but OCI collection stays disabled.
     command: ["python", "-m", "app.worker"]
     depends_on:
       db:

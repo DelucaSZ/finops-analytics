@@ -38,11 +38,8 @@ from app.services.cloud_accounts import (
     update_cloud_account,
 )
 from app.services.collection_errors import sanitize_collection_error
-from app.services.oci_auth import (
-    OciConnectionError,
-    snapshot_from_configuration,
-    validate_connection,
-)
+from app.services.oci_auth import OciConnectionError, validate_connection
+from app.services.oci_credentials import resolve_oci_signing_credentials
 from app.services.provider_capabilities import (
     ProviderOperation,
     list_provider_capabilities,
@@ -433,7 +430,7 @@ def _test_oci_connection(
     expected_revision = configuration.configuration_revision
 
     try:
-        snapshot = snapshot_from_configuration(account, configuration)
+        snapshot = resolve_oci_signing_credentials(db, account.id)
     except OciConnectionError as exc:
         tested_at = datetime.now(UTC)
         db.rollback()

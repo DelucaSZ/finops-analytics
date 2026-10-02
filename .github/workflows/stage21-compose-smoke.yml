@@ -57,6 +57,16 @@ jobs:
           docker compose -p deepops-stage21 logs --no-color
           exit 1
 
+      - name: Verify OCI credential configuration is scoped to API and worker
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(docker compose -p deepops-stage21 exec -T api python -c 'from app.core.config import settings; print(bool(settings.oci_credentials_key.get_secret_value()))')" = "True"
+          test "$(docker compose -p deepops-stage21 exec -T worker python -c 'from app.core.config import settings; print(bool(settings.oci_credentials_key.get_secret_value()))')" = "True"
+          docker compose -p deepops-stage21 exec -T db /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
+          docker compose -p deepops-stage21 exec -T web /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
+          docker compose -p deepops-stage21 exec -T proxy /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
+
       - name: Verify migrations, proxy routing and frontend
         shell: bash
         run: |
