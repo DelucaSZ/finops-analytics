@@ -1,4 +1,5 @@
 export const SUPPORTED_ACCOUNT_PROVIDERS = ["aws", "oci"];
+export const SCHEDULE_INTERVALS = [12, 24, 168];
 
 function uniqueList(items) {
   return [...new Set(items.map((item) => item.trim()).filter(Boolean))];
@@ -14,13 +15,13 @@ export function createEmptyAccountForm(provider = "", externalId = "") {
     name: "",
     native_account_id: "",
     enabled: true,
+    schedule_enabled: false,
+    scan_interval_hours: 24,
     aws: {
       role_arn: "",
       external_id: externalId,
       regions: "sa-east-1",
       is_management_account: false,
-      schedule_enabled: false,
-      scan_interval_hours: 24,
     },
     oci: {
       user_ocid: "",
@@ -41,6 +42,8 @@ export function accountToForm(account) {
   form.name = account.name;
   form.native_account_id = account.native_account_id;
   form.enabled = account.enabled;
+  form.schedule_enabled = Boolean(account.schedule_enabled);
+  form.scan_interval_hours = Number(account.scan_interval_hours || 24);
 
   if (account.aws_configuration) {
     form.aws = {
@@ -48,8 +51,6 @@ export function accountToForm(account) {
       external_id: account.aws_configuration.external_id,
       regions: account.aws_configuration.regions.join(", "),
       is_management_account: account.aws_configuration.is_management_account,
-      schedule_enabled: account.schedule_enabled,
-      scan_interval_hours: account.scan_interval_hours,
     };
   }
 
@@ -80,6 +81,8 @@ export function buildCreateAccountPayload(form) {
     native_account_id: form.native_account_id.trim(),
     name: form.name.trim(),
     enabled: Boolean(form.enabled),
+    schedule_enabled: Boolean(form.schedule_enabled),
+    scan_interval_hours: Number(form.scan_interval_hours),
   };
 
   if (form.provider === "aws") {
@@ -90,8 +93,6 @@ export function buildCreateAccountPayload(form) {
         external_id: form.aws.external_id.trim(),
         regions: csvList(form.aws.regions),
         is_management_account: Boolean(form.aws.is_management_account),
-        schedule_enabled: Boolean(form.aws.schedule_enabled),
-        scan_interval_hours: Number(form.aws.scan_interval_hours),
       },
     };
   }
@@ -106,9 +107,7 @@ export function buildCreateAccountPayload(form) {
     include_subcompartments: Boolean(form.oci.include_subcompartments),
     private_key_pem: form.oci.private_key_pem,
   };
-  if (form.oci.private_key_password) {
-    configuration.private_key_password = form.oci.private_key_password;
-  }
+  if (form.oci.private_key_password) configuration.private_key_password = form.oci.private_key_password;
   return { ...common, configuration };
 }
 
@@ -120,6 +119,12 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
   const payload = {};
   if (form.name.trim() !== account.name) payload.name = form.name.trim();
   if (Boolean(form.enabled) !== account.enabled) payload.enabled = Boolean(form.enabled);
+  if (Boolean(form.schedule_enabled) !== account.schedule_enabled) {
+    payload.schedule_enabled = Boolean(form.schedule_enabled);
+  }
+  if (Number(form.scan_interval_hours) !== account.scan_interval_hours) {
+    payload.scan_interval_hours = Number(form.scan_interval_hours);
+  }
 
   if (account.provider === "aws" && account.aws_configuration) {
     const current = account.aws_configuration;
@@ -130,12 +135,6 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
     if (!sameList(regions, current.regions)) configuration.regions = regions;
     if (Boolean(form.aws.is_management_account) !== current.is_management_account) {
       configuration.is_management_account = Boolean(form.aws.is_management_account);
-    }
-    if (Boolean(form.aws.schedule_enabled) !== account.schedule_enabled) {
-      configuration.schedule_enabled = Boolean(form.aws.schedule_enabled);
-    }
-    if (Number(form.aws.scan_interval_hours) !== account.scan_interval_hours) {
-      configuration.scan_interval_hours = Number(form.aws.scan_interval_hours);
     }
     if (Object.keys(configuration).length) payload.configuration = configuration;
   }
@@ -158,9 +157,7 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
     if (options.replaceCredentials) {
       configuration.private_key_pem = form.oci.private_key_pem;
       configuration.fingerprint = form.oci.fingerprint.trim();
-      if (form.oci.private_key_password) {
-        configuration.private_key_password = form.oci.private_key_password;
-      }
+      if (form.oci.private_key_password) configuration.private_key_password = form.oci.private_key_password;
     }
     if (Object.keys(configuration).length) payload.configuration = configuration;
   }
@@ -173,60 +170,36 @@ export function validateAccountForm(form, options = {}) {
   const creating = options.mode !== "edit";
   const replacing = Boolean(options.replaceCredentials);
 
-  if (!String(form.name || "").trim() || String(form.name || "").trim().length < 2) {
-    errors.name = "Informe um nome com pelo menos 2 caracteres.";
-  }
+  if (!String(form.name || "").trim() || String(form.name || "").trim().length < 2) errors.name = "Informe um nome com pelo menos 2 caracteres.";
   if (!SUPPORTED_ACCOUNT_PROVIDERS.includes(form.provider)) {
     errors.provider = "Selecione AWS ou OCI.";
     return errors;
   }
+  if (!SCHEDULE_INTERVALS.includes(Number(form.scan_interval_hours))) {
+    errors.scan_interval_hours = "Selecione um intervalo de coleta suportado.";
+  }
 
   if (form.provider === "aws") {
-    if (!/^\d{12}$/.test(String(form.native_account_id || "").trim())) {
-      errors.native_account_id = "AWS Account ID deve conter exatamente 12 dígitos.";
-    }
+    if (!/^\d{12}$/.test(String(form.native_account_id || "").trim())) errors.native_account_id = "AWS Account ID deve conter exatamente 12 dígitos.";
     const roleArn = String(form.aws.role_arn || "").trim();
-    if (!/^arn:aws[a-zA-Z-]*:iam::\d{12}:role\/.+/.test(roleArn)) {
-      errors.role_arn = "Informe um Role ARN IAM válido.";
-    } else if (
-      /^\d{12}$/.test(String(form.native_account_id || "").trim())
-      && roleArn.split(":")[4] !== String(form.native_account_id).trim()
-    ) {
-      errors.role_arn = "O Account ID do Role ARN deve ser o mesmo da conta.";
-    }
-    if (String(form.aws.external_id || "").trim().length < 16) {
-      errors.external_id = "External ID deve possuir pelo menos 16 caracteres.";
-    }
-    if (!csvList(form.aws.regions).length) {
-      errors.regions = "Informe pelo menos uma região AWS.";
-    }
+    if (!/^arn:aws[a-zA-Z-]*:iam::\d{12}:role\/.+/.test(roleArn)) errors.role_arn = "Informe um Role ARN IAM válido.";
+    else if (/^\d{12}$/.test(String(form.native_account_id || "").trim()) && roleArn.split(":")[4] !== String(form.native_account_id).trim()) errors.role_arn = "O Account ID do Role ARN deve ser o mesmo da conta.";
+    if (String(form.aws.external_id || "").trim().length < 16) errors.external_id = "External ID deve possuir pelo menos 16 caracteres.";
+    if (!csvList(form.aws.regions).length) errors.regions = "Informe pelo menos uma região AWS.";
   }
 
   if (form.provider === "oci") {
-    if (!String(form.native_account_id || "").trim().startsWith("ocid1.tenancy.")) {
-      errors.native_account_id = "Informe um Tenancy OCID.";
-    }
-    if (!String(form.oci.user_ocid || "").trim().startsWith("ocid1.user.")) {
-      errors.user_ocid = "Informe um User OCID.";
-    }
-    if (!String(form.oci.region || "").trim()) {
-      errors.region = "Informe a região de conexão OCI.";
-    }
+    if (!String(form.native_account_id || "").trim().startsWith("ocid1.tenancy.")) errors.native_account_id = "Informe um Tenancy OCID.";
+    if (!String(form.oci.user_ocid || "").trim().startsWith("ocid1.user.")) errors.user_ocid = "Informe um User OCID.";
+    if (!String(form.oci.region || "").trim()) errors.region = "Informe a região de conexão OCI.";
     const compartments = csvList(form.oci.compartment_ocids);
-    if (form.oci.include_subcompartments && !form.oci.include_root_compartment && !compartments.length) {
-      errors.compartment_ocids = "Para incluir subcompartments, inclua a raiz ou ao menos um compartment-base.";
-    }
+    if (form.oci.include_subcompartments && !form.oci.include_root_compartment && !compartments.length) errors.compartment_ocids = "Para incluir subcompartments, inclua a raiz ou ao menos um compartment-base.";
     if (creating || replacing) {
-      if (!String(form.oci.fingerprint || "").trim()) {
-        errors.fingerprint = "Informe o fingerprint da API Signing Key.";
-      }
+      if (!String(form.oci.fingerprint || "").trim()) errors.fingerprint = "Informe o fingerprint da API Signing Key.";
       const pem = String(form.oci.private_key_pem || "");
-      if (pem.length < 64 || pem.length > 65536) {
-        errors.private_key_pem = "Informe uma chave privada PEM entre 64 bytes e 64 KiB.";
-      }
+      if (pem.length < 64 || pem.length > 65536) errors.private_key_pem = "Informe uma chave privada PEM entre 64 bytes e 64 KiB.";
     }
   }
-
   return errors;
 }
 
@@ -235,9 +208,6 @@ export function filterCloudAccounts(accounts, provider, search) {
   return accounts.filter((account) => {
     if (provider && provider !== "all" && account.provider !== provider) return false;
     if (!needle) return true;
-    return (
-      account.name.toLocaleLowerCase("pt-BR").includes(needle)
-      || account.native_account_id.toLocaleLowerCase("pt-BR").includes(needle)
-    );
+    return account.name.toLocaleLowerCase("pt-BR").includes(needle) || account.native_account_id.toLocaleLowerCase("pt-BR").includes(needle);
   });
 }
