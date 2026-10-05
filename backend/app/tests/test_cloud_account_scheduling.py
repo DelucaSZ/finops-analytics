@@ -30,7 +30,15 @@ def _cloud(account_id: int, provider: str, native_id: str, now):
     }
 
 
-def _aws(account_id: int, cloud_id: int, native_id: str, enabled: bool, interval: int, next_at, now):
+def _aws(
+    account_id: int,
+    cloud_id: int,
+    native_id: str,
+    enabled: bool,
+    interval: int,
+    next_at,
+    now,
+):
     return {
         "id": account_id,
         "cloud_account_id": cloud_id,
@@ -78,7 +86,10 @@ def test_schedule_migration_preserves_aws_and_defaults_other_providers(tmp_path)
                     _aws(22, 202, "222222222222", False, 168, future, now),
                 ],
             )
-            original = {row.cloud_account_id: row for row in connection.execute(select(aws)).mappings()}
+            original = {
+                row.cloud_account_id: row
+                for row in connection.execute(select(aws)).mappings()
+            }
 
             _migrate(connection, "0018_cloud_account_scheduling")
 
@@ -89,10 +100,11 @@ def test_schedule_migration_preserves_aws_and_defaults_other_providers(tmp_path)
             assert (rows[202].schedule_enabled, rows[202].scan_interval_hours) == (False, 168)
             assert rows[202].next_scan_at == original[202].next_scan_at
             for account_id in (303, 404):
-                assert (rows[account_id].schedule_enabled, rows[account_id].scan_interval_hours) == (
-                    False,
-                    24,
+                schedule = (
+                    rows[account_id].schedule_enabled,
+                    rows[account_id].scan_interval_hours,
                 )
+                assert schedule == (False, 24)
                 assert rows[account_id].next_scan_at is None
     finally:
         engine.dispose()
