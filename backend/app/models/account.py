@@ -38,6 +38,9 @@ class CloudAccount(TimestampMixin, Base):
         DateTime(timezone=True), nullable=True
     )
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    schedule_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    scan_interval_hours: Mapped[int] = mapped_column(Integer, default=24, nullable=False)
+    next_scan_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     aws_configuration: Mapped["AwsAccount | None"] = relationship(
         back_populates="cloud_account",
@@ -59,8 +62,9 @@ class AwsAccount(TimestampMixin, Base):
     """AWS-specific configuration plus compatibility mirrors.
 
     CloudAccount is the source of truth for provider/native identity, name,
-    administrative enablement and connection state. The legacy common columns remain
-    readable for compatibility with the existing AWS contract, scans and old images.
+    administrative enablement, connection state and scheduling. The legacy common
+    and scheduling columns remain readable mirrors for compatibility with the
+    existing AWS contract, scans and old images.
     """
 
     __tablename__ = "aws_accounts"
@@ -151,11 +155,14 @@ def _sync_aws_mirror(account: AwsAccount) -> None:
     account.connection_status = cloud_account.connection_status
     account.last_connection_test_at = cloud_account.last_connection_test_at
     account.last_error = cloud_account.last_error
+    account.schedule_enabled = cloud_account.schedule_enabled
+    account.scan_interval_hours = cloud_account.scan_interval_hours
+    account.next_scan_at = cloud_account.next_scan_at
 
 
 @event.listens_for(Session, "before_flush")
 def _synchronize_aws_compatibility_mirrors(session, _flush_context, _instances) -> None:
-    """Bridge legacy fixtures once, then keep common AWS fields read-only mirrors."""
+    """Bridge legacy fixtures once, then keep AWS compatibility columns read-only mirrors."""
 
     candidates: list[AwsAccount] = []
     for item in tuple(session.new) + tuple(session.dirty):
@@ -169,6 +176,11 @@ def _synchronize_aws_compatibility_mirrors(session, _flush_context, _instances) 
                     connection_status=item.connection_status or "untested",
                     last_connection_test_at=item.last_connection_test_at,
                     last_error=item.last_error,
+                    schedule_enabled=(
+                        False if item.schedule_enabled is None else item.schedule_enabled
+                    ),
+                    scan_interval_hours=item.scan_interval_hours or 24,
+                    next_scan_at=item.next_scan_at,
                 )
             candidates.append(item)
         elif isinstance(item, CloudAccount) and item.aws_configuration is not None:
