@@ -44,12 +44,6 @@ def upgrade():
         "cloud_accounts",
         sa.Column("next_scan_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.create_index(
-        "ix_cloud_accounts_schedule_due",
-        "cloud_accounts",
-        ["schedule_enabled", "next_scan_at"],
-        unique=False,
-    )
 
     bind = op.get_bind()
     cloud_accounts = _cloud_accounts_table()
@@ -154,7 +148,6 @@ def downgrade():
             )
         )
 
-    op.drop_index("ix_cloud_accounts_schedule_due", table_name="cloud_accounts")
     op.drop_column("cloud_accounts", "next_scan_at")
     op.drop_column("cloud_accounts", "scan_interval_hours")
     op.drop_column("cloud_accounts", "schedule_enabled")
