@@ -49,11 +49,14 @@ def upgrade():
     cloud_accounts = _cloud_accounts_table()
     aws_accounts = _aws_accounts_table()
 
-    orphan_aws = bind.scalar(
-        sa.select(sa.func.count()).select_from(aws_accounts).where(
-            aws_accounts.c.cloud_account_id.is_(None)
+    orphan_aws = (
+        bind.scalar(
+            sa.select(sa.func.count())
+            .select_from(aws_accounts)
+            .where(aws_accounts.c.cloud_account_id.is_(None))
         )
-    ) or 0
+        or 0
+    )
     if orphan_aws:
         raise RuntimeError(
             "Cannot migrate AWS schedules: aws_accounts rows without cloud_account_id exist"
@@ -111,8 +114,7 @@ def upgrade():
             or migrated["next_scan_at"] != row["next_scan_at"]
         ):
             raise RuntimeError(
-                "AWS schedule backfill integrity check failed "
-                f"for aws_account_id={row['id']}"
+                f"AWS schedule backfill integrity check failed for aws_account_id={row['id']}"
             )
 
 
