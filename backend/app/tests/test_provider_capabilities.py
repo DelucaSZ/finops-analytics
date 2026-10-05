@@ -1,3 +1,5 @@
+from datetime import UTC, datetime, timedelta
+
 import pytest
 from sqlalchemy import create_engine, func, select
 from sqlalchemy.orm import Session
@@ -138,6 +140,78 @@ def test_manual_oci_duplicate_pending_and_running_use_cloud_account_identity(db)
     db.commit()
     with pytest.raises(CollectionPreconditionError, match="already pending or running"):
         queue_manual_collection(db, account)
+
+
+def test_scheduler_reads_cloud_account_and_queues_due_aws(db):
+    account = _aws_account(db)
+    due_at = datetime.now(UTC) - timedelta(hours=1)
+    account.cloud_account.schedule_enabled = True
+    account.cloud_account.scan_interval_hours = 24
+    account.cloud_account.next_scan_at = due_at
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+
+    scan = db.scalar(select(Scan))
+    assert scan is not None
+    assert scan.trigger == "scheduled"
+    assert scan.cloud_account_id == account.cloud_account_id
+    assert scan.account_id == account.id
+    assert account.cloud_account.next_scan_at > due_at
+    assert account.next_scan_at == account.cloud_account.next_scan_at
+
+
+def test_scheduler_ignores_oci_even_if_schedule_fields_are_forced_due(db):
+    account = _oci_account(db)
+    account.schedule_enabled = True
+    account.scan_interval_hours = 1
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+
+    assert db.scalar(select(func.count()).select_from(Scan)) == 0
+    assert account.next_scan_at is not None
+
+
+def test_scheduler_ignores_disabled_or_future_aws(db):
+    account = _aws_account(db)
+    account.cloud_account.schedule_enabled = True
+    account.cloud_account.scan_interval_hours = 24
+    account.cloud_account.next_scan_at = datetime.now(UTC) + timedelta(hours=1)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 0
+
+    account.cloud_account.enabled = False
+    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 0
+
+
+def test_scheduler_duplicate_pending_and_running_do_not_create_second_scan(db):
+    account = _aws_account(db)
+    account.cloud_account.schedule_enabled = True
+    account.cloud_account.scan_interval_hours = 24
+    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+    first = db.scalar(select(Scan))
+    assert first is not None
+    first.status = "pending"
+    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 1
+
+    first.status = "running"
+    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 1
 
 
 def test_worker_does_not_create_collection_run_for_disabled_queued_work(db):
