@@ -1,14 +1,27 @@
 from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import func, select
+import pytest
+from sqlalchemy import create_engine, func, select
+from sqlalchemy.orm import Session
 
+import app.models  # noqa: F401
 from app import worker
+from app.db.base import Base
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.scan_queue import queue_manual_collection
 from app.tests.test_oci_collection_executor import _account, _patch_pipeline
+
+
+@pytest.fixture
+def db(tmp_path):
+    engine = create_engine(f"sqlite:///{tmp_path / 'oci-scheduled.db'}")
+    Base.metadata.create_all(engine)
+    with Session(engine) as session:
+        yield session
+    engine.dispose()
 
 
 def _run_due_scheduled_oci(db, monkeypatch):
@@ -95,7 +108,9 @@ def test_scheduled_oci_preserves_treated_and_rejected_lifecycle(db, monkeypatch)
 
     queue_manual_collection(db, account)
     db.commit()
-    worker.execute_scan(db, worker.claim_scan(db))
+    claimed = worker.claim_scan(db)
+    assert claimed is not None
+    worker.execute_scan(db, claimed)
 
     findings = list(db.scalars(select(Finding).order_by(Finding.rule_key)))
     assert findings
@@ -112,7 +127,9 @@ def test_scheduled_oci_preserves_treated_and_rejected_lifecycle(db, monkeypatch)
     account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
     db.commit()
     worker.enqueue_due_scans(db)
-    worker.execute_scan(db, worker.claim_scan(db))
+    scheduled = worker.claim_scan(db)
+    assert scheduled is not None
+    worker.execute_scan(db, scheduled)
 
     db.refresh(findings[0])
     assert findings[0].status == "treated"
