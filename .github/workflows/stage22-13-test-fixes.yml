@@ -1,0 +1,63 @@
+name: Stage 22.13 test fixes
+
+on:
+  push:
+    branches:
+      - stage22-13-cloud-account-scheduling
+    paths:
+      - .github/workflows/stage22-13-test-fixes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stage22-13-cloud-account-scheduling
+      - name: Fix migration and SQLite timezone expectations
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path('backend/app/tests/test_cloud_account_scheduling.py')
+          text = path.read_text()
+          text = text.replace(
+              'assert restored.next_scan_at == new_next',
+              'assert restored.next_scan_at == new_next.replace(tzinfo=None)',
+              1,
+          )
+          path.write_text(text)
+
+          path = Path('backend/app/tests/test_provider_capabilities.py')
+          text = path.read_text()
+          old = '    assert account.cloud_account.next_scan_at > due_at\n'
+          new = (
+              '    persisted_next = account.cloud_account.next_scan_at\n'
+              '    assert persisted_next is not None\n'
+              '    if persisted_next.tzinfo is None:\n'
+              '        persisted_next = persisted_next.replace(tzinfo=UTC)\n'
+              '    assert persisted_next > due_at\n'
+          )
+          if old not in text:
+              raise SystemExit('scheduler assertion not found')
+          path.write_text(text.replace(old, new, 1))
+
+          path = Path('backend/app/tests/test_opportunity_migration.py')
+          text = path.read_text()
+          old = '            == "0017_oci_manual_collection"\n'
+          new = '            == "0018_cloud_account_scheduling"\n'
+          if old not in text:
+              raise SystemExit('migration head assertion not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit test fixes and remove helper workflow
+        run: |
+          git rm .github/workflows/stage22-13-test-fixes.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/tests/test_cloud_account_scheduling.py backend/app/tests/test_provider_capabilities.py backend/app/tests/test_opportunity_migration.py
+          git commit -m 'Fix scheduling regression expectations'
+          git push origin HEAD:stage22-13-cloud-account-scheduling
