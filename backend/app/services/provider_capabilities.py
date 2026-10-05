@@ -47,7 +47,7 @@ _CAPABILITIES: dict[str, ProviderCapabilities] = {
         editing=True,
         connection_test=True,
         manual_collection=True,
-        scheduling=False,
+        scheduling=True,
         finops_policies=False,
     ),
     CloudProvider.AZURE.value: ProviderCapabilities(
