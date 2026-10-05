@@ -1,0 +1,81 @@
+.launcher {
+  position: absolute;
+  top: 0;
+  right: 0;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.feedback {
+  margin-top: 0;
+}
+
+.dialog {
+  width: min(92vw, 520px);
+  max-height: min(88vh, 720px);
+  padding: 0;
+  overflow: auto;
+}
+
+.dialog::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.body {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+
+.description {
+  margin: 0;
+  color: var(--muted);
+}
+
+.field {
+  display: grid;
+  gap: 7px;
+  color: var(--text);
+  font-weight: 700;
+}
+
+.field select {
+  min-height: 44px;
+  width: 100%;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 0;
+}
+
+.inlineAlert {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .launcher {
+    position: static;
+    margin-bottom: 16px;
+  }
+
+  .dialog {
+    width: min(94vw, 520px);
+  }
+
+  .actions {
+    flex-direction: column-reverse;
+  }
+
+  .actions button {
+    width: 100%;
+  }
+}
