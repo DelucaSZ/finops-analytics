@@ -157,7 +157,11 @@ def test_scheduler_reads_cloud_account_and_queues_due_aws(db):
     assert scan.trigger == "scheduled"
     assert scan.cloud_account_id == account.cloud_account_id
     assert scan.account_id == account.id
-    assert account.cloud_account.next_scan_at > due_at
+    persisted_next = account.cloud_account.next_scan_at
+    assert persisted_next is not None
+    if persisted_next.tzinfo is None:
+        persisted_next = persisted_next.replace(tzinfo=UTC)
+    assert persisted_next > due_at
     assert account.next_scan_at == account.cloud_account.next_scan_at
 
 

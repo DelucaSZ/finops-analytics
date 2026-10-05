@@ -135,6 +135,6 @@ def test_schedule_downgrade_copies_authoritative_values_back_to_aws(tmp_path):
             legacy = Table("aws_accounts", MetaData(), autoload_with=connection)
             restored = connection.execute(select(legacy).where(legacy.c.id == 11)).mappings().one()
             assert (restored.schedule_enabled, restored.scan_interval_hours) == (True, 168)
-            assert restored.next_scan_at == new_next
+            assert restored.next_scan_at == new_next.replace(tzinfo=None)
     finally:
         engine.dispose()
