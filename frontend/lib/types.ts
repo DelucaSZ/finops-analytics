@@ -65,6 +65,9 @@ export type CloudAccount = {
   connection_status: "untested" | "connected" | "error";
   last_connection_test_at: string | null;
   last_error: string | null;
+  schedule_enabled: boolean;
+  scan_interval_hours: number;
+  next_scan_at: string | null;
   created_at: string;
   updated_at: string;
   aws_configuration: AwsAccountConfiguration | null;

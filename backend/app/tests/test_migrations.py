@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0017_oci_manual_collection"
+            == "0018_cloud_account_scheduling"
         )
         assert (
             compare_metadata(
@@ -241,7 +241,6 @@ def test_stage_one_users_survive_and_old_image_checkpoint_still_works(migration_
         assert db.scalar(select(func.count()).select_from(User)) == 1
     with migration_engine.begin() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == "0002_users"
-        # Exact revision lookup + no-op upgrade used by the previous image.
         cfg = migration_config()
         cfg.attributes["connection"] = connection
         command.upgrade(cfg, "0002_users")
@@ -353,7 +352,6 @@ def test_mfa_proofs_are_atomic_under_concurrency(migration_engine, monkeypatch, 
                 == 1
             )
     with migration_engine.connect() as connection:
-        # Previous image reads this checkpoint, not the new MFA revision.
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_schema_version"))
             == "0003_auth_lifecycle"

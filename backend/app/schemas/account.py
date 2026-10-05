@@ -350,6 +350,9 @@ class CloudAccountRead(CloudAccountBase):
     connection_status: str
     last_connection_test_at: datetime | None
     last_error: str | None
+    schedule_enabled: bool
+    scan_interval_hours: int
+    next_scan_at: datetime | None
     created_at: datetime
     updated_at: datetime
     aws_configuration: AwsAccountConfigurationRead | None = None

@@ -19,6 +19,9 @@ const awsAccount = {
   connection_status: "connected",
   last_connection_test_at: null,
   last_error: null,
+  schedule_enabled: false,
+  scan_interval_hours: 24,
+  next_scan_at: null,
   created_at: "",
   updated_at: "",
   oci_configuration: null,
@@ -28,9 +31,9 @@ const awsAccount = {
     external_id: "nuvemiq-existing-id",
     regions: ["sa-east-1"],
     is_management_account: false,
-    schedule_enabled: false,
-    scan_interval_hours: 24,
-    next_scan_at: null,
+    schedule_enabled: true,
+    scan_interval_hours: 168,
+    next_scan_at: "2099-01-01T00:00:00Z",
     created_at: "",
     updated_at: "",
   },
@@ -45,6 +48,9 @@ const ociAccount = {
   connection_status: "untested",
   last_connection_test_at: null,
   last_error: null,
+  schedule_enabled: false,
+  scan_interval_hours: 24,
+  next_scan_at: null,
   created_at: "",
   updated_at: "",
   aws_configuration: null,
@@ -65,6 +71,12 @@ const ociAccount = {
     updated_at: "",
   },
 };
+
+test("AWS form reads schedule from CloudAccount rather than the legacy AWS mirror", () => {
+  const form = accountToForm(awsAccount);
+  assert.equal(form.aws.schedule_enabled, false);
+  assert.equal(form.aws.scan_interval_hours, 24);
+});
 
 test("OCI create payload never contains AWS fields and preserves explicit scope", () => {
   const form = createEmptyAccountForm("oci");

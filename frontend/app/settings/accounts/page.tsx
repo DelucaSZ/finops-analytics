@@ -69,9 +69,9 @@ function scopeSummary(account: CloudAccount) {
 
 function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
   if (!capabilities?.scheduling) return "Não implementado";
-  const aws = account.aws_configuration;
-  if (!aws) return "Indisponível";
-  return aws.schedule_enabled ? "A cada " + aws.scan_interval_hours + "h" : "Desativado";
+  return account.schedule_enabled
+    ? "A cada " + account.scan_interval_hours + "h"
+    : "Desativado";
 }
 
 export default function AccountsPage() {

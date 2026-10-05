@@ -48,8 +48,8 @@ export function accountToForm(account) {
       external_id: account.aws_configuration.external_id,
       regions: account.aws_configuration.regions.join(", "),
       is_management_account: account.aws_configuration.is_management_account,
-      schedule_enabled: account.aws_configuration.schedule_enabled,
-      scan_interval_hours: account.aws_configuration.scan_interval_hours,
+      schedule_enabled: account.schedule_enabled,
+      scan_interval_hours: account.scan_interval_hours,
     };
   }
 
@@ -131,10 +131,10 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
     if (Boolean(form.aws.is_management_account) !== current.is_management_account) {
       configuration.is_management_account = Boolean(form.aws.is_management_account);
     }
-    if (Boolean(form.aws.schedule_enabled) !== current.schedule_enabled) {
+    if (Boolean(form.aws.schedule_enabled) !== account.schedule_enabled) {
       configuration.schedule_enabled = Boolean(form.aws.schedule_enabled);
     }
-    if (Number(form.aws.scan_interval_hours) !== current.scan_interval_hours) {
+    if (Number(form.aws.scan_interval_hours) !== account.scan_interval_hours) {
       configuration.scan_interval_hours = Number(form.aws.scan_interval_hours);
     }
     if (Object.keys(configuration).length) payload.configuration = configuration;
