@@ -10,7 +10,7 @@ import app.models  # noqa: F401
 from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
-from app.models.account import AwsAccount, CloudAccount
+from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
@@ -41,33 +41,57 @@ def enqueue_due_scans(db: Session) -> None:
     now = datetime.now(UTC)
     due_accounts = list(
         db.scalars(
-            select(AwsAccount)
-            .join(CloudAccount, AwsAccount.cloud_account_id == CloudAccount.id)
-            .where(
+            select(CloudAccount).where(
                 CloudAccount.provider.in_(providers_supporting(ProviderOperation.SCHEDULING)),
                 CloudAccount.enabled.is_(True),
-                AwsAccount.schedule_enabled.is_(True),
-                AwsAccount.next_scan_at.is_not(None),
-                AwsAccount.next_scan_at <= now,
+                CloudAccount.schedule_enabled.is_(True),
+                CloudAccount.next_scan_at.is_not(None),
+                CloudAccount.next_scan_at <= now,
             )
         )
     )
     for account in due_accounts:
         active = db.scalar(
             select(Scan).where(
-                Scan.cloud_account_id == account.cloud_account_id,
+                Scan.cloud_account_id == account.id,
                 Scan.status.in_(["pending", "running"]),
             )
         )
+        previous_next_scan_at = account.next_scan_at
         if active is None:
-            db.add(
-                Scan(
-                    account_id=account.id,
-                    cloud_account_id=account.cloud_account_id,
-                    trigger="scheduled",
-                )
+            legacy_account_id = (
+                account.aws_configuration.id if account.aws_configuration is not None else None
+            )
+            scan = Scan(
+                account_id=legacy_account_id,
+                cloud_account_id=account.id,
+                trigger="scheduled",
+            )
+            db.add(scan)
+            db.flush()
+            logger.info(
+                "Scheduled collection queued provider=%s cloud_account_id=%s "
+                "native_account_id=%s scan_id=%s trigger=scheduled previous_next_scan_at=%s "
+                "interval_hours=%s",
+                account.provider,
+                account.id,
+                account.native_account_id,
+                scan.id,
+                previous_next_scan_at,
+                account.scan_interval_hours,
             )
         account.next_scan_at = now + timedelta(hours=account.scan_interval_hours)
+        logger.info(
+            "Schedule advanced provider=%s cloud_account_id=%s native_account_id=%s "
+            "previous_next_scan_at=%s next_scan_at=%s interval_hours=%s active_scan=%s",
+            account.provider,
+            account.id,
+            account.native_account_id,
+            previous_next_scan_at,
+            account.next_scan_at,
+            account.scan_interval_hours,
+            active.id if active is not None else None,
+        )
     db.commit()
 
 
