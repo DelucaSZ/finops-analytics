@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0016_provider_neutral_scan_queue"
+            == "0017_oci_manual_collection"
         )
         assert (
             compare_metadata(
@@ -789,6 +789,17 @@ def test_stage22_2_migration_backfills_provider_neutral_scan_identity(migration_
             if foreign_key["constrained_columns"] == ["cloud_account_id"]
         )
         assert cloud_fk["referred_table"] == "cloud_accounts"
+
+        command.upgrade(cfg, "0017_oci_manual_collection")
+        inspector = inspect(connection)
+        columns = {column["name"]: column for column in inspector.get_columns("scans")}
+        assert columns["account_id"]["nullable"] is True
+        assert columns["cloud_account_id"]["nullable"] is False
+        preserved = connection.execute(
+            select(migrated_scans).where(migrated_scans.c.id == "stage22-scan-a1")
+        ).one()
+        assert preserved.account_id == 11
+        assert preserved.cloud_account_id == 101
 
 
 def test_stage22_2_migration_refuses_invalid_scan_cloud_account_link(migration_engine):

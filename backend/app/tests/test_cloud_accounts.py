@@ -900,7 +900,7 @@ def test_oci_mutations_and_connection_test_remain_admin_only(auth_env, oci_encry
     )
 
 
-def test_oci_account_cannot_enter_aws_scan_pipeline(auth_env, oci_encryption_key):
+def test_oci_account_enters_provider_neutral_scan_pipeline(auth_env, oci_encryption_key):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     created = _create_oci(client, tokens, _oci_payload(pem, fingerprint)).json()
@@ -914,10 +914,16 @@ def test_oci_account_cannot_enter_aws_scan_pipeline(auth_env, oci_encryption_key
         f"/api/v1/cloud-accounts/{created['id']}/scans",
         headers=headers(tokens),
     )
-    assert response.status_code == 409
+    assert response.status_code == 202
+    payload = response.json()
+    assert payload["account_id"] is None
+    assert payload["trigger"] == "manual"
 
     with Session(engine) as db:
-        assert db.scalar(select(func.count()).select_from(Scan)) == scans_before
+        scan = db.get(Scan, payload["id"])
+        assert scan.cloud_account_id == created["id"]
+        assert scan.account_id is None
+        assert db.scalar(select(func.count()).select_from(Scan)) == scans_before + 1
         assert db.scalar(select(func.count()).select_from(CollectionRun)) == runs_before
 
 

@@ -3316,3 +3316,37 @@ fingerprint v1 provider-aware existente: provider + account + region + resource 
 **22.11 — Habilitação operacional da coleta OCI**, conectando Discovery + Cloud Advisor + Usage +
 Monitoring + Correlation Engine + OCI Analyzers ao pipeline comum de Findings/Opportunities. Somente
 após a validação desse pipeline as capabilities de coleta manual OCI poderão ser alteradas.
+
+
+## Atividade 22.11 — Habilitação operacional da coleta manual OCI
+
+Status: implementada em branch dedicada e validada por CI antes de merge.
+
+### Escopo entregue
+
+- `OciCollectionExecutor` implementado e registrado no executor registry provider-aware ao lado do `AwsCollectionExecutor`.
+- `Scan.cloud_account_id` permanece a identidade provider-neutral obrigatória; `Scan.account_id` continua sendo a FK legada para `aws_accounts`, agora nullable para permitir OCI sem conta AWS fictícia.
+- A migration `0017_oci_manual_collection` torna somente `scans.account_id` nullable, preservando FK, histórico AWS, IDs, timestamps e vínculos existentes.
+- Para AWS, scans continuam preenchendo `cloud_account_id` e `account_id`; para OCI, `cloud_account_id` é preenchido e `account_id` permanece `NULL`.
+- A queue manual continua protegendo concorrência por `Scan.cloud_account_id`, bloqueando scans `pending`/`running` da mesma conta independentemente de provider.
+- OCI passa a expor `manual_collection=true`; `scheduling=false` e `finops_policies=false` permanecem inalterados. Azure e GCP não foram habilitados.
+- O endpoint canônico continua sendo `POST /api/v1/cloud-accounts/{cloud_account_id}/scans`; nenhum endpoint OCI temporário foi criado.
+- O worker resolve o provider por `Scan.cloud_account_id -> CloudAccount.provider` e seleciona `OciCollectionExecutor` pelo registry.
+- O executor resolve configuração e credenciais OCI, valida a tenancy nativa e executa, em modo read-only: Discovery, Cloud Advisor, Usage API, Monitoring, Correlation Engine e os analyzers OCI entregues na 22.10.
+- Os datasets da execução são reutilizados entre correlation/analyzers; não há Discovery, Usage ou Monitoring duplicado por recurso ou analyzer.
+- O executor devolve `CollectionExecutionResult`; fingerprint, deduplicação, `Opportunity`, `OpportunityObservation`, lifecycle, finalização de `CollectionRun` e rebuild de dashboard permanecem responsabilidades do pipeline comum.
+- `CollectionRun.provider="oci"` e `CollectionRun.account_id` usa `CloudAccount.native_account_id` (tenancy OCID). O scope persiste somente regiões, compartments e flags de escopo não sensíveis.
+- `CollectionRun.resources_analyzed` usa a quantidade de recursos normalizados pelo Discovery. `CollectionRun.opportunities_found` mantém a semântica global do worker: fingerprints lógicos observados na coleta, não apenas Opportunities recém-criadas.
+- Fingerprint/deduplicação permanecem provider-neutral; custo, evidence, timestamp e `CollectionRun.id` não participam da identidade lógica. Coletas sucessivas da mesma condição reutilizam a Opportunity e criam novas Observations.
+- Decisões humanas `TREATED`/`REJECTED` continuam seguindo o lifecycle provider-neutral e não são reabertas silenciosamente por uma nova coleta OCI.
+- Falhas específicas de Cloud Advisor, Usage ou Monitoring podem ser preservadas como warnings/cobertura parcial sem converter dados desconhecidos em zero e sem marcar automaticamente a conexão como inválida.
+- Falhas de credenciais, signing, private key, fingerprint ou tenancy incompatível permanecem fatais e podem atualizar `CloudAccount.connection_status=error`.
+- Nenhuma private key, passphrase, encryption key, signer ou payload SDK bruto é persistido em Scan, CollectionRun, Opportunity, Observation ou evidence.
+- A coleta é estritamente read-only em relação à OCI; nenhuma recommendation é aplicada e nenhum recurso OCI é alterado.
+
+### Limites deliberados
+
+- O botão global `Executar coleta` na tela de Coletas permanece para a Atividade 22.12.
+- A generalização de scheduling para `CloudAccount` permanece para a Atividade 22.13.
+- O scheduler OCI permanece para a Atividade 22.14.
+- Não foram implementados recorrência OCI, rightsizing avançado, novos analyzers, auto-remediation, Azure ou GCP.

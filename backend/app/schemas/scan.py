@@ -13,7 +13,7 @@ class ScanRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     id: str
-    account_id: int
+    account_id: int | None
     status: str
     trigger: str
     started_at: datetime | None

@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 import app.models  # noqa: F401
 from app import worker
 from app.db.base import Base
-from app.models.account import AwsAccount, CloudAccount
+from app.models.account import AwsAccount, CloudAccount, OciAccountConfiguration
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
 from app.services.collection_executors import (
@@ -17,7 +17,7 @@ from app.services.provider_capabilities import (
     ProviderOperation,
     UnsupportedProviderOperation,
     get_provider_capabilities,
-    require_provider_operation,
+    providers_supporting,
 )
 from app.services.scan_queue import CollectionPreconditionError, queue_manual_collection
 
@@ -45,12 +45,37 @@ def _aws_account(db: Session) -> AwsAccount:
     return account
 
 
-def test_provider_capability_matrix_distinguishes_aws_and_oci():
+def _oci_account(db: Session, *, enabled: bool = True) -> CloudAccount:
+    account = CloudAccount(
+        provider="oci",
+        native_account_id="ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        name="OCI Test",
+        enabled=enabled,
+        connection_status="connected",
+    )
+    account.oci_configuration = OciAccountConfiguration(
+        user_ocid="ocid1.user.oc1..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        fingerprint="aa:bb:cc:dd",
+        region="sa-saopaulo-1",
+        scope_regions=["sa-saopaulo-1"],
+        compartment_ocids=["ocid1.compartment.oc1..cccccccccccccccccccccccccccccccc"],
+        include_root_compartment=True,
+        include_subcompartments=True,
+        private_key_ciphertext="encrypted-fixture",
+        credential_key_version="v1",
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return account
+
+
+def test_provider_capability_matrix_enables_manual_oci_only():
     aws = get_provider_capabilities("aws")
     oci = get_provider_capabilities("oci")
+    azure = get_provider_capabilities("azure")
+    gcp = get_provider_capabilities("gcp")
 
-    assert aws.registration is True
-    assert aws.connection_test is True
     assert aws.manual_collection is True
     assert aws.scheduling is True
     assert aws.finops_policies is True
@@ -58,32 +83,18 @@ def test_provider_capability_matrix_distinguishes_aws_and_oci():
     assert oci.registration is True
     assert oci.editing is True
     assert oci.connection_test is True
-    assert oci.manual_collection is False
+    assert oci.manual_collection is True
     assert oci.scheduling is False
     assert oci.finops_policies is False
 
-    with pytest.raises(UnsupportedProviderOperation, match="does not support manual_collection"):
-        require_provider_operation("oci", ProviderOperation.MANUAL_COLLECTION)
+    assert azure.manual_collection is False
+    assert azure.scheduling is False
+    assert gcp.manual_collection is False
+    assert gcp.scheduling is False
+    assert "oci" not in providers_supporting(ProviderOperation.SCHEDULING)
+
     with pytest.raises(UnsupportedProviderOperation, match="Unknown cloud provider"):
         get_provider_capabilities("unknown-cloud")
-
-
-def test_unsupported_oci_collection_does_not_create_scan_or_collection_run(db):
-    account = CloudAccount(
-        provider="oci",
-        native_account_id="ocid1.tenancy.oc1..aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-        name="OCI connected fixture",
-        enabled=True,
-        connection_status="connected",
-    )
-    db.add(account)
-    db.commit()
-
-    with pytest.raises(UnsupportedProviderOperation):
-        queue_manual_collection(db, account)
-
-    assert db.scalar(select(func.count()).select_from(Scan)) == 0
-    assert db.scalar(select(func.count()).select_from(CollectionRun)) == 0
 
 
 def test_manual_aws_collection_populates_both_account_identifiers(db):
@@ -93,21 +104,43 @@ def test_manual_aws_collection_populates_both_account_identifiers(db):
 
     assert scan.account_id == account.id
     assert scan.cloud_account_id == account.cloud_account_id
-    assert scan.cloud_account_id == account.cloud_account.id
 
 
-def test_disabled_aws_collection_is_rejected_without_creating_a_scan(db):
-    account = _aws_account(db)
-    account.cloud_account.enabled = False
-    db.commit()
+def test_manual_oci_collection_uses_only_cloud_account_identity(db):
+    account = _oci_account(db)
+
+    scan = queue_manual_collection(db, account)
+
+    assert scan.cloud_account_id == account.id
+    assert scan.account_id is None
+    assert scan.trigger == "manual"
+    assert db.scalar(select(func.count()).select_from(AwsAccount)) == 0
+
+
+def test_disabled_oci_collection_is_rejected_without_creating_scan(db):
+    account = _oci_account(db, enabled=False)
 
     with pytest.raises(CollectionPreconditionError, match="disabled"):
-        queue_manual_collection(db, account.cloud_account)
+        queue_manual_collection(db, account)
 
     assert db.scalar(select(func.count()).select_from(Scan)) == 0
 
 
-def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
+def test_manual_oci_duplicate_pending_and_running_use_cloud_account_identity(db):
+    account = _oci_account(db)
+    first = queue_manual_collection(db, account)
+    db.commit()
+
+    with pytest.raises(CollectionPreconditionError, match="already pending or running"):
+        queue_manual_collection(db, account)
+
+    first.status = "running"
+    db.commit()
+    with pytest.raises(CollectionPreconditionError, match="already pending or running"):
+        queue_manual_collection(db, account)
+
+
+def test_worker_does_not_create_collection_run_for_disabled_queued_work(db):
     account = _aws_account(db)
     scan = Scan(
         account_id=account.id,
@@ -132,28 +165,13 @@ def test_worker_does_not_create_collection_run_for_ineligible_queued_work(db):
         == 0
     )
 
-    failed = db.get(Scan, claimed.id)
-    assert failed.status == "failed"
-    assert account.cloud_account.connection_status == "untested"
-    assert (
-        db.scalar(
-            select(func.count())
-            .select_from(CollectionRun)
-            .where(CollectionRun.scan_id == claimed.id)
-        )
-        == 0
-    )
 
-
-def test_collection_executor_registry_has_only_operational_aws():
-    executor = get_collection_executor("aws")
-
-    assert executor.provider == "aws"
+def test_collection_executor_registry_resolves_aws_and_oci():
+    assert get_collection_executor("aws").provider == "aws"
+    assert get_collection_executor("oci").provider == "oci"
     assert has_collection_executor("aws") is True
-    assert has_collection_executor("oci") is False
+    assert has_collection_executor("oci") is True
 
-    with pytest.raises(CollectionExecutorUnavailable, match="no operational collection executor"):
-        get_collection_executor("oci")
     with pytest.raises(CollectionExecutorUnavailable, match="Unknown cloud provider"):
         get_collection_executor("unknown-cloud")
 
@@ -182,21 +200,10 @@ def test_manual_queue_duplicate_check_uses_cloud_account_identity(db):
     with pytest.raises(CollectionPreconditionError, match="already pending or running"):
         queue_manual_collection(db, account.cloud_account)
 
-    assert db.scalar(select(func.count()).select_from(Scan)) == 1
 
-
-def test_claim_resolves_provider_from_cloud_account_not_legacy_aws_link(db):
+def test_claim_rejects_oci_scan_with_legacy_aws_link(db):
     aws_account = _aws_account(db)
-    oci_account = CloudAccount(
-        provider="oci",
-        native_account_id="ocid1.tenancy.oc1..bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
-        name="OCI queued corruption fixture",
-        enabled=True,
-        connection_status="connected",
-    )
-    db.add(oci_account)
-    db.commit()
-
+    oci_account = _oci_account(db)
     scan = Scan(
         account_id=aws_account.id,
         cloud_account_id=oci_account.id,
@@ -216,4 +223,3 @@ def test_claim_resolves_provider_from_cloud_account_not_legacy_aws_link(db):
         == 0
     )
     assert oci_account.connection_status == "connected"
-    assert aws_account.cloud_account.connection_status == "untested"

@@ -990,13 +990,13 @@ def test_no_financial_or_metric_fields_are_emitted():
         assert forbidden not in text
 
 
-def test_oci_capabilities_and_executor_registry_remain_disabled_for_collection():
+def test_oci_capabilities_and_executor_registry_enable_manual_collection():
     capabilities = get_provider_capabilities("oci")
 
-    assert capabilities.manual_collection is False
+    assert capabilities.manual_collection is True
     assert capabilities.scheduling is False
     assert capabilities.finops_policies is False
-    assert has_collection_executor("oci") is False
+    assert has_collection_executor("oci") is True
     assert has_collection_executor("aws") is True
 
 

@@ -226,15 +226,15 @@ def test_plaintext_secrets_are_redacted_from_repr_and_logs(db, encryption_key, c
     assert PASSPHRASE_MARKER not in caplog.text
 
 
-def test_worker_uses_shared_settings_without_enabling_oci_collection(monkeypatch):
+def test_worker_uses_shared_settings_with_operational_oci_collection(monkeypatch):
     key = Fernet.generate_key().decode()
     monkeypatch.setattr(settings, "oci_credentials_key", SecretStr(key))
 
     assert worker.settings is settings
     assert worker.settings.oci_credentials_key.get_secret_value() == key
-    assert get_provider_capabilities("oci").manual_collection is False
+    assert get_provider_capabilities("oci").manual_collection is True
     assert get_provider_capabilities("oci").scheduling is False
-    assert has_collection_executor("oci") is False
+    assert has_collection_executor("oci") is True
 
 
 def test_aws_only_settings_do_not_require_oci_key(monkeypatch):
