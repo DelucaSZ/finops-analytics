@@ -15,6 +15,16 @@ ERROR_MESSAGES = {
     "ConnectTimeoutError": "Tempo limite de conexão com o provider (ConnectTimeoutError).",
     "ReadTimeoutError": "Tempo limite de resposta do provider (ReadTimeoutError).",
     "AWS account was removed or disabled": "A conta foi removida ou desabilitada.",
+    "OCI credential failure": (
+        "Falha de credencial OCI (OCI credential failure). Verifique a autenticação e a assinatura."
+    ),
+    "OCI authentication failure": (
+        "Falha de autenticação OCI (OCI authentication failure). "
+        "Verifique a autenticação e a assinatura."
+    ),
+    "OCI credential tenancy": (
+        "A credencial OCI não corresponde ao tenancy configurado (OCI credential tenancy)."
+    ),
 }
 GENERIC_ERROR = "Falha durante a coleta. Verifique a conexão e as permissões da conta."
 

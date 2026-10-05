@@ -11,8 +11,8 @@ class Scan(TimestampMixin, Base):
     __tablename__ = "scans"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    account_id: Mapped[int] = mapped_column(
-        ForeignKey("aws_accounts.id", ondelete="CASCADE"), index=True, nullable=False
+    account_id: Mapped[int | None] = mapped_column(
+        ForeignKey("aws_accounts.id", ondelete="CASCADE"), index=True, nullable=True
     )
     cloud_account_id: Mapped[int] = mapped_column(
         ForeignKey("cloud_accounts.id", ondelete="CASCADE"), index=True, nullable=False

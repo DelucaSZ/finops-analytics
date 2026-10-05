@@ -617,13 +617,13 @@ def test_cloud_advisor_is_list_only_and_does_not_use_get_or_mutation_endpoints()
         assert not hasattr(optimizer, forbidden)
 
 
-def test_oci_public_collection_capabilities_and_executor_remain_disabled():
+def test_oci_public_collection_capabilities_and_executor_are_enabled():
     capabilities = get_provider_capabilities("oci")
 
-    assert capabilities.manual_collection is False
+    assert capabilities.manual_collection is True
     assert capabilities.scheduling is False
     assert capabilities.finops_policies is False
-    assert has_collection_executor("oci") is False
+    assert has_collection_executor("oci") is True
     assert has_collection_executor("aws") is True
 
 

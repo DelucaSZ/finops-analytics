@@ -46,7 +46,7 @@ _CAPABILITIES: dict[str, ProviderCapabilities] = {
         registration=True,
         editing=True,
         connection_test=True,
-        manual_collection=False,
+        manual_collection=True,
         scheduling=False,
         finops_policies=False,
     ),

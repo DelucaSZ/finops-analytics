@@ -124,10 +124,10 @@ def test_latest_failed_execution_does_not_replace_latest_valid_collection(dashbo
         "registered_accounts": 3,
         "enabled_accounts": 3,
         "disabled_accounts": 0,
-        "collection_supported_accounts": 2,
-        "collection_eligible_accounts": 2,
-        "collection_unsupported_accounts": 1,
-        "eligible_without_execution": 0,
+        "collection_supported_accounts": 3,
+        "collection_eligible_accounts": 3,
+        "collection_unsupported_accounts": 0,
+        "eligible_without_execution": 1,
     }
 
     account = next(item for item in health["items"] if item["account_id"] == "111111111111")
