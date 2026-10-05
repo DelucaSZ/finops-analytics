@@ -86,10 +86,7 @@ def test_schedule_migration_preserves_aws_and_defaults_other_providers(tmp_path)
                     _aws(22, 202, "222222222222", False, 168, future, now),
                 ],
             )
-            original = {
-                row.cloud_account_id: row
-                for row in connection.execute(select(aws)).mappings()
-            }
+            original = {row.cloud_account_id: row for row in connection.execute(select(aws)).mappings()}
 
             _migrate(connection, "0018_cloud_account_scheduling")
 
