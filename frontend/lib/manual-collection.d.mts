@@ -1,6 +1,6 @@
 import type { CloudAccount, ProviderCapabilities } from "./types";
 
-// Type-only compatibility for the manual collection helpers used by the settings UI.
+// Type-only compatibility for manual collection helpers consumed by the settings UI.
 export function isManualCollectionEligible(
   account: CloudAccount | null | undefined,
   capability: ProviderCapabilities | null | undefined,
