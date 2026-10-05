@@ -11,6 +11,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     event,
+    inspect,
 )
 from sqlalchemy.orm import Mapped, Session, mapped_column, relationship
 
@@ -142,6 +143,24 @@ class CloudAccountAuditEvent(Base):
     )
 
 
+def _adopt_legacy_schedule_write(account: AwsAccount, *, creating: bool) -> None:
+    """Map legacy AWS schedule writes into the authoritative CloudAccount fields."""
+
+    cloud_account = account.cloud_account
+    if cloud_account is None:
+        return
+    state = inspect(account)
+    schedule_changed = creating or any(
+        state.attrs[field].history.has_changes()
+        for field in ("schedule_enabled", "scan_interval_hours", "next_scan_at")
+    )
+    if not schedule_changed:
+        return
+    cloud_account.schedule_enabled = bool(account.schedule_enabled)
+    cloud_account.scan_interval_hours = account.scan_interval_hours or 24
+    cloud_account.next_scan_at = account.next_scan_at
+
+
 def _sync_aws_mirror(account: AwsAccount) -> None:
     cloud_account = account.cloud_account
     if cloud_account is None:
@@ -162,12 +181,13 @@ def _sync_aws_mirror(account: AwsAccount) -> None:
 
 @event.listens_for(Session, "before_flush")
 def _synchronize_aws_compatibility_mirrors(session, _flush_context, _instances) -> None:
-    """Bridge legacy fixtures once, then keep AWS compatibility columns read-only mirrors."""
+    """Bridge legacy fixtures/writes, then keep AWS compatibility columns as mirrors."""
 
-    candidates: list[AwsAccount] = []
+    candidates: list[tuple[AwsAccount, bool]] = []
     for item in tuple(session.new) + tuple(session.dirty):
         if isinstance(item, AwsAccount):
-            if item.cloud_account is None and item in session.new:
+            creating = item in session.new
+            if item.cloud_account is None and creating:
                 item.cloud_account = CloudAccount(
                     provider=CloudProvider.AWS.value,
                     native_account_id=item.aws_account_id,
@@ -182,14 +202,15 @@ def _synchronize_aws_compatibility_mirrors(session, _flush_context, _instances) 
                     scan_interval_hours=item.scan_interval_hours or 24,
                     next_scan_at=item.next_scan_at,
                 )
-            candidates.append(item)
+            candidates.append((item, creating))
         elif isinstance(item, CloudAccount) and item.aws_configuration is not None:
-            candidates.append(item.aws_configuration)
+            candidates.append((item.aws_configuration, False))
 
     seen: set[int] = set()
-    for account in candidates:
+    for account, creating in candidates:
         marker = id(account)
         if marker in seen:
             continue
         seen.add(marker)
+        _adopt_legacy_schedule_write(account, creating=creating)
         _sync_aws_mirror(account)
