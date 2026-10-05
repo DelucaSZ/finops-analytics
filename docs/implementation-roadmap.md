@@ -3350,3 +3350,40 @@ Status: implementada em branch dedicada e validada por CI antes de merge.
 - A generalização de scheduling para `CloudAccount` permanece para a Atividade 22.13.
 - O scheduler OCI permanece para a Atividade 22.14.
 - Não foram implementados recorrência OCI, rightsizing avançado, novos analyzers, auto-remediation, Azure ou GCP.
+---
+
+## Atividade 22.13 — Generalização do scheduling para CloudAccount
+
+**Status:** implementada na branch `stage22-13-cloud-account-scheduling` e proposta no PR #43.
+
+### Fonte de verdade e migration
+
+- `CloudAccount` é a fonte autoritativa para `schedule_enabled`, `scan_interval_hours` e `next_scan_at`.
+- A migration `0018_cloud_account_scheduling` preserva exatamente os schedules AWS, sem recalcular `next_scan_at`, e valida o backfill.
+- OCI e providers sem scheduling operacional recebem defaults seguros; OCI permanece com `scheduling=false`.
+- As colunas AWS de schedule permanecem temporariamente como espelhos de compatibilidade, sem constituir uma segunda fonte independente.
+- O downgrade copia os valores autoritativos para `AwsAccount` antes de remover os campos comuns.
+
+### Scheduler provider-neutral
+
+- `enqueue_due_scans` seleciona `CloudAccount` habilitada, com schedule habilitado e vencido, e usa `ProviderCapabilities.scheduling` como gate.
+- AWS continua com scheduling operacional; OCI não cria `Scan` scheduled mesmo se os campos forem forçados no banco.
+- Scheduled scans preservam `trigger=scheduled`, `cloud_account_id`, `account_id` legado AWS quando aplicável e a proteção contra `pending`/`running`.
+- Criação do `Scan` e avanço de `CloudAccount.next_scan_at` permanecem na mesma transação.
+
+### API e frontend
+
+- `CloudAccountRead` expõe os campos comuns de scheduling.
+- O payload AWS legado continua aceito e é mapeado para `CloudAccount`.
+- O formulário e o resumo AWS passam a ler os campos comuns; a capability é verificada antes do estado do schedule, mantendo OCI como `Não implementado`.
+- Nenhum controle de recorrência OCI foi adicionado.
+
+### Limites deliberados
+
+- OCI continua com `manual_collection=true` e `scheduling=false`.
+- Coleta manual AWS/OCI permanece independente do schedule.
+- Não foram adicionados CRON, timezone por schedule, múltiplos schedules ou novos collectors/analyzers.
+
+### Próxima atividade
+
+**22.14 — Habilitação do scheduler OCI**, reutilizando a infraestrutura provider-neutral e a mesma fila/pipeline.
