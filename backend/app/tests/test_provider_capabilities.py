@@ -72,7 +72,7 @@ def _oci_account(db: Session, *, enabled: bool = True) -> CloudAccount:
     return account
 
 
-def test_provider_capability_matrix_enables_manual_oci_only():
+def test_provider_capability_matrix_enables_manual_and_scheduled_oci():
     aws = get_provider_capabilities("aws")
     oci = get_provider_capabilities("oci")
     azure = get_provider_capabilities("azure")
@@ -86,14 +86,14 @@ def test_provider_capability_matrix_enables_manual_oci_only():
     assert oci.editing is True
     assert oci.connection_test is True
     assert oci.manual_collection is True
-    assert oci.scheduling is False
+    assert oci.scheduling is True
     assert oci.finops_policies is False
 
     assert azure.manual_collection is False
     assert azure.scheduling is False
     assert gcp.manual_collection is False
     assert gcp.scheduling is False
-    assert "oci" not in providers_supporting(ProviderOperation.SCHEDULING)
+    assert providers_supporting(ProviderOperation.SCHEDULING) == ("aws", "oci")
 
     with pytest.raises(UnsupportedProviderOperation, match="Unknown cloud provider"):
         get_provider_capabilities("unknown-cloud")
@@ -165,17 +165,50 @@ def test_scheduler_reads_cloud_account_and_queues_due_aws(db):
     assert account.next_scan_at == account.cloud_account.next_scan_at
 
 
-def test_scheduler_ignores_oci_even_if_schedule_fields_are_forced_due(db):
+def test_scheduler_queues_due_oci_without_legacy_aws_identity(db):
     account = _oci_account(db)
+    due_at = datetime.now(UTC) - timedelta(hours=1)
     account.schedule_enabled = True
-    account.scan_interval_hours = 1
-    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    account.scan_interval_hours = 24
+    account.next_scan_at = due_at
     db.commit()
 
     worker.enqueue_due_scans(db)
 
+    scan = db.scalar(select(Scan))
+    assert scan is not None
+    assert scan.trigger == "scheduled"
+    assert scan.cloud_account_id == account.id
+    assert scan.account_id is None
+    assert db.scalar(select(func.count()).select_from(AwsAccount)) == 0
+    persisted_next = account.next_scan_at
+    assert persisted_next is not None
+    if persisted_next.tzinfo is None:
+        persisted_next = persisted_next.replace(tzinfo=UTC)
+    assert persisted_next > due_at
+
+
+def test_scheduler_ignores_disabled_future_or_schedule_disabled_oci(db):
+    account = _oci_account(db)
+    account.schedule_enabled = False
+    account.scan_interval_hours = 24
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
     assert db.scalar(select(func.count()).select_from(Scan)) == 0
-    assert account.next_scan_at is not None
+
+    account.schedule_enabled = True
+    account.next_scan_at = datetime.now(UTC) + timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 0
+
+    account.enabled = False
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 0
 
 
 def test_scheduler_ignores_disabled_or_future_aws(db):
@@ -196,25 +229,57 @@ def test_scheduler_ignores_disabled_or_future_aws(db):
 
 
 def test_scheduler_duplicate_pending_and_running_do_not_create_second_scan(db):
-    account = _aws_account(db)
-    account.cloud_account.schedule_enabled = True
-    account.cloud_account.scan_interval_hours = 24
-    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    account = _oci_account(db)
+    account.schedule_enabled = True
+    account.scan_interval_hours = 24
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
     db.commit()
 
     worker.enqueue_due_scans(db)
     first = db.scalar(select(Scan))
     assert first is not None
     first.status = "pending"
-    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
     db.commit()
     worker.enqueue_due_scans(db)
     assert db.scalar(select(func.count()).select_from(Scan)) == 1
 
     first.status = "running"
-    account.cloud_account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
     db.commit()
     worker.enqueue_due_scans(db)
+    assert db.scalar(select(func.count()).select_from(Scan)) == 1
+
+
+def test_manual_oci_active_blocks_scheduled_duplicate(db):
+    account = _oci_account(db)
+    manual = queue_manual_collection(db, account)
+    account.schedule_enabled = True
+    account.scan_interval_hours = 24
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+
+    worker.enqueue_due_scans(db)
+
+    assert db.scalar(select(func.count()).select_from(Scan)) == 1
+    assert db.get(Scan, manual.id).trigger == "manual"
+
+
+def test_scheduled_oci_active_blocks_manual_duplicate(db):
+    account = _oci_account(db)
+    account.schedule_enabled = True
+    account.scan_interval_hours = 24
+    account.next_scan_at = datetime.now(UTC) - timedelta(hours=1)
+    db.commit()
+    worker.enqueue_due_scans(db)
+
+    scheduled = db.scalar(select(Scan))
+    assert scheduled is not None
+    assert scheduled.trigger == "scheduled"
+
+    with pytest.raises(CollectionPreconditionError, match="already pending or running"):
+        queue_manual_collection(db, account)
+
     assert db.scalar(select(func.count()).select_from(Scan)) == 1
 
 
