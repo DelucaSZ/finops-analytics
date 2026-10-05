@@ -1,4 +1,4 @@
-"""Move schedule state from AWS configuration to CloudAccount."""
+"""Generalize schedule state from AWS configuration to CloudAccount."""
 
 import sqlalchemy as sa
 from alembic import op
