@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Check, Play, X } from "lucide-react";
+import styles from "@/components/manual-collection-launcher.module.css";
 import { ApiError, api } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
 import {
@@ -160,10 +161,7 @@ export function ManualCollectionLauncher() {
 
   return (
     <>
-      <div
-        className="header-actions"
-        style={{ position: "absolute", top: 0, right: 0, zIndex: 2 }}
-      >
+      <div className={`${styles.launcher} header-actions`}>
         <button
           ref={openerRef}
           type="button"
@@ -176,7 +174,7 @@ export function ManualCollectionLauncher() {
 
       <div aria-live="polite">
         {message && (
-          <div className="alert success" style={{ marginTop: 0 }}>
+          <div className={`alert success ${styles.feedback}`}>
             <Check size={17} aria-hidden="true" /> {message}
           </div>
         )}
@@ -190,8 +188,7 @@ export function ManualCollectionLauncher() {
         onCancel={(event) => {
           if (submitting) event.preventDefault();
         }}
-        className="panel"
-        style={{ width: "min(92vw, 520px)", padding: 0 }}
+        className={`panel ${styles.dialog}`}
       >
         <form method="dialog" onSubmit={submit}>
           <div className="panel-heading">
@@ -210,13 +207,13 @@ export function ManualCollectionLauncher() {
             </button>
           </div>
 
-          <div style={{ display: "grid", gap: 18, padding: 22 }}>
-            <p id="manual-collection-description" style={{ margin: 0 }}>
+          <div className={styles.body}>
+            <p id="manual-collection-description" className={styles.description}>
               Selecione uma cloud e uma conta conectada. O escopo já configurado na conta será utilizado.
             </p>
 
             {loadError ? (
-              <div className="alert error" role="alert" style={{ margin: 0 }}>
+              <div className={`alert error ${styles.inlineAlert}`} role="alert">
                 {loadError}
               </div>
             ) : eligibleProviders.length === 0 ? (
@@ -228,7 +225,7 @@ export function ManualCollectionLauncher() {
               </div>
             ) : (
               <>
-                <label>
+                <label className={styles.field}>
                   Cloud
                   <select
                     aria-label="Cloud"
@@ -250,7 +247,7 @@ export function ManualCollectionLauncher() {
                   </select>
                 </label>
 
-                <label>
+                <label className={styles.field}>
                   Conta
                   <select
                     aria-label="Conta"
@@ -277,12 +274,12 @@ export function ManualCollectionLauncher() {
             )}
 
             {error && (
-              <div className="alert error" role="alert" style={{ margin: 0 }}>
+              <div className={`alert error ${styles.inlineAlert}`} role="alert">
                 {error}
               </div>
             )}
 
-            <div className="form-actions" style={{ marginTop: 0 }}>
+            <div className={styles.actions}>
               <button
                 type="button"
                 className="button ghost"
