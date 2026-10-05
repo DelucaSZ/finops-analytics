@@ -1,0 +1,104 @@
+name: Stage 22.13 one-off patch
+
+on:
+  push:
+    branches:
+      - stage22-13-cloud-account-scheduling
+    paths:
+      - .github/workflows/stage22-13-oneoff.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: stage22-13-cloud-account-scheduling
+          fetch-depth: 0
+      - name: Patch schedule summary and roadmap
+        shell: python
+        run: |
+          from pathlib import Path
+
+          page = Path("frontend/app/settings/accounts/page.tsx")
+          text = page.read_text()
+          old = '''function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
+            if (!capabilities?.scheduling) return "Não implementado";
+            const aws = account.aws_configuration;
+            if (!aws) return "Indisponível";
+            return aws.schedule_enabled ? "A cada " + aws.scan_interval_hours + "h" : "Desativado";
+          }'''
+          new = '''function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
+            if (!capabilities?.scheduling) return "Não implementado";
+            return account.schedule_enabled
+              ? "A cada " + account.scan_interval_hours + "h"
+              : "Desativado";
+          }'''
+          if old not in text:
+              raise SystemExit("scheduleSummary source block was not found")
+          page.write_text(text.replace(old, new, 1))
+
+          roadmap = Path("docs/implementation-roadmap.md")
+          roadmap_text = roadmap.read_text()
+          heading = "## Atividade 22.13 — Generalização do scheduling para CloudAccount"
+          if heading not in roadmap_text:
+              roadmap_text = roadmap_text.rstrip() + '''
+
+---
+
+## Atividade 22.13 — Generalização do scheduling para CloudAccount
+
+**Status:** implementada na branch `stage22-13-cloud-account-scheduling` e proposta no PR #43.
+
+### Fonte de verdade e migration
+
+- `CloudAccount` passa a ser a fonte autoritativa para `schedule_enabled`, `scan_interval_hours` e `next_scan_at`.
+- A migration `0018_cloud_account_scheduling` adiciona os campos comuns e faz backfill exato dos schedules AWS existentes, sem recalcular `next_scan_at`.
+- A migration valida o backfill e falha se encontrar associação AWS sem `cloud_account_id` ou referência inconsistente.
+- Contas OCI e providers sem scheduling operacional recebem defaults seguros: schedule desabilitado, intervalo estrutural padrão e `next_scan_at` nulo.
+- As colunas de schedule em `AwsAccount` foram mantidas temporariamente como espelhos de compatibilidade; não são mais a fonte de verdade. Writes do contrato legado são mapeados para `CloudAccount` e os espelhos são sincronizados na mesma unidade de trabalho.
+- O downgrade copia os valores autoritativos atuais de volta para `AwsAccount` antes de remover os campos comuns.
+
+### Scheduler provider-neutral
+
+- `enqueue_due_scans` seleciona `CloudAccount` habilitada, com schedule habilitado e vencido.
+- A seleção e a execução continuam condicionadas a `ProviderCapabilities.scheduling`.
+- AWS permanece com `scheduling=true`; OCI permanece com `scheduling=false`.
+- Um `CloudAccount` OCI com schedule forçado diretamente no banco continua sendo ignorado pelo scheduler.
+- Scheduled scans usam `trigger=scheduled`, `cloud_account_id` e preservam o `account_id` legado AWS quando aplicável.
+- A proteção contra scans `pending`/`running` continua baseada em `cloud_account_id`.
+- Criação do Scan e avanço de `CloudAccount.next_scan_at` permanecem na mesma transação; falha antes do commit não avança o schedule isoladamente.
+- A semântica AWS anterior foi preservada para ativação, desativação e alteração do intervalo.
+
+### API e frontend
+
+- `CloudAccountRead` expõe `schedule_enabled`, `scan_interval_hours` e `next_scan_at` de forma provider-neutral.
+- O contrato AWS legado de create/update continua aceito por compatibilidade, mas é mapeado para a fonte comum.
+- O formulário AWS continua com checkbox de agendamento e intervalos existentes; reload passa a ler os campos comuns.
+- O resumo de agendamento consulta primeiro a capability e depois os campos de `CloudAccount`; portanto OCI continua exibindo scheduling indisponível em vez de parecer apenas desativado.
+- Nenhum controle de recorrência OCI foi adicionado.
+
+### Limites deliberados
+
+- OCI continua com `manual_collection=true` e `scheduling=false`.
+- Nenhum Scan OCI scheduled é criado nesta atividade.
+- A coleta manual AWS e OCI permanece independente do schedule.
+- Não foram adicionados CRON, timezone por schedule, múltiplos schedules, hora do dia ou dias da semana.
+- Collectors, analyzers e regras FinOps não foram alterados para habilitar scheduling OCI.
+
+### Próxima atividade
+
+**22.14 — Habilitação do scheduler OCI**, reutilizando esta infraestrutura provider-neutral e o mesmo pipeline/fila, sem criar scheduler paralelo.
+'''
+              roadmap.write_text(roadmap_text)
+      - name: Remove one-off workflow and commit
+        run: |
+          git rm .github/workflows/stage22-13-oneoff.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/app/settings/accounts/page.tsx docs/implementation-roadmap.md
+          git commit -m "Document provider-neutral scheduling and finalize account summary"
+          git push origin HEAD:stage22-13-cloud-account-scheduling
