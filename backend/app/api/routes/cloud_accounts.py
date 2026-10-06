@@ -106,7 +106,10 @@ def _audit_schedule_changes(
             actor_id=actor_id,
             action=("schedule.enabled" if account.schedule_enabled else "schedule.disabled"),
             result="success",
-            detail=f"previous={str(previous_enabled).lower()} new={str(account.schedule_enabled).lower()}",
+            detail=(
+                f"previous={str(previous_enabled).lower()} "
+                f"new={str(account.schedule_enabled).lower()}"
+            ),
         )
     if account.scan_interval_hours != previous_interval:
         add_account_audit(
