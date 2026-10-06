@@ -12,7 +12,7 @@ Estado operacional atual:
 - não existe endpoint, fila, worker ou scheduler OCI específico;
 - nenhuma ação de escrita ou auto-remediation é executada na OCI.
 
-A configuração visual da recorrência OCI em **Configurações > Contas** será adicionada na Atividade 22.15. Habilitar a capability não ativa schedules automaticamente: uma conta só é considerada pelo scheduler quando `enabled=true`, `schedule_enabled=true` e `next_scan_at` está vencido conforme a semântica provider-neutral de `CloudAccount`.
+A configuração visual da recorrência OCI em **Configurações > Contas** será adicionada nas próximas subtasks da Atividade 22.15. O backend já aceita o contrato de escrita provider-neutral no `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são enviados no payload comum de create/update, enquanto `next_scan_at` permanece controlado exclusivamente pelo backend. Habilitar a capability não ativa schedules automaticamente: uma conta só é considerada pelo scheduler quando `enabled=true`, `schedule_enabled=true` e `next_scan_at` está vencido conforme a semântica provider-neutral de `CloudAccount`.
 
 ## Identidade e API Signing Key
 
@@ -62,6 +62,17 @@ O schedule é armazenado somente em `CloudAccount`:
 - `schedule_enabled`;
 - `scan_interval_hours`;
 - `next_scan_at`.
+
+O contrato de escrita é o mesmo para AWS e OCI. Um update de scheduling usa o endpoint comum de conta, por exemplo:
+
+```json
+{
+  "schedule_enabled": true,
+  "scan_interval_hours": 24
+}
+```
+
+`next_scan_at` não é aceito como input: ele é calculado pelo backend. `OciAccountConfiguration` não contém campos de scheduling; consequentemente, um PATCH somente de scheduling não exige nem reenvia private key/passphrase, não altera scope, não incrementa `credential_revision`/`configuration_revision` e não invalida `connection_status`.
 
 Quando uma conta OCI está habilitada, possui schedule explicitamente habilitado e está vencida, o scheduler comum cria um `Scan` com:
 
@@ -133,4 +144,4 @@ Evidence persistida é compacta e normalizada; payloads SDK completos, séries e
 
 ## Próxima atividade
 
-A Atividade 22.15 implementará a interface de recorrência OCI em **Configurações > Contas**, reutilizando os campos provider-neutral de `CloudAccount` e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
+As próximas subtasks da Atividade 22.15 implementarão a generalização de estado/payloads no frontend e a interface de recorrência OCI em **Configurações > Contas**, consumindo o contrato provider-neutral de `CloudAccount` e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
