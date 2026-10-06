@@ -3387,3 +3387,24 @@ Status: implementada em branch dedicada e validada por CI antes de merge.
 ### Próxima atividade
 
 **22.14 — Habilitação do scheduler OCI**, reutilizando a infraestrutura provider-neutral e a mesma fila/pipeline.
+
+## Atividade 22.15 — Interface de recorrência OCI
+
+**Status: concluída e pronta para revisão; merge pendente de solicitação explícita.**
+
+A Atividade 22.15 consolidou o scheduling de AWS e OCI sobre o contrato provider-neutral existente de `CloudAccount`, sem criar um segundo modelo de recorrência. Em **Configurações > Contas**, ambos os providers reutilizam o mesmo componente visual quando `ProviderCapabilities.scheduling=true`.
+
+- `CloudAccount.schedule_enabled` e `CloudAccount.scan_interval_hours` são os campos graváveis de scheduling.
+- `CloudAccount.next_scan_at` permanece backend-controlled e read-only; o frontend somente exibe o valor retornado.
+- A interface permite enable/disable e os intervalos suportados de 12h, 24h e 168h.
+- AWS mantém campos legados apenas como mirrors de compatibilidade; eles não são fonte de verdade.
+- `OciAccountConfiguration` não recebeu campos de scheduling.
+- Schedule-only OCI não reenvia private key/passphrase, não altera scope inalterado e não invalida connection status.
+- Coleta manual permanece independente do schedule para AWS e OCI.
+- AWS e OCI continuam usando o mesmo scheduler, a mesma fila e o mesmo worker provider-aware.
+- Nenhuma migration foi criada para a 22.15.
+- Nenhum endpoint específico de scheduling foi criado.
+- Nenhum scheduler, fila ou worker paralelo por provider foi criado.
+
+A 22.15 não implementa CRON, horário fixo, timezone por conta, múltiplos schedules, retries configuráveis ou observabilidade operacional avançada. Esses itens não são antecipados; a próxima evolução prevista é a **Atividade 22.16**.
+
