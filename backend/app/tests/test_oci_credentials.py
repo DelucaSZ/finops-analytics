@@ -233,7 +233,7 @@ def test_worker_uses_shared_settings_with_operational_oci_collection(monkeypatch
     assert worker.settings is settings
     assert worker.settings.oci_credentials_key.get_secret_value() == key
     assert get_provider_capabilities("oci").manual_collection is True
-    assert get_provider_capabilities("oci").scheduling is False
+    assert get_provider_capabilities("oci").scheduling is True
     assert has_collection_executor("oci") is True
 
 

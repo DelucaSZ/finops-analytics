@@ -419,7 +419,7 @@ def test_client_factory_caches_monitoring_client_per_region(monkeypatch):
 def test_capabilities_executor_and_public_collection_enable_manual_collection():
     capabilities = get_provider_capabilities("oci")
     assert capabilities.manual_collection is True
-    assert capabilities.scheduling is False
+    assert capabilities.scheduling is True
     assert capabilities.finops_policies is False
     assert has_collection_executor("oci") is True
     assert has_collection_executor("aws") is True

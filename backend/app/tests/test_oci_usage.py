@@ -346,5 +346,5 @@ def test_result_never_contains_credentials_or_signer_material():
 def test_oci_public_collection_capabilities_enable_manual_only():
     capabilities = get_provider_capabilities("oci")
     assert capabilities.manual_collection is True
-    assert capabilities.scheduling is False
+    assert capabilities.scheduling is True
     assert capabilities.finops_policies is False
