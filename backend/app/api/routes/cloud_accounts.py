@@ -91,6 +91,34 @@ def _record_failed_oci_mutation(
     db.commit()
 
 
+def _audit_schedule_changes(
+    db: Session,
+    *,
+    account,
+    actor_id: str,
+    previous_enabled: bool,
+    previous_interval: int,
+) -> None:
+    if account.schedule_enabled != previous_enabled:
+        add_account_audit(
+            db,
+            account=account,
+            actor_id=actor_id,
+            action=("schedule.enabled" if account.schedule_enabled else "schedule.disabled"),
+            result="success",
+            detail=f"previous={str(previous_enabled).lower()} new={str(account.schedule_enabled).lower()}",
+        )
+    if account.scan_interval_hours != previous_interval:
+        add_account_audit(
+            db,
+            account=account,
+            actor_id=actor_id,
+            action="schedule.interval_changed",
+            result="success",
+            detail=f"previous_hours={previous_interval} new_hours={account.scan_interval_hours}",
+        )
+
+
 @router.get("/aws/external-id", dependencies=[Depends(require_admin)])
 def generate_aws_external_id() -> dict[str, str]:
     return {"external_id": f"nuvemiq-{uuid.uuid4()}"}
@@ -170,12 +198,15 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
     "/{account_id}/scans",
     response_model=ScanRead,
     status_code=status.HTTP_202_ACCEPTED,
-    dependencies=[Depends(require_operator)],
 )
-def create_account_scan(account_id: int, db: Session = Depends(get_db)):
+def create_account_scan(
+    account_id: int,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+):
     account = _get_account(db, account_id)
     try:
-        scan = queue_manual_collection(db, account)
+        scan = queue_manual_collection(db, account, actor_id=actor.id)
         db.commit()
         db.refresh(scan)
         return scan
@@ -212,6 +243,8 @@ def update_account(
     account = _get_account(db, account_id)
     native_account_id = account.native_account_id
     provider = account.provider
+    previous_schedule_enabled = account.schedule_enabled
+    previous_scan_interval_hours = account.scan_interval_hours
     configuration = payload.configuration
     replacing_oci_credential = (
         provider == CloudProvider.OCI.value
@@ -227,6 +260,13 @@ def update_account(
                 payload,
                 actor_id=actor_id,
             )
+            _audit_schedule_changes(
+                db,
+                account=account,
+                actor_id=actor_id,
+                previous_enabled=previous_schedule_enabled,
+                previous_interval=previous_scan_interval_hours,
+            )
             db.commit()
             refreshed = get_cloud_account(db, account_id)
             if refreshed is None:
@@ -235,6 +275,13 @@ def update_account(
             return refreshed
 
         update_cloud_account(db, account, payload, actor_id=actor_id)
+        _audit_schedule_changes(
+            db,
+            account=account,
+            actor_id=actor_id,
+            previous_enabled=previous_schedule_enabled,
+            previous_interval=previous_scan_interval_hours,
+        )
         db.commit()
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
