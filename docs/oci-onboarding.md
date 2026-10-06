@@ -1,6 +1,6 @@
 # OCI onboarding — API Signing Key e coleta read-only
 
-O DeepOps suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada no backend**.
+O DeepOps suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada**.
 
 Estado operacional atual:
 
@@ -9,10 +9,11 @@ Estado operacional atual:
 - `finops_policies=false` para OCI;
 - a coleta manual usa o endpoint provider-neutral `POST /api/v1/cloud-accounts/{id}/scans`;
 - a coleta agendada usa o scheduler comum, a fila comum e o worker comum;
+- contas OCI podem configurar a coleta automática em **Configurações > Contas**, usando a mesma interface provider-neutral de AWS;
 - não existe endpoint, fila, worker ou scheduler OCI específico;
 - nenhuma ação de escrita ou auto-remediation é executada na OCI.
 
-O contrato de scheduling é provider-neutral em `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são campos comuns de create/update e `next_scan_at` permanece controlado exclusivamente pelo backend. O frontend da Task 22.15.2 também passa a modelar esses campos no nível comum do estado e dos builders de payload; configuração AWS/OCI contém apenas dados específicos do provider. A interface visual compartilhada de scheduling OCI continua reservada para a 22.15.3.
+O contrato de scheduling é provider-neutral em `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são campos comuns de create/update e `next_scan_at` permanece controlado exclusivamente pelo backend. A interface compartilhada de AWS/OCI é controlada pela capability `scheduling`; `next_scan_at` é exibido somente como leitura e nunca é calculado pelo frontend. Configuração AWS/OCI contém apenas dados específicos do provider.
 
 ## Identidade e API Signing Key
 
@@ -72,7 +73,9 @@ O contrato de escrita é o mesmo para AWS e OCI. Um update de scheduling usa o e
 }
 ```
 
-No frontend, create/update também enviam esses campos no nível comum. Um PATCH OCI somente de scheduling não serializa `configuration`, portanto não reenvia `private_key_pem`, `private_key_password`, `fingerprint`, `scope_regions`, `compartment_ocids`, `region` ou `user_ocid`. Alterações combinadas continuam parciais: scheduling permanece no nível comum e somente os campos OCI efetivamente alterados entram em `configuration`.
+Em **Configurações > Contas**, AWS e OCI usam o mesmo bloco visual de scheduling quando `capability.scheduling=true`. O usuário pode ativar/desativar a coleta automática, escolher um dos intervalos suportados e, em edição, visualizar `next_scan_at` como valor read-only retornado pelo backend. Providers com `scheduling=false` permanecem com a feature indisponível e não recebem controles operacionais.
+
+No frontend, create/update enviam os campos de scheduling no nível comum. Um PATCH OCI somente de scheduling não serializa `configuration`, portanto não reenvia `private_key_pem`, `private_key_password`, `fingerprint`, `scope_regions`, `compartment_ocids`, `region` ou `user_ocid`. Alterações combinadas continuam parciais: scheduling permanece no nível comum e somente os campos OCI efetivamente alterados entram em `configuration`.
 
 `next_scan_at` não é aceito como input: ele é calculado pelo backend. `OciAccountConfiguration` não contém campos de scheduling; consequentemente, um PATCH somente de scheduling não exige nem reenvia private key/passphrase, não altera scope, não incrementa `credential_revision`/`configuration_revision` e não invalida `connection_status`.
 
@@ -146,4 +149,4 @@ Evidence persistida é compacta e normalizada; payloads SDK completos, séries e
 
 ## Próxima atividade
 
-A Task 22.15.3 implementará a interface visual compartilhada de recorrência AWS/OCI em **Configurações > Contas**, consumindo o estado e os payloads provider-neutral preparados na 22.15.2 e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
+A Task 22.15.4 fará a validação integrada, regressões finais, documentação consolidada e abertura do PR da Atividade 22.15, sem merge na `main`.
