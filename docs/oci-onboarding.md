@@ -147,6 +147,8 @@ A coleta OCI é estritamente read-only. Ela não termina instâncias, remove/des
 
 Evidence persistida é compacta e normalizada; payloads SDK completos, séries extensas, respostas raw de billing, signer, private key, passphrase e chaves de criptografia não são persistidos.
 
-## Próxima atividade
+## Estado após a Atividade 22.15
 
-A Task 22.15.4 fará a validação integrada, regressões finais, documentação consolidada e abertura do PR da Atividade 22.15, sem merge na `main`.
+A interface de recorrência OCI está concluída em **Configurações > Contas**. AWS e OCI utilizam o mesmo contrato de `CloudAccount`, a mesma capability de scheduling, o mesmo scheduler, a mesma fila, o mesmo worker e a mesma lógica visual. A recorrência continua opcional e desativada por padrão; alterar somente o scheduling não exige reenvio de credenciais OCI.
+
+A próxima evolução prevista é a **Atividade 22.16**, dedicada à trilha operacional e observabilidade. Ela não é antecipada pela 22.15.
