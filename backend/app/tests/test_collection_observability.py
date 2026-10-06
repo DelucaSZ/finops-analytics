@@ -1,7 +1,9 @@
+import logging
 from types import SimpleNamespace
 
 import pytest
 
+from app.api.routes import cloud_accounts as cloud_account_routes
 from app.services.collection_errors import (
     GENERIC_ERROR,
     classify_collection_error,
@@ -11,6 +13,7 @@ from app.services.collection_executors import (
     AwsCollectionExecutor,
     OciCollectionExecutor,
     ProviderExecutionError,
+    _log_stage,
 )
 from app.services.oci_auth import OciConnectionSnapshot
 
@@ -127,3 +130,107 @@ def test_oci_authorization_error_does_not_invalidate_connection_status():
     )
     assert account.connection_status == "connected"
     assert account.last_error is None
+
+
+class _FakeDb:
+    def scalar(self, _statement):
+        return "run-correlation-1"
+
+
+@pytest.mark.parametrize(
+    ("provider", "trigger"),
+    [
+        ("aws", "manual"),
+        ("aws", "scheduled"),
+        ("oci", "manual"),
+        ("oci", "scheduled"),
+    ],
+)
+def test_stage_log_has_common_multicloud_correlation_context(caplog, provider, trigger):
+    account = SimpleNamespace(
+        provider=provider,
+        id=42,
+        native_account_id="native-account-1",
+    )
+    scan = SimpleNamespace(id="scan-correlation-1", trigger=trigger)
+
+    with caplog.at_level(logging.INFO, logger="deepops.collection_executor"):
+        _log_stage(
+            _FakeDb(),
+            account,
+            scan,
+            event="collection_stage_completed",
+            stage="analyzers" if provider == "oci" else "collectors",
+            duration_ms=125,
+            resource_count=37,
+            warning_count=2,
+        )
+
+    message = caplog.records[-1].getMessage()
+    assert f"provider={provider}" in message
+    assert "cloud_account_id=42" in message
+    assert "scan_id=scan-correlation-1" in message
+    assert "collection_run_id=run-correlation-1" in message
+    assert f"trigger={trigger}" in message
+    assert "duration_ms=125" in message
+    assert "resource_count=37" in message
+    assert "warning_count=2" in message
+    assert "stage=" in message
+
+
+def test_stage_error_log_has_safe_category_and_retryability(caplog):
+    account = SimpleNamespace(provider="oci", id=42, native_account_id="native-account-1")
+    scan = SimpleNamespace(id="scan-correlation-1", trigger="scheduled")
+    error = RuntimeError("Throttling SUPER_SECRET_OCI_PRIVATE_KEY")
+
+    with caplog.at_level(logging.INFO, logger="deepops.collection_executor"):
+        _log_stage(
+            _FakeDb(),
+            account,
+            scan,
+            event="collection_stage_failed",
+            stage="usage",
+            error=error,
+        )
+
+    message = caplog.records[-1].getMessage()
+    assert "stage=usage" in message
+    assert "error_category=rate_limit" in message
+    assert "retryable=true" in message
+    assert "SUPER_SECRET_OCI_PRIVATE_KEY" not in message
+
+
+def test_schedule_audit_records_only_safe_operational_changes(monkeypatch):
+    events = []
+
+    def capture(_db, **kwargs):
+        events.append(kwargs)
+
+    monkeypatch.setattr(cloud_account_routes, "add_account_audit", capture)
+    account = SimpleNamespace(
+        schedule_enabled=True,
+        scan_interval_hours=24,
+        provider="oci",
+        native_account_id="ocid1.tenancy.oc1..test",
+    )
+
+    cloud_account_routes._audit_schedule_changes(
+        object(),
+        account=account,
+        actor_id="operator-1",
+        previous_enabled=False,
+        previous_interval=12,
+    )
+
+    assert [event["action"] for event in events] == [
+        "schedule.enabled",
+        "schedule.interval_changed",
+    ]
+    assert all(event["actor_id"] == "operator-1" for event in events)
+    rendered = repr(events)
+    for secret in (
+        "SUPER_SECRET_OCI_PRIVATE_KEY",
+        "SUPER_SECRET_OCI_PASSPHRASE",
+        "SUPER_SECRET_AWS_SECRET_KEY",
+    ):
+        assert secret not in rendered
