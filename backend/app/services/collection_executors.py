@@ -476,9 +476,7 @@ class OciCollectionExecutor:
                 error=safe,
             )
             category = (
-                "authentication"
-                if exc.code != "local_configuration_invalid"
-                else "configuration"
+                "authentication" if exc.code != "local_configuration_invalid" else "configuration"
             )
             raise ProviderExecutionError(
                 self.provider,
