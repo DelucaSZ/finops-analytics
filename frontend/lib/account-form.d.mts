@@ -5,13 +5,13 @@ export type AccountFormState = {
   name: string;
   native_account_id: string;
   enabled: boolean;
+  schedule_enabled: boolean;
+  scan_interval_hours: number;
   aws: {
     role_arn: string;
     external_id: string;
     regions: string;
     is_management_account: boolean;
-    schedule_enabled: boolean;
-    scan_interval_hours: number;
   };
   oci: {
     user_ocid: string;
