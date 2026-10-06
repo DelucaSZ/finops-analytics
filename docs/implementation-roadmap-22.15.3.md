@@ -1,42 +1,86 @@
-# Task 22.15.3 — Interface compartilhada de scheduling AWS/OCI
+# Atividade 22.15 — Interface provider-neutral de scheduling AWS/OCI
 
-**Status:** implementada na branch `stage22-15-oci-scheduling-ui`, sem merge na `main`.
+**Status:** implementação concluída na branch `stage22-15-oci-scheduling-ui`; validação final realizada na Task 22.15.4 e PR aberto contra `main`, sem merge.
 
-> Addendum do roadmap para a Task 22.15.3. O arquivo principal `docs/implementation-roadmap.md` permanece como histórico cumulativo; este registro concentra a entrega incremental desta task.
+> Registro consolidado da Atividade 22.15. O roadmap cumulativo principal permanece como histórico das etapas anteriores; este addendum documenta as Tasks 22.15.1 a 22.15.4 e serve como registro da entrega enquanto a branch aguarda revisão.
 
-## Interface e fonte de verdade
+## Arquitetura e fonte de verdade
+
+- `CloudAccount` é a única fonte autoritativa para `schedule_enabled`, `scan_interval_hours` e `next_scan_at`.
+- Create/update usam os campos de scheduling no contrato comum de `CloudAccount`.
+- `next_scan_at` permanece backend-controlled e read-only; não é aceito em payload de escrita e não é calculado pelo frontend.
+- A disponibilidade de scheduling é determinada por `ProviderCapabilities.scheduling`.
+- AWS mantém seus campos legados de scheduling somente como mirrors de compatibilidade; eles não são fonte independente de verdade.
+- `OciAccountConfiguration` contém somente configuração específica OCI e não recebeu `schedule_enabled`, `scan_interval_hours` ou `next_scan_at`.
+- A Atividade 22.15 não cria migration, endpoint específico de scheduling, scheduler paralelo, fila paralela ou worker específico de OCI.
+
+## Tasks 22.15.1 a 22.15.3
+
+### 22.15.1 — contrato backend provider-neutral
+
+- Scheduling passou a ser gravável pelo contrato comum de `CloudAccount` para providers com capability `scheduling=true`.
+- O backend continua responsável pelo cálculo e pela limpeza de `next_scan_at` ao habilitar, alterar intervalo ou desabilitar a recorrência.
+- Update OCI somente de scheduling não toca configuração específica, credenciais, scope, revisions ou estado de conexão.
+- O adapter legado AWS continua sincronizado com os valores autoritativos de `CloudAccount`.
+
+### 22.15.2 — estado e payload frontend provider-neutral
+
+- `AccountFormState` representa `schedule_enabled` e `scan_interval_hours` no nível comum.
+- `accountToForm()` lê os valores de `CloudAccount`.
+- Builders de create/update enviam scheduling no nível comum para AWS e OCI.
+- `next_scan_at` não participa de payload de escrita.
+- PATCH OCI somente de scheduling não serializa `configuration`, não reenvia private key/passphrase/fingerprint e não altera scope inalterado.
+
+### 22.15.3 — interface compartilhada
 
 - AWS e OCI usam o mesmo componente visual de scheduling em **Configurações > Contas**.
-- A disponibilidade dos controles é determinada exclusivamente por `ProviderCapabilities.scheduling`; providers sem suporte exibem a feature como `Não implementado` sem controles operacionais.
-- `CloudAccount` continua sendo a única fonte de verdade para `schedule_enabled`, `scan_interval_hours` e `next_scan_at`.
-- O formulário altera somente os campos provider-neutral preparados na 22.15.2; não existem mirrors de scheduling no estado AWS/OCI do frontend.
-- `next_scan_at` é exibido em edição como valor read-only retornado pelo backend, usando o helper global `formatDate`; o frontend não calcula nem envia esse timestamp.
+- O toggle **Ativar coleta automática** altera somente `CloudAccount.schedule_enabled`.
+- O select compartilhado oferece somente 12h, 24h e 168h: `A cada 12 horas`, `Diariamente` e `Semanalmente`.
+- Providers sem `scheduling` exibem a feature como `Não implementado` e não recebem controles operacionais.
+- Em edição, `next_scan_at` é exibido somente como leitura por meio do helper de data/hora já existente.
+- O resumo da tabela é provider-neutral e não depende de `aws_configuration`.
+- O componente compartilhado recebe somente capability e campos comuns de scheduling; não recebe credenciais OCI.
 
-## UX compartilhada
+## Task 22.15.4 — validação integrada final
 
-- O toggle **Ativar coleta automática** representa somente `CloudAccount.schedule_enabled` e não altera o estado administrativo `enabled` da conta.
-- Os intervalos suportados continuam sendo 12h, 24h e 168h, com labels compartilhados entre select e resumo: `A cada 12 horas`, `Diariamente` e `Semanalmente`.
-- Com scheduling desabilitado, o select permanece visível e disabled e uma execução antiga não é apresentada como ativa.
-- Com scheduling habilitado e `next_scan_at=null`, a interface informa que a próxima execução ainda não está disponível, sem inventar timestamp.
-- O bloco compartilhado aparece também no create para providers com scheduling suportado, preservando o default `schedule_enabled=false`.
-- Coleta manual permanece independente do schedule e os botões provider-aware existentes não foram alterados.
+A revisão final confirmou o diff completo da branch contra a `main` de origem e preservou o escopo da 22.15:
 
-## Segurança, payload e RBAC
+- zero migrations novas na Atividade 22.15;
+- zero endpoints novos para scheduling;
+- zero scheduler/fila/worker paralelos por provider;
+- zero alteração de collectors, analyzers ou regras FinOps;
+- coleta manual AWS e OCI permanece independente do schedule;
+- scheduled AWS e OCI continuam entrando na mesma fila e no mesmo worker provider-aware;
+- a proteção comum contra scans concorrentes permanece baseada em `Scan.cloud_account_id`;
+- lifecycle de Opportunity/Observation não foi alterado;
+- RBAC existente continua sendo a autoridade para edição e coleta;
+- nenhum secret OCI foi adicionado a responses, payloads de scheduling, documentação ou logs da entrega.
 
-- Create/update continuam usando os builders provider-neutral; `next_scan_at` não participa de payload de escrita.
-- PATCH OCI somente de scheduling não serializa `configuration`, não reenvia private key, passphrase ou fingerprint e não altera scope OCI.
-- O componente de scheduling recebe apenas capability e campos comuns de scheduling; não recebe `oci_configuration`, credenciais ou o objeto completo da conta.
-- A permissão existente `canManageCloudAccounts` continua sendo o gate de edição; nenhuma permission nova foi criada.
-- Durante save, os controles do formulário ficam disabled e o botão mantém o estado `Salvando…`, evitando double submit.
+## Segurança OCI
 
-## Backend e limites
+- Private key e passphrase armazenadas nunca são carregadas de volta pelo formulário de edição.
+- O fluxo de replacement inicia com campos sensíveis vazios e permanece uma ação explícita e separada.
+- Schedule-only OCI não aciona replacement de credencial e não envia `private_key_pem`, `private_key_password`, fingerprint, região, User OCID ou scope inalterado.
+- A encryption key permanece restrita ao backend/worker e não faz parte do contrato frontend.
 
-- Nenhum arquivo backend foi alterado nesta task.
-- Nenhum endpoint, migration, scheduler, fila ou worker novo foi criado.
-- `OciAccountConfiguration` permanece sem campos de scheduling.
-- O scheduler/fila/worker comuns entregues nas tasks anteriores permanecem inalterados.
-- CRON, horário fixo, timezone por conta, múltiplos schedules, bulk scheduling e observabilidade avançada permanecem fora de escopo.
+## Operação final da 22.15
+
+```text
+AWS manual -> fila comum -> worker comum -> executor AWS
+AWS scheduled -> scheduler comum -> fila comum -> worker comum -> executor AWS
+OCI manual -> fila comum -> worker comum -> executor OCI
+OCI scheduled -> scheduler comum -> fila comum -> worker comum -> executor OCI
+```
+
+O trigger manual/scheduled é metadata da execução e não cria um pipeline alternativo. `CloudAccount` continua sendo a fonte de verdade do scheduling e `CollectionRun`/Opportunity/OpportunityObservation continuam usando o pipeline provider-neutral já existente.
+
+## UX e limites
+
+- Schedule é opcional e o default permanece `false`.
+- Habilitar uma conta não habilita recorrência automaticamente.
+- Desabilitar scheduling não remove a coleta manual.
+- Não foram implementados CRON, horário fixo, timezone por conta, múltiplos schedules, bulk scheduling, retries configuráveis, dashboards de scheduler, auto-disable, health score ou observabilidade da futura 22.16.
 
 ## Próxima atividade
 
-**22.15.4 — Validação integrada, regressões finais, documentação consolidada e abertura do PR da Atividade 22.15**, sem merge na `main`.
+A próxima evolução prevista é **22.16**, dedicada à trilha operacional/observabilidade do scheduling. Ela não é antecipada pela Atividade 22.15.
