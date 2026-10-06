@@ -12,8 +12,6 @@ export type AccountFormState = {
     external_id: string;
     regions: string;
     is_management_account: boolean;
-    schedule_enabled?: boolean;
-    scan_interval_hours?: number;
   };
   oci: {
     user_ocid: string;
