@@ -12,7 +12,7 @@ Estado operacional atual:
 - não existe endpoint, fila, worker ou scheduler OCI específico;
 - nenhuma ação de escrita ou auto-remediation é executada na OCI.
 
-A configuração visual da recorrência OCI em **Configurações > Contas** será adicionada nas próximas subtasks da Atividade 22.15. O backend já aceita o contrato de escrita provider-neutral no `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são enviados no payload comum de create/update, enquanto `next_scan_at` permanece controlado exclusivamente pelo backend. Habilitar a capability não ativa schedules automaticamente: uma conta só é considerada pelo scheduler quando `enabled=true`, `schedule_enabled=true` e `next_scan_at` está vencido conforme a semântica provider-neutral de `CloudAccount`.
+O contrato de scheduling é provider-neutral em `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são campos comuns de create/update e `next_scan_at` permanece controlado exclusivamente pelo backend. O frontend da Task 22.15.2 também passa a modelar esses campos no nível comum do estado e dos builders de payload; configuração AWS/OCI contém apenas dados específicos do provider. A interface visual compartilhada de scheduling OCI continua reservada para a 22.15.3.
 
 ## Identidade e API Signing Key
 
@@ -71,6 +71,8 @@ O contrato de escrita é o mesmo para AWS e OCI. Um update de scheduling usa o e
   "scan_interval_hours": 24
 }
 ```
+
+No frontend, create/update também enviam esses campos no nível comum. Um PATCH OCI somente de scheduling não serializa `configuration`, portanto não reenvia `private_key_pem`, `private_key_password`, `fingerprint`, `scope_regions`, `compartment_ocids`, `region` ou `user_ocid`. Alterações combinadas continuam parciais: scheduling permanece no nível comum e somente os campos OCI efetivamente alterados entram em `configuration`.
 
 `next_scan_at` não é aceito como input: ele é calculado pelo backend. `OciAccountConfiguration` não contém campos de scheduling; consequentemente, um PATCH somente de scheduling não exige nem reenvia private key/passphrase, não altera scope, não incrementa `credential_revision`/`configuration_revision` e não invalida `connection_status`.
 
@@ -144,4 +146,4 @@ Evidence persistida é compacta e normalizada; payloads SDK completos, séries e
 
 ## Próxima atividade
 
-As próximas subtasks da Atividade 22.15 implementarão a generalização de estado/payloads no frontend e a interface de recorrência OCI em **Configurações > Contas**, consumindo o contrato provider-neutral de `CloudAccount` e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
+A Task 22.15.3 implementará a interface visual compartilhada de recorrência AWS/OCI em **Configurações > Contas**, consumindo o estado e os payloads provider-neutral preparados na 22.15.2 e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
