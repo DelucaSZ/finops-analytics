@@ -5,15 +5,14 @@ The same helpers are applied on reads to protect historical rows. Unknown messag
 provider payloads, SQL parameters, URLs and tracebacks are intentionally not echoed.
 """
 
-from dataclasses import dataclass
-
-
 ERROR_MESSAGES = {
     "AccessDenied": "Acesso negado (AccessDenied). Verifique as permissões da coleta.",
     "UnauthorizedOperation": "Sem permissão (UnauthorizedOperation). Verifique a função de coleta.",
     "ExpiredToken": "Credencial temporária expirada (ExpiredToken). Verifique a autenticação.",
     "InvalidClientTokenId": "Credencial inválida (InvalidClientTokenId). Verifique a autenticação.",
-    "SignatureDoesNotMatch": "Assinatura inválida (SignatureDoesNotMatch). Verifique a autenticação.",
+    "SignatureDoesNotMatch": (
+        "Assinatura inválida (SignatureDoesNotMatch). Verifique a autenticação."
+    ),
     "NotAuthenticated": "Falha de autenticação no provider. Verifique as credenciais configuradas.",
     "NotAuthorizedOrNotFound": "Sem permissão para consultar esta fonte no provider.",
     "Forbidden": "Sem permissão para consultar esta fonte no provider.",
@@ -40,11 +39,18 @@ ERROR_MESSAGES = {
 GENERIC_ERROR = "Falha durante a coleta. Verifique a conexão e as permissões da conta."
 
 
-@dataclass(frozen=True)
 class CollectionErrorInfo:
-    category: str
-    retryable: bool | None
-    public_message: str
+    __slots__ = ("category", "retryable", "public_message")
+
+    def __init__(
+        self,
+        category: str,
+        retryable: bool | None,
+        public_message: str,
+    ) -> None:
+        self.category = category
+        self.retryable = retryable
+        self.public_message = public_message
 
 
 _AUTHENTICATION_TOKENS = (
@@ -113,7 +119,6 @@ _PROVIDER_SERVICE_TOKENS = (
     "serviceerror",
     "internalservererror",
     "badgateway",
-    "service unavailable",
     "gatewaytimeout",
     "service_unavailable",
     " 500",
