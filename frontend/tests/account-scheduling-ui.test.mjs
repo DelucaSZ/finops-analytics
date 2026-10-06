@@ -56,13 +56,13 @@ test("AWS and OCI page use one shared capability-gated scheduling component", as
   assert.match(component, /Não implementado para este provider/);
 });
 
-test("scheduling UI never accepts or computes next_scan_at", async () => {
+test("scheduling UI only displays backend-owned next_scan_at", async () => {
   const component = await readFile(new URL("../components/collection-schedule-fields.tsx", import.meta.url), "utf8");
   const page = await readFile(new URL("../app/settings/accounts/page.tsx", import.meta.url), "utf8");
 
   assert.match(component, /formatDate\(nextScanAt\)/);
   assert.doesNotMatch(component, /Date\.now|new Date|setHours|setTime/);
-  assert.doesNotMatch(page, /next_scan_at\s*:/);
+  assert.match(page, /nextScanAt=\{mode === "edit" \? editingAccount\?\.next_scan_at : null\}/);
 });
 
 test("OCI scheduling UI does not receive OCI credentials or configuration", async () => {
