@@ -15,9 +15,10 @@ from app.services.cloud_accounts import (
     _provider_neutral_schedule_changes,
 )
 from app.tests.test_cloud_accounts import (
-    TENANCY_OCID,
     _api_key,
     _oci_payload,
+)
+from app.tests.test_cloud_accounts import (
     oci_encryption_key as oci_encryption_key,
 )
 from app.tests.test_security import auth_env as auth_env
