@@ -172,8 +172,6 @@ class AwsCollectionExecutor:
         "invalidclienttokenid",
         "signaturedoesnotmatch",
         "authentication",
-        "accessdenied",
-        "acesso negado",
         "identidade aws",
     )
 
@@ -228,10 +226,12 @@ class AwsCollectionExecutor:
         expected_account_id = account.native_account_id
         regions = list(aws_account.regions)
 
-        # Cache the correlation id while the setup transaction is already open.
-        # Stage logging must not reopen a database transaction before cloud I/O.
+        # Cache correlation data while the setup transaction is already open, then
+        # detach loaded ORM rows so logging cannot reopen a transaction before cloud I/O.
         _cache_run_id(db, scan)
         db.expunge(aws_account)
+        db.expunge(account)
+        db.expunge(scan)
         db.commit()
 
         auth_started = time.monotonic()
@@ -243,7 +243,7 @@ class AwsCollectionExecutor:
                 raise RuntimeError("A identidade AWS não corresponde à conta configurada")
         except Exception as exc:
             info = classify_collection_error(exc)
-            connection_failure = info.category in {"authentication", "authorization"}
+            connection_failure = info.category == "authentication"
             if "identidade aws" in str(exc).lower():
                 info = classify_collection_error(RuntimeError("InvalidClientTokenId"))
                 connection_failure = True
@@ -457,8 +457,6 @@ class OciCollectionExecutor:
         scan: Scan,
     ) -> CollectionExecutionResult:
         self._configuration(db, account, scan=scan)
-        # The CollectionRun is already present at this point; cache its ID in the
-        # current setup transaction so stage logging itself never queries the DB.
         _cache_run_id(db, scan)
         credentials_started = time.monotonic()
         _log_stage(db, account, scan, event="collection_stage_started", stage="credentials")
@@ -536,6 +534,8 @@ class OciCollectionExecutor:
 
         # No ORM object carrying credentials is persisted. Release the transaction before
         # read-only OCI network I/O while retaining only the in-memory, repr-safe snapshot.
+        db.expunge(account)
+        db.expunge(scan)
         db.commit()
 
         def cached_credentials(_db, _account_id):
