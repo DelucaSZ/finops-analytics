@@ -11,7 +11,7 @@ from app.models.account import AwsAccount, CloudAccount, OciAccountConfiguration
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
-from app.services.collection_errors import classify_collection_error, sanitize_collection_error
+from app.services.collection_errors import classify_collection_error
 from app.services.collector_types import CollectedFinding
 from app.services.collectors import run_collectors
 from app.services.oci_analyzers import OciAnalysisService, OciAnalyzerRegistry
@@ -76,9 +76,19 @@ class CollectionExecutionResult:
     resources_analyzed: int = 0
 
 
-def _run_id(db: Session, scan: Scan) -> str:
+def _cache_run_id(db: Session, scan: Scan) -> str:
+    cached = getattr(scan, "_operational_collection_run_id", None)
+    if cached is not None:
+        return cached
     run_id = db.scalar(select(CollectionRun.id).where(CollectionRun.scan_id == scan.id))
-    return run_id or "missing"
+    cached = run_id or "missing"
+    setattr(scan, "_operational_collection_run_id", cached)
+    return cached
+
+
+def _run_id(db: Session, scan: Scan) -> str:
+    cached = getattr(scan, "_operational_collection_run_id", None)
+    return cached if cached is not None else _cache_run_id(db, scan)
 
 
 def _log_stage(
@@ -102,10 +112,11 @@ def _log_stage(
         suffix.append(f"warning_count={warning_count}")
     if error is not None:
         info = classify_collection_error(error)
+        retryable = str(info.retryable).lower() if info.retryable is not None else "unknown"
         suffix.extend(
             (
                 f"error_category={info.category}",
-                f"retryable={str(info.retryable).lower() if info.retryable is not None else 'unknown'}",
+                f"retryable={retryable}",
                 f"error={info.public_message}",
             )
         )
@@ -161,6 +172,9 @@ class AwsCollectionExecutor:
         "invalidclienttokenid",
         "signaturedoesnotmatch",
         "authentication",
+        "accessdenied",
+        "acesso negado",
+        "identidade aws",
     )
 
     @staticmethod
@@ -214,7 +228,9 @@ class AwsCollectionExecutor:
         expected_account_id = account.native_account_id
         regions = list(aws_account.regions)
 
-        # Release the database transaction before STS and collector network I/O.
+        # Cache the correlation id while the setup transaction is already open.
+        # Stage logging must not reopen a database transaction before cloud I/O.
+        _cache_run_id(db, scan)
         db.expunge(aws_account)
         db.commit()
 
@@ -224,9 +240,13 @@ class AwsCollectionExecutor:
             aws_session = assume_account_session(aws_account)
             identity = get_caller_identity(aws_session)
             if identity.account_id != expected_account_id:
-                raise RuntimeError("Assumed role returned a different AWS account")
+                raise RuntimeError("A identidade AWS não corresponde à conta configurada")
         except Exception as exc:
             info = classify_collection_error(exc)
+            connection_failure = info.category in {"authentication", "authorization"}
+            if "identidade aws" in str(exc).lower():
+                info = classify_collection_error(RuntimeError("InvalidClientTokenId"))
+                connection_failure = True
             _log_stage(
                 db,
                 account,
@@ -239,7 +259,7 @@ class AwsCollectionExecutor:
             raise ProviderExecutionError(
                 self.provider,
                 exc,
-                connection_failure=info.category == "authentication",
+                connection_failure=connection_failure,
                 stage="credentials",
                 category=info.category,
                 retryable=info.retryable,
@@ -437,6 +457,9 @@ class OciCollectionExecutor:
         scan: Scan,
     ) -> CollectionExecutionResult:
         self._configuration(db, account, scan=scan)
+        # The CollectionRun is already present at this point; cache its ID in the
+        # current setup transaction so stage logging itself never queries the DB.
+        _cache_run_id(db, scan)
         credentials_started = time.monotonic()
         _log_stage(db, account, scan, event="collection_stage_started", stage="credentials")
         try:
@@ -457,9 +480,9 @@ class OciCollectionExecutor:
                 safe,
                 connection_failure=True,
                 stage="credentials",
-                category="authentication"
-                if exc.code != "local_configuration_invalid"
-                else "configuration",
+                category=(
+                    "authentication" if exc.code != "local_configuration_invalid" else "configuration"
+                ),
                 retryable=False,
             ) from None
         except Exception as exc:
@@ -521,7 +544,8 @@ class OciCollectionExecutor:
         stage_started = time.monotonic()
         try:
             _log_stage(db, account, scan, event="collection_stage_started", stage=current_stage)
-            discovery = OciDiscoveryService(credential_resolver=cached_credentials).discover(snapshot)
+            discovery_service = OciDiscoveryService(credential_resolver=cached_credentials)
+            discovery = discovery_service.discover(snapshot)
             self._log_oci_result(
                 db,
                 account,
@@ -572,7 +596,8 @@ class OciCollectionExecutor:
             current_stage = "monitoring"
             stage_started = time.monotonic()
             _log_stage(db, account, scan, event="collection_stage_started", stage=current_stage)
-            monitoring = OciMonitoringService(credential_resolver=cached_credentials).collect_account(
+            monitoring_service = OciMonitoringService(credential_resolver=cached_credentials)
+            monitoring = monitoring_service.collect_account(
                 db,
                 account.id,
                 inventory=discovery,
