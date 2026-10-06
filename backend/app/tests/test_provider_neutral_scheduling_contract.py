@@ -148,7 +148,10 @@ def test_legacy_aws_configuration_schedule_is_only_a_compatibility_adapter(auth_
         assert mirror.scan_interval_hours == cloud.scan_interval_hours == 168
 
 
-def test_oci_schedule_only_update_does_not_touch_provider_configuration_or_connection(auth_env, oci_encryption_key):
+def test_oci_schedule_only_update_does_not_touch_provider_configuration_or_connection(
+    auth_env,
+    oci_encryption_key,
+):
     client, engine, tokens, _ = auth_env
     pem, fingerprint = _api_key()
     response = client.post(
