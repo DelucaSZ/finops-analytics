@@ -39,6 +39,7 @@ def _run_due_scheduled_oci(db, monkeypatch):
     assert scan.trigger == "scheduled"
     assert scan.cloud_account_id == account.id
     assert scan.account_id is None
+    db.commit()
 
     claimed = worker.claim_scan(db)
     assert claimed is not None
@@ -89,6 +90,7 @@ def test_manual_then_scheduled_oci_reuses_opportunities_and_adds_observations(db
         select(Scan).where(Scan.trigger == "scheduled", Scan.cloud_account_id == account.id)
     )
     assert scheduled is not None
+    db.commit()
     claimed_scheduled = worker.claim_scan(db)
     assert claimed_scheduled.id == scheduled.id
     worker.execute_scan(db, claimed_scheduled)
