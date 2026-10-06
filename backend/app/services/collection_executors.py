@@ -82,7 +82,7 @@ def _cache_run_id(db: Session, scan: Scan) -> str:
         return cached
     run_id = db.scalar(select(CollectionRun.id).where(CollectionRun.scan_id == scan.id))
     cached = run_id or "missing"
-    setattr(scan, "_operational_collection_run_id", cached)
+    scan._operational_collection_run_id = cached
     return cached
 
 
@@ -475,14 +475,17 @@ class OciCollectionExecutor:
                 duration_ms=_elapsed_ms(credentials_started),
                 error=safe,
             )
+            category = (
+                "authentication"
+                if exc.code != "local_configuration_invalid"
+                else "configuration"
+            )
             raise ProviderExecutionError(
                 self.provider,
                 safe,
                 connection_failure=True,
                 stage="credentials",
-                category=(
-                    "authentication" if exc.code != "local_configuration_invalid" else "configuration"
-                ),
+                category=category,
                 retryable=False,
             ) from None
         except Exception as exc:
