@@ -994,7 +994,7 @@ def test_oci_capabilities_and_executor_registry_enable_manual_collection():
     capabilities = get_provider_capabilities("oci")
 
     assert capabilities.manual_collection is True
-    assert capabilities.scheduling is False
+    assert capabilities.scheduling is True
     assert capabilities.finops_policies is False
     assert has_collection_executor("oci") is True
     assert has_collection_executor("aws") is True

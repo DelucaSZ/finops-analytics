@@ -14,13 +14,13 @@ export function createEmptyAccountForm(provider = "", externalId = "") {
     name: "",
     native_account_id: "",
     enabled: true,
+    schedule_enabled: false,
+    scan_interval_hours: 24,
     aws: {
       role_arn: "",
       external_id: externalId,
       regions: "sa-east-1",
       is_management_account: false,
-      schedule_enabled: false,
-      scan_interval_hours: 24,
     },
     oci: {
       user_ocid: "",
@@ -41,6 +41,8 @@ export function accountToForm(account) {
   form.name = account.name;
   form.native_account_id = account.native_account_id;
   form.enabled = account.enabled;
+  form.schedule_enabled = Boolean(account.schedule_enabled);
+  form.scan_interval_hours = Number(account.scan_interval_hours);
 
   if (account.aws_configuration) {
     form.aws = {
@@ -48,8 +50,6 @@ export function accountToForm(account) {
       external_id: account.aws_configuration.external_id,
       regions: account.aws_configuration.regions.join(", "),
       is_management_account: account.aws_configuration.is_management_account,
-      schedule_enabled: account.schedule_enabled,
-      scan_interval_hours: account.scan_interval_hours,
     };
   }
 
@@ -80,6 +80,8 @@ export function buildCreateAccountPayload(form) {
     native_account_id: form.native_account_id.trim(),
     name: form.name.trim(),
     enabled: Boolean(form.enabled),
+    schedule_enabled: Boolean(form.schedule_enabled),
+    scan_interval_hours: Number(form.scan_interval_hours),
   };
 
   if (form.provider === "aws") {
@@ -90,8 +92,6 @@ export function buildCreateAccountPayload(form) {
         external_id: form.aws.external_id.trim(),
         regions: csvList(form.aws.regions),
         is_management_account: Boolean(form.aws.is_management_account),
-        schedule_enabled: Boolean(form.aws.schedule_enabled),
-        scan_interval_hours: Number(form.aws.scan_interval_hours),
       },
     };
   }
@@ -120,6 +120,12 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
   const payload = {};
   if (form.name.trim() !== account.name) payload.name = form.name.trim();
   if (Boolean(form.enabled) !== account.enabled) payload.enabled = Boolean(form.enabled);
+  if (Boolean(form.schedule_enabled) !== account.schedule_enabled) {
+    payload.schedule_enabled = Boolean(form.schedule_enabled);
+  }
+  if (Number(form.scan_interval_hours) !== account.scan_interval_hours) {
+    payload.scan_interval_hours = Number(form.scan_interval_hours);
+  }
 
   if (account.provider === "aws" && account.aws_configuration) {
     const current = account.aws_configuration;
@@ -130,12 +136,6 @@ export function buildUpdateAccountPayload(account, form, options = {}) {
     if (!sameList(regions, current.regions)) configuration.regions = regions;
     if (Boolean(form.aws.is_management_account) !== current.is_management_account) {
       configuration.is_management_account = Boolean(form.aws.is_management_account);
-    }
-    if (Boolean(form.aws.schedule_enabled) !== account.schedule_enabled) {
-      configuration.schedule_enabled = Boolean(form.aws.schedule_enabled);
-    }
-    if (Number(form.aws.scan_interval_hours) !== account.scan_interval_hours) {
-      configuration.scan_interval_hours = Number(form.aws.scan_interval_hours);
     }
     if (Object.keys(configuration).length) payload.configuration = configuration;
   }
@@ -179,6 +179,9 @@ export function validateAccountForm(form, options = {}) {
   if (!SUPPORTED_ACCOUNT_PROVIDERS.includes(form.provider)) {
     errors.provider = "Selecione AWS ou OCI.";
     return errors;
+  }
+  if (![12, 24, 168].includes(Number(form.scan_interval_hours))) {
+    errors.scan_interval_hours = "Selecione um intervalo de análise válido.";
   }
 
   if (form.provider === "aws") {

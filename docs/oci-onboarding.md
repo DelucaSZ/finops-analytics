@@ -1,6 +1,6 @@
 # OCI onboarding — API Signing Key e coleta read-only
 
-O DeepOps suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada no backend**.
+O DeepOps suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada**.
 
 Estado operacional atual:
 
@@ -9,10 +9,11 @@ Estado operacional atual:
 - `finops_policies=false` para OCI;
 - a coleta manual usa o endpoint provider-neutral `POST /api/v1/cloud-accounts/{id}/scans`;
 - a coleta agendada usa o scheduler comum, a fila comum e o worker comum;
+- contas OCI podem configurar a coleta automática em **Configurações > Contas**, usando a mesma interface provider-neutral de AWS;
 - não existe endpoint, fila, worker ou scheduler OCI específico;
 - nenhuma ação de escrita ou auto-remediation é executada na OCI.
 
-A configuração visual da recorrência OCI em **Configurações > Contas** será adicionada na Atividade 22.15. Habilitar a capability não ativa schedules automaticamente: uma conta só é considerada pelo scheduler quando `enabled=true`, `schedule_enabled=true` e `next_scan_at` está vencido conforme a semântica provider-neutral de `CloudAccount`.
+O contrato de scheduling é provider-neutral em `CloudAccount`: `schedule_enabled` e `scan_interval_hours` são campos comuns de create/update e `next_scan_at` permanece controlado exclusivamente pelo backend. A interface compartilhada de AWS/OCI é controlada pela capability `scheduling`; `next_scan_at` é exibido somente como leitura e nunca é calculado pelo frontend. Configuração AWS/OCI contém apenas dados específicos do provider.
 
 ## Identidade e API Signing Key
 
@@ -62,6 +63,21 @@ O schedule é armazenado somente em `CloudAccount`:
 - `schedule_enabled`;
 - `scan_interval_hours`;
 - `next_scan_at`.
+
+O contrato de escrita é o mesmo para AWS e OCI. Um update de scheduling usa o endpoint comum de conta, por exemplo:
+
+```json
+{
+  "schedule_enabled": true,
+  "scan_interval_hours": 24
+}
+```
+
+Em **Configurações > Contas**, AWS e OCI usam o mesmo bloco visual de scheduling quando `capability.scheduling=true`. O usuário pode ativar/desativar a coleta automática, escolher um dos intervalos suportados e, em edição, visualizar `next_scan_at` como valor read-only retornado pelo backend. Providers com `scheduling=false` permanecem com a feature indisponível e não recebem controles operacionais.
+
+No frontend, create/update enviam os campos de scheduling no nível comum. Um PATCH OCI somente de scheduling não serializa `configuration`, portanto não reenvia `private_key_pem`, `private_key_password`, `fingerprint`, `scope_regions`, `compartment_ocids`, `region` ou `user_ocid`. Alterações combinadas continuam parciais: scheduling permanece no nível comum e somente os campos OCI efetivamente alterados entram em `configuration`.
+
+`next_scan_at` não é aceito como input: ele é calculado pelo backend. `OciAccountConfiguration` não contém campos de scheduling; consequentemente, um PATCH somente de scheduling não exige nem reenvia private key/passphrase, não altera scope, não incrementa `credential_revision`/`configuration_revision` e não invalida `connection_status`.
 
 Quando uma conta OCI está habilitada, possui schedule explicitamente habilitado e está vencida, o scheduler comum cria um `Scan` com:
 
@@ -131,6 +147,8 @@ A coleta OCI é estritamente read-only. Ela não termina instâncias, remove/des
 
 Evidence persistida é compacta e normalizada; payloads SDK completos, séries extensas, respostas raw de billing, signer, private key, passphrase e chaves de criptografia não são persistidos.
 
-## Próxima atividade
+## Estado após a Atividade 22.15
 
-A Atividade 22.15 implementará a interface de recorrência OCI em **Configurações > Contas**, reutilizando os campos provider-neutral de `CloudAccount` e a capability `scheduling=true`. Nenhum segundo modelo de scheduling será criado.
+A interface de recorrência OCI está concluída em **Configurações > Contas**. AWS e OCI utilizam o mesmo contrato de `CloudAccount`, a mesma capability de scheduling, o mesmo scheduler, a mesma fila, o mesmo worker e a mesma lógica visual. A recorrência continua opcional e desativada por padrão; alterar somente o scheduling não exige reenvio de credenciais OCI.
+
+A próxima evolução prevista é a **Atividade 22.16**, dedicada à trilha operacional e observabilidade. Ela não é antecipada pela 22.15.

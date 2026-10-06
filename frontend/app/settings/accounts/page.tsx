@@ -13,6 +13,7 @@ import {
   Search,
   X,
 } from "lucide-react";
+import { CollectionScheduleFields } from "@/components/collection-schedule-fields";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { ApiError, api, formatDate } from "@/lib/api";
@@ -25,6 +26,7 @@ import {
   validateAccountForm,
 } from "@/lib/account-form.mjs";
 import type { AccountFormState } from "@/lib/account-form.mjs";
+import { scheduleSummary } from "@/lib/account-scheduling.mjs";
 import { providerLabel } from "@/lib/cloud.mjs";
 import { queryKeys } from "@/lib/query-keys.mjs";
 import { invalidateApiQueries } from "@/lib/server-state";
@@ -65,13 +67,6 @@ function scopeSummary(account: CloudAccount) {
   if (oci.compartment_ocids.length) parts.push(oci.compartment_ocids.length + " compartment(s)");
   if (oci.include_subcompartments) parts.push("inclui subcompartments");
   return parts.length ? parts.join(" · ") : "Escopo vazio";
-}
-
-function scheduleSummary(account: CloudAccount, capabilities?: ProviderCapabilities) {
-  if (!capabilities?.scheduling) return "Não implementado";
-  return account.schedule_enabled
-    ? "A cada " + account.scan_interval_hours + "h"
-    : "Desativado";
 }
 
 export default function AccountsPage() {
@@ -416,13 +411,14 @@ export default function AccountsPage() {
   const editorTitle = mode === "create"
     ? "Adicionar conta"
     : "Editar " + (editingAccount?.name || "conta");
+  const formCapability = form.provider ? capabilityByProvider.get(form.provider) : undefined;
 
   return (
     <>
       <PageHeader
         eyebrow="CONFIGURAÇÕES · CONTAS"
         title="Contas"
-        description="Cadastre e mantenha contas AWS e OCI em uma única área. O teste valida a configuração persistida; coleta e agendamento continuam disponíveis somente para AWS."
+        description="Cadastre e mantenha contas AWS e OCI em uma única área, incluindo conexão, coleta manual e recorrência conforme as capacidades de cada provider."
         actions={canManageAccounts ? (
           <button className="button primary" onClick={openCreate} disabled={mode !== "closed"}>
             <Plus size={17} /> Adicionar conta
@@ -478,6 +474,7 @@ export default function AccountsPage() {
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
                     placeholder="Produção"
                     required
+                    disabled={formBusy}
                   />
                   {fieldErrors.name && <span className="field-error">{fieldErrors.name}</span>}
                 </label>
@@ -495,6 +492,7 @@ export default function AccountsPage() {
                     pattern={form.provider === "aws" ? "[0-9]{12}" : undefined}
                     readOnly={mode === "edit"}
                     required
+                    disabled={formBusy}
                   />
                   {fieldErrors.native_account_id && <span className="field-error">{fieldErrors.native_account_id}</span>}
                   {mode === "edit" && (
@@ -507,6 +505,7 @@ export default function AccountsPage() {
                     type="checkbox"
                     checked={form.enabled}
                     onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
+                    disabled={formBusy}
                   />
                   Conta habilitada
                 </label>
@@ -524,6 +523,7 @@ export default function AccountsPage() {
                         })}
                         placeholder="arn:aws:iam::123456789012:role/DeepOpsReadOnly"
                         required
+                        disabled={formBusy}
                       />
                       {fieldErrors.role_arn && <span className="field-error">{fieldErrors.role_arn}</span>}
                     </label>
@@ -537,12 +537,14 @@ export default function AccountsPage() {
                             aws: { ...form.aws, external_id: e.target.value },
                           })}
                           required
+                          disabled={formBusy}
                         />
                         <button
                           type="button"
                           title="Copiar External ID"
                           aria-label="Copiar External ID"
                           onClick={() => void copyText(form.aws.external_id, "External ID")}
+                          disabled={formBusy}
                         >
                           <Copy size={16} />
                         </button>
@@ -560,7 +562,7 @@ export default function AccountsPage() {
                           type="button"
                           className="button ghost"
                           onClick={() => void generateExternalId()}
-                          disabled={externalIdBusy}
+                          disabled={externalIdBusy || formBusy}
                         >
                           <RefreshCw size={15} className={externalIdBusy ? "spin" : ""} />
                           {externalIdBusy ? "Gerando…" : "Gerar novo External ID"}
@@ -577,23 +579,10 @@ export default function AccountsPage() {
                         })}
                         placeholder="sa-east-1, us-east-1"
                         required
+                        disabled={formBusy}
                       />
                       {fieldErrors.regions && <span className="field-error">{fieldErrors.regions}</span>}
                       <small>Separadas por vírgula.</small>
-                    </label>
-                    <label>
-                      Intervalo de análise
-                      <select
-                        value={form.aws.scan_interval_hours}
-                        onChange={(e) => setForm({
-                          ...form,
-                          aws: { ...form.aws, scan_interval_hours: Number(e.target.value) },
-                        })}
-                      >
-                        <option value={12}>A cada 12 horas</option>
-                        <option value={24}>Diariamente</option>
-                        <option value={168}>Semanalmente</option>
-                      </select>
                     </label>
                     <label className="check-label">
                       <input
@@ -603,19 +592,9 @@ export default function AccountsPage() {
                           ...form,
                           aws: { ...form.aws, is_management_account: e.target.checked },
                         })}
+                        disabled={formBusy}
                       />
                       Conta management/payer
-                    </label>
-                    <label className="check-label">
-                      <input
-                        type="checkbox"
-                        checked={form.aws.schedule_enabled}
-                        onChange={(e) => setForm({
-                          ...form,
-                          aws: { ...form.aws, schedule_enabled: e.target.checked },
-                        })}
-                      />
-                      Ativar análises agendadas
                     </label>
                     <p className="span-2 account-form-note">
                       Alterações de Role ARN ou External ID invalidam a validação anterior. Habilitar a conta não ativa o agendamento automaticamente.
@@ -635,6 +614,7 @@ export default function AccountsPage() {
                         })}
                         placeholder="ocid1.user.oc1.."
                         required
+                        disabled={formBusy}
                       />
                       {fieldErrors.user_ocid && <span className="field-error">{fieldErrors.user_ocid}</span>}
                     </label>
@@ -648,6 +628,7 @@ export default function AccountsPage() {
                         })}
                         placeholder="sa-saopaulo-1"
                         required
+                        disabled={formBusy}
                       />
                       {fieldErrors.region && <span className="field-error">{fieldErrors.region}</span>}
                       <small>Região usada pelo SDK para autenticação e chamadas de Identity.</small>
@@ -661,8 +642,9 @@ export default function AccountsPage() {
                           oci: { ...form.oci, scope_regions: e.target.value },
                         })}
                         placeholder="sa-saopaulo-1, us-ashburn-1"
+                        disabled={formBusy}
                       />
-                      <small>Escopo pretendido para futuras coletas. Vazio não significa todas as regiões.</small>
+                      <small>Escopo pretendido para a coleta. Vazio não significa todas as regiões.</small>
                     </label>
                     <label className="span-2">
                       Compartments
@@ -674,9 +656,10 @@ export default function AccountsPage() {
                         })}
                         placeholder="ocid1.compartment.oc1..abc, ocid1.compartment.oc1..def"
                         rows={3}
+                        disabled={formBusy}
                       />
                       {fieldErrors.compartment_ocids && <span className="field-error">{fieldErrors.compartment_ocids}</span>}
-                      <small>Informe OCIDs separados por vírgula. Não há descoberta automática nesta etapa.</small>
+                      <small>Informe OCIDs separados por vírgula.</small>
                     </label>
                     <label className="check-label">
                       <input
@@ -686,6 +669,7 @@ export default function AccountsPage() {
                           ...form,
                           oci: { ...form.oci, include_root_compartment: e.target.checked },
                         })}
+                        disabled={formBusy}
                       />
                       Incluir tenancy root
                     </label>
@@ -697,6 +681,7 @@ export default function AccountsPage() {
                           ...form,
                           oci: { ...form.oci, include_subcompartments: e.target.checked },
                         })}
+                        disabled={formBusy}
                       />
                       Incluir subcompartments
                     </label>
@@ -713,6 +698,7 @@ export default function AccountsPage() {
                             })}
                             placeholder="aa:bb:cc:..."
                             required
+                            disabled={formBusy}
                           />
                           {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                         </label>
@@ -727,6 +713,7 @@ export default function AccountsPage() {
                               oci: { ...form.oci, private_key_password: e.target.value },
                             })}
                             placeholder="Opcional"
+                            disabled={formBusy}
                           />
                         </label>
                         <OciPrivateKeyFields
@@ -734,6 +721,7 @@ export default function AccountsPage() {
                           setForm={setForm}
                           readPemFile={readPemFile}
                           error={fieldErrors.private_key_pem}
+                          disabled={formBusy}
                         />
                       </>
                     ) : (
@@ -756,6 +744,7 @@ export default function AccountsPage() {
                             <button
                               type="button"
                               className="button ghost"
+                              disabled={formBusy}
                               onClick={() => {
                                 setReplaceCredentials(true);
                                 setForm((current) => ({
@@ -767,7 +756,7 @@ export default function AccountsPage() {
                               Substituir credencial
                             </button>
                           ) : (
-                            <button type="button" className="button ghost" onClick={cancelCredentialReplacement}>
+                            <button type="button" className="button ghost" onClick={cancelCredentialReplacement} disabled={formBusy}>
                               Cancelar substituição
                             </button>
                           )}
@@ -790,6 +779,7 @@ export default function AccountsPage() {
                                 })}
                                 placeholder="aa:bb:cc:..."
                                 required
+                                disabled={formBusy}
                               />
                               {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                             </label>
@@ -804,6 +794,7 @@ export default function AccountsPage() {
                                   oci: { ...form.oci, private_key_password: e.target.value },
                                 })}
                                 placeholder="Opcional"
+                                disabled={formBusy}
                               />
                             </label>
                             <OciPrivateKeyFields
@@ -811,6 +802,7 @@ export default function AccountsPage() {
                               setForm={setForm}
                               readPemFile={readPemFile}
                               error={fieldErrors.private_key_pem}
+                              disabled={formBusy}
                             />
                             <p className="span-2 account-form-note">
                               A nova credencial é validada remotamente antes da troca atômica. Se a validação falhar, a credencial anterior permanece ativa.
@@ -819,16 +811,34 @@ export default function AccountsPage() {
                         )}
                       </>
                     )}
-                    {!capabilityByProvider.get("oci")?.manual_collection && (
+                    {!formCapability?.manual_collection && (
                       <p className="span-2 account-form-note">
-                        Conexão disponível; coleta OCI ainda não implementada. Testar a conexão não cria coletas nem oportunidades.
+                        A conexão está disponível, mas a coleta manual ainda não é suportada para este provider.
                       </p>
                     )}
                   </>
                 )}
 
+                <CollectionScheduleFields
+                  supported={formCapability?.scheduling === true}
+                  scheduleEnabled={form.schedule_enabled}
+                  scanIntervalHours={form.scan_interval_hours}
+                  nextScanAt={mode === "edit" ? editingAccount?.next_scan_at : null}
+                  showNextScan={mode === "edit"}
+                  disabled={formBusy}
+                  error={fieldErrors.scan_interval_hours}
+                  onScheduleEnabledChange={(scheduleEnabled) => setForm((current) => ({
+                    ...current,
+                    schedule_enabled: scheduleEnabled,
+                  }))}
+                  onIntervalChange={(scanIntervalHours) => setForm((current) => ({
+                    ...current,
+                    scan_interval_hours: scanIntervalHours,
+                  }))}
+                />
+
                 <div className="form-actions span-2">
-                  <button type="button" className="button ghost" onClick={closeEditor}>
+                  <button type="button" className="button ghost" onClick={closeEditor} disabled={formBusy}>
                     Cancelar
                   </button>
                   <button className="button primary" disabled={formBusy || !form.provider}>
@@ -999,11 +1009,13 @@ function OciPrivateKeyFields({
   setForm,
   readPemFile,
   error,
+  disabled = false,
 }: {
   form: AccountFormState;
   setForm: (value: AccountFormState | ((current: AccountFormState) => AccountFormState)) => void;
   readPemFile: (event: ChangeEvent<HTMLInputElement>) => Promise<void>;
   error?: string;
+  disabled?: boolean;
 }) {
   return (
     <>
@@ -1013,6 +1025,7 @@ function OciPrivateKeyFields({
           type="file"
           accept=".pem,.key,text/plain,application/x-pem-file"
           onChange={(event) => void readPemFile(event)}
+          disabled={disabled}
         />
         <small>O arquivo é lido apenas para este envio e limitado a 64 KiB.</small>
       </label>
@@ -1029,6 +1042,7 @@ function OciPrivateKeyFields({
           required
           autoComplete="off"
           spellCheck={false}
+          disabled={disabled}
         />
         {error && <span className="field-error">{error}</span>}
         <small>Alternativa ao arquivo: cole o PEM. O formulário não persiste segredos em storage do navegador.</small>
