@@ -140,8 +140,8 @@ def add_account_audit(
     )
 
 
-def _apply_schedule(
-    account: AwsAccount,
+def _apply_cloud_account_schedule(
+    account: CloudAccount,
     changes: dict,
     *,
     creating: bool = False,
@@ -162,6 +162,7 @@ def _create_aws_configuration(
     cloud_account: CloudAccount,
     configuration: AwsAccountConfigurationCreate,
 ) -> AwsAccount:
+    values = configuration.model_dump(exclude={"schedule_enabled", "scan_interval_hours"})
     account = AwsAccount(
         name=cloud_account.name,
         aws_account_id=cloud_account.native_account_id,
@@ -169,10 +170,9 @@ def _create_aws_configuration(
         connection_status=cloud_account.connection_status,
         last_connection_test_at=cloud_account.last_connection_test_at,
         last_error=cloud_account.last_error,
-        **configuration.model_dump(),
+        **values,
     )
     cloud_account.aws_configuration = account
-    _apply_schedule(account, configuration.model_dump(), creating=True)
     return account
 
 
@@ -240,12 +240,33 @@ def create_cloud_account(
     provider = normalize_provider(payload.provider)
     require_provider_operation(provider, ProviderOperation.REGISTRATION)
     native_account_id = validate_native_account_id(provider, payload.native_account_id)
+
+    schedule_enabled = payload.schedule_enabled
+    scan_interval_hours = payload.scan_interval_hours
+    if provider == CloudProvider.AWS.value and isinstance(
+        payload.configuration, AwsAccountConfigurationCreate
+    ):
+        if "schedule_enabled" not in payload.model_fields_set and (
+            "schedule_enabled" in payload.configuration.model_fields_set
+        ):
+            schedule_enabled = payload.configuration.schedule_enabled
+        if "scan_interval_hours" not in payload.model_fields_set and (
+            "scan_interval_hours" in payload.configuration.model_fields_set
+        ):
+            scan_interval_hours = payload.configuration.scan_interval_hours
+
+    if {"schedule_enabled", "scan_interval_hours"} & payload.model_fields_set or schedule_enabled:
+        require_provider_operation(provider, ProviderOperation.SCHEDULING)
+
     cloud_account = CloudAccount(
         provider=provider,
         native_account_id=native_account_id,
         name=payload.name,
         enabled=payload.enabled,
+        schedule_enabled=schedule_enabled,
+        scan_interval_hours=scan_interval_hours,
     )
+    _apply_cloud_account_schedule(cloud_account, {}, creating=True)
 
     if provider == CloudProvider.AWS.value:
         if not isinstance(payload.configuration, AwsAccountConfigurationCreate):
@@ -285,8 +306,6 @@ def _update_aws_configuration(
     configuration_changes: dict,
 ) -> None:
     aws_account = require_aws_configuration(account)
-    if {"schedule_enabled", "scan_interval_hours"} & configuration_changes.keys():
-        require_provider_operation(account.provider, ProviderOperation.SCHEDULING)
     if "role_arn" in configuration_changes:
         role_account_id = configuration_changes["role_arn"].split(":")[4]
         if role_account_id != account.native_account_id:
@@ -299,7 +318,6 @@ def _update_aws_configuration(
     )
     for field, value in configuration_changes.items():
         setattr(aws_account, field, value)
-    _apply_schedule(aws_account, configuration_changes)
     if authentication_changed:
         _invalidate_connection_state(account)
 
@@ -337,6 +355,26 @@ def _oci_update_values(
     return values
 
 
+def _provider_neutral_schedule_changes(
+    account: CloudAccount,
+    changes: dict,
+    configuration_payload: AwsAccountConfigurationUpdate | OciAccountConfigurationUpdate | None,
+) -> dict:
+    schedule_changes = {
+        field: changes[field]
+        for field in ("schedule_enabled", "scan_interval_hours")
+        if field in changes
+    }
+    if isinstance(configuration_payload, AwsAccountConfigurationUpdate):
+        legacy = configuration_payload.model_dump(exclude_unset=True)
+        for field in ("schedule_enabled", "scan_interval_hours"):
+            if field in legacy and field not in schedule_changes:
+                schedule_changes[field] = legacy[field]
+    if schedule_changes:
+        require_provider_operation(account.provider, ProviderOperation.SCHEDULING)
+    return schedule_changes
+
+
 def update_cloud_account(
     db: Session,
     account: CloudAccount,
@@ -347,6 +385,13 @@ def update_cloud_account(
     require_provider_operation(account.provider, ProviderOperation.EDITING)
     changes = payload.model_dump(exclude_unset=True)
     configuration_payload = payload.configuration
+    schedule_changes = _provider_neutral_schedule_changes(account, changes, configuration_payload)
+    if "schedule_enabled" in schedule_changes:
+        account.schedule_enabled = schedule_changes["schedule_enabled"]
+    if "scan_interval_hours" in schedule_changes:
+        account.scan_interval_hours = schedule_changes["scan_interval_hours"]
+    if schedule_changes:
+        _apply_cloud_account_schedule(account, schedule_changes)
 
     if account.provider == CloudProvider.AWS.value:
         if configuration_payload is not None and not isinstance(
@@ -358,10 +403,11 @@ def update_cloud_account(
         if "enabled" in changes:
             account.enabled = changes["enabled"]
         if configuration_payload is not None:
-            _update_aws_configuration(
-                account,
-                configuration_payload.model_dump(exclude_unset=True),
-            )
+            configuration_changes = configuration_payload.model_dump(exclude_unset=True)
+            configuration_changes.pop("schedule_enabled", None)
+            configuration_changes.pop("scan_interval_hours", None)
+            if configuration_changes:
+                _update_aws_configuration(account, configuration_changes)
     elif account.provider == CloudProvider.OCI.value:
         if configuration_payload is not None and not isinstance(
             configuration_payload, OciAccountConfigurationUpdate
@@ -528,6 +574,18 @@ def apply_validated_oci_replacement(
     configuration.configuration_revision += 1
 
     common_changes = payload.model_dump(exclude_unset=True, exclude={"configuration"})
+    schedule_changes = {
+        field: common_changes[field]
+        for field in ("schedule_enabled", "scan_interval_hours")
+        if field in common_changes
+    }
+    if schedule_changes:
+        require_provider_operation(account.provider, ProviderOperation.SCHEDULING)
+        if "schedule_enabled" in schedule_changes:
+            account.schedule_enabled = schedule_changes["schedule_enabled"]
+        if "scan_interval_hours" in schedule_changes:
+            account.scan_interval_hours = schedule_changes["scan_interval_hours"]
+        _apply_cloud_account_schedule(account, schedule_changes)
     if "name" in common_changes:
         account.name = common_changes["name"]
     if "enabled" in common_changes:
@@ -592,13 +650,13 @@ def create_legacy_aws_account(db: Session, payload: AccountCreate) -> AwsAccount
         native_account_id=payload.aws_account_id,
         name=payload.name,
         enabled=payload.enabled,
+        schedule_enabled=payload.schedule_enabled,
+        scan_interval_hours=payload.scan_interval_hours,
         configuration=AwsAccountConfigurationCreate(
             role_arn=payload.role_arn,
             external_id=payload.external_id,
             regions=payload.regions,
             is_management_account=payload.is_management_account,
-            schedule_enabled=payload.schedule_enabled,
-            scan_interval_hours=payload.scan_interval_hours,
         ),
     )
     return require_aws_configuration(create_cloud_account(db, common_payload))
@@ -613,10 +671,9 @@ def update_legacy_aws_account(
         raise RuntimeError("AWS account is missing its CloudAccount relationship")
     changes = payload.model_dump(exclude_unset=True)
     common: dict = {}
-    if "name" in changes:
-        common["name"] = changes.pop("name")
-    if "enabled" in changes:
-        common["enabled"] = changes.pop("enabled")
+    for field in ("name", "enabled", "schedule_enabled", "scan_interval_hours"):
+        if field in changes:
+            common[field] = changes.pop(field)
     configuration = AwsAccountConfigurationUpdate(**changes) if changes else None
     update_cloud_account(
         db,
