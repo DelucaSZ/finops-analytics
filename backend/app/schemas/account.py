@@ -317,6 +317,8 @@ class CloudAccountBase(BaseModel):
 
 
 class CloudAccountCreate(CloudAccountBase):
+    schedule_enabled: bool = False
+    scan_interval_hours: int = Field(default=24, ge=1, le=720)
     configuration: AwsAccountConfigurationCreate | OciAccountConfigurationCreate | None = None
 
     @model_validator(mode="after")
@@ -340,6 +342,8 @@ class CloudAccountUpdate(BaseModel):
 
     name: str | None = Field(default=None, min_length=2, max_length=120)
     enabled: bool | None = None
+    schedule_enabled: bool | None = None
+    scan_interval_hours: int | None = Field(default=None, ge=1, le=720)
     configuration: AwsAccountConfigurationUpdate | OciAccountConfigurationUpdate | None = None
 
 
