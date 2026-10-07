@@ -85,7 +85,7 @@ def quantize_money(value: Decimal) -> Decimal:
 
 
 def _decimal_input(name: str, value: Decimal | int | str | None) -> Decimal:
-    if value is None or isinstance(value, bool) or isinstance(value, float):
+    if value is None or isinstance(value, (bool, float)):
         raise InvalidOciPricingInputError(
             f"{name} must be provided as Decimal, int, or decimal string"
         )
