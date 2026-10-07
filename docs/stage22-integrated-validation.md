@@ -4,30 +4,31 @@
 
 Este documento formaliza a Atividade 22.17: validação integrada das entregas 22.1–22.16 sem ampliação funcional. A fonte de verdade analisada foi a `main` no commit `197ce61281b5abc134ca17418296916159c84855`, merge do PR #46 (Atividade 22.16).
 
-A validação combina inspeção direta do código, migrations e testes com a suíte cumulativa mais recente executada pelo GitHub Actions. Testes cloud reais não são inferidos a partir de mocks: quando não houve acesso autorizado a AWS/OCI real, isso é declarado explicitamente.
+A validação combina inspeção direta do código, migrations e testes com a suíte cumulativa executada pelo GitHub Actions. O critério de fechamento da 22.17 é a consistência do repositório, da arquitetura, das migrations, dos contratos e dos gates automatizados do PR. Validações operacionais contra contas AWS/OCI reais são deliberadamente tratadas como uma atividade posterior e não constituem critério de aceite da 22.17.
 
-## Matriz 22.1–22.16
+## Matriz 22.1–22.17
 
-| Atividade | Evidência na main | Estado na 22.17 |
+| Atividade | Evidência | Estado final |
 | --- | --- | --- |
-| 22.1 | PR #31 — tabs de status em Oportunidades abaixo dos filtros | validada |
-| 22.2 | PR #32 — `Scan.cloud_account_id`, migration `0016_provider_neutral_scan_queue` | validada |
-| 22.3 | PR #33 — fila/worker provider-aware e registry de executores | validada |
-| 22.4 | PR #34 — resolução segura de credenciais OCI no worker | validada |
-| 22.5 | PR #35 — OCI Discovery/Inventory | validada |
-| 22.6 | PR #36 — OCI Cloud Advisor | validada |
-| 22.7 | PR #37 — OCI Usage API | validada |
-| 22.8 | PR #38 — OCI Monitoring/MQL | validada |
-| 22.9 | PR #39 — OCI Correlation Engine | validada |
-| 22.10 | PR #40 — primeira Wave de analyzers OCI | validada |
-| 22.11 | PR #41 — coleta manual OCI, migration `0017_oci_manual_collection` | validada |
-| 22.12 | PR #42 — `Executar coleta` provider-neutral em Coletas | validada |
-| 22.13 | PR #43 — scheduling em `CloudAccount`, migration `0018_cloud_account_scheduling` | validada |
-| 22.14 | PR #44 — scheduler OCI no scheduler comum | validada |
-| 22.15 | PR #45 — interface compartilhada de recorrência AWS/OCI | validada |
-| 22.16 | PR #46 — observabilidade, auditoria e taxonomia de erro | validada |
+| 22.1 | PR #31 — tabs de status em Oportunidades abaixo dos filtros | concluída e validada |
+| 22.2 | PR #32 — `Scan.cloud_account_id`, migration `0016_provider_neutral_scan_queue` | concluída e validada |
+| 22.3 | PR #33 — fila/worker provider-aware e registry de executores | concluída e validada |
+| 22.4 | PR #34 — resolução segura de credenciais OCI no worker | concluída e validada |
+| 22.5 | PR #35 — OCI Discovery/Inventory | concluída e validada |
+| 22.6 | PR #36 — OCI Cloud Advisor | concluída e validada |
+| 22.7 | PR #37 — OCI Usage API | concluída e validada |
+| 22.8 | PR #38 — OCI Monitoring/MQL | concluída e validada |
+| 22.9 | PR #39 — OCI Correlation Engine | concluída e validada |
+| 22.10 | PR #40 — primeira Wave de analyzers OCI | concluída e validada |
+| 22.11 | PR #41 — coleta manual OCI, migration `0017_oci_manual_collection` | concluída e validada |
+| 22.12 | PR #42 — `Executar coleta` provider-neutral em Coletas | concluída e validada |
+| 22.13 | PR #43 — scheduling em `CloudAccount`, migration `0018_cloud_account_scheduling` | concluída e validada |
+| 22.14 | PR #44 — scheduler OCI no scheduler comum | concluída e validada |
+| 22.15 | PR #45 — interface compartilhada de recorrência AWS/OCI | concluída e validada |
+| 22.16 | PR #46 — observabilidade, auditoria e taxonomia de erro | concluída e validada |
+| 22.17 | PR #47 — validação integrada, reconciliação documental e fechamento técnico | concluída no escopo técnico/documental; publicação na `main` depende de merge explícito |
 
-A divergência documental encontrada foi que `implementation-roadmap.md` ainda descrevia 22.15 como merge pendente e não continha o fechamento de 22.14/22.16. O código e o histórico de PRs da `main` foram considerados autoritativos para esta validação.
+O `docs/implementation-roadmap.md` foi reconciliado na 22.17 por uma seção final autoritativa da Etapa 22. Essa consolidação substitui, para efeito de estado corrente, anotações históricas intermediárias como “aguardando merge”, sem reescrever o contexto de implementação registrado nas seções anteriores.
 
 ## Arquitetura final confirmada
 
@@ -181,7 +182,7 @@ A suíte cumulativa confirma:
 
 O frontend não fabrica `CollectionRun` depois de POST de coleta; a execução real é criada pelo worker.
 
-## Validação automatizada da base 22.16
+## Baseline de validação automatizada
 
 O CI do PR #46, imediatamente anterior à 22.17, foi revisado como baseline:
 
@@ -194,15 +195,17 @@ O CI do PR #46, imediatamente anterior à 22.17, foi revisado como baseline:
 - Stage 21 Compose smoke: aprovado no mesmo head da trilha;
 - Auto deploy tests: aprovado.
 
-Warnings de Starlette/FastAPI/Actions e o relatório de dependências npm não foram tratados na 22.17 porque não constituem regressão funcional comprovada da Etapa 22 e uma atualização ampla de dependências estaria fora do escopo.
+A 22.17 exige que o próprio head do PR #47 também permaneça verde nos gates aplicáveis antes do merge. Warnings de Starlette/FastAPI/Actions e o relatório de dependências npm não são tratados nesta atividade porque não constituem regressão funcional comprovada da Etapa 22 e uma atualização ampla de dependências estaria fora do escopo.
 
-## Validação cloud real
+## Validação operacional futura — fora do critério de aceite da 22.17
 
-- **OCI real:** não executada na 22.17; integração validada com mocks/fakes e suítes automatizadas. Nenhuma tenancy autorizada foi disponibilizada a esta execução.
-- **AWS real:** não executada na 22.17; regressão validada por testes automatizados. Nenhuma conta/credencial AWS autorizada foi disponibilizada a esta execução.
-- **Browser E2E/manual:** não executado nesta validação; foram usados testes de contrato/frontend e build de produção.
+A validação com contas cloud reais foi explicitamente separada do fechamento técnico desta atividade:
 
-Essas ausências não são convertidas em afirmações de smoke real.
+- **OCI real:** não executada na 22.17. Uma coleta contra tenancy autorizada deverá ser realizada futuramente como validação operacional própria.
+- **AWS real:** não executada na 22.17. Uma coleta contra conta autorizada deverá ser realizada futuramente como validação operacional própria.
+- **Browser E2E/manual em ambiente implantado:** não executado nesta validação; foram usados testes de contrato/frontend, build de produção e smoke Compose automatizado.
+
+Esses itens não são pendências da 22.17 e não reduzem seu status de conclusão. Também não são convertidos em afirmações de smoke real: quando a validação operacional futura ocorrer, deverá ser registrada separadamente com ambiente, escopo, evidências e resultado próprios.
 
 ## Limitações reais restantes
 
@@ -212,11 +215,24 @@ Essas ausências não são convertidas em afirmações de smoke real.
 - Cloud Advisor/Usage/Monitoring dependem das permissões read-only específicas de cada fonte;
 - native estimated savings do Advisor não é automaticamente DeepOps saving;
 - rightsizing avançado, novos analyzers e auto-remediation não fazem parte da Etapa 22;
-- não existe conversão cambial implícita;
-- a validação automatizada não substitui smoke real em tenancy/conta cloud autorizada.
+- não existe conversão cambial implícita.
+
+Essas limitações descrevem o produto atual e não são defeitos de fechamento da 22.17.
+
+## Critério de conclusão
+
+A Atividade 22.17 é considerada concluída quando:
+
+1. o estado final 22.1–22.17 está reconciliado no roadmap e nesta validação integrada;
+2. a documentação de onboarding OCI descreve o pipeline realmente implementado;
+3. não existem regressões funcionais identificadas que exijam correção dentro do escopo;
+4. o diff permanece sem nova feature, provider, analyzer, migration ou refactor amplo;
+5. o head do PR #47 passa pelos gates automatizados do repositório.
+
+Validação cloud real fica para uma atividade operacional futura e não integra os critérios acima.
 
 ## Fechamento
 
 A Etapa 22 deixa uma arquitetura multi-cloud operacional para AWS e OCI, com manual e scheduled convergindo para o mesmo `Scan` provider-neutral, scheduler, fila, worker e pipeline de persistência. OCI acrescenta aquisição read-only, correlação e analyzers locais sem criar pipeline paralelo.
 
-Nenhuma feature nova, provider novo, auto-remediation, analyzer adicional, endpoint OCI específico ou migration foi introduzido na 22.17. O fechamento é uma validação/consolidação do estado já entregue.
+Nenhuma feature nova, provider novo, auto-remediation, analyzer adicional, endpoint OCI específico ou migration foi introduzido na 22.17. Dentro do escopo de repositório, CI, migrations, contratos e documentação definido para a atividade, **a 22.17 está concluída**. A publicação desse fechamento na `main` depende apenas do merge explícito do PR #47.
