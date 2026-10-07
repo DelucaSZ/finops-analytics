@@ -128,9 +128,9 @@ def test_catalog_metadata_and_rates_are_explicit_decimals():
     assert OCI_PRICING_METADATA.version == OCI_PRICING_VERSION == "2026-10"
     assert OCI_PRICING_METADATA.currency == OCI_PRICING_CURRENCY == "BRL"
     assert OCI_PRICING_METADATA.monthly_hours == OCI_MONTHLY_HOURS == Decimal("744")
-    assert OCI_WINDOWS_OCPU_HOUR == Decimal("0.46092")
-    assert OCI_BLOCK_STORAGE_GB_MONTH == Decimal("0.0531")
-    assert OCI_BLOCK_VPU_GB_MONTH == Decimal("0.0036")
+    assert Decimal("0.46092") == OCI_WINDOWS_OCPU_HOUR
+    assert Decimal("0.0531") == OCI_BLOCK_STORAGE_GB_MONTH
+    assert Decimal("0.0036") == OCI_BLOCK_VPU_GB_MONTH
     assert all(
         isinstance(value, Decimal)
         for price in OCI_COMPUTE_PRICES.values()
