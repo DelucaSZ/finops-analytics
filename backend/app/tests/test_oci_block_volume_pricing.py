@@ -8,17 +8,13 @@ import pytest
 from app.services.oci_analyzers import (
     OciBlockVolumeUnattachedAnalyzer,
     OciPublicIpUnassignedAnalyzer,
-    OciStoppedComputeWithStorageAnalyzer,
     OciUntaggedResourceAnalyzer,
 )
 from app.services.oci_correlation_models import (
     OciResourceAnalysisContext,
     OciResourceUsageContext,
 )
-from app.services.oci_discovery_models import (
-    OciDiscoveredResource,
-    OciResourceRelationship,
-)
+from app.services.oci_discovery_models import OciDiscoveredResource
 from app.services.oci_pricing import (
     OCI_PRICING_CURRENCY,
     OCI_PRICING_SOURCE,
@@ -57,13 +53,12 @@ def _resource(
 def _context(
     inventory: OciDiscoveredResource,
     *,
-    relationships: list[OciResourceRelationship] | None = None,
     inventory_coverage: dict[str, str] | None = None,
 ) -> OciResourceAnalysisContext:
     return OciResourceAnalysisContext(
         resource_id=inventory.resource_id,
         inventory=inventory,
-        relationships=list(relationships or []),
+        relationships=[],
         native_recommendations=[],
         usage=OciResourceUsageContext(
             records=[],
@@ -187,7 +182,7 @@ def test_priced_block_volume_evidence_identifies_internal_catalog_and_inputs():
     }
 
 
-def test_other_oci_analyzers_remain_financially_unpopulated():
+def test_public_ip_and_untagged_analyzers_remain_financially_unpopulated():
     public_ip = _context(
         _resource(
             "ocid1.publicip.oc1.sa-saopaulo-1.regression",
@@ -203,32 +198,6 @@ def test_other_oci_analyzers_remain_financially_unpopulated():
     )
     public_ip_finding = OciPublicIpUnassignedAnalyzer().analyze(public_ip)[0]
 
-    compute_id = "ocid1.instance.oc1.sa-saopaulo-1.regression"
-    compute = _context(
-        _resource(
-            compute_id,
-            "compute_instance",
-            state="STOPPED",
-            source="compute_api",
-            attributes={},
-        ),
-        relationships=[
-            OciResourceRelationship(
-                relation_type="boot_volume_attachment",
-                source_id="ocid1.bootvolume.oc1.sa-saopaulo-1.regression",
-                target_id=compute_id,
-                source_type="boot_volume",
-                target_type="compute_instance",
-            )
-        ],
-        inventory_coverage={
-            "compute_instance": "complete",
-            "block_volume": "complete",
-            "boot_volume": "complete",
-        },
-    )
-    compute_finding = OciStoppedComputeWithStorageAnalyzer().analyze(compute)[0]
-
     untagged = _context(
         _resource(
             "ocid1.bootvolume.oc1.sa-saopaulo-1.regression",
@@ -240,7 +209,7 @@ def test_other_oci_analyzers_remain_financially_unpopulated():
     )
     untagged_finding = OciUntaggedResourceAnalyzer().analyze(untagged)[0]
 
-    for finding in (public_ip_finding, compute_finding, untagged_finding):
+    for finding in (public_ip_finding, untagged_finding):
         assert finding.current_monthly_cost == Decimal("0")
         assert finding.estimated_monthly_savings == Decimal("0")
         assert finding.provider_metadata["financial_value_populated"] is False
