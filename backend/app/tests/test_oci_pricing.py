@@ -33,11 +33,14 @@ def pricing() -> OciPricingService:
     ],
 )
 def test_compute_monthly_cost_by_family(pricing, family, expected):
-    assert pricing.compute_monthly_cost(
-        family=family,
-        ocpus=Decimal("2"),
-        memory_gb=Decimal("16"),
-    ) == expected
+    assert (
+        pricing.compute_monthly_cost(
+            family=family,
+            ocpus=Decimal("2"),
+            memory_gb=Decimal("16"),
+        )
+        == expected
+    )
 
 
 def test_windows_license_is_explicit_and_not_included_by_default(pricing):
