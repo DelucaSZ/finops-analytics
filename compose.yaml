@@ -38,8 +38,9 @@ services:
       context: ./backend
     restart: unless-stopped
     env_file: .env
-    # OCI credentials remain encrypted at rest. When configured, the worker
-    # receives the same decryption key as the API but OCI collection stays disabled.
+    # OCI credentials remain encrypted at rest. When OCI is configured, the worker
+    # receives the same stable decryption key as the API and executes OCI collections
+    # through the shared provider-aware worker/executor pipeline.
     command: ["python", "-m", "app.worker"]
     depends_on:
       db:
