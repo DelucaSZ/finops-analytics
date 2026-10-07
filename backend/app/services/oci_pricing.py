@@ -11,10 +11,11 @@ can replace the catalog without changing analyzer-facing pricing semantics.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from types import MappingProxyType
-from typing import Final, Mapping
+from typing import Final
 
 OCI_PRICING_SOURCE: Final = "deepops_oci_price_table"
 OCI_PRICING_VERSION: Final = "2026-10"
