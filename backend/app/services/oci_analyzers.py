@@ -9,6 +9,7 @@ from app.services.oci_correlation_models import (
     OciCorrelationResult,
     OciResourceAnalysisContext,
 )
+from app.services.oci_discovery_models import OciDiscoveredResource
 from app.services.oci_pricing import InvalidOciPricingInputError, OciPricingService
 
 ANALYZER_VERSION = "1.0"
@@ -32,7 +33,12 @@ class OciAnalyzer(Protocol):
 
     def applies_to(self, context: OciResourceAnalysisContext) -> bool: ...
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]: ...
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]: ...
 
 
 def _inventory_complete(context: OciResourceAnalysisContext, *resource_types: str) -> bool:
@@ -183,8 +189,11 @@ def _finding(
     )
 
 
-def _block_volume_pricing(
+def _volume_pricing(
     attributes: dict[str, Any],
+    *,
+    resource_type: str,
+    resource_id: str | None = None,
 ) -> tuple[Decimal, str, bool, dict[str, Any]]:
     size_gb = attributes.get("size_in_gbs")
     vpus_per_gb = attributes.get("vpus_per_gb")
@@ -194,6 +203,16 @@ def _block_volume_pricing(
         for field, value in (("size_in_gbs", size_gb), ("vpus_per_gb", vpus_per_gb))
         if value is None
     ]
+    base_evidence: dict[str, Any] = {
+        "source": metadata.source,
+        "version": metadata.version,
+        "currency": metadata.currency,
+        "resource_type": resource_type,
+        "size_gb": size_gb,
+        "vpus_per_gb": vpus_per_gb,
+    }
+    if resource_id is not None:
+        base_evidence["resource_id"] = resource_id
 
     try:
         monthly_cost = _OCI_PRICING.block_volume_monthly_cost(
@@ -201,14 +220,9 @@ def _block_volume_pricing(
             vpus_per_gb=vpus_per_gb,
         )
     except InvalidOciPricingInputError:
-        pricing_evidence: dict[str, Any] = {
+        pricing_evidence = {
             "status": "missing_pricing_input" if missing_fields else "invalid_pricing_input",
-            "source": metadata.source,
-            "version": metadata.version,
-            "currency": metadata.currency,
-            "resource_type": "block_volume",
-            "size_gb": size_gb,
-            "vpus_per_gb": vpus_per_gb,
+            **base_evidence,
             "financial_value_populated": False,
         }
         if missing_fields:
@@ -221,15 +235,97 @@ def _block_volume_pricing(
         True,
         {
             "status": "priced",
-            "source": metadata.source,
-            "version": metadata.version,
-            "currency": metadata.currency,
-            "resource_type": "block_volume",
-            "size_gb": size_gb,
-            "vpus_per_gb": vpus_per_gb,
+            **base_evidence,
             "monthly_cost": str(monthly_cost),
             "financial_value_populated": True,
         },
+    )
+
+
+def _block_volume_pricing(
+    attributes: dict[str, Any],
+) -> tuple[Decimal, str, bool, dict[str, Any]]:
+    return _volume_pricing(attributes, resource_type="block_volume")
+
+
+def _unpriced_reason(pricing: dict[str, Any]) -> str:
+    missing_fields = pricing.get("missing_fields") or []
+    if len(missing_fields) == 1:
+        return f"missing_{missing_fields[0]}"
+    if missing_fields:
+        return "missing_pricing_inputs"
+    return str(pricing.get("status") or "pricing_unavailable")
+
+
+def _persistent_storage_pricing(
+    boot_ids: set[str],
+    block_ids: set[str],
+    inventory_by_id: dict[str, OciDiscoveredResource],
+) -> tuple[Decimal, str, bool, dict[str, Any]]:
+    metadata = _OCI_PRICING.metadata
+    priced_subtotal = Decimal("0")
+    unpriced_resources: list[dict[str, Any]] = []
+    boot_volumes: list[dict[str, Any]] = []
+    block_volumes: list[dict[str, Any]] = []
+
+    def price_resources(
+        resource_ids: set[str],
+        resource_type: str,
+        rendered: list[dict[str, Any]],
+    ) -> None:
+        nonlocal priced_subtotal
+        for resource_id in sorted(resource_ids):
+            resource = inventory_by_id.get(resource_id)
+            if resource is None or resource.resource_type != resource_type:
+                rendered.append(
+                    {
+                        "resource_id": resource_id,
+                        "resource_type": resource_type,
+                        "status": "missing_inventory_resource",
+                    }
+                )
+                unpriced_resources.append(
+                    {"resource_id": resource_id, "reason": "missing_inventory_resource"}
+                )
+                continue
+            monthly_cost, _, populated, pricing = _volume_pricing(
+                resource.attributes,
+                resource_type=resource_type,
+                resource_id=resource_id,
+            )
+            rendered.append(pricing)
+            if populated:
+                priced_subtotal += monthly_cost
+            else:
+                unpriced_resources.append(
+                    {"resource_id": resource_id, "reason": _unpriced_reason(pricing)}
+                )
+
+    price_resources(boot_ids, "boot_volume", boot_volumes)
+    price_resources(block_ids, "block_volume", block_volumes)
+
+    complete = not unpriced_resources and bool(boot_ids or block_ids)
+    pricing_evidence: dict[str, Any] = {
+        "status": "priced" if complete else "incomplete",
+        "source": metadata.source,
+        "version": metadata.version,
+        "currency": metadata.currency,
+        "financial_value_populated": complete,
+        "boot_volume_count": len(boot_ids),
+        "block_volume_count": len(block_ids),
+        "boot_volumes": boot_volumes,
+        "block_volumes": block_volumes,
+        "priced_monthly_subtotal": str(priced_subtotal),
+        "persistent_storage_monthly_cost": str(priced_subtotal) if complete else None,
+    }
+    if unpriced_resources:
+        pricing_evidence["unpriced_resources"] = unpriced_resources
+
+    return (
+        priced_subtotal if complete else Decimal("0"),
+        metadata.currency,
+        complete,
+        pricing_evidence,
     )
 
 
@@ -240,7 +336,12 @@ class OciBlockVolumeUnattachedAnalyzer:
     def applies_to(self, context: OciResourceAnalysisContext) -> bool:
         return context.resource_type == "block_volume"
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]:
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]:
         if not self.applies_to(context) or context.inventory is None:
             return []
         if not _inventory_complete(context, "block_volume"):
@@ -294,7 +395,12 @@ class OciPublicIpUnassignedAnalyzer:
     def applies_to(self, context: OciResourceAnalysisContext) -> bool:
         return context.resource_type == "public_ip"
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]:
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]:
         if not self.applies_to(context) or context.inventory is None:
             return []
         if not _inventory_complete(context, "public_ip"):
@@ -340,7 +446,12 @@ class OciStoppedComputeWithStorageAnalyzer:
     def applies_to(self, context: OciResourceAnalysisContext) -> bool:
         return context.resource_type == "compute_instance"
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]:
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]:
         if not self.applies_to(context) or context.inventory is None:
             return []
         if not _inventory_complete(
@@ -378,9 +489,13 @@ class OciStoppedComputeWithStorageAnalyzer:
             ):
                 block_ids.add(relationship.source_id)
 
+        block_ids.difference_update(boot_ids)
         if not boot_ids and not block_ids:
             return []
 
+        monthly_cost, currency, financial_value_populated, pricing_evidence = (
+            _persistent_storage_pricing(boot_ids, block_ids, inventory_by_id or {})
+        )
         finding = _finding(
             context,
             rule_key=self.rule_key,
@@ -402,6 +517,11 @@ class OciStoppedComputeWithStorageAnalyzer:
                 "boot_volume_ids": sorted(boot_ids),
                 "block_volume_ids": sorted(block_ids),
             },
+            current_monthly_cost=monthly_cost,
+            estimated_monthly_savings=monthly_cost,
+            currency=currency,
+            financial_value_populated=financial_value_populated,
+            pricing_evidence=pricing_evidence,
         )
         return [finding]
 
@@ -413,7 +533,12 @@ class OciUntaggedResourceAnalyzer:
     def applies_to(self, context: OciResourceAnalysisContext) -> bool:
         return context.resource_type in _SUPPORTED_TAG_TYPES
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]:
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]:
         if not self.applies_to(context) or context.inventory is None:
             return []
         resource_type = context.resource_type
@@ -463,12 +588,17 @@ class OciAnalyzerRegistry:
     def rule_keys(self) -> tuple[str, ...]:
         return tuple(sorted(analyzer.rule_key for analyzer in self._analyzers))
 
-    def analyze(self, context: OciResourceAnalysisContext) -> list[CollectedFinding]:
+    def analyze(
+        self,
+        context: OciResourceAnalysisContext,
+        *,
+        inventory_by_id: dict[str, OciDiscoveredResource] | None = None,
+    ) -> list[CollectedFinding]:
         findings: dict[tuple[str, str], CollectedFinding] = {}
         for analyzer in self._analyzers:
             if not analyzer.applies_to(context):
                 continue
-            for finding in analyzer.analyze(context):
+            for finding in analyzer.analyze(context, inventory_by_id=inventory_by_id):
                 findings[(finding.rule_key, finding.resource_id)] = finding
         return [findings[key] for key in sorted(findings)]
 
@@ -479,7 +609,12 @@ class OciAnalysisService:
 
     def analyze(self, correlation: OciCorrelationResult) -> list[CollectedFinding]:
         findings: dict[tuple[str, str], CollectedFinding] = {}
+        inventory_by_id = {
+            context.resource_id: context.inventory
+            for context in correlation.resource_contexts
+            if context.inventory is not None
+        }
         for context in sorted(correlation.resource_contexts, key=lambda item: item.resource_id):
-            for finding in self._registry.analyze(context):
+            for finding in self._registry.analyze(context, inventory_by_id=inventory_by_id):
                 findings[(finding.rule_key, finding.resource_id)] = finding
         return [findings[key] for key in sorted(findings)]
