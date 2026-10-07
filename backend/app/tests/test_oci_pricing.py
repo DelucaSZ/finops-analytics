@@ -11,17 +11,68 @@ from app.services.oci_pricing import (
     OCI_PRICING_METADATA,
     OCI_PRICING_SOURCE,
     OCI_PRICING_VERSION,
+    OCI_SHAPE_PRICE_FAMILY,
     OCI_WINDOWS_OCPU_HOUR,
     InvalidOciPricingInputError,
     OciPricingService,
     UnsupportedOciComputeFamilyError,
+    UnsupportedOciComputeShapeError,
     quantize_money,
+    resolve_compute_price_family,
 )
 
 
 @pytest.fixture
 def pricing() -> OciPricingService:
     return OciPricingService()
+
+
+@pytest.mark.parametrize(
+    ("shape", "expected"),
+    [
+        ("VM.Standard.E3.Flex", "E3"),
+        ("VM.Standard.E4.Flex", "E4"),
+        ("VM.Standard.E5.Flex", "E5"),
+    ],
+)
+def test_compute_shape_resolves_from_explicit_allowlist(shape, expected):
+    assert resolve_compute_price_family(shape) == expected
+
+
+@pytest.mark.parametrize(
+    "shape",
+    [
+        "VM.Standard.A1.Flex",
+        "VM.Standard.E2.1",
+        "VM.Standard.E2.2",
+        "VM.Standard3.Flex",
+        "VM.DenseIO.E4.Flex",
+        "VM.Optimized3.Flex",
+        "BM.Standard.E4.128",
+        "VM.Standard.E6.Flex",
+        "VM.Standard.E4.Flex.extra",
+        "vm.standard.e4.flex",
+        "VM.Standard.E4.flex",
+        "VM.Standard.E4.FLEX",
+        " VM.Standard.E4.Flex",
+        "VM.Standard.E4.Flex ",
+    ],
+)
+def test_compute_shape_does_not_infer_or_normalize_unknown_shapes(shape):
+    with pytest.raises(UnsupportedOciComputeShapeError, match="unsupported OCI Compute shape"):
+        resolve_compute_price_family(shape)
+
+
+@pytest.mark.parametrize("shape", [None, "", "   "])
+def test_compute_shape_rejects_missing_or_blank_values(shape):
+    with pytest.raises(InvalidOciPricingInputError, match="shape must be provided"):
+        resolve_compute_price_family(shape)
+
+
+def test_all_resolved_shape_families_exist_in_compute_catalog():
+    assert set(OCI_SHAPE_PRICE_FAMILY.values()) <= set(OCI_COMPUTE_PRICES)
+    for shape, family in OCI_SHAPE_PRICE_FAMILY.items():
+        assert resolve_compute_price_family(shape) == family
 
 
 @pytest.mark.parametrize(
