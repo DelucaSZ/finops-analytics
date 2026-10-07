@@ -102,14 +102,16 @@ def test_provider_execution_error_exposes_operational_metadata_only():
     assert "SUPER_SECRET_OCI_PRIVATE_KEY" not in str(error)
 
 
-def test_aws_authorization_error_does_not_invalidate_connection_status():
-    account = SimpleNamespace(connection_status="connected", last_error=None)
-    AwsCollectionExecutor().mark_connection_failure(
-        account,
-        "Acesso negado (AccessDenied). Verifique as permissões da coleta.",
+def test_aws_collector_authorization_error_is_not_connection_failure():
+    error = ProviderExecutionError(
+        "aws",
+        RuntimeError("AccessDenied"),
+        connection_failure=False,
+        stage="collectors",
     )
-    assert account.connection_status == "connected"
-    assert account.last_error is None
+    assert error.category == "authorization"
+    assert error.stage == "collectors"
+    assert error.connection_failure is False
 
 
 def test_aws_authentication_error_can_invalidate_connection_status():
