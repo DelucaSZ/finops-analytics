@@ -77,8 +77,7 @@ def _context(
             "usage": "complete",
             "monitoring": "complete",
         },
-        inventory_coverage=inventory_coverage
-        or {inventory.resource_type: "complete"},
+        inventory_coverage=inventory_coverage or {inventory.resource_type: "complete"},
         relationship_coverage={
             "volume_attachment": "complete",
             "boot_volume_attachment": "complete",
