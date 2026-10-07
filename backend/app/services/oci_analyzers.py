@@ -9,6 +9,7 @@ from app.services.oci_correlation_models import (
     OciCorrelationResult,
     OciResourceAnalysisContext,
 )
+from app.services.oci_pricing import InvalidOciPricingInputError, OciPricingService
 
 ANALYZER_VERSION = "1.0"
 RULE_BLOCK_VOLUME_UNATTACHED = "oci_block_volume_unattached"
@@ -23,6 +24,7 @@ _SUPPORTED_TAG_TYPES = {
     "public_ip": "virtual_network_api",
 }
 _TERMINAL_STATES = {"TERMINATED", "TERMINATING", "DELETED"}
+_OCI_PRICING = OciPricingService()
 
 
 class OciAnalyzer(Protocol):
@@ -135,12 +137,19 @@ def _finding(
     recommendation: str,
     severity: str,
     analysis: dict[str, Any],
+    current_monthly_cost: Decimal | None = None,
+    estimated_monthly_savings: Decimal | None = None,
+    currency: str | None = None,
+    financial_value_populated: bool = False,
+    pricing_evidence: dict[str, Any] | None = None,
 ) -> CollectedFinding:
     evidence = _base_evidence(context)
     evidence["rule_key"] = rule_key
     evidence["analysis"] = analysis
     evidence["recommendation"] = recommendation
-    currency = (
+    if pricing_evidence is not None:
+        evidence["pricing"] = pricing_evidence
+    resolved_currency = currency or (
         next(iter(context.usage.totals_by_currency))
         if len(context.usage.totals_by_currency) == 1
         else "USD"
@@ -157,16 +166,70 @@ def _finding(
             "compartment_id": context.compartment_id,
             "analyzer_version": ANALYZER_VERSION,
             "analysis_source": "deepops",
-            "financial_value_populated": False,
+            "financial_value_populated": financial_value_populated,
         },
         title=title,
         description=description,
         evidence=evidence,
-        current_monthly_cost=Decimal("0"),
-        estimated_monthly_savings=Decimal("0"),
-        currency=currency,
+        current_monthly_cost=(
+            current_monthly_cost if current_monthly_cost is not None else Decimal("0")
+        ),
+        estimated_monthly_savings=(
+            estimated_monthly_savings if estimated_monthly_savings is not None else Decimal("0")
+        ),
+        currency=resolved_currency,
         confidence="high",
         severity=severity,
+    )
+
+
+def _block_volume_pricing(
+    attributes: dict[str, Any],
+) -> tuple[Decimal, str, bool, dict[str, Any]]:
+    size_gb = attributes.get("size_in_gbs")
+    vpus_per_gb = attributes.get("vpus_per_gb")
+    metadata = _OCI_PRICING.metadata
+    missing_fields = [
+        field
+        for field, value in (("size_in_gbs", size_gb), ("vpus_per_gb", vpus_per_gb))
+        if value is None
+    ]
+
+    try:
+        monthly_cost = _OCI_PRICING.block_volume_monthly_cost(
+            size_gb=size_gb,
+            vpus_per_gb=vpus_per_gb,
+        )
+    except InvalidOciPricingInputError:
+        pricing_evidence: dict[str, Any] = {
+            "status": "missing_pricing_input" if missing_fields else "invalid_pricing_input",
+            "source": metadata.source,
+            "version": metadata.version,
+            "currency": metadata.currency,
+            "resource_type": "block_volume",
+            "size_gb": size_gb,
+            "vpus_per_gb": vpus_per_gb,
+            "financial_value_populated": False,
+        }
+        if missing_fields:
+            pricing_evidence["missing_fields"] = missing_fields
+        return Decimal("0"), metadata.currency, False, pricing_evidence
+
+    return (
+        monthly_cost,
+        metadata.currency,
+        True,
+        {
+            "status": "priced",
+            "source": metadata.source,
+            "version": metadata.version,
+            "currency": metadata.currency,
+            "resource_type": "block_volume",
+            "size_gb": size_gb,
+            "vpus_per_gb": vpus_per_gb,
+            "monthly_cost": str(monthly_cost),
+            "financial_value_populated": True,
+        },
     )
 
 
@@ -193,6 +256,9 @@ class OciBlockVolumeUnattachedAnalyzer:
         if attributes.get("attachment_count") != 0:
             return []
 
+        monthly_cost, currency, financial_value_populated, pricing_evidence = _block_volume_pricing(
+            attributes
+        )
         finding = _finding(
             context,
             rule_key=self.rule_key,
@@ -210,7 +276,13 @@ class OciBlockVolumeUnattachedAnalyzer:
                 "attachment_count": 0,
                 "attachment_coverage": "complete",
                 "size_in_gbs": attributes.get("size_in_gbs"),
+                "vpus_per_gb": attributes.get("vpus_per_gb"),
             },
+            current_monthly_cost=monthly_cost,
+            estimated_monthly_savings=monthly_cost,
+            currency=currency,
+            financial_value_populated=financial_value_populated,
+            pricing_evidence=pricing_evidence,
         )
         return [finding]
 
