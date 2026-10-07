@@ -256,8 +256,8 @@ class OciBlockVolumeUnattachedAnalyzer:
         if attributes.get("attachment_count") != 0:
             return []
 
-        monthly_cost, currency, financial_value_populated, pricing_evidence = (
-            _block_volume_pricing(attributes)
+        monthly_cost, currency, financial_value_populated, pricing_evidence = _block_volume_pricing(
+            attributes
         )
         finding = _finding(
             context,
