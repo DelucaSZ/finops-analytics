@@ -173,6 +173,8 @@ class AwsCollectionExecutor:
         "signaturedoesnotmatch",
         "authentication",
         "identidade aws",
+        "accessdenied",
+        "acesso negado",
     )
 
     @staticmethod
@@ -243,7 +245,7 @@ class AwsCollectionExecutor:
                 raise RuntimeError("A identidade AWS não corresponde à conta configurada")
         except Exception as exc:
             info = classify_collection_error(exc)
-            connection_failure = info.category == "authentication"
+            connection_failure = info.category in {"authentication", "authorization"}
             if "identidade aws" in str(exc).lower():
                 info = classify_collection_error(RuntimeError("InvalidClientTokenId"))
                 connection_failure = True
@@ -310,6 +312,12 @@ class AwsCollectionExecutor:
             warning_count=len(collector_errors),
         )
         active_rule_keys = [key for key in active_rule_keys if key not in failed_rule_keys]
+
+        # Restore caller-visible ORM identity only after provider I/O has completed.
+        # This preserves transaction-free network calls without leaking detached state
+        # to scheduling or other code that continues using these same instances.
+        db.add(account)
+        db.add(scan)
         return CollectionExecutionResult(
             findings=findings,
             active_rule_keys=active_rule_keys,
@@ -671,6 +679,11 @@ class OciCollectionExecutor:
                 retryable=info.retryable,
             ) from exc
 
+        # Reattach only after OCI network I/O has completed successfully. Callers may
+        # continue mutating the original account/scan instances (for example scheduling),
+        # so leaving them detached would silently drop subsequent persisted changes.
+        db.add(account)
+        db.add(scan)
         return CollectionExecutionResult(
             findings=findings,
             active_rule_keys=list(registry.rule_keys),
