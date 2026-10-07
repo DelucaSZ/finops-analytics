@@ -3408,3 +3408,64 @@ A Atividade 22.15 consolidou o scheduling de AWS e OCI sobre o contrato provider
 
 A 22.15 não implementa CRON, horário fixo, timezone por conta, múltiplos schedules, retries configuráveis ou observabilidade operacional avançada. Esses itens não são antecipados; a próxima evolução prevista é a **Atividade 22.16**.
 
+---
+
+## Consolidação final da Etapa 22 — Atividade 22.17
+
+**Status:** Etapa 22 concluída no escopo técnico, documental e de validação automatizada. A publicação deste fechamento na `main` depende do merge explícito do PR #47.
+
+Esta seção é o registro autoritativo do estado final da trilha 22.1–22.17. Anotações anteriores como “aguardando validação/merge”, “proposta no PR” ou limitações operacionais intermediárias descrevem o momento histórico de cada implementação e não o estado corrente após a integração das atividades subsequentes.
+
+### Estado final das atividades
+
+| Atividade | PR | Estado final |
+| --- | --- | --- |
+| 22.1 | #31 | concluída e validada |
+| 22.2 | #32 | concluída e validada |
+| 22.3 | #33 | concluída e validada |
+| 22.4 | #34 | concluída e validada |
+| 22.5 | #35 | concluída e validada |
+| 22.6 | #36 | concluída e validada |
+| 22.7 | #37 | concluída e validada |
+| 22.8 | #38 | concluída e validada |
+| 22.9 | #39 | concluída e validada |
+| 22.10 | #40 | concluída e validada |
+| 22.11 | #41 | concluída e validada |
+| 22.12 | #42 | concluída e validada |
+| 22.13 | #43 | concluída e validada |
+| 22.14 | #44 | concluída e validada |
+| 22.15 | #45 | concluída e validada |
+| 22.16 | #46 | concluída e validada |
+| 22.17 | #47 | concluída no escopo técnico/documental; merge na `main` pendente de solicitação explícita |
+
+### Arquitetura consolidada
+
+- `CloudAccount` é a identidade administrativa comum para AWS e OCI.
+- `Scan.cloud_account_id` é a identidade provider-neutral da fila; `Scan.account_id` permanece apenas como vínculo legado AWS e é `NULL` para OCI.
+- AWS e OCI suportam coleta manual e agendada pela infraestrutura comum de scheduler, fila e worker.
+- O worker faz dispatch por provider para `AwsCollectionExecutor` ou `OciCollectionExecutor`.
+- `CloudAccount` é a fonte autoritativa de `schedule_enabled`, `scan_interval_hours` e `next_scan_at`.
+- A coleta OCI executa Discovery, Cloud Advisor, Usage API, Monitoring, Correlation Engine e os analyzers Wave 1 antes de convergir para o pipeline comum de `CollectedFinding`, fingerprint, Opportunity, `OpportunityObservation` e `CollectionRun`.
+- Fingerprint, deduplicação e lifecycle `OPEN/TREATED/REJECTED` permanecem provider-neutral e independentes do trigger manual/scheduled.
+- OCI permanece estritamente read-only; não existe auto-remediation.
+
+### Capabilities finais
+
+| Capability | AWS | OCI | Azure | GCP |
+| --- | --- | --- | --- | --- |
+| registration | true | true | false | false |
+| editing | true | true | false | false |
+| connection_test | true | true | false | false |
+| manual_collection | true | true | false | false |
+| scheduling | true | true | false | false |
+| finops_policies | true | false | false | false |
+
+A cadeia de migrations termina em `0018_cloud_account_scheduling`. A Atividade 22.17 não adiciona migration, analyzer, provider, endpoint específico OCI ou refactor funcional amplo.
+
+### Validação e fechamento
+
+A matriz integrada, os fluxos manuais/agendados, segurança, falhas, observabilidade, frontend, migrations e limitações estão detalhados em `docs/stage22-integrated-validation.md`. O onboarding operacional e a proteção de credenciais OCI estão em `docs/oci-onboarding.md`.
+
+A validação contra contas AWS/OCI reais foi deliberadamente separada para uma atividade operacional futura. Ela **não é critério de aceite nem pendência da Atividade 22.17**. O fechamento desta atividade é baseado na consistência do código e das migrations, testes automatizados, build, checks de segurança, smoke Compose e documentação. Uma validação cloud real futura deverá ser registrada separadamente e não deve ser inferida a partir dos testes automatizados.
+
+Com essa consolidação, a **Etapa 22 está tecnicamente encerrada** no escopo definido para 22.1–22.17.

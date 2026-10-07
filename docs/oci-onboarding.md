@@ -34,6 +34,8 @@ NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=v1
 
 A chave Fernet deve ser gerada e armazenada fora do repositório e respaldada separadamente do PostgreSQL. Private key e passphrase são descriptografadas apenas em memória durante a resolução de credenciais e não fazem parte de `Scan`, `CollectionRun`, Finding/Opportunity, `OpportunityObservation`, evidence ou logs operacionais.
 
+A configuração permanece lazy: um ambiente somente AWS pode iniciar sem a chave OCI; a ausência/má formação deve falhar fechado apenas quando uma operação OCI dependente de credenciais for executada.
+
 ## Semântica de escopo
 
 - `region`: região base usada pelo SDK;
@@ -166,8 +168,14 @@ A coleta OCI é estritamente read-only. Ela não termina instâncias, remove/des
 
 Evidence persistida é compacta e normalizada; payloads SDK completos, séries extensas, respostas raw de billing, signer, private key, passphrase e chaves de criptografia não são persistidos.
 
-## Estado após a Atividade 22.16
+## Estado final após a Atividade 22.17
 
-A trilha operacional passa a usar a mesma abordagem de observabilidade para AWS e OCI: contexto correlacionável entre `CloudAccount`, `Scan` e `CollectionRun`, distinção explícita de `trigger`, eventos agregados de lifecycle e estágios, taxonomia pequena de erros e mensagens públicas sanitizadas. Falhas parciais continuam separadas de resultado zero, authorization não é confundida com authentication e erros que não representam falha real de credencial não devem invalidar `connection_status`.
+A validação integrada final confirmou a arquitetura comum de AWS e OCI: `CloudAccount` como identidade administrativa, `Scan.cloud_account_id` como identidade provider-neutral da fila, scheduling autoritativo em `CloudAccount`, scheduler/fila/worker compartilhados e dispatch por executor. AWS usa `AwsCollectionExecutor`; OCI usa `OciCollectionExecutor` com Discovery, Cloud Advisor, Usage API, Monitoring, Correlation Engine e a primeira Wave de analyzers antes de convergir para o pipeline comum de Findings, Opportunities, OpportunityObservations e CollectionRuns.
 
-Não foram introduzidos retries automáticos, nova fila, novo worker, nova página de observabilidade ou plataforma externa obrigatória. Fingerprint, lifecycle e regras FinOps permanecem fora do escopo desta atividade.
+A suíte cumulativa revisada na 22.17 cobre migração em PostgreSQL 17/SQLite, coleta manual/agendada, deduplicação manual↔scheduled, lifecycle TREATED/REJECTED, falhas parciais e contratos de segurança. A validação contra uma tenancy OCI real e a validação contra uma conta AWS real foram deliberadamente separadas para uma atividade operacional futura. Elas **não são critério de aceite nem pendência da 22.17** e não devem ser confundidas com os testes automatizados já executados.
+
+Quando essa validação operacional futura ocorrer, deverá ser registrada separadamente, identificando ambiente autorizado, conta/tenancy, escopo, execução manual/agendada, evidências e resultado. Até lá, este documento não afirma que houve smoke real contra cloud.
+
+Limitações operacionais reais permanecem: a primeira Wave OCI possui somente os analyzers atualmente implementados; métricas de memória dependem da disponibilidade do agent; custo sem `resourceId` permanece unallocated; Cloud Advisor/Usage/Monitoring dependem de permissões read-only específicas; native estimated savings do Advisor não é convertido automaticamente em saving DeepOps; não há conversão cambial implícita, rightsizing avançado ou auto-remediation.
+
+Não foram introduzidos retries automáticos, nova fila, novo worker, novo scheduler, novo provider, nova página de observabilidade ou operação write na OCI. Fingerprint e lifecycle continuam no pipeline comum e a coleta OCI permanece estritamente read-only.
