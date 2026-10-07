@@ -121,6 +121,25 @@ Falta de permissão específica em Cloud Advisor, Usage API ou Monitoring contin
 
 Erros de credencial, signing, private key, fingerprint ou tenancy incompatível são fatais e podem atualizar `CloudAccount.connection_status=error`. Erros persistidos e logs passam pela sanitização comum e não devem conter credenciais.
 
+## Troubleshooting operacional
+
+Os logs de coleta usam eventos agregados com contexto de correlação. Para seguir uma execução, procure por `scan_id` e `collection_run_id`; os mesmos eventos também carregam `provider`, `cloud_account_id`, `native_account_id`, `trigger` e, nos estágios do executor, `stage`. `manual` e `scheduled` usam o mesmo pipeline e diferem pelo campo `trigger`.
+
+Estágios OCI relevantes aparecem como `credentials`, `discovery`, `cloud_advisor`, `usage`, `monitoring`, `correlation`, `analyzers` e `persistence`. Eventos de término podem trazer `duration_ms`, `resource_count`, `opportunity_count` e `warning_count`. Falhas classificadas expõem somente categoria operacional e mensagem pública sanitizada; request/response raw do SDK, signer, private key, passphrase e chave de criptografia não são registrados.
+
+Use a categoria e o estágio para separar os casos mais comuns:
+
+- `configuration` em `credentials`: verifique configuração local, presença da chave de criptografia e material cadastrado, sem copiar o secret para logs ou chamados;
+- `authentication` em `credentials`: valide tenancy, user, fingerprint e API Signing Key;
+- `authorization` em `cloud_advisor`, `usage` ou `monitoring`: revise IAM da fonte específica; uma autorização parcial não significa que a credencial inteira é inválida;
+- `rate_limit`, `timeout` ou `provider_service`: falha operacional do acesso ao provider; `retryable` pode aparecer quando a natureza do erro for conhecida, mas o DeepOps não cria retry automático de Scan nesta etapa;
+- `data_coverage` ou evento `collection_stage_partial`: preserve o dado válido e trate o warning como cobertura incompleta, nunca como zero fabricado;
+- `persistence` ou `internal`: investigue API/worker/PostgreSQL e use `scan_id`/`collection_run_id` para correlacionar. Esses erros não invalidam automaticamente a conexão OCI.
+
+Para scheduling, `event=scheduled_collection_enqueued` confirma enqueue. `event=scheduled_collection_skipped ... reason=active_scan` significa que a proteção contra execução concorrente funcionou e não representa falha fatal. Ações administrativas de ativar/desativar scheduling e alterar intervalo ficam no audit da `CloudAccount` com actor humano; execuções scheduled continuam identificadas como `trigger=scheduled` sem usuário humano fictício.
+
+No ambiente Docker Compose do projeto, consulte os logs do serviço de API/worker pelos nomes já definidos no `compose.yaml`; não é necessário instalar stack externa de observabilidade para diagnosticar uma coleta.
+
 ## IAM read-only
 
 O trigger scheduled não exige nenhuma permissão OCI adicional. O `OciCollectionExecutor` usa as mesmas APIs e o mesmo principal da coleta manual.
@@ -147,8 +166,8 @@ A coleta OCI é estritamente read-only. Ela não termina instâncias, remove/des
 
 Evidence persistida é compacta e normalizada; payloads SDK completos, séries extensas, respostas raw de billing, signer, private key, passphrase e chaves de criptografia não são persistidos.
 
-## Estado após a Atividade 22.15
+## Estado após a Atividade 22.16
 
-A interface de recorrência OCI está concluída em **Configurações > Contas**. AWS e OCI utilizam o mesmo contrato de `CloudAccount`, a mesma capability de scheduling, o mesmo scheduler, a mesma fila, o mesmo worker e a mesma lógica visual. A recorrência continua opcional e desativada por padrão; alterar somente o scheduling não exige reenvio de credenciais OCI.
+A trilha operacional passa a usar a mesma abordagem de observabilidade para AWS e OCI: contexto correlacionável entre `CloudAccount`, `Scan` e `CollectionRun`, distinção explícita de `trigger`, eventos agregados de lifecycle e estágios, taxonomia pequena de erros e mensagens públicas sanitizadas. Falhas parciais continuam separadas de resultado zero, authorization não é confundida com authentication e erros que não representam falha real de credencial não devem invalidar `connection_status`.
 
-A próxima evolução prevista é a **Atividade 22.16**, dedicada à trilha operacional e observabilidade. Ela não é antecipada pela 22.15.
+Não foram introduzidos retries automáticos, nova fila, novo worker, nova página de observabilidade ou plataforma externa obrigatória. Fingerprint, lifecycle e regras FinOps permanecem fora do escopo desta atividade.

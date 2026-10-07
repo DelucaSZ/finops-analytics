@@ -15,7 +15,7 @@ from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
-from app.services.collection_errors import sanitize_collection_error
+from app.services.collection_errors import classify_collection_error, sanitize_collection_error
 from app.services.collection_executors import (
     CollectionPreconditionError,
     ProviderExecutionError,
@@ -70,7 +70,7 @@ def enqueue_due_scans(db: Session) -> None:
             db.add(scan)
             db.flush()
             logger.info(
-                "Scheduled collection queued provider=%s cloud_account_id=%s "
+                "event=scheduled_collection_enqueued provider=%s cloud_account_id=%s "
                 "native_account_id=%s scan_id=%s trigger=scheduled previous_next_scan_at=%s "
                 "interval_hours=%s",
                 account.provider,
@@ -80,9 +80,18 @@ def enqueue_due_scans(db: Session) -> None:
                 previous_next_scan_at,
                 account.scan_interval_hours,
             )
+        else:
+            logger.info(
+                "event=scheduled_collection_skipped provider=%s cloud_account_id=%s "
+                "native_account_id=%s scan_id=%s trigger=scheduled reason=active_scan",
+                account.provider,
+                account.id,
+                account.native_account_id,
+                active.id,
+            )
         account.next_scan_at = now + timedelta(hours=account.scan_interval_hours)
-        logger.info(
-            "Schedule advanced provider=%s cloud_account_id=%s native_account_id=%s "
+        logger.debug(
+            "event=schedule_advanced provider=%s cloud_account_id=%s native_account_id=%s "
             "previous_next_scan_at=%s next_scan_at=%s interval_hours=%s active_scan=%s",
             account.provider,
             account.id,
@@ -148,15 +157,19 @@ def claim_scan(db: Session) -> Scan | None:
                 native_account_id = (
                     cloud_account.native_account_id if cloud_account is not None else "unknown"
                 )
+                info = classify_collection_error(exc)
                 logger.warning(
-                    "Collection precondition rejected provider=%s cloud_account_id=%s "
-                    "native_account_id=%s scan_id=%s trigger=%s error=%s",
+                    "event=collection_failed provider=%s cloud_account_id=%s "
+                    "native_account_id=%s scan_id=%s collection_run_id=missing trigger=%s "
+                    "stage=precondition error_category=%s retryable=%s error=%s",
                     provider,
                     scan.cloud_account_id,
                     native_account_id,
                     scan.id,
                     scan.trigger,
-                    sanitize_collection_error(exc),
+                    info.category,
+                    str(info.retryable).lower() if info.retryable is not None else "unknown",
+                    info.public_message,
                 )
     return scan
 
@@ -414,6 +427,17 @@ def execute_scan(db: Session, scan: Scan) -> None:
     if run.provider != cloud_account.provider or run.account_id != cloud_account.native_account_id:
         raise CollectionPreconditionError("CloudAccount identity changed during provider execution")
 
+    persistence_started = time.monotonic()
+    logger.info(
+        "event=collection_stage_started provider=%s cloud_account_id=%s native_account_id=%s "
+        "scan_id=%s collection_run_id=%s trigger=%s stage=persistence",
+        run.provider,
+        cloud_account.id,
+        run.account_id,
+        scan.id,
+        run.id,
+        scan.trigger,
+    )
     opportunity_count = persist_findings(
         db,
         scan,
@@ -443,6 +467,19 @@ def execute_scan(db: Session, scan: Scan) -> None:
     summary_account_id = run.account_id
     summary_collection_run_id = run.id
     db.commit()
+    logger.info(
+        "event=collection_stage_completed provider=%s cloud_account_id=%s native_account_id=%s "
+        "scan_id=%s collection_run_id=%s trigger=%s stage=persistence duration_ms=%s "
+        "opportunity_count=%s",
+        summary_provider,
+        cloud_account.id,
+        summary_account_id,
+        scan.id,
+        summary_collection_run_id,
+        scan.trigger,
+        max(0, int((time.monotonic() - persistence_started) * 1000)),
+        opportunity_count,
+    )
 
     # Collection success is operational truth. The dashboard aggregate is derived and
     # repaired independently so a summary failure never rewrites a valid run as FAILED.
@@ -486,6 +523,7 @@ def fail_scan(db: Session, scan_id: str, exc: Exception) -> None:
     if (
         cloud_account is not None
         and isinstance(exc, ProviderExecutionError)
+        and exc.connection_failure
         and exc.provider == cloud_account.provider
     ):
         try:
@@ -519,7 +557,7 @@ def process_once() -> bool:
 
         if scan.status != "running":
             logger.warning(
-                "Collection skipped provider=%s cloud_account_id=%s native_account_id=%s "
+                "event=collection_skipped provider=%s cloud_account_id=%s native_account_id=%s "
                 "scan_id=%s collection_run_id=%s trigger=%s status=%s error=%s",
                 provider,
                 scan.cloud_account_id,
@@ -532,41 +570,58 @@ def process_once() -> bool:
             )
             return True
 
+        collection_started = time.monotonic()
         try:
             logger.info(
-                "Starting collection provider=%s cloud_account_id=%s native_account_id=%s "
-                "scan_id=%s collection_run_id=%s trigger=%s",
+                "event=collection_started provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s executor=%s",
                 provider,
                 scan.cloud_account_id,
                 native_account_id,
                 scan.id,
                 collection_run_id,
                 scan.trigger,
+                type(get_collection_executor(provider)).__name__,
             )
             execute_scan(db, scan)
             completed_scan = db.get(Scan, scan.id)
+            completed_run = collection_run_for_scan(db, scan.id)
             logger.info(
-                "Completed collection provider=%s cloud_account_id=%s native_account_id=%s "
-                "scan_id=%s collection_run_id=%s trigger=%s opportunities=%s",
+                "event=collection_completed provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s resource_count=%s "
+                "finding_count=%s opportunity_count=%s warning_count=%s duration_ms=%s",
                 provider,
                 scan.cloud_account_id,
                 native_account_id,
                 scan.id,
                 collection_run_id,
                 scan.trigger,
+                completed_run.resources_analyzed if completed_run is not None else 0,
                 completed_scan.findings_count if completed_scan is not None else 0,
+                completed_run.opportunities_found if completed_run is not None else 0,
+                1 if completed_scan is not None and completed_scan.error else 0,
+                max(0, int((time.monotonic() - collection_started) * 1000)),
             )
         except Exception as exc:  # worker boundary: persist errors and continue
+            info = classify_collection_error(exc)
+            stage = exc.stage if isinstance(exc, ProviderExecutionError) else "internal"
+            retryable = exc.retryable if isinstance(exc, ProviderExecutionError) else info.retryable
+            category = exc.category if isinstance(exc, ProviderExecutionError) else info.category
             logger.error(
-                "Collection failed provider=%s cloud_account_id=%s native_account_id=%s "
-                "scan_id=%s collection_run_id=%s trigger=%s error=%s",
+                "event=collection_failed provider=%s cloud_account_id=%s native_account_id=%s "
+                "scan_id=%s collection_run_id=%s trigger=%s stage=%s error_category=%s "
+                "retryable=%s duration_ms=%s error=%s",
                 provider,
                 scan.cloud_account_id,
                 native_account_id,
                 scan.id,
                 collection_run_id,
                 scan.trigger,
-                sanitize_collection_error(exc),
+                stage,
+                category,
+                str(retryable).lower() if retryable is not None else "unknown",
+                max(0, int((time.monotonic() - collection_started) * 1000)),
+                info.public_message,
             )
             fail_scan(db, scan.id, exc)
         return True
