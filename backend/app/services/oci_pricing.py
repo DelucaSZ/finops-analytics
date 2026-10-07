@@ -7,6 +7,11 @@ cost before taxes. The spreadsheet tax factor is intentionally not applied.
 The catalog is versioned in code so analyzers can depend on this service rather
 than embedding rates or formulas. A future contract/API-backed implementation
 can replace the catalog without changing analyzer-facing pricing semantics.
+
+Compute shape resolution is an explicit allowlist. Only commercially validated
+OCI shapes belong in ``OCI_SHAPE_PRICE_FAMILY``; absence from the mapping means
+unsupported. Do not infer pricing families from substrings, prefixes, regexes,
+or case-normalized shape names. The initial allowlist covers only E3/E4/E5 Flex.
 """
 
 from __future__ import annotations
@@ -33,6 +38,10 @@ class OciPricingError(ValueError):
 
 class UnsupportedOciComputeFamilyError(OciPricingError):
     """Raised when no approved price exists for a requested Compute family."""
+
+
+class UnsupportedOciComputeShapeError(OciPricingError):
+    """Raised when no approved Compute pricing family exists for an OCI shape."""
 
 
 class InvalidOciPricingInputError(OciPricingError):
@@ -70,12 +79,31 @@ OCI_COMPUTE_PRICES: Final[Mapping[str, OciComputePrice]] = MappingProxyType(
     }
 )
 
+OCI_SHAPE_PRICE_FAMILY: Final[Mapping[str, str]] = MappingProxyType(
+    {
+        "VM.Standard.E3.Flex": "E3",
+        "VM.Standard.E4.Flex": "E4",
+        "VM.Standard.E5.Flex": "E5",
+    }
+)
+
 OCI_PRICING_METADATA: Final = OciPricingMetadata(
     source=OCI_PRICING_SOURCE,
     version=OCI_PRICING_VERSION,
     currency=OCI_PRICING_CURRENCY,
     monthly_hours=OCI_MONTHLY_HOURS,
 )
+
+
+def resolve_compute_price_family(shape: str | None) -> str:
+    """Resolve an exact OCI shape name to an approved Compute pricing family."""
+
+    if shape is None or not isinstance(shape, str) or not shape.strip():
+        raise InvalidOciPricingInputError("shape must be provided")
+    try:
+        return OCI_SHAPE_PRICE_FAMILY[shape]
+    except KeyError as exc:
+        raise UnsupportedOciComputeShapeError(f"unsupported OCI Compute shape: {shape!r}") from exc
 
 
 def quantize_money(value: Decimal) -> Decimal:
