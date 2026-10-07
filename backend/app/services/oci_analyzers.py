@@ -137,8 +137,8 @@ def _finding(
     recommendation: str,
     severity: str,
     analysis: dict[str, Any],
-    current_monthly_cost: Decimal = Decimal("0"),
-    estimated_monthly_savings: Decimal = Decimal("0"),
+    current_monthly_cost: Decimal | None = None,
+    estimated_monthly_savings: Decimal | None = None,
     currency: str | None = None,
     financial_value_populated: bool = False,
     pricing_evidence: dict[str, Any] | None = None,
@@ -171,8 +171,12 @@ def _finding(
         title=title,
         description=description,
         evidence=evidence,
-        current_monthly_cost=current_monthly_cost,
-        estimated_monthly_savings=estimated_monthly_savings,
+        current_monthly_cost=(
+            current_monthly_cost if current_monthly_cost is not None else Decimal("0")
+        ),
+        estimated_monthly_savings=(
+            estimated_monthly_savings if estimated_monthly_savings is not None else Decimal("0")
+        ),
         currency=resolved_currency,
         confidence="high",
         severity=severity,
