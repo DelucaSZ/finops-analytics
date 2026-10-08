@@ -11,7 +11,12 @@ can replace the catalog without changing analyzer-facing pricing semantics.
 Compute shape resolution is an explicit allowlist. Only commercially validated
 OCI shapes belong in ``OCI_SHAPE_PRICE_FAMILY``; absence from the mapping means
 unsupported. Do not infer pricing families from substrings, prefixes, regexes,
-or case-normalized shape names. The initial allowlist covers only E3/E4/E5 Flex.
+or case-normalized shape names. The current allowlist covers only E3/E4/E5 Flex.
+
+Compute pricing uses ``OCPU * OCPU/hour * 744 + RAM GB * RAM GB/hour * 744``.
+Windows licensing is never inferred or applied automatically by the resource
+pricing API in this task; callers that explicitly need it must use the lower-
+level family API with ``include_windows_license=True``.
 """
 
 from __future__ import annotations
@@ -31,6 +36,11 @@ OCI_WINDOWS_OCPU_HOUR: Final = Decimal("0.46092")
 OCI_BLOCK_STORAGE_GB_MONTH: Final = Decimal("0.0531")
 OCI_BLOCK_VPU_GB_MONTH: Final = Decimal("0.0036")
 
+PRICING_STATUS_PRICED: Final = "priced"
+PRICING_STATUS_UNSUPPORTED_SHAPE: Final = "unsupported_shape"
+PRICING_STATUS_MISSING_INPUT: Final = "missing_pricing_input"
+PRICING_STATUS_INVALID_INPUT: Final = "invalid_pricing_input"
+
 
 class OciPricingError(ValueError):
     """Base error for unsupported or invalid OCI pricing input."""
@@ -45,7 +55,7 @@ class UnsupportedOciComputeShapeError(OciPricingError):
 
 
 class InvalidOciPricingInputError(OciPricingError):
-    """Raised when a pricing input is missing, non-decimal, or negative."""
+    """Raised when a pricing input is missing or invalid."""
 
 
 @dataclass(frozen=True)
@@ -60,6 +70,30 @@ class OciPricingMetadata:
     version: str
     currency: str
     monthly_hours: Decimal
+
+
+@dataclass(frozen=True)
+class OciComputePricingResult:
+    """Explainable OCI Compute pricing result for resource-level consumers."""
+
+    status: str
+    source: str
+    version: str
+    currency: str
+    monthly_hours: Decimal
+    shape: str | None = None
+    family: str | None = None
+    ocpus: Decimal | None = None
+    memory_gb: Decimal | None = None
+    ocpu_monthly_cost: Decimal | None = None
+    memory_monthly_cost: Decimal | None = None
+    base_monthly_cost: Decimal | None = None
+    windows_license_included: bool = False
+    reason: str | None = None
+
+    @property
+    def financial_value_populated(self) -> bool:
+        return self.status == PRICING_STATUS_PRICED and self.base_monthly_cost is not None
 
 
 OCI_COMPUTE_PRICES: Final[Mapping[str, OciComputePrice]] = MappingProxyType(
@@ -112,8 +146,13 @@ def quantize_money(value: Decimal) -> Decimal:
     return value.quantize(OCI_MONEY_QUANTUM, rounding=ROUND_HALF_UP)
 
 
-def _decimal_input(name: str, value: Decimal | int | str | None) -> Decimal:
-    if value is None or isinstance(value, bool | float):
+def _decimal_input(
+    name: str,
+    value: Decimal | int | float | str | None,
+    *,
+    allow_float: bool = False,
+) -> Decimal:
+    if value is None or isinstance(value, bool) or (isinstance(value, float) and not allow_float):
         raise InvalidOciPricingInputError(
             f"{name} must be provided as Decimal, int, or decimal string"
         )
@@ -125,6 +164,13 @@ def _decimal_input(name: str, value: Decimal | int | str | None) -> Decimal:
         raise InvalidOciPricingInputError(f"{name} must be a finite decimal value")
     if parsed < 0:
         raise InvalidOciPricingInputError(f"{name} cannot be negative")
+    return parsed
+
+
+def _positive_compute_input(name: str, value: Decimal | int | float | str | None) -> Decimal:
+    parsed = _decimal_input(name, value, allow_float=True)
+    if parsed <= 0:
+        raise InvalidOciPricingInputError(f"{name} must be greater than zero for OCI Flex Compute")
     return parsed
 
 
@@ -140,6 +186,26 @@ def _compute_family(family: str | None) -> tuple[str, OciComputePrice]:
         ) from exc
 
 
+def _empty_compute_result(
+    *,
+    status: str,
+    shape: str | None,
+    family: str | None = None,
+    reason: str | None = None,
+) -> OciComputePricingResult:
+    return OciComputePricingResult(
+        status=status,
+        source=OCI_PRICING_SOURCE,
+        version=OCI_PRICING_VERSION,
+        currency=OCI_PRICING_CURRENCY,
+        monthly_hours=OCI_MONTHLY_HOURS,
+        shape=shape,
+        family=family,
+        windows_license_included=False,
+        reason=reason,
+    )
+
+
 class OciPricingService:
     """Pure OCI cost calculations over simple domain values, without OCI SDK coupling."""
 
@@ -147,27 +213,123 @@ class OciPricingService:
     def metadata(self) -> OciPricingMetadata:
         return OCI_PRICING_METADATA
 
+    def compute_monthly_pricing(
+        self,
+        *,
+        family: str | None,
+        ocpus: Decimal | int | float | str | None,
+        memory_gb: Decimal | int | float | str | None,
+        include_windows_license: bool = False,
+        shape: str | None = None,
+    ) -> OciComputePricingResult:
+        """Calculate an explainable monthly Compute result from an approved family."""
+
+        normalized_family, prices = _compute_family(family)
+        ocpu_count = _positive_compute_input("ocpus", ocpus)
+        memory = _positive_compute_input("memory_gb", memory_gb)
+        if not isinstance(include_windows_license, bool):
+            raise InvalidOciPricingInputError("include_windows_license must be a boolean")
+
+        raw_ocpu_cost = ocpu_count * prices.ocpu_hour * OCI_MONTHLY_HOURS
+        raw_memory_cost = memory * prices.memory_gb_hour * OCI_MONTHLY_HOURS
+        raw_base_cost = raw_ocpu_cost + raw_memory_cost
+        raw_total = raw_base_cost
+        if include_windows_license:
+            raw_total += ocpu_count * OCI_WINDOWS_OCPU_HOUR * OCI_MONTHLY_HOURS
+
+        return OciComputePricingResult(
+            status=PRICING_STATUS_PRICED,
+            source=OCI_PRICING_SOURCE,
+            version=OCI_PRICING_VERSION,
+            currency=OCI_PRICING_CURRENCY,
+            monthly_hours=OCI_MONTHLY_HOURS,
+            shape=shape,
+            family=normalized_family,
+            ocpus=ocpu_count,
+            memory_gb=memory,
+            ocpu_monthly_cost=quantize_money(raw_ocpu_cost),
+            memory_monthly_cost=quantize_money(raw_memory_cost),
+            base_monthly_cost=quantize_money(raw_total),
+            windows_license_included=include_windows_license,
+        )
+
     def compute_monthly_cost(
         self,
         *,
         family: str | None,
-        ocpus: Decimal | int | str | None,
-        memory_gb: Decimal | int | str | None,
+        ocpus: Decimal | int | float | str | None,
+        memory_gb: Decimal | int | float | str | None,
         include_windows_license: bool = False,
     ) -> Decimal:
-        _, prices = _compute_family(family)
-        ocpu_count = _decimal_input("ocpus", ocpus)
-        memory = _decimal_input("memory_gb", memory_gb)
-        if not isinstance(include_windows_license, bool):
-            raise InvalidOciPricingInputError("include_windows_license must be a boolean")
+        """Backward-compatible family API returning only the monthly monetary value."""
 
-        monthly = (
-            ocpu_count * prices.ocpu_hour * OCI_MONTHLY_HOURS
-            + memory * prices.memory_gb_hour * OCI_MONTHLY_HOURS
+        result = self.compute_monthly_pricing(
+            family=family,
+            ocpus=ocpus,
+            memory_gb=memory_gb,
+            include_windows_license=include_windows_license,
         )
-        if include_windows_license:
-            monthly += ocpu_count * OCI_WINDOWS_OCPU_HOUR * OCI_MONTHLY_HOURS
-        return quantize_money(monthly)
+        assert result.base_monthly_cost is not None
+        return result.base_monthly_cost
+
+    def price_compute_resource(
+        self,
+        *,
+        shape: str | None,
+        ocpus: Decimal | int | float | str | None,
+        memory_gb: Decimal | int | float | str | None,
+    ) -> OciComputePricingResult:
+        """Resolve an OCI shape and return base Compute pricing without Windows licensing.
+
+        Unsupported shapes and expected resource-data problems are represented as
+        domain statuses rather than valid zero-valued prices.
+        """
+
+        try:
+            family = resolve_compute_price_family(shape)
+        except UnsupportedOciComputeShapeError as exc:
+            return _empty_compute_result(
+                status=PRICING_STATUS_UNSUPPORTED_SHAPE,
+                shape=shape,
+                reason=str(exc),
+            )
+        except InvalidOciPricingInputError as exc:
+            return _empty_compute_result(
+                status=PRICING_STATUS_MISSING_INPUT,
+                shape=shape,
+                reason=str(exc),
+            )
+
+        if ocpus is None:
+            return _empty_compute_result(
+                status=PRICING_STATUS_MISSING_INPUT,
+                shape=shape,
+                family=family,
+                reason="ocpus must be provided",
+            )
+        if memory_gb is None:
+            return _empty_compute_result(
+                status=PRICING_STATUS_MISSING_INPUT,
+                shape=shape,
+                family=family,
+                reason="memory_gb must be provided",
+            )
+
+        try:
+            return self.compute_monthly_pricing(
+                family=family,
+                ocpus=ocpus,
+                memory_gb=memory_gb,
+                include_windows_license=False,
+                shape=shape,
+            )
+        except InvalidOciPricingInputError as exc:
+            return _empty_compute_result(
+                status=PRICING_STATUS_INVALID_INPUT,
+                shape=shape,
+                family=family,
+                reason=str(exc),
+            )
 
     def block_volume_monthly_cost(
         self,
