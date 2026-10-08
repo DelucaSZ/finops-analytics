@@ -13,6 +13,10 @@ from app.services.oci_pricing import (
     OCI_PRICING_VERSION,
     OCI_SHAPE_PRICE_FAMILY,
     OCI_WINDOWS_OCPU_HOUR,
+    PRICING_STATUS_INVALID_INPUT,
+    PRICING_STATUS_MISSING_INPUT,
+    PRICING_STATUS_PRICED,
+    PRICING_STATUS_UNSUPPORTED_SHAPE,
     InvalidOciPricingInputError,
     OciPricingService,
     UnsupportedOciComputeFamilyError,
@@ -94,22 +98,141 @@ def test_compute_monthly_cost_by_family(pricing, family, expected):
     )
 
 
+@pytest.mark.parametrize(
+    ("shape", "family", "ocpu_cost", "memory_cost", "total"),
+    [
+        ("VM.Standard.E3.Flex", "E3", "155.05", "147.61", "302.66"),
+        ("VM.Standard.E4.Flex", "E4", "205.05", "195.23", "400.27"),
+        ("VM.Standard.E5.Flex", "E5", "246.00", "262.41", "508.41"),
+    ],
+)
+def test_compute_resource_pricing_exact_approved_examples(
+    pricing, shape, family, ocpu_cost, memory_cost, total
+):
+    result = pricing.price_compute_resource(shape=shape, ocpus=4, memory_gb=64)
+
+    assert result.status == PRICING_STATUS_PRICED
+    assert result.family == family
+    assert result.shape == shape
+    assert result.currency == "BRL"
+    assert result.monthly_hours == Decimal("744")
+    assert result.ocpus == Decimal("4")
+    assert result.memory_gb == Decimal("64")
+    assert result.ocpu_monthly_cost == Decimal(ocpu_cost)
+    assert result.memory_monthly_cost == Decimal(memory_cost)
+    assert result.base_monthly_cost == Decimal(total)
+    assert result.source == OCI_PRICING_SOURCE
+    assert result.version == OCI_PRICING_VERSION
+    assert result.windows_license_included is False
+    assert result.financial_value_populated is True
+
+
+def test_compute_families_use_distinct_catalog_rates(pricing):
+    totals = {
+        shape: pricing.price_compute_resource(shape=shape, ocpus=4, memory_gb=64).base_monthly_cost
+        for shape in OCI_SHAPE_PRICE_FAMILY
+    }
+    assert totals == {
+        "VM.Standard.E3.Flex": Decimal("302.66"),
+        "VM.Standard.E4.Flex": Decimal("400.27"),
+        "VM.Standard.E5.Flex": Decimal("508.41"),
+    }
+
+
+@pytest.mark.parametrize(
+    "shape",
+    ["VM.Standard.A1.Flex", "VM.Standard.E6.Flex", "BM.Standard.E4.128"],
+)
+def test_compute_resource_unsupported_shape_is_domain_status_not_zero(pricing, shape):
+    result = pricing.price_compute_resource(shape=shape, ocpus=4, memory_gb=64)
+    assert result.status == PRICING_STATUS_UNSUPPORTED_SHAPE
+    assert result.base_monthly_cost is None
+    assert result.financial_value_populated is False
+    assert result.family is None
+
+
+@pytest.mark.parametrize(
+    ("ocpus", "memory_gb", "reason"),
+    [(None, 64, "ocpus"), (4, None, "memory_gb")],
+)
+def test_compute_resource_missing_inputs_are_not_priced(pricing, ocpus, memory_gb, reason):
+    result = pricing.price_compute_resource(
+        shape="VM.Standard.E4.Flex",
+        ocpus=ocpus,
+        memory_gb=memory_gb,
+    )
+    assert result.status == PRICING_STATUS_MISSING_INPUT
+    assert result.base_monthly_cost is None
+    assert result.financial_value_populated is False
+    assert reason in (result.reason or "")
+
+
+@pytest.mark.parametrize(
+    ("ocpus", "memory_gb", "reason"),
+    [(-1, 64, "ocpus"), (4, -1, "memory_gb"), (0, 64, "ocpus"), (4, 0, "memory_gb")],
+)
+def test_compute_resource_invalid_or_zero_inputs_are_not_priced(pricing, ocpus, memory_gb, reason):
+    result = pricing.price_compute_resource(
+        shape="VM.Standard.E4.Flex",
+        ocpus=ocpus,
+        memory_gb=memory_gb,
+    )
+    assert result.status == PRICING_STATUS_INVALID_INPUT
+    assert result.base_monthly_cost is None
+    assert result.financial_value_populated is False
+    assert reason in (result.reason or "")
+
+
+def test_float_compute_inputs_are_normalized_via_decimal_string(pricing):
+    result = pricing.price_compute_resource(
+        shape="VM.Standard.E3.Flex",
+        ocpus=4.0,
+        memory_gb=64.0,
+    )
+    assert result.status == PRICING_STATUS_PRICED
+    assert result.ocpus == Decimal("4.0")
+    assert result.memory_gb == Decimal("64.0")
+    assert result.base_monthly_cost == Decimal("302.66")
+
+
+def test_float_precision_does_not_leak_binary_representation(pricing):
+    result = pricing.price_compute_resource(
+        shape="VM.Standard.E5.Flex",
+        ocpus=4.5,
+        memory_gb=64.5,
+    )
+    explicit_decimal = pricing.price_compute_resource(
+        shape="VM.Standard.E5.Flex",
+        ocpus=Decimal("4.5"),
+        memory_gb=Decimal("64.5"),
+    )
+    assert result == explicit_decimal
+
+
 def test_windows_license_is_explicit_and_not_included_by_default(pricing):
-    base = pricing.compute_monthly_cost(
+    base = pricing.compute_monthly_pricing(
         family="E3",
         ocpus=Decimal("2"),
         memory_gb=Decimal("16"),
     )
-    windows = pricing.compute_monthly_cost(
+    windows = pricing.compute_monthly_pricing(
         family="E3",
         ocpus=Decimal("2"),
         memory_gb=Decimal("16"),
         include_windows_license=True,
     )
+    resource = pricing.price_compute_resource(
+        shape="VM.Standard.E3.Flex",
+        ocpus=2,
+        memory_gb=16,
+    )
 
-    assert base == Decimal("114.43")
-    assert windows == Decimal("800.28")
-    assert windows > base
+    assert base.base_monthly_cost == Decimal("114.43")
+    assert base.windows_license_included is False
+    assert windows.base_monthly_cost == Decimal("800.28")
+    assert windows.windows_license_included is True
+    assert resource.windows_license_included is False
+    assert resource.base_monthly_cost == base.base_monthly_cost
 
 
 def test_block_volume_without_vpu(pricing):
@@ -140,9 +263,11 @@ def test_unknown_compute_family_never_returns_zero(pricing):
     [
         ({"family": "E3", "ocpus": Decimal("-1"), "memory_gb": Decimal("8")}, "ocpus"),
         ({"family": "E3", "ocpus": Decimal("1"), "memory_gb": Decimal("-8")}, "memory_gb"),
+        ({"family": "E3", "ocpus": Decimal("0"), "memory_gb": Decimal("8")}, "ocpus"),
+        ({"family": "E3", "ocpus": Decimal("1"), "memory_gb": Decimal("0")}, "memory_gb"),
     ],
 )
-def test_compute_rejects_negative_inputs(pricing, kwargs, field):
+def test_compute_rejects_non_positive_inputs(pricing, kwargs, field):
     with pytest.raises(InvalidOciPricingInputError, match=field):
         pricing.compute_monthly_cost(**kwargs)
 
@@ -165,15 +290,11 @@ def test_missing_or_invalid_decimal_inputs_are_rejected(pricing, value):
         pricing.block_volume_monthly_cost(size_gb=value, vpus_per_gb=Decimal("0"))
 
 
-def test_float_inputs_are_rejected_to_prevent_binary_float_money_regressions(pricing):
-    with pytest.raises(InvalidOciPricingInputError, match="Decimal"):
-        pricing.compute_monthly_cost(family="E3", ocpus=1.0, memory_gb=Decimal("8"))
-    with pytest.raises(InvalidOciPricingInputError, match="Decimal"):
-        pricing.block_volume_monthly_cost(size_gb=Decimal("100"), vpus_per_gb=10.0)
+def test_float_block_inputs_use_safe_decimal_string_conversion(pricing):
+    assert pricing.block_volume_monthly_cost(size_gb=500.0, vpus_per_gb=10.0) == Decimal("44.55")
 
 
-def test_zero_values_are_legitimate(pricing):
-    assert pricing.compute_monthly_cost(family="E3", ocpus=0, memory_gb=0) == Decimal("0.00")
+def test_zero_values_remain_legitimate_for_block_volume(pricing):
     assert pricing.block_volume_monthly_cost(size_gb=0, vpus_per_gb=0) == Decimal("0.00")
 
 
