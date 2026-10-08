@@ -146,9 +146,16 @@ def quantize_money(value: Decimal) -> Decimal:
     return value.quantize(OCI_MONEY_QUANTUM, rounding=ROUND_HALF_UP)
 
 
-def _decimal_input(name: str, value: Decimal | int | float | str | None) -> Decimal:
-    if value is None or isinstance(value, bool):
-        raise InvalidOciPricingInputError(f"{name} must be provided as a numeric value")
+def _decimal_input(
+    name: str,
+    value: Decimal | int | float | str | None,
+    *,
+    allow_float: bool = False,
+) -> Decimal:
+    if value is None or isinstance(value, bool) or (isinstance(value, float) and not allow_float):
+        raise InvalidOciPricingInputError(
+            f"{name} must be provided as Decimal, int, or decimal string"
+        )
     try:
         parsed = value if isinstance(value, Decimal) else Decimal(str(value))
     except (InvalidOperation, ValueError) as exc:
@@ -161,7 +168,7 @@ def _decimal_input(name: str, value: Decimal | int | float | str | None) -> Deci
 
 
 def _positive_compute_input(name: str, value: Decimal | int | float | str | None) -> Decimal:
-    parsed = _decimal_input(name, value)
+    parsed = _decimal_input(name, value, allow_float=True)
     if parsed <= 0:
         raise InvalidOciPricingInputError(f"{name} must be greater than zero for OCI Flex Compute")
     return parsed
@@ -327,8 +334,8 @@ class OciPricingService:
     def block_volume_monthly_cost(
         self,
         *,
-        size_gb: Decimal | int | float | str | None,
-        vpus_per_gb: Decimal | int | float | str | None,
+        size_gb: Decimal | int | str | None,
+        vpus_per_gb: Decimal | int | str | None,
     ) -> Decimal:
         size = _decimal_input("size_gb", size_gb)
         vpus = _decimal_input("vpus_per_gb", vpus_per_gb)

@@ -290,8 +290,9 @@ def test_missing_or_invalid_decimal_inputs_are_rejected(pricing, value):
         pricing.block_volume_monthly_cost(size_gb=value, vpus_per_gb=Decimal("0"))
 
 
-def test_float_block_inputs_use_safe_decimal_string_conversion(pricing):
-    assert pricing.block_volume_monthly_cost(size_gb=500.0, vpus_per_gb=10.0) == Decimal("44.55")
+def test_float_block_inputs_remain_rejected(pricing):
+    with pytest.raises(InvalidOciPricingInputError, match="Decimal"):
+        pricing.block_volume_monthly_cost(size_gb=Decimal("500"), vpus_per_gb=10.0)
 
 
 def test_zero_values_remain_legitimate_for_block_volume(pricing):
