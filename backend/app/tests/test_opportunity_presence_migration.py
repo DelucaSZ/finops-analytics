@@ -169,8 +169,7 @@ def test_presence_migration_backfills_active_without_external_resolution(
         assert all(row.missing_since_at is None for row in rows.values())
         assert all(row.resolved_externally_at is None for row in rows.values())
         assert all(
-            row.first_seen_at is not None and row.last_seen_at is not None
-            for row in rows.values()
+            row.first_seen_at is not None and row.last_seen_at is not None for row in rows.values()
         )
 
         observation = connection.execute(select(migrated_observations)).one()
@@ -178,9 +177,7 @@ def test_presence_migration_backfills_active_without_external_resolution(
         assert observation.opportunity_id == "legacy-treated"
         assert observation.evidence == {"state": "available"}
 
-        column_names = {
-            column["name"] for column in inspect(connection).get_columns("findings")
-        }
+        column_names = {column["name"] for column in inspect(connection).get_columns("findings")}
         assert "presence_status" in column_names
         assert connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version")) == (
             "0019_opportunity_presence"
