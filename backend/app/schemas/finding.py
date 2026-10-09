@@ -4,6 +4,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.models.finding import OpportunityPresenceStatus
+
 RejectionReason = Literal[
     "FALSE_POSITIVE",
     "OPERATIONAL_EXCEPTION",
@@ -35,6 +37,9 @@ class FindingRead(BaseModel):
     confidence: str
     severity: str
     status: str
+    presence_status: OpportunityPresenceStatus
+    missing_since_at: datetime | None = None
+    resolved_externally_at: datetime | None = None
     first_seen_at: datetime
     last_seen_at: datetime
     treated_at: datetime | None = None

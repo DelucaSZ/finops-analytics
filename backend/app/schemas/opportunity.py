@@ -4,6 +4,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.models.finding import OpportunityPresenceStatus
+
 OpportunityStatus = Literal["open", "treated", "rejected"]
 OpportunitySeverity = Literal["low", "medium", "high"]
 SortOrder = Literal["asc", "desc"]
@@ -93,6 +95,9 @@ class OpportunityListItem(BaseModel):
     confidence: str
     severity: str
     status: str
+    presence_status: OpportunityPresenceStatus
+    missing_since_at: datetime | None = None
+    resolved_externally_at: datetime | None = None
     first_seen_at: datetime
     last_seen_at: datetime
     total_occurrence_count: int
