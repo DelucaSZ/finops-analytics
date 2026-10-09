@@ -53,7 +53,9 @@ def _observed_services(result: Any) -> dict[tuple[str, str], str | None]:
     }
 
 
-def _aws_error_scopes(errors: list[object]) -> tuple[set[tuple[str, str]], dict[tuple[str, str], str]]:
+def _aws_error_scopes(
+    errors: list[object],
+) -> tuple[set[tuple[str, str]], dict[tuple[str, str], str]]:
     failed: set[tuple[str, str]] = set()
     details: dict[tuple[str, str], str] = {}
     for raw in errors:

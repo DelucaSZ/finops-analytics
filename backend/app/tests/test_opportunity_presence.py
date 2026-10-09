@@ -181,6 +181,7 @@ def test_real_new_observation_reactivates_presence_without_reopening_human_statu
         assert treated_at_from_db == treated_at
         assert finding.treatment_note == "handled outside this test"
         assert finding.presence_status == OpportunityPresenceStatus.ACTIVE.value
+        assert finding.missing_count == 0
         assert finding.missing_since_at is None
         assert finding.resolved_externally_at is None
         assert finding.needs_review is True

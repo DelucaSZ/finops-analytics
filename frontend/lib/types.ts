@@ -111,8 +111,10 @@ export type Finding = {
   severity: string;
   status: string;
   presence_status: OpportunityPresenceStatus;
+  missing_count: number;
   missing_since_at: string | null;
   resolved_externally_at: string | null;
+  presence_reconciled_at: string | null;
   first_seen_at: string;
   last_seen_at: string;
   total_occurrence_count: number;

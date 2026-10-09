@@ -493,9 +493,7 @@ def execute_scan(db: Session, scan: Scan) -> None:
     summary_provider = run.provider
     summary_account_id = run.account_id
     summary_collection_run_id = run.id
-    failed_or_skipped_scopes = sum(
-        1 for scope in scope_executions if scope.status != "SUCCESS"
-    )
+    failed_or_skipped_scopes = sum(1 for scope in scope_executions if scope.status != "SUCCESS")
     db.commit()
     logger.info(
         "event=opportunity_presence_reconciled provider=%s account_id=%s collection_run_id=%s "

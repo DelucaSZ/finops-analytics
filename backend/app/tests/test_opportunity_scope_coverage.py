@@ -173,9 +173,7 @@ def test_oci_coverage_is_authoritative_only_without_partial_pipeline_issues(engi
             finished_at=START + timedelta(minutes=1),
         )
 
-        assert {row.status for row in clean_rows} == {
-            CollectionScopeExecutionStatus.SUCCESS.value
-        }
+        assert {row.status for row in clean_rows} == {CollectionScopeExecutionStatus.SUCCESS.value}
         assert {row.status for row in partial_rows} == {
             CollectionScopeExecutionStatus.SKIPPED.value
         }

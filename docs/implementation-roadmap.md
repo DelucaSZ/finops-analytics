@@ -3514,3 +3514,50 @@ As suítes cumulativas continuam cobrindo treat, reject, reopen, `needs_review`,
 **Ausência entre coletas ainda não é reconciliada automaticamente nesta etapa.** Não existe varredura ao fim do run procurando findings ausentes, contagem de ausências, transição automática para `missing`/`resolved_externally` nem interpretação de falha/parcialidade de coleta como resolução.
 
 A Task 23.2 deverá implementar a reconciliação usando cobertura confiável de `CollectionRun` antes de qualquer transição por ausência. O histórico automático de mudanças de presença permanece para a Task 23.3; arquivamento/retenção de oportunidades permanece para a Task 23.4.
+## Etapa 23.2 — Reconciliação de oportunidades por ausência entre coletas
+
+### Problema
+
+A presença técnica introduzida na Etapa 23.1 precisava deixar de depender apenas de novas observations positivas. Uma oportunidade que desaparece porque a condição foi corrigida diretamente no provider não pode permanecer `active` indefinidamente; ao mesmo tempo, a simples ausência em um run não prova resolução, porque collectors, regiões ou analyzers podem falhar ou ser pulados.
+
+### Ausência válida e granularidade de coverage
+
+Uma ausência só é válida quando o run possui coverage `SUCCESS` para o mesmo escopo lógico da oportunidade. A granularidade adotada é provider + account + region + rule/analyzer; `service` fica como metadado informativo quando conhecido. A entidade `CollectionScopeExecution` registra `SUCCESS`, `FAILED` ou `SKIPPED`, timestamps, resources examined e erro sanitizado por `CollectionRun`.
+
+Somente `SUCCESS` participa da reconciliação. `FAILED` e `SKIPPED` preservam o estado atual. Collector executado com sucesso e zero resultados é coverage válida; collector ou analyzer não executado não é.
+
+Na AWS, a telemetria já existente permite separar regra e região. Uma falha `rule@region` invalida somente aquele escopo; regiões irmãs que retornaram normalmente continuam autoritativas, inclusive com zero findings. Na OCI, enquanto o pipeline atual não expõe falhas parciais por rule/region com a mesma precisão, qualquer issue parcial torna os escopos do run `SKIPPED` para ausência. Essa escolha é conservadora e evita falsa resolução.
+
+### Política de ausências consecutivas
+
+`Finding.missing_count` contabiliza apenas ausências consecutivas válidas. O threshold é configurado por `OPPORTUNITY_RESOLUTION_MISSING_RUNS`, com default `3` e validação `>= 1`.
+
+- primeira ausência válida: `active -> missing`, `missing_count = 1`, define `missing_since_at`;
+- ausências válidas seguintes: incrementam `missing_count` mantendo `missing`;
+- ao atingir o threshold: `missing -> resolved_externally`, define `resolved_externally_at`;
+- nova observation real: presença volta para `active`, zera `missing_count` e limpa timestamps de estado corrente.
+
+O lifecycle humano (`open`, `treated`, `rejected`) não é alterado por essas transições. O comportamento existente de `needs_review` para oportunidade tratada que reaparece permanece no caminho de persistência da observation.
+
+### Idempotência, ordenação e concorrência
+
+`presence_reconciled_run_id` garante que o mesmo `CollectionRun` conte no máximo uma vez por finding. `presence_reconciled_at`, `CollectionRun.started_at` e `last_seen_at` impedem que retry/processamento atrasado de run antigo sobrescreva estado derivado de um run posterior. Findings candidatos e coverage do run são carregados em lote e bloqueados durante a atualização, evitando N+1 e reduzindo condições de corrida entre workers.
+
+A sequência transacional do worker é: collect -> persist observations -> persist/finalize scope coverage -> reconcile absence -> finish `CollectionRun` -> commit. Se qualquer etapa da persistência/reconciliação falhar, o transaction rollback preserva o estado anterior e o run é finalizado como `FAILED` pelo boundary do worker.
+
+### Falhas totais e parciais
+
+`CollectionRun.status = SUCCESS` continua representando que o worker concluiu sem exceção global e, isoladamente, não é evidência de coverage integral. A reconciliação usa exclusivamente `CollectionScopeExecution`. Runs `FAILED` não alteram presença. Em partial failures, apenas escopos explicitamente `SUCCESS` podem produzir ausência.
+
+### Migration, API e testes
+
+A migration `0020_opportunity_reconciliation` cria `collection_scope_executions`, adiciona `missing_count`, `presence_reconciled_run_id`, `presence_reconciled_at` e o índice de reconciliação em `findings`, preservando os dados existentes. A API passa a expor `missing_count` e `presence_reconciled_at`; os tipos de frontend acompanham o contrato sem redesign de tela.
+
+A cobertura automatizada inclui primeira ausência, threshold 3, collector failed/skipped, zero resultados, região/regra divergentes, observation presente, reaparecimento, lifecycle humano, retry idempotente, run fora de ordem, run totalmente falho, partial failure, persistência idempotente de coverage e núcleo provider-neutral AWS/OCI. Testes adicionais validam a tradução da coverage AWS por regra/região e o fallback conservador OCI.
+
+### Limitação deliberada para a Etapa 23.3
+
+Esta etapa não cria histórico auditável completo de `active -> missing -> resolved_externally -> active`. Os campos adicionados representam o estado corrente e o mínimo necessário para idempotência/monotonicidade. A trilha histórica detalhada permanece para a Etapa 23.3.
+
+> `resolved_externally` representa somente que a condição deixou de ser observada de forma confirmada. Ele não representa treatment nem saving realizado pelo DeepOps.
+

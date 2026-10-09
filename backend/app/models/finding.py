@@ -92,7 +92,9 @@ class Finding(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    missing_count: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    missing_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     missing_since_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )

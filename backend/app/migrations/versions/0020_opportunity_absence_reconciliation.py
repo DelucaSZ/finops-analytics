@@ -58,7 +58,9 @@ def upgrade():
         batch.add_column(
             sa.Column("missing_count", sa.Integer(), nullable=False, server_default="0")
         )
-        batch.add_column(sa.Column("presence_reconciled_run_id", sa.String(length=36), nullable=True))
+        batch.add_column(
+            sa.Column("presence_reconciled_run_id", sa.String(length=36), nullable=True)
+        )
         batch.add_column(
             sa.Column("presence_reconciled_at", sa.DateTime(timezone=True), nullable=True)
         )
@@ -69,4 +71,6 @@ def upgrade():
 
 
 def downgrade():
-    raise RuntimeError("Opportunity absence reconciliation state must be preserved; do not downgrade")
+    raise RuntimeError(
+        "Opportunity absence reconciliation state must be preserved; do not downgrade"
+    )
