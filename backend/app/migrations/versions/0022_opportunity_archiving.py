@@ -11,9 +11,7 @@ depends_on = None
 
 def upgrade():
     with op.batch_alter_table("findings") as batch:
-        batch.add_column(
-            sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True)
-        )
+        batch.add_column(sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True))
         batch.add_column(sa.Column("archived_by", sa.String(length=36), nullable=True))
         batch.add_column(sa.Column("archive_reason", sa.String(length=32), nullable=True))
         batch.create_foreign_key(
