@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, object_session
 
 from app.core.cloud import CloudProvider
 from app.models.account import CloudAccount
@@ -16,11 +17,16 @@ from app.models.collection_scope_execution import (
 )
 from app.models.finding import Finding, OpportunityPresenceStatus
 from app.models.opportunity_observation import OpportunityObservation
+from app.models.opportunity_presence_history import (
+    OpportunityPresenceHistory,
+    OpportunityPresenceReason,
+)
 from app.services.collection_errors import sanitize_collection_error
 from app.services.collectors import GLOBAL_COLLECTORS
 from app.services.policies import list_effective_policies
 
 ALL_REGIONS_SCOPE = "*"
+logger = logging.getLogger("deepops.opportunity_reconciliation")
 
 
 @dataclass(frozen=True)
@@ -232,6 +238,65 @@ def persist_collection_scope_executions(
     return persisted
 
 
+def _record_presence_history(
+    db: Session,
+    finding: Finding,
+    run: CollectionRun,
+    *,
+    from_status: str,
+    to_status: str,
+    reason: OpportunityPresenceReason,
+    missing_count: int,
+    missing_threshold: int | None,
+    scope_execution: CollectionScopeExecution | None = None,
+    context: dict[str, Any] | None = None,
+) -> None:
+    event_context: dict[str, Any] = {
+        "provider": finding.provider,
+        "account_id": finding.account_id,
+        "rule_key": finding.rule_key,
+        "region": finding.region,
+    }
+    if scope_execution is not None:
+        event_context.update(
+            {
+                "scope_region": scope_execution.region,
+                "scope_rule_key": scope_execution.rule_key,
+                "scope_status": scope_execution.status,
+                "resources_examined": scope_execution.resources_examined,
+            }
+        )
+    if context:
+        event_context.update(context)
+
+    db.add(
+        OpportunityPresenceHistory(
+            opportunity_id=finding.id,
+            collection_run_id=run.id,
+            collection_scope_execution_id=(scope_execution.id if scope_execution is not None else None),
+            from_status=from_status,
+            to_status=to_status,
+            reason=reason.value,
+            missing_count=missing_count,
+            missing_threshold=missing_threshold,
+            occurred_at=run.started_at,
+            context=event_context,
+        )
+    )
+    logger.info(
+        "event=opportunity_presence_transition opportunity_id=%s provider=%s account=%s "
+        "from_status=%s to_status=%s collection_run_id=%s missing_count=%s reason=%s",
+        finding.id,
+        finding.provider,
+        finding.account_id,
+        from_status,
+        to_status,
+        run.id,
+        missing_count,
+        reason.value,
+    )
+
+
 def reactivate_presence_from_observation(
     finding: Finding,
     run: CollectionRun,
@@ -243,6 +308,25 @@ def reactivate_presence_from_observation(
         reconciled_at = _normalized_utc(finding.presence_reconciled_at)
         if run_started_at < reconciled_at:
             return False
+
+    previous_status = finding.presence_status
+    previous_missing_count = int(finding.missing_count or 0)
+    if previous_status != OpportunityPresenceStatus.ACTIVE.value:
+        db = object_session(finding)
+        if db is None:
+            raise RuntimeError("Presence reactivation requires an attached Finding for audit history")
+        _record_presence_history(
+            db,
+            finding,
+            run,
+            from_status=previous_status,
+            to_status=OpportunityPresenceStatus.ACTIVE.value,
+            reason=OpportunityPresenceReason.OBSERVED_AGAIN,
+            missing_count=0,
+            missing_threshold=None,
+            context={"previous_missing_count": previous_missing_count},
+        )
+
     finding.presence_status = OpportunityPresenceStatus.ACTIVE.value
     finding.missing_count = 0
     finding.missing_since_at = None
@@ -266,11 +350,12 @@ def reconcile_opportunity_presence(
     if run.status == CollectionRunStatus.FAILED:
         return ReconciliationStats()
 
-    successful_scopes = {
-        (row.rule_key, _scope_region(row.region))
+    successful_scope_rows = {
+        (row.rule_key, _scope_region(row.region)): row
         for row in scope_executions
         if row.status == CollectionScopeExecutionStatus.SUCCESS.value
     }
+    successful_scopes = set(successful_scope_rows)
     if not successful_scopes:
         return ReconciliationStats()
 
@@ -311,7 +396,10 @@ def reconcile_opportunity_presence(
 
     for finding in findings:
         finding_scope = (finding.rule_key, _scope_region(finding.region))
-        if finding_scope not in successful_scopes and finding.rule_key not in wildcard_rule_keys:
+        scope_execution = successful_scope_rows.get(finding_scope)
+        if scope_execution is None and finding.rule_key in wildcard_rule_keys:
+            scope_execution = successful_scope_rows.get((finding.rule_key, ALL_REGIONS_SCOPE))
+        if scope_execution is None:
             continue
         if finding.id in observed_ids:
             continue
@@ -329,7 +417,8 @@ def reconcile_opportunity_presence(
             continue
 
         previous_status = finding.presence_status
-        finding.missing_count = int(finding.missing_count or 0) + 1
+        previous_missing_count = int(finding.missing_count or 0)
+        finding.missing_count = previous_missing_count + 1
         if finding.missing_since_at is None:
             finding.missing_since_at = run.started_at
         finding.presence_reconciled_run_id = run.id
@@ -338,11 +427,26 @@ def reconcile_opportunity_presence(
         if finding.missing_count >= missing_threshold:
             finding.presence_status = OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
             finding.resolved_externally_at = run.started_at
+            reason = OpportunityPresenceReason.MISSING_THRESHOLD_REACHED
             resolved_externally += 1
         else:
             finding.presence_status = OpportunityPresenceStatus.MISSING.value
+            reason = OpportunityPresenceReason.NOT_OBSERVED_IN_SUCCESSFUL_SCOPE
             if previous_status == OpportunityPresenceStatus.ACTIVE.value:
                 marked_missing += 1
+
+        _record_presence_history(
+            db,
+            finding,
+            run,
+            from_status=previous_status,
+            to_status=finding.presence_status,
+            reason=reason,
+            missing_count=finding.missing_count,
+            missing_threshold=missing_threshold,
+            scope_execution=scope_execution,
+            context={"previous_missing_count": previous_missing_count},
+        )
         reconciled += 1
 
     db.flush()
