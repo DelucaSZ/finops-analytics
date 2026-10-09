@@ -96,8 +96,10 @@ class OpportunityListItem(BaseModel):
     severity: str
     status: str
     presence_status: OpportunityPresenceStatus
+    missing_count: int = 0
     missing_since_at: datetime | None = None
     resolved_externally_at: datetime | None = None
+    presence_reconciled_at: datetime | None = None
     first_seen_at: datetime
     last_seen_at: datetime
     total_occurrence_count: int
