@@ -87,7 +87,10 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
         )
         .select_from(OpportunityObservation)
         .join(Finding, Finding.id == OpportunityObservation.opportunity_id)
-        .where(OpportunityObservation.collection_run_id == target.id)
+        .where(
+            OpportunityObservation.collection_run_id == target.id,
+            Finding.archived_at.is_(None),
+        )
         .group_by(OpportunityObservation.currency)
         .order_by(OpportunityObservation.currency)
     ).all()
