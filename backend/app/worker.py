@@ -23,6 +23,12 @@ from app.services.collection_executors import (
 )
 from app.services.dashboard_aggregation import rebuild_account_summary
 from app.services.opportunity_fingerprint import build_opportunity_fingerprint
+from app.services.opportunity_reconciliation import (
+    build_collection_scope_executions,
+    persist_collection_scope_executions,
+    reactivate_presence_from_observation,
+    reconcile_opportunity_presence,
+)
 from app.services.provider_capabilities import (
     ProviderOperation,
     UnsupportedProviderOperation,
@@ -385,9 +391,7 @@ def persist_findings(
             _refresh_finding_snapshot(finding, scan, item)
         if is_latest_observation:
             finding.last_seen_at = observation.observed_at
-            finding.presence_status = OpportunityPresenceStatus.ACTIVE.value
-            finding.missing_since_at = None
-            finding.resolved_externally_at = None
+            reactivate_presence_from_observation(finding, run)
             if finding.status == "treated" and finding.treated_at is not None:
                 treated_at = _normalized_utc(finding.treated_at)
                 if _normalized_utc(observation.observed_at) > treated_at:
@@ -449,9 +453,28 @@ def execute_scan(db: Session, scan: Scan) -> None:
         result.findings,
         result.active_rule_keys,
     )
+    completed_at = datetime.now(UTC)
+    scope_executions = persist_collection_scope_executions(
+        db,
+        run,
+        build_collection_scope_executions(
+            db,
+            cloud_account,
+            run,
+            result,
+            finished_at=completed_at,
+        ),
+    )
+    reconciliation = reconcile_opportunity_presence(
+        db,
+        run,
+        scope_executions,
+        missing_threshold=settings.opportunity_resolution_missing_runs,
+    )
+
     scan.findings_count = opportunity_count
     scan.status = "completed_with_warnings" if result.collector_errors else "completed"
-    scan.completed_at = datetime.now(UTC)
+    scan.completed_at = completed_at
     scan.error = (
         "\n".join(sanitize_collection_error(error) or "" for error in result.collector_errors)[
             :4000
@@ -461,7 +484,7 @@ def execute_scan(db: Session, scan: Scan) -> None:
     )
 
     run.status = CollectionRunStatus.SUCCESS
-    run.finished_at = scan.completed_at
+    run.finished_at = completed_at
     run.opportunities_found = opportunity_count
     run.resources_analyzed = result.resources_analyzed
     run.error_detail = None
@@ -470,7 +493,21 @@ def execute_scan(db: Session, scan: Scan) -> None:
     summary_provider = run.provider
     summary_account_id = run.account_id
     summary_collection_run_id = run.id
+    failed_or_skipped_scopes = sum(1 for scope in scope_executions if scope.status != "SUCCESS")
     db.commit()
+    logger.info(
+        "event=opportunity_presence_reconciled provider=%s account_id=%s collection_run_id=%s "
+        "opportunities_reconciled=%s marked_missing=%s resolved_externally=%s "
+        "skipped_due_to_failed_scope=%s skipped_out_of_order=%s",
+        summary_provider,
+        summary_account_id,
+        summary_collection_run_id,
+        reconciliation.opportunities_reconciled,
+        reconciliation.marked_missing,
+        reconciliation.resolved_externally,
+        failed_or_skipped_scopes,
+        reconciliation.skipped_out_of_order,
+    )
     logger.info(
         "event=collection_stage_completed provider=%s cloud_account_id=%s native_account_id=%s "
         "scan_id=%s collection_run_id=%s trigger=%s stage=persistence duration_ms=%s "

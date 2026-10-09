@@ -43,6 +43,14 @@ class Finding(TimestampMixin, Base):
             "status",
             "last_seen_at",
         ),
+        Index(
+            "ix_findings_presence_reconciliation_scope",
+            "provider",
+            "account_id",
+            "rule_key",
+            "region",
+            "presence_status",
+        ),
         Index("ix_findings_status_severity", "status", "severity"),
     )
 
@@ -84,10 +92,17 @@ class Finding(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
+    missing_count: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
     missing_since_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     resolved_externally_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    presence_reconciled_run_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    presence_reconciled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
     total_occurrence_count: Mapped[int] = mapped_column(
