@@ -246,6 +246,5 @@ def test_read_apis_expose_presence_without_synthetic_absence_observations(enviro
 
     with Session(engine) as db:
         assert (
-            db.scalar(select(func.count()).select_from(OpportunityObservation))
-            == observation_count
+            db.scalar(select(func.count()).select_from(OpportunityObservation)) == observation_count
         )
