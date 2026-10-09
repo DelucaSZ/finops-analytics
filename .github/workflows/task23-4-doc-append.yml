@@ -1,0 +1,147 @@
+name: Task 23.4 roadmap append
+
+on:
+  push:
+    branches:
+      - feat/23-4-opportunity-archiving
+
+permissions:
+  contents: write
+
+jobs:
+  append-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/23-4-opportunity-archiving
+          fetch-depth: 1
+      - name: Append Task 23.4 documentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if grep -q '^## Etapa 23\.4 — Modelo de arquivamento de oportunidades$' docs/implementation-roadmap.md; then
+            echo 'Task 23.4 already documented.'
+          else
+            cat >> docs/implementation-roadmap.md <<'ROADMAP'
+
+
+## Etapa 23.4 — Modelo de arquivamento de oportunidades
+
+**Status:** implementada no PR #58 em branch dedicada; validação final condicionada ao CI do head definitivo antes de qualquer merge na `main`.
+
+### Motivação e semântica
+
+Com o crescimento do histórico operacional, oportunidades antigas precisam poder sair das visões operacionais principais sem perda de auditoria, observations, decisões humanas, lifecycle técnico ou dados financeiros associados.
+
+> arquivamento é uma camada de retenção operacional e não representa tratamento, rejeição, resolução técnica ou exclusão de dados.
+
+As três dimensões permanecem ortogonais:
+
+- `status` representa o lifecycle humano: `open`, `treated` ou `rejected`;
+- `presence_status` representa a presença técnica: `active`, `missing` ou `resolved_externally`;
+- archive state representa somente a participação nas visões operacionais correntes.
+
+O estado persistente de arquivamento usa `archived_at`: `NULL` significa não arquivada e timestamp preenchido significa arquivada. Não foi criado `is_archived`, evitando duas fontes persistentes para o mesmo fato. A API expõe `archived` como valor derivado para conveniência dos consumidores.
+
+### Modelo persistente e auditoria
+
+`Finding` recebeu:
+
+- `archived_at`, timezone-aware e nullable;
+- `archived_by`, FK opcional para `users` com `SET NULL`;
+- `archive_reason`, motivo estruturado do arquivamento corrente.
+
+Os motivos de arquivamento preparados são `MANUAL` e `RETENTION_POLICY`. `RETENTION_POLICY` fica reservado para a política automática da Etapa 23.5 e não é acionado nesta etapa.
+
+Foi criada `OpportunityArchiveHistory`, separada de `OpportunityStatusHistory` e `OpportunityPresenceHistory`. Ela registra ações `ARCHIVE` e `UNARCHIVE`, motivo estruturado `MANUAL`, `RETENTION_POLICY` ou `REAPPEARED`, ator quando a ação é humana, `CollectionRun` quando a ação deriva de reaparecimento, timestamp e contexto sanitizado da transição.
+
+Assim é possível responder quando, por quem e por qual motivo uma oportunidade foi arquivada ou desarquivada sem alterar a semântica dos históricos humano e técnico.
+
+### Archive e unarchive manuais
+
+Foram adicionadas operações mutáveis autenticadas no domínio de oportunidades:
+
+- `POST /api/v1/opportunities/{id}/archive`;
+- `POST /api/v1/opportunities/{id}/unarchive`;
+- `GET /api/v1/opportunities/{id}/archive-history` para auditoria paginada sob demanda.
+
+O ator é derivado server-side do usuário autenticado. Archive manual preenche `archived_at`, `archived_by` e `archive_reason=MANUAL`; unarchive limpa somente o marcador de estado corrente e preserva o evento anterior no histórico. As duas operações são idempotentes: repetir uma ação que já corresponde ao estado atual não cria transição artificial.
+
+Archive e unarchive não alteram `status`, `presence_status`, observations, histórico humano, histórico técnico, savings estimados ou fingerprint.
+
+### Listagens operacionais e filtro explícito
+
+A API canônica de oportunidades recebeu `archive_state=active|archived|all`. O default é `active`, portanto consumidores atuais passam a excluir arquivadas sem precisar alterar todas as chamadas.
+
+O filtro compõe com provider, account, região, serviço, resource type, lifecycle humano, severidade, regra, resource ID, busca, `current=true`, ordenação e paginação existentes. `archived` retorna somente registros arquivados e `all` retorna os dois estados.
+
+A listagem legada de findings, options operacionais, stats e os agregados correntes do dashboard também excluem arquivadas por padrão. O detalhe direto por ID continua consultável mesmo quando a oportunidade está arquivada.
+
+Métricas históricas/comparações de coletas não foram retroativamente redefinidas: o arquivamento retira o registro do backlog/estado operacional corrente, mas não apaga fatos históricos.
+
+### Dashboard e contadores
+
+Os summaries persistidos de lifecycle, severidade e economia potencial corrente passam a ignorar findings arquivados. Archive/unarchive manual força atualização do summary da conta afetada na mesma transação do lifecycle operacional.
+
+O caminho de fallback direto e o Top 5 também partem somente de observations correntes cujo `Finding.archived_at IS NULL`. Comparações históricas `NEW`/`NO_LONGER_DETECTED` continuam baseadas nas observations das coletas e não perdem fatos porque uma oportunidade foi arquivada posteriormente.
+
+### Reaparecimento, fingerprint e `needs_review`
+
+A identidade por fingerprint permanece completamente independente de arquivamento. Uma observation válida da mesma condição reutiliza o mesmo `Finding`; nunca é criada uma oportunidade nova apenas porque o registro anterior estava arquivado.
+
+Quando uma oportunidade arquivada reaparece, o fluxo comum de observation:
+
+1. aplica a reativação técnica existente para `presence_status=active`;
+2. remove o estado de arquivamento;
+3. registra `UNARCHIVE` com motivo `REAPPEARED` e `collection_run_id` da observation que provocou a reativação;
+4. preserva integralmente o lifecycle humano.
+
+Assim, um item tecnicamente ativo não permanece invisível por estar arquivado. O comportamento preexistente de `needs_review` continua válido: uma oportunidade `treated` que reaparece permanece `treated`, fica ativa e desarquivada e recebe `needs_review=true` quando a observation é posterior ao tratamento. Uma oportunidade `rejected` permanece `rejected`, volta a `active` e é desarquivada sem reabrir a decisão humana.
+
+### Migration e índices
+
+A migration `0022_opportunity_archiving` parte de `0021_opportunity_presence_audit`. Findings existentes recebem implicitamente o estado não arquivado porque os três novos campos começam `NULL`; nenhum arquivamento, ator, data ou histórico retroativo é inferido.
+
+A migration cria `opportunity_archive_history`, constraints dos motivos/ações e FKs auditáveis. O downgrade destrutivo é bloqueado para não descartar a trilha histórica.
+
+Os índices novos são baseados nas consultas reais desta etapa:
+
+- `findings.archived_at` para seleção explícita do archive state;
+- `(status, archived_at, last_seen_at)` para listagens operacionais ordenadas/filtradas por lifecycle;
+- índices de histórico por oportunidade/timestamp e pelas referências de ator/run.
+
+Não foram adicionados índices compostos especulativos por provider/account, porque essas dimensões já possuem índices e combinações existentes no domínio.
+
+### Testes
+
+A cobertura adicionada valida archive/unarchive manual, ator e motivo, idempotência, autorização, exclusão da listagem padrão, consulta `archived` e `all`, detalhe por ID, preservação de status/presença, provider-neutral AWS/OCI e histórico auditável.
+
+O fluxo de reaparecimento é exercitado com duas observations do mesmo fingerprint, provando um único `Finding`, observations preservadas, `resolved_externally -> active`, unarchive `REAPPEARED`, vínculo ao novo `CollectionRun`, `treated + needs_review=true` e `rejected` sem reabertura humana.
+
+A migration possui teste dedicado em SQLite/PostgreSQL, preservando dados de finding existente e validando schema/índices. A suíte cumulativa de migrations continua verificando ausência de drift entre Alembic e `Base.metadata`.
+
+### Frontend e limites de UX
+
+Nenhuma nova aba global de Histórico/Arquivadas foi criada. O backend mantém compatibilidade default e expõe os novos campos no contrato de oportunidade; como os consumidores atuais não precisam enviar parâmetro novo para manter o comportamento operacional, não foi necessário ampliar a UI nesta fundação. A experiência completa de consulta de arquivadas pertence à Etapa 23.6.
+
+### Limitações deliberadas e dependência da Etapa 23.5
+
+> nesta etapa não existe política automática baseada em idade do registro; isso será implementado na Task 23.5.
+
+A Etapa 23.4 não cria scheduler/job periódico, não decide automaticamente que `treated` ou `rejected` antigos devem ser arquivados e não executa `RETENTION_POLICY`. Também não introduz exclusão física, nova contabilização de savings realizados, Billing, alteração de pricing AWS/OCI ou redesign global.
+
+A Etapa 23.5 deverá definir elegibilidade, idade/retenção e execução automática sobre esta fundação, reutilizando o motivo `RETENTION_POLICY` e o mesmo histórico auditável.
+ROADMAP
+          fi
+
+          rm -f .github/workflows/task23-4-doc-append.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/implementation-roadmap.md .github/workflows/task23-4-doc-append.yml
+          if git diff --cached --quiet; then
+            echo 'No documentation changes required.'
+            exit 0
+          fi
+          git commit -m 'docs: document Task 23.4 archiving model'
+          git push origin HEAD:feat/23-4-opportunity-archiving
