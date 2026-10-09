@@ -1,0 +1,43 @@
+name: Task 23.2 global scope fix
+
+on:
+  push:
+    branches:
+      - feat/23-2-opportunity-absence-reconciliation
+
+permissions:
+  contents: write
+
+jobs:
+  finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/23-2-opportunity-absence-reconciliation
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Add regression test and format
+        run: |
+          python - <<'PY'
+          import base64
+          from pathlib import Path
+
+          encoded = "ZnJvbSBkYXRldGltZSBpbXBvcnQgVVRDLCBkYXRldGltZSwgdGltZWRlbHRhCgpmcm9tIHNxbGFsY2hlbXkgaW1wb3J0IGNyZWF0ZV9lbmdpbmUKZnJvbSBzcWxhbGNoZW15Lm9ybSBpbXBvcnQgU2Vzc2lvbgpmcm9tIHNxbGFsY2hlbXkucG9vbCBpbXBvcnQgU3RhdGljUG9vbAoKaW1wb3J0IGFwcC5tb2RlbHMgICMgbm9xYTogRjQwMQpmcm9tIGFwcC5kYi5iYXNlIGltcG9ydCBCYXNlCmZyb20gYXBwLm1vZGVscy5jb2xsZWN0aW9uX3J1biBpbXBvcnQgQ29sbGVjdGlvblJ1bgpmcm9tIGFwcC5tb2RlbHMuY29sbGVjdGlvbl9zY29wZV9leGVjdXRpb24gaW1wb3J0ICgKICAgIENvbGxlY3Rpb25TY29wZUV4ZWN1dGlvbiwKICAgIENvbGxlY3Rpb25TY29wZUV4ZWN1dGlvblN0YXR1cywKKQpmcm9tIGFwcC5tb2RlbHMuZmluZGluZyBpbXBvcnQgRmluZGluZywgT3Bwb3J0dW5pdHlQcmVzZW5jZVN0YXR1cwpmcm9tIGFwcC5zZXJ2aWNlcy5vcHBvcnR1bml0eV9yZWNvbmNpbGlhdGlvbiBpbXBvcnQgKAogICAgQUxMX1JFR0lPTlNfU0NPUEUsCiAgICByZWNvbmNpbGVfb3Bwb3J0dW5pdHlfcHJlc2VuY2UsCikKClNUQVJUID0gZGF0ZXRpbWUoMjAyNiwgMTAsIDksIDEyLCAwLCB0emluZm89VVRDKQoKCmRlZiB0ZXN0X2FsbF9yZWdpb25zX3N1Y2Nlc3Nfc2NvcGVfcmVjb25jaWxlc19jb25jcmV0ZV9yZWdpb25fZmluZGluZygpOgogICAgZW5naW5lID0gY3JlYXRlX2VuZ2luZSgKICAgICAgICAic3FsaXRlOi8vIiwKICAgICAgICBjb25uZWN0X2FyZ3M9eyJjaGVja19zYW1lX3RocmVhZCI6IEZhbHNlfSwKICAgICAgICBwb29sY2xhc3M9U3RhdGljUG9vbCwKICAgICkKICAgIEJhc2UubWV0YWRhdGEuY3JlYXRlX2FsbChlbmdpbmUpCiAgICB0cnk6CiAgICAgICAgd2l0aCBTZXNzaW9uKGVuZ2luZSkgYXMgZGI6CiAgICAgICAgICAgIHJ1biA9IENvbGxlY3Rpb25SdW4oCiAgICAgICAgICAgICAgICBpZD0icnVuLWdsb2JhbCIsCiAgICAgICAgICAgICAgICBwcm92aWRlcj0iYXdzIiwKICAgICAgICAgICAgICAgIGFjY291bnRfaWQ9IjEyMzQ1Njc4OTAxMiIsCiAgICAgICAgICAgICAgICBzY29wZT17InJlZ2lvbnMiOiBbInNhLWVhc3QtMSJdfSwKICAgICAgICAgICAgICAgIHN0YXJ0ZWRfYXQ9U1RBUlQgKyB0aW1lZGVsdGEoaG91cnM9MSksCiAgICAgICAgICAgICAgICBzdGF0dXM9IlJVTk5JTkciLAogICAgICAgICAgICApCiAgICAgICAgICAgIGZpbmRpbmcgPSBGaW5kaW5nKAogICAgICAgICAgICAgICAgaWQ9ImZpbmRpbmctZ2xvYmFsIiwKICAgICAgICAgICAgICAgIGZpbmdlcnByaW50PSJhIiAqIDY0LAogICAgICAgICAgICAgICAgcHJvdmlkZXI9ImF3cyIsCiAgICAgICAgICAgICAgICBhY2NvdW50X2lkPSIxMjM0NTY3ODkwMTIiLAogICAgICAgICAgICAgICAgcnVsZV9rZXk9ImNvc3RfZ3Jvd3RoX2Fub21hbHkiLAogICAgICAgICAgICAgICAgc2VydmljZT0iQW1hem9uIEVDMiIsCiAgICAgICAgICAgICAgICByZWdpb249InVzLWVhc3QtMSIsCiAgICAgICAgICAgICAgICByZXNvdXJjZV9pZD0iQW1hem9uIEVDMnx1cy1lYXN0LTEiLAogICAgICAgICAgICAgICAgdGl0bGU9IkNvc3QgZ3Jvd3RoIiwKICAgICAgICAgICAgICAgIGRlc2NyaXB0aW9uPSJ0ZXN0IiwKICAgICAgICAgICAgICAgIGV2aWRlbmNlPXt9LAogICAgICAgICAgICAgICAgZmlyc3Rfc2Vlbl9hdD1TVEFSVCwKICAgICAgICAgICAgICAgIGxhc3Rfc2Vlbl9hdD1TVEFSVCwKICAgICAgICAgICAgKQogICAgICAgICAgICBzY29wZSA9IENvbGxlY3Rpb25TY29wZUV4ZWN1dGlvbigKICAgICAgICAgICAgICAgIGNvbGxlY3Rpb25fcnVuX2lkPXJ1bi5pZCwKICAgICAgICAgICAgICAgIHByb3ZpZGVyPXJ1bi5wcm92aWRlciwKICAgICAgICAgICAgICAgIGFjY291bnRfaWQ9cnVuLmFjY291bnRfaWQsCiAgICAgICAgICAgICAgICByZWdpb249QUxMX1JFR0lPTlNfU0NPUEUsCiAgICAgICAgICAgICAgICBydWxlX2tleT0iY29zdF9ncm93dGhfYW5vbWFseSIsCiAgICAgICAgICAgICAgICBzdGF0dXM9Q29sbGVjdGlvblNjb3BlRXhlY3V0aW9uU3RhdHVzLlNVQ0NFU1MudmFsdWUsCiAgICAgICAgICAgICAgICBzdGFydGVkX2F0PXJ1bi5zdGFydGVkX2F0LAogICAgICAgICAgICAgICAgZmluaXNoZWRfYXQ9cnVuLnN0YXJ0ZWRfYXQgKyB0aW1lZGVsdGEobWludXRlcz0xKSwKICAgICAgICAgICAgKQogICAgICAgICAgICBkYi5hZGRfYWxsKFtydW4sIGZpbmRpbmcsIHNjb3BlXSkKICAgICAgICAgICAgZGIuZmx1c2goKQoKICAgICAgICAgICAgcmVjb25jaWxlX29wcG9ydHVuaXR5X3ByZXNlbmNlKGRiLCBydW4sIFtzY29wZV0sIG1pc3NpbmdfdGhyZXNob2xkPTMpCgogICAgICAgICAgICBhc3NlcnQgZmluZGluZy5wcmVzZW5jZV9zdGF0dXMgPT0gT3Bwb3J0dW5pdHlQcmVzZW5jZVN0YXR1cy5NSVNTSU5HLnZhbHVlCiAgICAgICAgICAgIGFzc2VydCBmaW5kaW5nLm1pc3NpbmdfY291bnQgPT0gMQogICAgZmluYWxseToKICAgICAgICBlbmdpbmUuZGlzcG9zZSgpCg=="
+          Path("backend/app/tests/test_opportunity_global_scope_reconciliation.py").write_bytes(
+              base64.b64decode(encoded)
+          )
+          PY
+          python -m pip install 'ruff>=0.9,<1.0'
+          cd backend
+          ruff format app/services/opportunity_reconciliation.py app/tests/test_opportunity_global_scope_reconciliation.py
+          ruff check --fix app/services/opportunity_reconciliation.py app/tests/test_opportunity_global_scope_reconciliation.py
+      - name: Commit final source and remove helper workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/task23-2-global-scope-fix.yml
+          git add backend/app/services/opportunity_reconciliation.py backend/app/tests/test_opportunity_global_scope_reconciliation.py
+          git commit -m "fix: cover global collector reconciliation scope"
+          git push origin HEAD:feat/23-2-opportunity-absence-reconciliation
