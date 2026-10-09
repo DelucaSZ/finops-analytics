@@ -15,6 +15,7 @@ from app.services.oci_discovery_models import (
     OciDiscoveryScope,
 )
 from app.services.oci_discovery_operations import OciDiscoveryOperations
+from app.services.oci_os import OciImageOperatingSystemResolver
 
 RelationshipTuple = tuple[str, str, str, str, str]
 UpsertResource = Callable[[OciDiscoveredResource, bool], int]
@@ -39,6 +40,7 @@ def collect_wave1_inventory(
     upsert: UpsertResource,
 ) -> OciWave1InventoryResult:
     result = OciWave1InventoryResult()
+    os_resolver = OciImageOperatingSystemResolver()
 
     for region in scope.regions:
         availability_domains, ad_complete = _availability_domains(
@@ -57,6 +59,14 @@ def collect_wave1_inventory(
                 resource = _compute_resource(item, region)
                 if resource is None:
                     continue
+                _enrich_compute_operating_system(
+                    snapshot,
+                    factory,
+                    resource,
+                    item,
+                    region,
+                    os_resolver,
+                )
                 result.lifecycle_conflicts += upsert(resource, True)
                 result.service_ids["compute_instance"].add(resource.resource_id)
                 if resource.availability_domain:
@@ -359,6 +369,47 @@ def _tags(value: Any) -> dict:
 def _active_attachment(item: Any) -> bool:
     state = str(getattr(item, "lifecycle_state", "") or "").upper()
     return state not in {"DETACHED", "DELETED"}
+
+
+def _instance_image_id(item: Any) -> str | None:
+    source_details = getattr(item, "source_details", None)
+    source_type = str(getattr(source_details, "source_type", "") or "").casefold()
+    if source_type == "image":
+        image_id = getattr(source_details, "image_id", None)
+        if image_id:
+            return str(image_id)
+    image_id = getattr(item, "image_id", None)
+    return str(image_id) if image_id else None
+
+
+def _enrich_compute_operating_system(
+    snapshot: OciConnectionSnapshot,
+    factory: OciClientFactory,
+    resource: OciDiscoveredResource,
+    item: Any,
+    region: str,
+    resolver: OciImageOperatingSystemResolver,
+) -> None:
+    image_id = _instance_image_id(item)
+    if image_id:
+        resource.attributes["image_id"] = image_id
+
+    resolution = resolver.resolve(
+        compute_client=factory.compute(region),
+        region=region,
+        image_id=image_id,
+        cloud_account_id=snapshot.cloud_account_id,
+        compartment_id=resource.compartment_id,
+        instance_id=resource.resource_id,
+    )
+    resource.attributes["os_family"] = resolution.family.value
+    resource.attributes["os_detection_source"] = resolution.source
+    if resolution.raw_value is not None:
+        resource.attributes["operating_system"] = resolution.raw_value
+    if resolution.version is not None:
+        resource.attributes["operating_system_version"] = resolution.version
+    if resolution.source == "oci_image_metadata" and "compute_image_api" not in resource.sources:
+        resource.sources.append("compute_image_api")
 
 
 def _compute_resource(item: Any, region: str) -> OciDiscoveredResource | None:
