@@ -3,7 +3,7 @@
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0020_opportunity_absence_reconciliation"
+revision = "0020_opportunity_reconciliation"
 down_revision = "0019_opportunity_presence"
 branch_labels = None
 depends_on = None
