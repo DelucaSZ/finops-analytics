@@ -245,4 +245,7 @@ def test_read_apis_expose_presence_without_synthetic_absence_observations(enviro
     assert legacy.json()[0]["presence_status"] == "missing"
 
     with Session(engine) as db:
-        assert db.scalar(select(func.count()).select_from(OpportunityObservation)) == observation_count
+        assert (
+            db.scalar(select(func.count()).select_from(OpportunityObservation))
+            == observation_count
+        )
