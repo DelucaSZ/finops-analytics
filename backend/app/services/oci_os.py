@@ -2,13 +2,13 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
 
-class OciOperatingSystemFamily(str, Enum):
+class OciOperatingSystemFamily(StrEnum):
     WINDOWS = "windows"
     NON_WINDOWS = "non_windows"
     UNKNOWN = "unknown"
@@ -66,9 +66,14 @@ def resolve_operating_system(
     else:
         family = OciOperatingSystemFamily.UNKNOWN
 
+    resolved_source = (
+        source
+        if family is not OciOperatingSystemFamily.UNKNOWN
+        else "unrecognized_image_metadata"
+    )
     return OciOperatingSystemResolution(
         family=family,
-        source=source if family is not OciOperatingSystemFamily.UNKNOWN else "unrecognized_image_metadata",
+        source=resolved_source,
         raw_value=raw_value,
         version=raw_version or None,
     )
