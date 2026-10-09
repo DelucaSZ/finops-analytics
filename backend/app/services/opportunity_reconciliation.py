@@ -23,6 +23,7 @@ from app.models.opportunity_presence_history import (
 )
 from app.services.collection_errors import sanitize_collection_error
 from app.services.collectors import GLOBAL_COLLECTORS
+from app.services.opportunity_archiving import unarchive_reappeared
 from app.services.policies import list_effective_policies
 
 ALL_REGIONS_SCOPE = "*"
@@ -303,7 +304,7 @@ def reactivate_presence_from_observation(
     finding: Finding,
     run: CollectionRun,
 ) -> bool:
-    """Reactivate current presence only when the observing run is not older than current state."""
+    """Reactivate current presence and surface archived findings on a valid observation."""
 
     run_started_at = _normalized_utc(run.started_at)
     if finding.presence_reconciled_at is not None:
@@ -311,14 +312,13 @@ def reactivate_presence_from_observation(
         if run_started_at < reconciled_at:
             return False
 
+    db = object_session(finding)
+    if db is None:
+        raise RuntimeError("Presence reactivation requires an attached Finding for audit history")
+
     previous_status = finding.presence_status
     previous_missing_count = int(finding.missing_count or 0)
     if previous_status != OpportunityPresenceStatus.ACTIVE.value:
-        db = object_session(finding)
-        if db is None:
-            raise RuntimeError(
-                "Presence reactivation requires an attached Finding for audit history"
-            )
         _record_presence_history(
             db,
             finding,
@@ -337,6 +337,7 @@ def reactivate_presence_from_observation(
     finding.resolved_externally_at = None
     finding.presence_reconciled_run_id = run.id
     finding.presence_reconciled_at = run.started_at
+    unarchive_reappeared(db, finding, run)
     return True
 
 

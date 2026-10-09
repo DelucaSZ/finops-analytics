@@ -98,6 +98,8 @@ def _current_observations(*, provider: str | None, account_id: str | None):
             latest_valid,
             OpportunityObservation.collection_run_id == latest_valid.c.run_id,
         )
+        .join(Finding, Finding.id == OpportunityObservation.opportunity_id)
+        .where(Finding.archived_at.is_(None))
         .cte("dashboard_current_observations")
     )
     return latest_valid, current

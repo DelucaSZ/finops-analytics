@@ -7,10 +7,12 @@ from app.models.collection_run import CollectionRun
 from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
 from app.schemas.opportunity import (
+    ArchiveHistoryPage,
     BulkReject,
     BulkTransitionBase,
     BulkTransitionResult,
     ObservationPage,
+    OpportunityArchiveState,
     OpportunityDetail,
     OpportunityOptions,
     OpportunityPage,
@@ -22,10 +24,12 @@ from app.schemas.opportunity import (
     StatusHistoryPage,
 )
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
+from app.services.opportunity_archiving import archive, unarchive
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 from app.services.opportunity_presence_history import presence_history
 from app.services.opportunity_query import (
     OpportunityFilters,
+    archive_history,
     get_opportunity,
     list_opportunities,
     observation_history,
@@ -73,6 +77,7 @@ def _filters(
     resource_id: str | None,
     search: str | None,
     current: bool,
+    archive_state: OpportunityArchiveState,
 ) -> OpportunityFilters:
     return OpportunityFilters(
         provider=provider.lower() if provider else None,
@@ -87,6 +92,7 @@ def _filters(
         resource_id=resource_id,
         search=search,
         current=current,
+        archive_state=archive_state,
     )
 
 
@@ -104,6 +110,7 @@ def list_opportunity_page(
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
     current: bool = False,
+    archive_state: OpportunityArchiveState = "active",
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     sort: OpportunitySort = "last_seen_at",
@@ -124,6 +131,7 @@ def list_opportunity_page(
         resource_id,
         search,
         current,
+        archive_state,
     )
     return list_opportunities(
         db,
@@ -148,6 +156,7 @@ def stats(
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
     current: bool = False,
+    archive_state: OpportunityArchiveState = "active",
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
     _ensure_collection_history_available(db, collection_run_id)
@@ -164,6 +173,7 @@ def stats(
         resource_id,
         search,
         current,
+        archive_state,
     )
     return opportunity_stats(db, filters)
 
@@ -303,6 +313,55 @@ def technical_presence_history(
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return result
+
+
+@router.get("/{opportunity_id}/archive-history", response_model=ArchiveHistoryPage)
+def operational_archive_history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
+    result = archive_history(db, opportunity_id, page=page, page_size=page_size)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    return result
+
+
+@router.post(
+    "/{opportunity_id}/archive",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def archive_opportunity(
+    opportunity_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    archive(db, opportunity_id, actor)
+    db.commit()
+    item = get_opportunity(db, opportunity_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    return item
+
+
+@router.post(
+    "/{opportunity_id}/unarchive",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def unarchive_opportunity(
+    opportunity_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    unarchive(db, opportunity_id, actor)
+    db.commit()
+    item = get_opportunity(db, opportunity_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    return item
 
 
 @router.post(

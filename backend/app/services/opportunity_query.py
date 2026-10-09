@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.models.account import AwsAccount, CloudAccount
 from app.models.collection_run import CollectionRun
 from app.models.finding import Finding
+from app.models.opportunity_archive_history import OpportunityArchiveHistory
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
@@ -30,6 +31,7 @@ class OpportunityFilters:
     resource_id: str | None = None
     search: str | None = None
     current: bool = False
+    archive_state: str = "active"
 
 
 def _account_join():
@@ -40,6 +42,12 @@ def _account_join():
 
 
 def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bool = True):
+    if filters.archive_state == "active":
+        statement = statement.where(Finding.archived_at.is_(None))
+    elif filters.archive_state == "archived":
+        statement = statement.where(Finding.archived_at.is_not(None))
+    elif filters.archive_state != "all":
+        raise ValueError("Unsupported archive_state")
     if filters.provider:
         statement = statement.where(Finding.provider == filters.provider.lower())
     if filters.account_id:
@@ -182,6 +190,10 @@ def serialize_list_item(
         "last_seen_at": finding.last_seen_at,
         "total_occurrence_count": finding.total_occurrence_count,
         "needs_review": finding.needs_review,
+        "archived": finding.archived_at is not None,
+        "archived_at": finding.archived_at,
+        "archived_by": finding.archived_by,
+        "archive_reason": finding.archive_reason,
     }
 
 
@@ -245,12 +257,16 @@ def opportunity_options(
     limit: int = 200,
 ) -> dict:
     provider = provider.lower() if provider else None
-    providers = list(db.scalars(select(Finding.provider).distinct().order_by(Finding.provider)))
+    active = Finding.archived_at.is_(None)
+    providers = list(
+        db.scalars(select(Finding.provider).where(active).distinct().order_by(Finding.provider))
+    )
 
     account_statement = (
         select(Finding.provider, Finding.account_id, CloudAccount.name)
         .select_from(Finding)
         .outerjoin(CloudAccount, _account_join())
+        .where(active)
         .distinct()
     )
     if provider:
@@ -264,7 +280,7 @@ def opportunity_options(
         account_statement.order_by(Finding.provider, Finding.account_id).limit(limit)
     ).all()
 
-    dimension_filters = []
+    dimension_filters = [active]
     if provider:
         dimension_filters.append(Finding.provider == provider)
     if account_id:
@@ -473,6 +489,50 @@ def status_history(
             "changed_by": history.changed_by,
             "changed_by_name": changed_by_name,
             "changed_at": history.changed_at,
+        }
+        for history, changed_by_name in rows
+    ]
+    return {"items": items, **_page_meta(total, page, page_size)}
+
+
+def archive_history(
+    db: Session,
+    opportunity_id: str,
+    *,
+    page: int,
+    page_size: int,
+) -> dict | None:
+    if db.get(Finding, opportunity_id) is None:
+        return None
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(OpportunityArchiveHistory)
+            .where(OpportunityArchiveHistory.opportunity_id == opportunity_id)
+        )
+        or 0
+    )
+    rows = db.execute(
+        select(OpportunityArchiveHistory, User.name)
+        .outerjoin(User, OpportunityArchiveHistory.changed_by == User.id)
+        .where(OpportunityArchiveHistory.opportunity_id == opportunity_id)
+        .order_by(
+            OpportunityArchiveHistory.occurred_at.desc(),
+            OpportunityArchiveHistory.id,
+        )
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    ).all()
+    items = [
+        {
+            "id": history.id,
+            "action": history.action,
+            "reason": history.reason,
+            "changed_by": history.changed_by,
+            "changed_by_name": changed_by_name,
+            "collection_run_id": history.collection_run_id,
+            "occurred_at": history.occurred_at,
+            "context": history.context or {},
         }
         for history, changed_by_name in rows
     ]

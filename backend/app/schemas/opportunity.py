@@ -8,6 +8,7 @@ from app.models.finding import OpportunityPresenceStatus
 
 OpportunityStatus = Literal["open", "treated", "rejected"]
 OpportunitySeverity = Literal["low", "medium", "high"]
+OpportunityArchiveState = Literal["active", "archived", "all"]
 SortOrder = Literal["asc", "desc"]
 OpportunitySort = Literal[
     "created_at",
@@ -104,6 +105,10 @@ class OpportunityListItem(BaseModel):
     last_seen_at: datetime
     total_occurrence_count: int
     needs_review: bool
+    archived: bool = False
+    archived_at: datetime | None = None
+    archived_by: str | None = None
+    archive_reason: str | None = None
 
 
 class ObservationRead(BaseModel):
@@ -195,6 +200,25 @@ class StatusHistoryRead(BaseModel):
 
 class StatusHistoryPage(BaseModel):
     items: list[StatusHistoryRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
+
+
+class ArchiveHistoryRead(BaseModel):
+    id: str
+    action: str
+    reason: str
+    changed_by: str | None = None
+    changed_by_name: str | None = None
+    collection_run_id: str | None = None
+    occurred_at: datetime
+    context: dict[str, Any] = Field(default_factory=dict)
+
+
+class ArchiveHistoryPage(BaseModel):
+    items: list[ArchiveHistoryRead]
     page: int
     page_size: int
     total: int

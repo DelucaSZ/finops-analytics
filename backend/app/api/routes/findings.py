@@ -47,10 +47,14 @@ def list_findings(
 ) -> list[Finding]:
     if finding_status and finding_status not in ALLOWED_STATUSES:
         raise HTTPException(status_code=422, detail="Unsupported opportunity status")
-    statement = select(Finding).order_by(
-        Finding.estimated_monthly_savings.desc(),
-        Finding.last_seen_at.desc(),
-        Finding.id,
+    statement = (
+        select(Finding)
+        .where(Finding.archived_at.is_(None))
+        .order_by(
+            Finding.estimated_monthly_savings.desc(),
+            Finding.last_seen_at.desc(),
+            Finding.id,
+        )
     )
     if provider:
         statement = statement.where(Finding.provider == provider.lower())

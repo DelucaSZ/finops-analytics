@@ -36,6 +36,10 @@ class Finding(TimestampMixin, Base):
             "presence_status IN ('active', 'missing', 'resolved_externally')",
             name="ck_findings_presence_status",
         ),
+        CheckConstraint(
+            "archive_reason IS NULL OR archive_reason IN ('MANUAL', 'RETENTION_POLICY')",
+            name="ck_findings_archive_reason",
+        ),
         Index(
             "ix_findings_provider_account_status_last_seen",
             "provider",
@@ -52,6 +56,12 @@ class Finding(TimestampMixin, Base):
             "presence_status",
         ),
         Index("ix_findings_status_severity", "status", "severity"),
+        Index(
+            "ix_findings_status_archived_last_seen",
+            "status",
+            "archived_at",
+            "last_seen_at",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
@@ -120,3 +130,10 @@ class Finding(TimestampMixin, Base):
     rejection_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     rejection_note: Mapped[str | None] = mapped_column(Text, nullable=True)
     needs_review: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
+    archived_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, index=True
+    )
+    archived_by: Mapped[str | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    archive_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
