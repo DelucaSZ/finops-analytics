@@ -79,6 +79,12 @@ class Settings(BaseSettings):
         return self
 
     worker_poll_seconds: int = Field(5, alias="NUVEMIQ_WORKER_POLL_SECONDS")
+    opportunity_resolution_missing_runs: int = Field(
+        3,
+        ge=1,
+        le=1000,
+        alias="OPPORTUNITY_RESOLUTION_MISSING_RUNS",
+    )
     retention_enabled: bool = Field(True, alias="NUVEMIQ_RETENTION_ENABLED")
     opportunity_observation_retention_days: int = Field(
         90,
