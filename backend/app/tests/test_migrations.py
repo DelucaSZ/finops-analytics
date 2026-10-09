@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0021_opportunity_presence_history"
+            == "0021_opportunity_presence_audit"
         )
         assert (
             compare_metadata(
@@ -246,7 +246,6 @@ def test_stage_one_users_survive_and_old_image_checkpoint_still_works(migration_
         command.upgrade(cfg, "0002_users")
     initialize_database(migration_engine, config())
     wait_for_database(migration_engine, timeout=0)
-
 
 def test_one_time_reset_is_atomic_under_concurrency(migration_engine):
     from fastapi import HTTPException, Request, Response
@@ -497,7 +496,6 @@ def test_stage17_migration_preserves_history(migration_engine):
                 updated_at=now,
             )
         )
-
         command.upgrade(cfg, "head")
 
         common_table = Table("cloud_accounts", MetaData(), autoload_with=connection)
