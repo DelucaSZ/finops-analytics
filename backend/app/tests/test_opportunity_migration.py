@@ -137,6 +137,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
         refreshed.reflect(bind=connection)
         findings = refreshed.tables["findings"]
         observations = refreshed.tables["opportunity_observations"]
+        presence_history = refreshed.tables["opportunity_presence_history"]
 
         rows = {
             row.id: row
@@ -176,12 +177,13 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
         assert observation_rows[0].opportunity_id == "finding-with-run"
         assert observation_rows[0].collection_run_id == "run-existing"
         assert observation_rows[0].estimated_monthly_savings == Decimal("20.00")
+        assert list(connection.execute(select(presence_history))) == []
         assert (
             MigrationContext.configure(
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0020_opportunity_reconciliation"
+            == "0021_opportunity_presence_history"
         )
 
     engine.dispose()
