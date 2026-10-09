@@ -259,9 +259,7 @@ def opportunity_options(
     provider = provider.lower() if provider else None
     active = Finding.archived_at.is_(None)
     providers = list(
-        db.scalars(
-            select(Finding.provider).where(active).distinct().order_by(Finding.provider)
-        )
+        db.scalars(select(Finding.provider).where(active).distinct().order_by(Finding.provider))
     )
 
     account_statement = (
