@@ -20,6 +20,8 @@ from app.services.collection_errors import sanitize_collection_error
 from app.services.collectors import GLOBAL_COLLECTORS
 from app.services.policies import list_effective_policies
 
+ALL_REGIONS_SCOPE = "*"
+
 
 @dataclass(frozen=True)
 class ReconciliationStats:
@@ -95,11 +97,17 @@ def _aws_scope_rows(
     rows: list[CollectionScopeExecution] = []
 
     for rule_key in sorted(set(configured_rule_keys)):
-        rule_regions = ["global"] if rule_key in GLOBAL_COLLECTORS else run_regions
+        is_global_collector = rule_key in GLOBAL_COLLECTORS
+        rule_regions = [ALL_REGIONS_SCOPE] if is_global_collector else run_regions
         rule_failed_scopes = {key for key in failed_scopes if key[0] == rule_key}
         for region in rule_regions:
             key = (rule_key, region)
-            if key in failed_scopes:
+            # Global AWS collectors are invoked with the literal collector region
+            # "global", but their successful evaluation covers findings whose logical
+            # region is a concrete billing region. Persist "*" as the provider-neutral
+            # all-regions coverage marker while still resolving the collector error key.
+            collector_key = (rule_key, "global") if is_global_collector else key
+            if collector_key in failed_scopes:
                 status = CollectionScopeExecutionStatus.FAILED.value
             elif rule_key in successful_rule_keys or rule_failed_scopes:
                 # run_collectors executes every configured region. If a rule has a
@@ -121,7 +129,7 @@ def _aws_scope_rows(
                     started_at=run.started_at,
                     finished_at=finished_at,
                     resources_examined=None,
-                    error_detail=error_details.get(key),
+                    error_detail=error_details.get(collector_key),
                 )
             )
     return rows
@@ -266,6 +274,9 @@ def reconcile_opportunity_presence(
     if not successful_scopes:
         return ReconciliationStats()
 
+    wildcard_rule_keys = {
+        rule_key for rule_key, region in successful_scopes if region == ALL_REGIONS_SCOPE
+    }
     observed_ids = set(
         db.scalars(
             select(OpportunityObservation.opportunity_id).where(
@@ -299,7 +310,8 @@ def reconcile_opportunity_presence(
     run_started_at = _normalized_utc(run.started_at)
 
     for finding in findings:
-        if (finding.rule_key, _scope_region(finding.region)) not in successful_scopes:
+        finding_scope = (finding.rule_key, _scope_region(finding.region))
+        if finding_scope not in successful_scopes and finding.rule_key not in wildcard_rule_keys:
             continue
         if finding.id in observed_ids:
             continue
