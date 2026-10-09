@@ -174,7 +174,11 @@ def test_real_new_observation_reactivates_presence_without_reopening_human_statu
 
         finding = db.get(Finding, finding.id)
         assert finding.status == "treated"
-        assert finding.treated_at == treated_at
+        treated_at_from_db = finding.treated_at
+        assert treated_at_from_db is not None
+        if treated_at_from_db.tzinfo is None:
+            treated_at_from_db = treated_at_from_db.replace(tzinfo=UTC)
+        assert treated_at_from_db == treated_at
         assert finding.treatment_note == "handled outside this test"
         assert finding.presence_status == OpportunityPresenceStatus.ACTIVE.value
         assert finding.missing_since_at is None
