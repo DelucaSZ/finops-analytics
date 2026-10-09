@@ -1,0 +1,93 @@
+name: Task 23.1 roadmap append
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/task23-roadmap-append.yml
+
+permissions:
+  contents: write
+
+jobs:
+  append-roadmap:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+
+      - name: Append Task 23.1 roadmap section
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("docs/implementation-roadmap.md")
+          marker = "## Etapa 23.1 — Modelo de presença e desaparecimento de oportunidades"
+          text = path.read_text(encoding="utf-8")
+          if marker in text:
+              raise SystemExit(0)
+
+          section = r'''
+
+
+## Etapa 23.1 — Modelo de presença e desaparecimento de oportunidades
+
+**Status:** implementada no PR #55, com validação automatizada sobre a branch dedicada antes de qualquer merge.
+
+### Problema e separação de domínios
+
+O lifecycle humano (`open`, `treated`, `rejected`) continua representando exclusivamente a decisão registrada pelo usuário. A presença técnica passa a ser uma dimensão independente que descreve se a condição que originou a oportunidade continua observável na cloud.
+
+Os estados persistidos de presença são `active`, `missing` e `resolved_externally`. Portanto combinações como `open + missing`, `treated + active` e `rejected + missing` são válidas. `resolved_externally` não equivale a `treated`: não cria treatment, não atribui saving realizado, não preenche `treated_at`/`treated_by`, não gera movimentação financeira e não altera automaticamente o status humano.
+
+### Modelo e migration
+
+`Finding` recebeu `presence_status`, `missing_since_at` e `resolved_externally_at`. O estado possui constraint explícita e índice, seguindo o padrão de persistência textual do lifecycle existente.
+
+A migration `0019_opportunity_presence` parte de `0018_cloud_account_scheduling` e inicializa todos os findings legados como `active`, sem inferir resolução externa a partir de `treated`, `rejected` ou ausência histórica. Status humano, timestamps existentes, treatment/rejection e `OpportunityObservation` são preservados. O downgrade destrutivo é bloqueado para não descartar o novo estado de domínio.
+
+### Detecção e observations
+
+Uma nova oportunidade nasce como `status=open` e `presence_status=active`. Uma nova `OpportunityObservation` real e temporalmente mais recente garante `presence_status=active` e limpa timestamps de ausência/resolução externa, sem reabrir nem converter o lifecycle humano. O comportamento existente de `needs_review` para oportunidade tratada que reaparece permanece intacto.
+
+`OpportunityObservation` continua significando exclusivamente evidência positiva de detecção em uma coleta. Nenhuma observation sintética é criada para representar ausência.
+
+### API e frontend
+
+Os contratos de leitura de findings/oportunidades passam a expor `presence_status`, `missing_since_at` e `resolved_externally_at` em listagem e detalhe. Nenhum campo do lifecycle humano foi removido ou renomeado. O frontend recebeu somente a tipagem correspondente; não foram adicionadas abas, badges, dashboard ou redesign nesta atividade.
+
+Não foi adicionado filtro por `presence_status` nesta etapa para manter o escopo restrito à fundação de domínio/persistência e evitar antecipar a experiência de reconciliação/arquivamento.
+
+### Compatibilidade multi-cloud
+
+A modelagem é provider-neutral e fica no pipeline comum de findings/observations. Não existem campos ou regras como `ebs_deleted` ou `aws_resource_exists`; a presença descreve a condição anteriormente detectada, independentemente de ela deixar de existir por exclusão, alteração do recurso, mudança de métrica/configuração ou correção direta na AWS/OCI.
+
+### Testes
+
+A cobertura adicionada prova criação `open + active`, independência entre lifecycle humano e presença, não conversão implícita de `treated`/`rejected` para `resolved_externally`, reativação por nova observation real sem reabrir o status humano, exposição nos contratos de leitura e ausência de observations sintéticas. A migration é exercitada em SQLite e PostgreSQL, preservando findings, status/timestamps, dados de tratamento/rejeição e observations legadas.
+
+As suítes cumulativas continuam cobrindo treat, reject, reopen, `needs_review`, deduplicação, observations, migrations, frontend build e compatibilidade AWS/OCI.
+
+### Limitações deliberadas e dependência da 23.2
+
+**Ausência entre coletas ainda não é reconciliada automaticamente nesta etapa.** Não existe varredura ao fim do run procurando findings ausentes, contagem de ausências, transição automática para `missing`/`resolved_externally` nem interpretação de falha/parcialidade de coleta como resolução.
+
+A Task 23.2 deverá implementar a reconciliação usando cobertura confiável de `CollectionRun` antes de qualquer transição por ausência. O histórico automático de mudanças de presença permanece para a Task 23.3; arquivamento/retenção de oportunidades permanece para a Task 23.4.
+'''
+          path.write_text(text.rstrip() + section + "\n", encoding="utf-8")
+          PY
+
+      - name: Commit roadmap update
+        shell: bash
+        run: |
+          if git diff --quiet -- docs/implementation-roadmap.md; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/implementation-roadmap.md
+          git commit -m "docs: document opportunity presence lifecycle"
+          git push origin "HEAD:${{ github.head_ref }}"
