@@ -59,17 +59,14 @@ def resolve_operating_system(
     if any(normalized == value or normalized.startswith(f"{value} ") for value in _WINDOWS_VALUES):
         family = OciOperatingSystemFamily.WINDOWS
     elif any(
-        normalized == value or normalized.startswith(f"{value} ")
-        for value in _NON_WINDOWS_PREFIXES
+        normalized == value or normalized.startswith(f"{value} ") for value in _NON_WINDOWS_PREFIXES
     ):
         family = OciOperatingSystemFamily.NON_WINDOWS
     else:
         family = OciOperatingSystemFamily.UNKNOWN
 
     resolved_source = (
-        source
-        if family is not OciOperatingSystemFamily.UNKNOWN
-        else "unrecognized_image_metadata"
+        source if family is not OciOperatingSystemFamily.UNKNOWN else "unrecognized_image_metadata"
     )
     return OciOperatingSystemResolution(
         family=family,
