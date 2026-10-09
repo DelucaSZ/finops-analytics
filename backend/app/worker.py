@@ -12,7 +12,7 @@ from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
 from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
-from app.models.finding import Finding
+from app.models.finding import Finding, OpportunityPresenceStatus
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.collection_errors import classify_collection_error, sanitize_collection_error
@@ -212,6 +212,7 @@ def _create_finding_race_safe(
         confidence=item.confidence,
         severity=item.severity,
         status="open",
+        presence_status=OpportunityPresenceStatus.ACTIVE.value,
         first_seen_at=observed_at,
         last_seen_at=observed_at,
     )
@@ -384,6 +385,9 @@ def persist_findings(
             _refresh_finding_snapshot(finding, scan, item)
         if is_latest_observation:
             finding.last_seen_at = observation.observed_at
+            finding.presence_status = OpportunityPresenceStatus.ACTIVE.value
+            finding.missing_since_at = None
+            finding.resolved_externally_at = None
             if finding.status == "treated" and finding.treated_at is not None:
                 treated_at = _normalized_utc(finding.treated_at)
                 if _normalized_utc(observation.observed_at) > treated_at:

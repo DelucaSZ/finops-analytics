@@ -3469,3 +3469,48 @@ A matriz integrada, os fluxos manuais/agendados, segurança, falhas, observabili
 A validação contra contas AWS/OCI reais foi deliberadamente separada para uma atividade operacional futura. Ela **não é critério de aceite nem pendência da Atividade 22.17**. O fechamento desta atividade é baseado na consistência do código e das migrations, testes automatizados, build, checks de segurança, smoke Compose e documentação. Uma validação cloud real futura deverá ser registrada separadamente e não deve ser inferida a partir dos testes automatizados.
 
 Com essa consolidação, a **Etapa 22 está tecnicamente encerrada** no escopo definido para 22.1–22.17.
+
+
+## Etapa 23.1 — Modelo de presença e desaparecimento de oportunidades
+
+**Status:** implementada no PR #55, com validação automatizada sobre a branch dedicada antes de qualquer merge.
+
+### Problema e separação de domínios
+
+O lifecycle humano (`open`, `treated`, `rejected`) continua representando exclusivamente a decisão registrada pelo usuário. A presença técnica passa a ser uma dimensão independente que descreve se a condição que originou a oportunidade continua observável na cloud.
+
+Os estados persistidos de presença são `active`, `missing` e `resolved_externally`. Portanto combinações como `open + missing`, `treated + active` e `rejected + missing` são válidas. `resolved_externally` não equivale a `treated`: não cria treatment, não atribui saving realizado, não preenche `treated_at`/`treated_by`, não gera movimentação financeira e não altera automaticamente o status humano.
+
+### Modelo e migration
+
+`Finding` recebeu `presence_status`, `missing_since_at` e `resolved_externally_at`. O estado possui constraint explícita e índice, seguindo o padrão de persistência textual do lifecycle existente.
+
+A migration `0019_opportunity_presence` parte de `0018_cloud_account_scheduling` e inicializa todos os findings legados como `active`, sem inferir resolução externa a partir de `treated`, `rejected` ou ausência histórica. Status humano, timestamps existentes, treatment/rejection e `OpportunityObservation` são preservados. O downgrade destrutivo é bloqueado para não descartar o novo estado de domínio.
+
+### Detecção e observations
+
+Uma nova oportunidade nasce como `status=open` e `presence_status=active`. Uma nova `OpportunityObservation` real e temporalmente mais recente garante `presence_status=active` e limpa timestamps de ausência/resolução externa, sem reabrir nem converter o lifecycle humano. O comportamento existente de `needs_review` para oportunidade tratada que reaparece permanece intacto.
+
+`OpportunityObservation` continua significando exclusivamente evidência positiva de detecção em uma coleta. Nenhuma observation sintética é criada para representar ausência.
+
+### API e frontend
+
+Os contratos de leitura de findings/oportunidades passam a expor `presence_status`, `missing_since_at` e `resolved_externally_at` em listagem e detalhe. Nenhum campo do lifecycle humano foi removido ou renomeado. O frontend recebeu somente a tipagem correspondente; não foram adicionadas abas, badges, dashboard ou redesign nesta atividade.
+
+Não foi adicionado filtro por `presence_status` nesta etapa para manter o escopo restrito à fundação de domínio/persistência e evitar antecipar a experiência de reconciliação/arquivamento.
+
+### Compatibilidade multi-cloud
+
+A modelagem é provider-neutral e fica no pipeline comum de findings/observations. Não existem campos ou regras como `ebs_deleted` ou `aws_resource_exists`; a presença descreve a condição anteriormente detectada, independentemente de ela deixar de existir por exclusão, alteração do recurso, mudança de métrica/configuração ou correção direta na AWS/OCI.
+
+### Testes
+
+A cobertura adicionada prova criação `open + active`, independência entre lifecycle humano e presença, não conversão implícita de `treated`/`rejected` para `resolved_externally`, reativação por nova observation real sem reabrir o status humano, exposição nos contratos de leitura e ausência de observations sintéticas. A migration é exercitada em SQLite e PostgreSQL, preservando findings, status/timestamps, dados de tratamento/rejeição e observations legadas.
+
+As suítes cumulativas continuam cobrindo treat, reject, reopen, `needs_review`, deduplicação, observations, migrations, frontend build e compatibilidade AWS/OCI.
+
+### Limitações deliberadas e dependência da 23.2
+
+**Ausência entre coletas ainda não é reconciliada automaticamente nesta etapa.** Não existe varredura ao fim do run procurando findings ausentes, contagem de ausências, transição automática para `missing`/`resolved_externally` nem interpretação de falha/parcialidade de coleta como resolução.
+
+A Task 23.2 deverá implementar a reconciliação usando cobertura confiável de `CollectionRun` antes de qualquer transição por ausência. O histórico automático de mudanças de presença permanece para a Task 23.3; arquivamento/retenção de oportunidades permanece para a Task 23.4.

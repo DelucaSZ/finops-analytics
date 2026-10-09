@@ -86,6 +86,8 @@ export type Policy = {
   override_fields: string[];
 };
 
+export type OpportunityPresenceStatus = "active" | "missing" | "resolved_externally";
+
 export type Finding = {
   id: string;
   fingerprint: string;
@@ -108,6 +110,9 @@ export type Finding = {
   confidence: string;
   severity: string;
   status: string;
+  presence_status: OpportunityPresenceStatus;
+  missing_since_at: string | null;
+  resolved_externally_at: string | null;
   first_seen_at: string;
   last_seen_at: string;
   total_occurrence_count: number;

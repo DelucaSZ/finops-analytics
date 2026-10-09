@@ -1,10 +1,12 @@
 import uuid
 from datetime import datetime
 from decimal import Decimal
+from enum import StrEnum
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     ForeignKey,
     Index,
@@ -19,11 +21,21 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base, TimestampMixin
 
 
+class OpportunityPresenceStatus(StrEnum):
+    ACTIVE = "active"
+    MISSING = "missing"
+    RESOLVED_EXTERNALLY = "resolved_externally"
+
+
 class Finding(TimestampMixin, Base):
     """Provider-neutral logical optimization opportunity."""
 
     __tablename__ = "findings"
     __table_args__ = (
+        CheckConstraint(
+            "presence_status IN ('active', 'missing', 'resolved_externally')",
+            name="ck_findings_presence_status",
+        ),
         Index(
             "ix_findings_provider_account_status_last_seen",
             "provider",
@@ -65,6 +77,19 @@ class Finding(TimestampMixin, Base):
     confidence: Mapped[str] = mapped_column(String(16), default="medium")
     severity: Mapped[str] = mapped_column(String(16), default="medium")
     status: Mapped[str] = mapped_column(String(24), default="open", index=True)
+    presence_status: Mapped[str] = mapped_column(
+        String(32),
+        default=OpportunityPresenceStatus.ACTIVE.value,
+        server_default=OpportunityPresenceStatus.ACTIVE.value,
+        nullable=False,
+        index=True,
+    )
+    missing_since_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    resolved_externally_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     total_occurrence_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )

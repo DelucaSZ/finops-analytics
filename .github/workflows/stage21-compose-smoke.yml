@@ -72,7 +72,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0018_cloud_account_scheduling"
+          test "$version" = "0019_opportunity_presence"
           curl --fail --silent --show-error http://127.0.0.1/health | grep -q '"status":"ok"'
           curl --fail --silent --show-error http://127.0.0.1/ >/tmp/frontend.html
           test -s /tmp/frontend.html
@@ -89,7 +89,7 @@ jobs:
             sleep 2
           done
           version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0018_cloud_account_scheduling"
+          test "$version" = "0019_opportunity_presence"
           docker compose -p deepops-stage21 ps
 
       - name: Capture stack logs
