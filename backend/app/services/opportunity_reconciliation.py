@@ -273,7 +273,9 @@ def _record_presence_history(
         OpportunityPresenceHistory(
             opportunity_id=finding.id,
             collection_run_id=run.id,
-            collection_scope_execution_id=(scope_execution.id if scope_execution is not None else None),
+            collection_scope_execution_id=(
+                scope_execution.id if scope_execution is not None else None
+            ),
             from_status=from_status,
             to_status=to_status,
             reason=reason.value,
@@ -314,7 +316,9 @@ def reactivate_presence_from_observation(
     if previous_status != OpportunityPresenceStatus.ACTIVE.value:
         db = object_session(finding)
         if db is None:
-            raise RuntimeError("Presence reactivation requires an attached Finding for audit history")
+            raise RuntimeError(
+                "Presence reactivation requires an attached Finding for audit history"
+            )
         _record_presence_history(
             db,
             finding,

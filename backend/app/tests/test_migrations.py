@@ -247,6 +247,7 @@ def test_stage_one_users_survive_and_old_image_checkpoint_still_works(migration_
     initialize_database(migration_engine, config())
     wait_for_database(migration_engine, timeout=0)
 
+
 def test_one_time_reset_is_atomic_under_concurrency(migration_engine):
     from fastapi import HTTPException, Request, Response
 

@@ -44,8 +44,7 @@ def presence_history(
         )
         .outerjoin(
             CollectionScopeExecution,
-            OpportunityPresenceHistory.collection_scope_execution_id
-            == CollectionScopeExecution.id,
+            OpportunityPresenceHistory.collection_scope_execution_id == CollectionScopeExecution.id,
         )
         .where(OpportunityPresenceHistory.opportunity_id == opportunity_id)
         .order_by(
