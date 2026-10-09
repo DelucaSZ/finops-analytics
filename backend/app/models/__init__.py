@@ -6,6 +6,10 @@ from app.models.account import (
 )
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.collection_run import CollectionRun, CollectionRunStatus
+from app.models.collection_scope_execution import (
+    CollectionScopeExecution,
+    CollectionScopeExecutionStatus,
+)
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
@@ -29,6 +33,8 @@ __all__ = [
     "OciAccountConfiguration",
     "CollectionRun",
     "CollectionRunStatus",
+    "CollectionScopeExecution",
+    "CollectionScopeExecutionStatus",
     "DashboardAccountSummary",
     "Finding",
     "OpportunityObservation",
