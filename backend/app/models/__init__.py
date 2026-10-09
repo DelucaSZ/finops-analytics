@@ -13,6 +13,11 @@ from app.models.collection_scope_execution import (
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
+from app.models.opportunity_archive_history import (
+    OpportunityArchiveAction,
+    OpportunityArchiveHistory,
+    OpportunityArchiveReason,
+)
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_presence_history import (
     OpportunityPresenceHistory,
@@ -41,6 +46,9 @@ __all__ = [
     "CollectionScopeExecutionStatus",
     "DashboardAccountSummary",
     "Finding",
+    "OpportunityArchiveAction",
+    "OpportunityArchiveHistory",
+    "OpportunityArchiveReason",
     "OpportunityObservation",
     "OpportunityPresenceHistory",
     "OpportunityPresenceReason",
