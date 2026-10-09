@@ -84,7 +84,9 @@ class Finding(TimestampMixin, Base):
         nullable=False,
         index=True,
     )
-    missing_since_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    missing_since_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     resolved_externally_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
