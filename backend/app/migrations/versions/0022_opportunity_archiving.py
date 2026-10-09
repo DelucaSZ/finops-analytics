@@ -10,37 +10,28 @@ depends_on = None
 
 
 def upgrade():
-    op.add_column(
-        "findings",
-        sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True),
-    )
-    op.add_column(
-        "findings",
-        sa.Column("archived_by", sa.String(length=36), nullable=True),
-    )
-    op.add_column(
-        "findings",
-        sa.Column("archive_reason", sa.String(length=32), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_findings_archived_by_users",
-        "findings",
-        "users",
-        ["archived_by"],
-        ["id"],
-        ondelete="SET NULL",
-    )
-    op.create_check_constraint(
-        "ck_findings_archive_reason",
-        "findings",
-        "archive_reason IS NULL OR archive_reason IN ('MANUAL', 'RETENTION_POLICY')",
-    )
-    op.create_index("ix_findings_archived_at", "findings", ["archived_at"])
-    op.create_index(
-        "ix_findings_status_archived_last_seen",
-        "findings",
-        ["status", "archived_at", "last_seen_at"],
-    )
+    with op.batch_alter_table("findings") as batch:
+        batch.add_column(
+            sa.Column("archived_at", sa.DateTime(timezone=True), nullable=True)
+        )
+        batch.add_column(sa.Column("archived_by", sa.String(length=36), nullable=True))
+        batch.add_column(sa.Column("archive_reason", sa.String(length=32), nullable=True))
+        batch.create_foreign_key(
+            "fk_findings_archived_by_users",
+            "users",
+            ["archived_by"],
+            ["id"],
+            ondelete="SET NULL",
+        )
+        batch.create_check_constraint(
+            "ck_findings_archive_reason",
+            "archive_reason IS NULL OR archive_reason IN ('MANUAL', 'RETENTION_POLICY')",
+        )
+        batch.create_index("ix_findings_archived_at", ["archived_at"])
+        batch.create_index(
+            "ix_findings_status_archived_last_seen",
+            ["status", "archived_at", "last_seen_at"],
+        )
 
     op.create_table(
         "opportunity_archive_history",
