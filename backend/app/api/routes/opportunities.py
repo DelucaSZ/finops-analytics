@@ -21,7 +21,9 @@ from app.schemas.opportunity import (
     SortOrder,
     StatusHistoryPage,
 )
+from app.schemas.opportunity_presence_history import PresenceHistoryPage
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
+from app.services.opportunity_presence_history import presence_history
 from app.services.opportunity_query import (
     OpportunityFilters,
     get_opportunity,
@@ -285,6 +287,19 @@ def decision_history(
     db: Session = Depends(get_db),
 ) -> dict:
     result = status_history(db, opportunity_id, page=page, page_size=page_size)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    return result
+
+
+@router.get("/{opportunity_id}/presence-history", response_model=PresenceHistoryPage)
+def technical_presence_history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
+    result = presence_history(db, opportunity_id, page=page, page_size=page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return result

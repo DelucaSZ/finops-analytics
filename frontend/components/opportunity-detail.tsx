@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
+import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
@@ -296,6 +297,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 </div>
               )}
             </section>
+
+            <OpportunityPresenceHistory opportunityId={opportunityId} />
 
             <section className="detail-section" aria-labelledby="decision-history-title">
               <div className="section-heading-inline">
