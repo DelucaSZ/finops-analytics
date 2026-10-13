@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from datetime import datetime
 from math import ceil
 
 from sqlalchemy import String, and_, case, cast, func, or_, select
@@ -25,6 +26,7 @@ class OpportunityFilters:
     service: str | None = None
     resource_type: str | None = None
     status: str | None = None
+    presence_status: str | None = None
     severity: str | None = None
     rule: str | None = None
     collection_run_id: str | None = None
@@ -32,6 +34,9 @@ class OpportunityFilters:
     search: str | None = None
     current: bool = False
     archive_state: str = "active"
+    archived_from: datetime | None = None
+    archived_to: datetime | None = None
+    archive_reason: str | None = None
 
 
 def _account_join():
@@ -41,13 +46,18 @@ def _account_join():
     )
 
 
+def _apply_archive_state(statement, archive_state: str):
+    if archive_state == "active":
+        return statement.where(Finding.archived_at.is_(None))
+    if archive_state == "archived":
+        return statement.where(Finding.archived_at.is_not(None))
+    if archive_state == "all":
+        return statement
+    raise ValueError("Unsupported archive_state")
+
+
 def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bool = True):
-    if filters.archive_state == "active":
-        statement = statement.where(Finding.archived_at.is_(None))
-    elif filters.archive_state == "archived":
-        statement = statement.where(Finding.archived_at.is_not(None))
-    elif filters.archive_state != "all":
-        raise ValueError("Unsupported archive_state")
+    statement = _apply_archive_state(statement, filters.archive_state)
     if filters.provider:
         statement = statement.where(Finding.provider == filters.provider.lower())
     if filters.account_id:
@@ -78,12 +88,20 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
         statement = statement.where(Finding.resource_type == filters.resource_type)
     if include_status and filters.status:
         statement = statement.where(Finding.status == filters.status)
+    if filters.presence_status:
+        statement = statement.where(Finding.presence_status == filters.presence_status)
     if filters.severity:
         statement = statement.where(Finding.severity == filters.severity)
     if filters.rule:
         statement = statement.where(Finding.rule_key == filters.rule)
     if filters.resource_id:
         statement = statement.where(Finding.resource_id == filters.resource_id)
+    if filters.archived_from:
+        statement = statement.where(Finding.archived_at >= filters.archived_from)
+    if filters.archived_to:
+        statement = statement.where(Finding.archived_at <= filters.archived_to)
+    if filters.archive_reason:
+        statement = statement.where(Finding.archive_reason == filters.archive_reason)
     if filters.collection_run_id:
         observed_in_run = (
             select(OpportunityObservation.id)
@@ -254,21 +272,22 @@ def opportunity_options(
     provider: str | None = None,
     account_id: str | None = None,
     search: str | None = None,
+    archive_state: str = "active",
     limit: int = 200,
 ) -> dict:
     provider = provider.lower() if provider else None
-    active = Finding.archived_at.is_(None)
-    providers = list(
-        db.scalars(select(Finding.provider).where(active).distinct().order_by(Finding.provider))
-    )
+
+    provider_statement = select(Finding.provider).distinct().order_by(Finding.provider)
+    provider_statement = _apply_archive_state(provider_statement, archive_state)
+    providers = list(db.scalars(provider_statement))
 
     account_statement = (
         select(Finding.provider, Finding.account_id, CloudAccount.name)
         .select_from(Finding)
         .outerjoin(CloudAccount, _account_join())
-        .where(active)
         .distinct()
     )
+    account_statement = _apply_archive_state(account_statement, archive_state)
     if provider:
         account_statement = account_statement.where(Finding.provider == provider)
     if search:
@@ -280,14 +299,15 @@ def opportunity_options(
         account_statement.order_by(Finding.provider, Finding.account_id).limit(limit)
     ).all()
 
-    dimension_filters = [active]
-    if provider:
-        dimension_filters.append(Finding.provider == provider)
-    if account_id:
-        dimension_filters.append(Finding.account_id == account_id)
+    dimension_filters = OpportunityFilters(
+        provider=provider,
+        account_id=account_id,
+        archive_state=archive_state,
+    )
 
     def distinct_values(column):
-        statement = select(column).where(column.is_not(None), *dimension_filters).distinct()
+        statement = select(column).where(column.is_not(None)).distinct()
+        statement = _apply_filters(statement, dimension_filters)
         return list(db.scalars(statement.order_by(column)))
 
     return {
