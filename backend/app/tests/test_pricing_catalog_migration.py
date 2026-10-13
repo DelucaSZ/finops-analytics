@@ -65,8 +65,7 @@ def test_stage23_7_migration_creates_and_seeds_oci_brl_catalog(pricing_migration
         inspector = inspect(connection)
         assert "pricing_catalog_items" in inspector.get_table_names()
         columns = {
-            column["name"]: column
-            for column in inspector.get_columns("pricing_catalog_items")
+            column["name"]: column for column in inspector.get_columns("pricing_catalog_items")
         }
         assert columns["provider"]["nullable"] is False
         assert columns["service"]["nullable"] is False
@@ -97,6 +96,5 @@ def test_stage23_7_migration_creates_and_seeds_oci_brl_catalog(pricing_migration
         assert all(row["enabled"] for row in rows)
         assert all(row["effective_until"] is None for row in rows)
         assert {
-            (row["service"], row["sku"], row["unit"]): Decimal(row["price"])
-            for row in rows
+            (row["service"], row["sku"], row["unit"]): Decimal(row["price"]) for row in rows
         } == EXPECTED_OCI_PRICES
