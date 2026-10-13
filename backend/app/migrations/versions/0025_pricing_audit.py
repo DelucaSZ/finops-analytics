@@ -60,12 +60,8 @@ def upgrade() -> None:
         ["pricing_item_id", "occurred_at"],
         unique=False,
     )
-    op.create_index(
-        "ix_pricing_audit_actor", "pricing_audit_events", ["actor_id"], unique=False
-    )
-    op.create_index(
-        "ix_pricing_audit_action", "pricing_audit_events", ["action"], unique=False
-    )
+    op.create_index("ix_pricing_audit_actor", "pricing_audit_events", ["actor_id"], unique=False)
+    op.create_index("ix_pricing_audit_action", "pricing_audit_events", ["action"], unique=False)
 
     # Deliberately no retroactive audit rows are fabricated for 23.7 seed data.
     # Those rows retain source=IMPORTED_OCI_CALCULATOR and auditing starts with
