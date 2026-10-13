@@ -156,7 +156,8 @@ class PricingSnapshot:
         requested_at = self.reference_at if at is None else _utc_reference(at)
         if requested_at != self.reference_at:
             raise PricingCatalogError(
-                "pricing snapshot cannot resolve a different reference date; create another snapshot"
+                "pricing snapshot cannot resolve a different reference date; "
+                "create another snapshot"
             )
         identity = _identity(provider, service, sku, unit)
         price = self._items.get(identity)
