@@ -6,7 +6,6 @@ from math import ceil
 from typing import Any
 
 from sqlalchemy import func, select
-from sqlalchemy.orm import Session
 
 from app.models.pricing import PricingCatalogItem
 from app.models.pricing_audit import (
@@ -85,6 +84,9 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
         before_data: dict[str, Any] | None,
         after_data: dict[str, Any] | None,
     ) -> PricingAuditEvent:
+        actor_type = (
+            PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM
+        )
         event = PricingAuditEvent(
             pricing_item_id=item.id,
             provider=item.provider,
@@ -92,7 +94,7 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             sku=item.sku,
             unit=item.unit,
             action=action,
-            actor_type=(PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM),
+            actor_type=actor_type,
             actor_id=actor.id if actor is not None else None,
             actor_name=actor.name if actor is not None else None,
             actor_email=actor.email if actor is not None else None,
@@ -211,7 +213,12 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             PricingAuditEvent.sku == item.sku,
             PricingAuditEvent.unit == item.unit,
         )
-        total = self.db.scalar(select(func.count()).select_from(PricingAuditEvent).where(*key_filter)) or 0
+        total = (
+            self.db.scalar(
+                select(func.count()).select_from(PricingAuditEvent).where(*key_filter)
+            )
+            or 0
+        )
         events = list(
             self.db.scalars(
                 select(PricingAuditEvent)
