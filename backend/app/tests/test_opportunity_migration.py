@@ -5,8 +5,8 @@ from alembic import command
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData, create_engine, select
 
-from app.collectors.contracts import build_opportunity_fingerprint
 from app.db.migrations import migration_config
+from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 
 
 def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
