@@ -379,9 +379,7 @@ class OciPricingService:
                 at=at,
             )
             resolved_prices.append(windows_price)
-            components.append(
-                _component(windows_price, quantity=ocpu_count * OCI_MONTHLY_HOURS)
-            )
+            components.append(_component(windows_price, quantity=ocpu_count * OCI_MONTHLY_HOURS))
             windows_monthly_cost = quantize_money(
                 ocpu_count * windows_price.amount * OCI_MONTHLY_HOURS
             )
