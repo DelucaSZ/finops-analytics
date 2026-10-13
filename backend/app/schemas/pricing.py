@@ -1,7 +1,7 @@
 import re
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import (
     BaseModel,
@@ -66,6 +66,7 @@ class PricingCreate(BaseModel):
     effective_from: datetime = Field(default_factory=utcnow)
     effective_until: datetime | None = None
     enabled: bool = True
+    reason: str | None = Field(default=None, max_length=500)
 
     @field_validator("service", "sku", "description", "unit")
     @classmethod
@@ -73,6 +74,18 @@ class PricingCreate(BaseModel):
         cleaned = value.strip()
         if not cleaned:
             raise ValueError("value cannot be blank")
+        return cleaned
+
+    @field_validator("reason")
+    @classmethod
+    def validate_optional_reason(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        if not cleaned:
+            return None
+        if len(cleaned) < 3:
+            raise ValueError("reason must have at least 3 characters")
         return cleaned
 
     @field_validator("service")
@@ -101,6 +114,7 @@ class PricingUpdate(BaseModel):
     price: Decimal | None = Field(default=None, ge=0, max_digits=20, decimal_places=8)
     description: str | None = Field(default=None, min_length=1, max_length=255)
     effective_from: datetime | None = None
+    reason: str | None = Field(default=None, max_length=500)
 
     @field_validator("description")
     @classmethod
@@ -112,10 +126,19 @@ class PricingUpdate(BaseModel):
             raise ValueError("description cannot be blank")
         return cleaned
 
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str | None) -> str | None:
+        if value is None:
+            return None
+        cleaned = value.strip()
+        return cleaned or None
+
     @model_validator(mode="after")
     def validate_changes(self) -> "PricingUpdate":
-        if not self.model_fields_set:
-            raise ValueError("at least one change is required")
+        change_fields = self.model_fields_set.intersection({"price", "description", "effective_from"})
+        if not change_fields:
+            raise ValueError("at least one pricing change is required")
         if "price" in self.model_fields_set and self.price is None:
             raise ValueError("price cannot be null")
         if "description" in self.model_fields_set and self.description is None:
@@ -124,4 +147,51 @@ class PricingUpdate(BaseModel):
             raise ValueError("effective_from cannot be null")
         if self.effective_from is not None and self.price is None:
             raise ValueError("effective_from requires a new price")
+        if self.price is not None:
+            if self.reason is None or len(self.reason) < 3:
+                raise ValueError("reason with at least 3 characters is required for price changes")
+        elif self.reason is not None and len(self.reason) < 3:
+            raise ValueError("reason must have at least 3 characters when provided")
         return self
+
+
+class PricingDeactivate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(min_length=3, max_length=500)
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        cleaned = value.strip()
+        if len(cleaned) < 3:
+            raise ValueError("reason must have at least 3 characters")
+        return cleaned
+
+
+class PricingAuditEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    pricing_item_id: str
+    provider: str
+    service: str
+    sku: str
+    unit: str
+    action: str
+    actor_type: str
+    actor_id: str | None = None
+    actor_name: str | None = None
+    actor_email: str | None = None
+    reason: str | None = None
+    before_data: dict[str, Any] | None = None
+    after_data: dict[str, Any] | None = None
+    occurred_at: datetime
+
+
+class PricingAuditPage(BaseModel):
+    items: list[PricingAuditEventRead]
+    page: int
+    page_size: int
+    total: int
+    total_pages: int
