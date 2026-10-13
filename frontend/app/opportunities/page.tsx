@@ -59,13 +59,32 @@ const statusTabs = [
 
 const rejectionFallback = "Não foi possível atualizar a oportunidade. Nenhuma alteração foi aplicada.";
 
-const sortOptions = [
+const operationalSortOptions = [
   ["last_seen_at", "Última detecção"],
   ["first_seen_at", "Primeira detecção"],
   ["severity", "Severidade"],
   ["estimated_savings", "Impacto financeiro"],
   ["created_at", "Criação"],
 ] as const;
+
+const historySortOptions = [
+  ["archived_at", "Data de arquivamento"],
+  ["last_seen_at", "Última observação"],
+  ["status", "Status humano"],
+  ["estimated_savings", "Impacto financeiro"],
+] as const;
+
+const archiveReasonLabels: Record<string, string> = {
+  MANUAL: "Manual",
+  RETENTION_POLICY: "Política de retenção",
+};
+
+type HistoricalFinding = Finding & {
+  archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
+  archive_reason: string | null;
+};
 
 function pageWindow(page: number, totalPages: number) {
   if (totalPages <= 1) return totalPages ? [1] : [];
@@ -80,12 +99,12 @@ function savingsLabel(finding: Finding) {
     : `${formatMoney(finding.estimated_monthly_savings, finding.currency)}/mês`;
 }
 
-function SkeletonRows() {
+function SkeletonRows({ history = false }: { history?: boolean }) {
   return (
     <tbody aria-hidden="true">
       {Array.from({ length: 6 }, (_, index) => (
         <tr key={index} className="opportunity-skeleton-row">
-          <td><span className="skeleton-box skeleton-check" /></td>
+          {!history && <td><span className="skeleton-box skeleton-check" /></td>}
           <td><span className="skeleton-box skeleton-title" /><span className="skeleton-box skeleton-line" /></td>
           <td><span className="skeleton-box skeleton-line" /><span className="skeleton-box skeleton-line short" /></td>
           <td><span className="skeleton-box skeleton-pill" /></td>
@@ -115,63 +134,59 @@ function OpportunitiesContent() {
     () => parseOpportunitySearchParams(searchKey),
     [searchKey],
   );
-  const listQuery = useMemo(() => buildOpportunityApiQuery(state), [
-    state.accountId, state.collectionRunId, state.current, state.order, state.page, state.pageSize,
-    state.provider, state.region, state.resourceId, state.resourceType, state.rule, state.search,
-    state.service, state.severity, state.sort, state.status,
-  ]);
-  const statsQuery = useMemo(() => buildOpportunityStatsQuery(state), [
-    state.accountId, state.collectionRunId, state.current, state.provider, state.region,
-    state.resourceId, state.resourceType, state.rule, state.search, state.service, state.severity,
-  ]);
+  const isHistory = state.view === "history";
+
+  const listQuery = useMemo(() => buildOpportunityApiQuery(state), [state]);
+  const statsQuery = useMemo(
+    () => buildOpportunityStatsQuery({
+      ...state,
+      view: "operational",
+      status: "open",
+      presenceStatus: "",
+      archivedFrom: "",
+      archivedTo: "",
+      archiveReason: "",
+      current: isHistory ? false : state.current,
+    }),
+    [isHistory, state],
+  );
 
   const optionsQuery = useMemo(() => {
     const params = new URLSearchParams({ limit: "300" });
     if (state.provider) params.set("provider", state.provider);
     if (state.accountId) params.set("account_id", state.accountId);
+    if (isHistory) params.set("archive_state", "archived");
     return params.toString();
-  }, [state.accountId, state.provider]);
+  }, [isHistory, state.accountId, state.provider]);
 
   const listPlaceholderIdentity = useMemo(
-    () =>
-      JSON.stringify({
-        status: state.status,
-        provider: state.provider,
-        accountId: state.accountId,
-        region: state.region,
-        service: state.service,
-        resourceType: state.resourceType,
-        severity: state.severity,
-        rule: state.rule,
-        collectionRunId: state.collectionRunId,
-        resourceId: state.resourceId,
-        search: state.search,
-        current: state.current,
-        pageSize: state.pageSize,
-        sort: state.sort,
-        order: state.order,
-      }),
-    [
-      state.accountId,
-      state.collectionRunId,
-      state.current,
-      state.order,
-      state.pageSize,
-      state.provider,
-      state.region,
-      state.resourceId,
-      state.resourceType,
-      state.rule,
-      state.search,
-      state.service,
-      state.severity,
-      state.sort,
-      state.status,
-    ],
+    () => JSON.stringify({
+      view: state.view,
+      status: state.status,
+      presenceStatus: state.presenceStatus,
+      provider: state.provider,
+      accountId: state.accountId,
+      region: state.region,
+      service: state.service,
+      resourceType: state.resourceType,
+      severity: state.severity,
+      rule: state.rule,
+      collectionRunId: state.collectionRunId,
+      resourceId: state.resourceId,
+      search: state.search,
+      current: state.current,
+      archivedFrom: state.archivedFrom,
+      archivedTo: state.archivedTo,
+      archiveReason: state.archiveReason,
+      pageSize: state.pageSize,
+      sort: state.sort,
+      order: state.order,
+    }),
+    [state],
   );
 
   const optionsRequest = useApiQuery<OpportunityOptions>({
-    key: queryKeys.opportunities.options(state.provider, state.accountId),
+    key: ["opportunities", "options", state.view, state.provider, state.accountId],
     path: `/opportunities/options?${optionsQuery}`,
     ...cachePolicy.metadata,
   });
@@ -193,7 +208,7 @@ function OpportunitiesContent() {
     ...cachePolicy.operational,
   });
 
-  const findings = listRequest.data?.items ?? [];
+  const findings = (listRequest.data?.items ?? []) as HistoricalFinding[];
   const options = optionsRequest.data ?? {
     providers: [],
     accounts: [],
@@ -217,6 +232,7 @@ function OpportunitiesContent() {
   const [searchInput, setSearchInput] = useState(state.search);
   const [regionInput, setRegionInput] = useState(state.region);
   const [accountInput, setAccountInput] = useState(state.accountId);
+  const [unarchiveSavingId, setUnarchiveSavingId] = useState("");
   const [decision, setDecision] = useState<{
     action: OpportunityDecisionAction;
     ids: string[];
@@ -252,10 +268,7 @@ function OpportunitiesContent() {
   useEffect(() => {
     const pageData = listRequest.data;
     if (!pageData || state.page >= pageData.total_pages) return;
-    const nextQuery = buildOpportunityApiQuery({
-      ...state,
-      page: state.page + 1,
-    });
+    const nextQuery = buildOpportunityApiQuery({ ...state, page: state.page + 1 });
     void prefetchApiQuery<OpportunityPage>({
       key: queryKeys.opportunities.list(nextQuery),
       path: `/opportunities?${nextQuery}`,
@@ -273,7 +286,7 @@ function OpportunitiesContent() {
     () => findings.filter((finding) => selectedIds.has(finding.id)),
     [findings, selectedIds],
   );
-  const allSelected = findings.length > 0 && selected.length === findings.length;
+  const allSelected = !isHistory && findings.length > 0 && selected.length === findings.length;
   const pageSavings = findings.reduce<Record<string, number>>((totals, finding) => {
     const currency = finding.currency || "USD";
     totals[currency] = (totals[currency] || 0) + Number(finding.estimated_monthly_savings);
@@ -281,6 +294,11 @@ function OpportunitiesContent() {
   }, {});
   const newestObservation = findings.reduce<string | null>((latest, finding) => {
     if (!latest || new Date(finding.last_seen_at) > new Date(latest)) return finding.last_seen_at;
+    return latest;
+  }, null);
+  const newestArchive = findings.reduce<string | null>((latest, finding) => {
+    if (!finding.archived_at) return latest;
+    if (!latest || new Date(finding.archived_at) > new Date(latest)) return finding.archived_at;
     return latest;
   }, null);
   const currentAccount = options.accounts.find(
@@ -291,7 +309,7 @@ function OpportunitiesContent() {
   );
   const providerOptions = Array.from(new Set([
     ...options.providers.map((provider) => provider.toLowerCase()),
-    ...collectionRuns.map((run) => run.provider.toLowerCase()),
+    ...(!isHistory ? collectionRuns.map((run) => run.provider.toLowerCase()) : []),
     ...(state.provider ? [state.provider.toLowerCase()] : []),
   ])).sort();
   const visibleCollectionRuns = collectionRuns.filter((run) =>
@@ -301,12 +319,16 @@ function OpportunitiesContent() {
   const pages = pageWindow(state.page, totalPages);
   const hasFilters = Boolean(
     state.provider || state.accountId || state.region || state.service || state.resourceType ||
-    state.severity || state.rule ||
-    state.collectionRunId || state.resourceId || state.search || state.current,
+    state.severity || state.rule || state.collectionRunId || state.resourceId || state.search ||
+    state.current || (isHistory && (
+      state.status || state.presenceStatus || state.archivedFrom || state.archivedTo || state.archiveReason
+    )),
   );
   const activeFilters = [
     state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
     state.accountId ? `Conta: ${formatAccountLabel(currentAccount?.account_name, state.accountId)}` : "",
+    isHistory && state.status ? `Status: ${state.status === "open" ? "Aberta" : state.status === "treated" ? "Tratada" : "Rejeitada"}` : "",
+    isHistory && state.presenceStatus ? `Presença: ${state.presenceStatus === "active" ? "Ativa" : state.presenceStatus === "missing" ? "Ausente" : "Resolvida externamente"}` : "",
     state.severity ? `Severidade: ${state.severity === "high" ? "Alta" : state.severity === "medium" ? "Média" : "Baixa"}` : "",
     state.region ? `Região: ${state.region}` : "",
     state.service ? `Serviço: ${state.service}` : "",
@@ -315,6 +337,9 @@ function OpportunitiesContent() {
     state.search ? `Busca: ${state.search}` : "",
     state.collectionRunId ? `Coleta: ${state.collectionRunId.slice(0, 8)}` : "",
     state.current ? "Escopo: estado atual" : "",
+    isHistory && state.archivedFrom ? `Arquivada desde: ${state.archivedFrom}` : "",
+    isHistory && state.archivedTo ? `Arquivada até: ${state.archivedTo}` : "",
+    isHistory && state.archiveReason ? `Arquivamento: ${archiveReasonLabels[state.archiveReason]}` : "",
   ].filter(Boolean);
 
   useEffect(() => {
@@ -325,7 +350,27 @@ function OpportunitiesContent() {
 
   function changeStatus(status: "open" | "treated" | "rejected") {
     setSelectedIds(new Set());
-    updateUrl({ status });
+    updateUrl({
+      view: null,
+      status,
+      presence_status: null,
+      archived_from: null,
+      archived_to: null,
+      archive_reason: null,
+      sort: "last_seen_at",
+      order: "desc",
+    });
+  }
+
+  function openHistory() {
+    setSelectedIds(new Set());
+    updateUrl({
+      view: "history",
+      status: null,
+      current: null,
+      sort: "archived_at",
+      order: "desc",
+    });
   }
 
   function clearFilters() {
@@ -345,10 +390,18 @@ function OpportunitiesContent() {
       resource_id: null,
       search: null,
       current: null,
+      ...(isHistory ? {
+        status: null,
+        presence_status: null,
+        archived_from: null,
+        archived_to: null,
+        archive_reason: null,
+      } : {}),
     });
   }
 
   function toggleSelection(id: string) {
+    if (isHistory) return;
     setSelectedIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -366,6 +419,7 @@ function OpportunitiesContent() {
   }
 
   function openDecision(action: OpportunityDecisionAction, ids: string[], bulk: boolean) {
+    if (isHistory) return;
     setDecisionError("");
     setDecision({ action, ids, bulk });
   }
@@ -401,6 +455,26 @@ function OpportunitiesContent() {
     }
   }
 
+  async function unarchiveRow(finding: HistoricalFinding) {
+    if (!finding.archived || unarchiveSavingId) return;
+    const confirmed = window.confirm(
+      "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
+    );
+    if (!confirmed) return;
+    setUnarchiveSavingId(finding.id);
+    setMessage("");
+    try {
+      await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
+      setMessage("Oportunidade desarquivada com sucesso.");
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.dashboard.all);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+    } finally {
+      setUnarchiveSavingId("");
+    }
+  }
+
   function commitAccountInput() {
     const value = accountInput.trim();
     if (!value) {
@@ -415,6 +489,8 @@ function OpportunitiesContent() {
     setAccountInput(state.accountId);
   }
 
+  const sortOptions = isHistory ? historySortOptions : operationalSortOptions;
+
   return (
     <>
       <PageHeader
@@ -425,8 +501,6 @@ function OpportunitiesContent() {
 
       {message && <div className="alert success opportunity-feedback" role="status">{message}</div>}
       {filterError && <div className="alert error opportunity-feedback" role="alert">{filterError}</div>}
-
-
 
       <section className="panel opportunity-filter-panel" aria-label="Filtros de oportunidades">
         <div className="opportunity-filter-heading">
@@ -469,11 +543,7 @@ function OpportunitiesContent() {
               onBlur={commitAccountInput}
               onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }}
             /></div>
-            {currentAccount && (
-              <small>
-                {currentAccount.account_name || currentAccount.account_id} · {providerLabel(currentAccount.provider)}
-              </small>
-            )}
+            {currentAccount && <small>{currentAccount.account_name || currentAccount.account_id} · {providerLabel(currentAccount.provider)}</small>}
             <datalist id="opportunity-account-options">
               {accountOptions.map((account) => (
                 <option key={`${account.provider}:${account.account_id}`} value={account.account_id}>
@@ -482,6 +552,45 @@ function OpportunitiesContent() {
               ))}
             </datalist>
           </label>
+
+          {isHistory && (
+            <>
+              <label className="opportunity-filter">
+                <span>Status humano</span>
+                <div><Filter size={16} /><select value={state.status} onChange={(event) => updateUrl({ status: event.target.value })}>
+                  <option value="">Todos</option>
+                  <option value="open">Aberta</option>
+                  <option value="treated">Tratada</option>
+                  <option value="rejected">Rejeitada</option>
+                </select></div>
+              </label>
+              <label className="opportunity-filter">
+                <span>Presença técnica</span>
+                <div><Filter size={16} /><select value={state.presenceStatus} onChange={(event) => updateUrl({ presence_status: event.target.value })}>
+                  <option value="">Todas</option>
+                  <option value="active">Ativa</option>
+                  <option value="missing">Ausente</option>
+                  <option value="resolved_externally">Resolvida externamente</option>
+                </select></div>
+              </label>
+              <label className="opportunity-filter">
+                <span>Arquivada desde</span>
+                <div><Filter size={16} /><input type="date" value={state.archivedFrom} onChange={(event) => updateUrl({ archived_from: event.target.value })} /></div>
+              </label>
+              <label className="opportunity-filter">
+                <span>Arquivada até</span>
+                <div><Filter size={16} /><input type="date" value={state.archivedTo} onChange={(event) => updateUrl({ archived_to: event.target.value })} /></div>
+              </label>
+              <label className="opportunity-filter">
+                <span>Motivo do arquivamento</span>
+                <div><Filter size={16} /><select value={state.archiveReason} onChange={(event) => updateUrl({ archive_reason: event.target.value })}>
+                  <option value="">Todos</option>
+                  <option value="MANUAL">Manual</option>
+                  <option value="RETENTION_POLICY">Política de retenção</option>
+                </select></div>
+              </label>
+            </>
+          )}
 
           <label className="opportunity-filter">
             <span>Região</span>
@@ -552,7 +661,7 @@ function OpportunitiesContent() {
       <nav className="opportunity-tabs" aria-label="Estado das oportunidades">
         {statusTabs.map((tab) => {
           const count = stats[tab.value];
-          const active = state.status === tab.value;
+          const active = !isHistory && state.status === tab.value;
           return (
             <button
               key={tab.value}
@@ -566,50 +675,61 @@ function OpportunitiesContent() {
             </button>
           );
         })}
+        <button
+          type="button"
+          className={isHistory ? "opportunity-tab active" : "opportunity-tab"}
+          aria-current={isHistory ? "page" : undefined}
+          onClick={openHistory}
+        >
+          <span>Histórico</span>
+          {isHistory && <strong aria-label={`${total} oportunidades arquivadas`}>{loading ? "…" : total}</strong>}
+        </button>
       </nav>
 
       <section className="opportunity-summary-grid" aria-label="Resumo da visão atual">
         <div className="opportunity-summary-card">
           <span>Resultados nesta visão</span>
           <strong>{loading && !findings.length ? "…" : total}</strong>
-          <small>{state.status === "open" ? "Abertas" : state.status === "treated" ? "Tratadas" : "Rejeitadas"}</small>
+          <small>{isHistory ? "Arquivadas" : state.status === "open" ? "Abertas" : state.status === "treated" ? "Tratadas" : "Rejeitadas"}</small>
         </div>
         <div className="opportunity-summary-card">
           <WalletCards size={18} />
           <span>Economia na página</span>
           <strong>
             {Object.entries(pageSavings).length
-              ? Object.entries(pageSavings)
-                  .map(([currency, amount]) => formatMoney(amount, currency))
-                  .join(" · ")
+              ? Object.entries(pageSavings).map(([currency, amount]) => formatMoney(amount, currency)).join(" · ")
               : "—"}
           </strong>
-          <small>Somente os {findings.length} itens carregados</small>
+          <small>Valores preservados por moeda; sem conversão entre BRL e USD</small>
         </div>
         <div className="opportunity-summary-card">
-          <span>Dados da coleta</span>
-          <strong className="summary-date">{newestObservation ? formatDate(newestObservation) : "—"}</strong>
-          <small>Última detecção nesta página; não é tempo real</small>
+          <span>{isHistory ? "Arquivamento mais recente" : "Dados da coleta"}</span>
+          <strong className="summary-date">{formatDate(isHistory ? newestArchive : newestObservation)}</strong>
+          <small>{isHistory ? "Data de entrada no histórico nesta página" : "Última detecção nesta página; não é tempo real"}</small>
         </div>
       </section>
 
       <section className="panel opportunity-workspace" aria-busy={loading}>
         <div className="opportunity-workspace-toolbar">
-          <div className="selection-summary">
-            <label className="selection-control">
-              <input
-                ref={selectAllRef}
-                type="checkbox"
-                checked={allSelected}
-                disabled={loading || !findings.length}
-                onChange={() => setSelectedIds(allSelected ? new Set() : new Set(findings.map((finding) => finding.id)))}
-              />
-              Selecionar página atual
-            </label>
-            <span>{selected.length} selecionada(s)</span>
-          </div>
+          {isHistory ? (
+            <div className="selection-summary"><span>Consulta histórica · ações operacionais em massa desabilitadas</span></div>
+          ) : (
+            <div className="selection-summary">
+              <label className="selection-control">
+                <input
+                  ref={selectAllRef}
+                  type="checkbox"
+                  checked={allSelected}
+                  disabled={loading || !findings.length}
+                  onChange={() => setSelectedIds(allSelected ? new Set() : new Set(findings.map((finding) => finding.id)))}
+                />
+                Selecionar página atual
+              </label>
+              <span>{selected.length} selecionada(s)</span>
+            </div>
+          )}
 
-          {selected.length > 0 && (
+          {!isHistory && selected.length > 0 && (
             <div className="bulk-actions opportunity-bulk-actions" aria-label="Ações em massa">
               <button className="button ghost" type="button" onClick={() => setSelectedIds(new Set())}>Limpar seleção</button>
               {state.status === "open" ? (
@@ -648,20 +768,20 @@ function OpportunitiesContent() {
           </div>
         )}
 
-        <div className="data-table-wrap opportunity-table-wrap" role="region" aria-label="Backlog de oportunidades" tabIndex={0}>
+        <div className="data-table-wrap opportunity-table-wrap" role="region" aria-label={isHistory ? "Histórico de oportunidades" : "Backlog de oportunidades"} tabIndex={0}>
           <table className="data-table opportunities-table stage-five-table">
             <thead>
               <tr>
-                <th scope="col" className="selection-cell">Seleção</th>
+                {!isHistory && <th scope="col" className="selection-cell">Seleção</th>}
                 <th scope="col">Oportunidade</th>
                 <th scope="col">Contexto</th>
-                <th scope="col">Risco</th>
+                <th scope="col">Estado</th>
                 <th scope="col">Impacto</th>
-                <th scope="col">Detecções</th>
+                <th scope="col">{isHistory ? "Histórico" : "Detecções"}</th>
                 <th scope="col">Ações</th>
               </tr>
             </thead>
-            {loading && !findings.length ? <SkeletonRows /> : (
+            {loading && !findings.length ? <SkeletonRows history={isHistory} /> : (
               <tbody>
                 {findings.map((finding) => (
                   <tr
@@ -675,16 +795,18 @@ function OpportunitiesContent() {
                       }).catch(() => undefined);
                     }}
                   >
-                    <td className="selection-cell">
-                      <label className="selection-control compact-check">
-                        <input
-                          type="checkbox"
-                          checked={selectedIds.has(finding.id)}
-                          aria-label={`Selecionar ${finding.title} · ${finding.resource_id}`}
-                          onChange={() => toggleSelection(finding.id)}
-                        />
-                      </label>
-                    </td>
+                    {!isHistory && (
+                      <td className="selection-cell">
+                        <label className="selection-control compact-check">
+                          <input
+                            type="checkbox"
+                            checked={selectedIds.has(finding.id)}
+                            aria-label={`Selecionar ${finding.title} · ${finding.resource_id}`}
+                            onChange={() => toggleSelection(finding.id)}
+                          />
+                        </label>
+                      </td>
+                    )}
                     <td className="opportunity-primary-cell">
                       <button className="opportunity-title-button" type="button" onClick={() => openDetail(finding.id)}>{finding.title}</button>
                       <span className="opportunity-rule">{finding.rule_key}</span>
@@ -698,7 +820,11 @@ function OpportunitiesContent() {
                       {finding.resource_type && <span>{finding.resource_type}</span>}
                     </td>
                     <td>
-                      <div className="risk-badges"><StatusBadge value={finding.severity} /><StatusBadge value={finding.status} /></div>
+                      <div className="risk-badges">
+                        <StatusBadge value={finding.status} />
+                        {isHistory && <StatusBadge value={finding.presence_status} />}
+                        <StatusBadge value={finding.severity} />
+                      </div>
                       {finding.needs_review && <span className="review-inline">Detectada novamente</span>}
                     </td>
                     <td className="money-cell opportunity-impact-cell">
@@ -706,13 +832,27 @@ function OpportunitiesContent() {
                       <span>Custo atual: {formatMoney(finding.current_monthly_cost, finding.currency)}</span>
                     </td>
                     <td className="detection-cell">
-                      <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>
-                      <span><strong>Última</strong>{formatDate(finding.last_seen_at)}</span>
+                      {isHistory ? (
+                        <>
+                          <span><strong>Última observação</strong>{formatDate(finding.last_seen_at)}</span>
+                          <span><strong>Arquivada em</strong>{formatDate(finding.archived_at)}</span>
+                          <span><strong>Motivo</strong>{archiveReasonLabels[finding.archive_reason || ""] || finding.archive_reason || "—"}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>
+                          <span><strong>Última</strong>{formatDate(finding.last_seen_at)}</span>
+                        </>
+                      )}
                     </td>
                     <td>
                       <div className="row-actions stage-five-actions">
                         <button type="button" onClick={() => openDetail(finding.id)}>Abrir detalhe</button>
-                        {finding.status === "open" ? (
+                        {isHistory ? (
+                          <button type="button" disabled={unarchiveSavingId === finding.id} onClick={() => void unarchiveRow(finding)}>
+                            {unarchiveSavingId === finding.id ? "Desarquivando…" : "Desarquivar"}
+                          </button>
+                        ) : finding.status === "open" ? (
                           <>
                             <button type="button" onClick={() => openDecision("treat", [finding.id], false)}>Tratar</button>
                             <button type="button" onClick={() => openDecision("reject", [finding.id], false)}>Rejeitar</button>
@@ -731,8 +871,12 @@ function OpportunitiesContent() {
           {!loading && !listError && !findings.length && (
             <div className="opportunity-empty-state">
               <Filter size={24} />
-              <strong>Nenhuma oportunidade {state.status === "open" ? "aberta" : state.status === "treated" ? "tratada" : "rejeitada"} encontrada.</strong>
-              <p>{hasFilters ? "Os filtros selecionados não retornaram resultados." : "Ainda não existem oportunidades nesse estado para as coletas disponíveis."}</p>
+              <strong>
+                {isHistory
+                  ? (hasFilters ? "Nenhum registro encontrado para os filtros selecionados." : "Nenhuma oportunidade arquivada.")
+                  : `Nenhuma oportunidade ${state.status === "open" ? "aberta" : state.status === "treated" ? "tratada" : "rejeitada"} encontrada.`}
+              </strong>
+              {!isHistory && <p>{hasFilters ? "Os filtros selecionados não retornaram resultados." : "Ainda não existem oportunidades nesse estado para as coletas disponíveis."}</p>}
               {hasFilters && <button className="button ghost" type="button" onClick={clearFilters}>Limpar filtros</button>}
             </div>
           )}
