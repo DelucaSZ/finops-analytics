@@ -74,7 +74,7 @@ def test_block_volume_retains_capacity_and_vpu_versions(auth_env):
     assert by_sku["BLOCK_VOLUME_VPU_GB_MONTH"].quantity == Decimal("5000")
 
 
-def test_catalog_change_keeps_old_calculation_reference_and_new_calculation_uses_new_version(auth_env):
+def test_catalog_change_keeps_old_and_new_calculation_versions(auth_env):
     http, engine, tokens, _ = auth_env
     current = http.get(
         "/api/v1/pricing/oci?q=VM.Standard.E4.Flex.OCPU&status=all",
