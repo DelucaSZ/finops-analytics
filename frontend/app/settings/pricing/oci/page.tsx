@@ -48,7 +48,40 @@ type PricingMeta = {
   sources: string[];
 };
 
+type AuditSnapshot = {
+  id?: string;
+  price?: string;
+  currency?: string;
+  description?: string;
+  effective_from?: string;
+  effective_until?: string | null;
+  enabled?: boolean;
+  source?: string;
+};
+
+type PricingAuditEvent = {
+  id: string;
+  pricing_item_id: string;
+  action: string;
+  actor_type: string;
+  actor_name: string | null;
+  actor_email: string | null;
+  reason: string | null;
+  before_data: AuditSnapshot | null;
+  after_data: AuditSnapshot | null;
+  occurred_at: string;
+};
+
+type PricingAuditPage = {
+  items: PricingAuditEvent[];
+  page: number;
+  page_size: number;
+  total: number;
+  total_pages: number;
+};
+
 const PAGE_SIZE = 25;
+const AUDIT_PAGE_SIZE = 10;
 
 function apiMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -68,6 +101,7 @@ export default function OciPricingPage() {
   const [message, setMessage] = useState("");
   const [form, setForm] = useState<{ mode: "create" | "edit"; item?: PricingItem } | null>(null);
   const [historyItem, setHistoryItem] = useState<PricingItem | null>(null);
+  const [auditItem, setAuditItem] = useState<PricingItem | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -109,10 +143,21 @@ export default function OciPricingPage() {
       "Desativar este preço?\n\nEle deixará de ser considerado em novos cálculos OCI quando não existir outra vigência válida para o mesmo SKU.",
     );
     if (!confirmed) return;
+    const reason = window.prompt(
+      "Motivo da alteração (mínimo 3 caracteres):",
+      "",
+    )?.trim();
+    if (!reason || reason.length < 3) {
+      setError("Informe o motivo da alteração com pelo menos 3 caracteres.");
+      return;
+    }
     setError("");
     setMessage("");
     try {
-      await api(`/pricing/oci/${item.id}/deactivate`, { method: "POST" });
+      await api(`/pricing/oci/${item.id}/deactivate`, {
+        method: "POST",
+        body: JSON.stringify({ reason }),
+      });
       setMessage(`Preço ${item.sku} desativado.`);
       await load();
     } catch (err) {
@@ -231,6 +276,9 @@ export default function OciPricingPage() {
                           <button className="button small ghost" onClick={() => setHistoryItem(item)}>
                             <History size={14} /> Vigências
                           </button>
+                          <button className="button small ghost" onClick={() => setAuditItem(item)}>
+                            Auditoria
+                          </button>
                           {item.enabled && itemStatus !== "expired" && (
                             <>
                               <button className="button small ghost" onClick={() => setForm({ mode: "edit", item })}>
@@ -286,12 +334,8 @@ export default function OciPricingPage() {
           }}
         />
       )}
-      {historyItem && (
-        <PricingHistory
-          item={historyItem}
-          onClose={() => setHistoryItem(null)}
-        />
-      )}
+      {historyItem && <PricingHistory item={historyItem} onClose={() => setHistoryItem(null)} />}
+      {auditItem && <PricingAuditHistory item={auditItem} onClose={() => setAuditItem(null)} />}
     </>
   );
 }
@@ -316,6 +360,7 @@ function PricingForm({
   const [price, setPrice] = useState(item?.price ?? "");
   const [effectiveFrom, setEffectiveFrom] = useState(toDatetimeLocal(new Date()));
   const [enabled, setEnabled] = useState(true);
+  const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -324,12 +369,21 @@ function PricingForm({
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     const startsAt = datetimeLocalToIso(effectiveFrom);
+    const normalizedReason = reason.trim();
     if (!normalizedPrice) {
       setError("Informe um preço decimal válido com até 8 casas decimais.");
       return;
     }
     if (!startsAt) {
       setError("Informe uma vigência válida.");
+      return;
+    }
+    if (mode === "edit" && normalizedReason.length < 3) {
+      setError("Informe o motivo da alteração com pelo menos 3 caracteres.");
+      return;
+    }
+    if (mode === "create" && normalizedReason && normalizedReason.length < 3) {
+      setError("Quando informado, o motivo deve ter pelo menos 3 caracteres.");
       return;
     }
     setSaving(true);
@@ -346,6 +400,7 @@ function PricingForm({
             price: normalizedPrice,
             effective_from: startsAt,
             enabled,
+            reason: normalizedReason || undefined,
           }),
         });
         await onSaved(`Preço ${sku} cadastrado.`);
@@ -356,6 +411,7 @@ function PricingForm({
             price: normalizedPrice,
             description,
             effective_from: startsAt,
+            reason: normalizedReason,
           }),
         });
         await onSaved(`Nova vigência de ${item.sku} criada.`);
@@ -440,6 +496,18 @@ function PricingForm({
                 onChange={(event) => setEffectiveFrom(event.target.value)}
                 disabled={saving}
                 required
+              />
+            </label>
+            <label className={styles.fullField}>
+              <span>Motivo da alteração{mode === "create" ? " (opcional)" : ""}</span>
+              <input
+                value={reason}
+                onChange={(event) => setReason(event.target.value)}
+                placeholder="Ex.: Atualização da tabela OCI de outubro/2026"
+                disabled={saving}
+                required={mode === "edit"}
+                minLength={mode === "edit" ? 3 : undefined}
+                maxLength={500}
               />
             </label>
             {mode === "create" && (
@@ -530,6 +598,126 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
       </section>
     </div>
   );
+}
+
+function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
+  const [data, setData] = useState<PricingAuditPage | null>(null);
+  const [page, setPage] = useState(1);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError("");
+    api<PricingAuditPage>(`/pricing/oci/${item.id}/audit?page=${page}&page_size=${AUDIT_PAGE_SIZE}`)
+      .then((result) => {
+        if (active) setData(result);
+      })
+      .catch((err) => {
+        if (active) setError(apiMessage(err, "Não foi possível carregar a auditoria."));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => { active = false; };
+  }, [item.id, page]);
+
+  return (
+    <div className={styles.overlay} role="presentation">
+      <section className={`${styles.modal} ${styles.historyModal}`} role="dialog" aria-modal="true" aria-labelledby="pricing-audit-title">
+        <div className={styles.modalHeader}>
+          <div>
+            <div className="eyebrow">AUDITORIA</div>
+            <h2 id="pricing-audit-title">{item.sku}</h2>
+          </div>
+          <button className="button small ghost" onClick={onClose}>Fechar</button>
+        </div>
+        {error && <div className="alert error" role="alert">{error}</div>}
+        {loading ? (
+          <div className={styles.state} role="status">Carregando auditoria…</div>
+        ) : !data || data.items.length === 0 ? (
+          <div className={styles.state}>Nenhum evento de auditoria registrado para este pricing key.</div>
+        ) : (
+          <>
+            <div className={styles.historyList}>
+              {data.items.map((event) => (
+                <article key={event.id}>
+                  <div>
+                    <strong>{auditActionLabel(event.action)}</strong>
+                    <span>{formatAuditDate(event.occurred_at)}</span>
+                  </div>
+                  <div>
+                    <strong>{auditActorLabel(event)}</strong>
+                    <span>{event.reason ? `Motivo: ${event.reason}` : "Sem motivo informado"}</span>
+                  </div>
+                  <div>
+                    <strong>{auditDiff(event)}</strong>
+                    <span>Versão: {event.pricing_item_id}</span>
+                  </div>
+                </article>
+              ))}
+            </div>
+            <div className={styles.pagination}>
+              <span>{data.total} evento{data.total === 1 ? "" : "s"} · página {data.page} de {Math.max(1, data.total_pages)}</span>
+              <div>
+                <button className="button small ghost" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>Anterior</button>
+                <button className="button small ghost" disabled={page >= data.total_pages || loading} onClick={() => setPage(page + 1)}>Próxima</button>
+              </div>
+            </div>
+          </>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function auditActionLabel(action: string) {
+  const labels: Record<string, string> = {
+    CREATED: "Preço criado",
+    PRICE_CHANGED: "Preço alterado",
+    FUTURE_VERSION_CREATED: "Vigência futura criada",
+    METADATA_CHANGED: "Metadados alterados",
+    DEACTIVATED: "Preço desativado",
+    REACTIVATED: "Preço reativado",
+    VALIDITY_CHANGED: "Vigência alterada",
+    IMPORTED: "Preço importado",
+  };
+  return labels[action] ?? action;
+}
+
+function auditActorLabel(event: PricingAuditEvent) {
+  if (event.actor_type === "SYSTEM") return "Sistema";
+  return event.actor_name || event.actor_email || "Usuário removido";
+}
+
+function auditDiff(event: PricingAuditEvent) {
+  const before = event.before_data;
+  const after = event.after_data;
+  if (!before && after?.price) {
+    return `Preço: ${formatBrlDecimal(after.price)} ${after.currency ?? ""}`.trim();
+  }
+  if (before?.price !== after?.price && before?.price && after?.price) {
+    return `Preço: ${formatBrlDecimal(before.price)} → ${formatBrlDecimal(after.price)} ${after.currency ?? before.currency ?? ""}`.trim();
+  }
+  if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) {
+    return `Status: ${before.enabled ? "habilitado" : "desabilitado"} → ${after.enabled ? "habilitado" : "desabilitado"}`;
+  }
+  if (before?.effective_until !== after?.effective_until) {
+    return `Fim da vigência: ${formatAuditOptionalDate(before?.effective_until)} → ${formatAuditOptionalDate(after?.effective_until)}`;
+  }
+  if (before?.description !== after?.description) {
+    return "Descrição alterada";
+  }
+  return "Alteração registrada";
+}
+
+function formatAuditOptionalDate(value: string | null | undefined) {
+  return value ? formatAuditDate(value) : "aberta";
+}
+
+function formatAuditDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
