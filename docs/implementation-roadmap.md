@@ -3753,3 +3753,86 @@ Nenhuma nova aba global de Histórico/Arquivadas foi criada. O backend mantém c
 A Etapa 23.4 não cria scheduler/job periódico, não decide automaticamente que `treated` ou `rejected` antigos devem ser arquivados e não executa `RETENTION_POLICY`. Também não introduz exclusão física, nova contabilização de savings realizados, Billing, alteração de pricing AWS/OCI ou redesign global.
 
 A Etapa 23.5 deverá definir elegibilidade, idade/retenção e execução automática sobre esta fundação, reutilizando o motivo `RETENTION_POLICY` e o mesmo histórico auditável.
+
+## Etapa 23.5 — Política automática de retenção e arquivamento
+
+**Status:** implementada na branch `feat/23-5-opportunity-retention-policy` e publicada no PR #59; validação final pelo CI do PR.
+
+### Objetivo e política padrão
+
+A Etapa 23.5 automatiza o arquivamento lógico introduzido na 23.4 sem alterar o lifecycle humano (`open`, `treated`, `rejected`) nem o lifecycle técnico (`active`, `missing`, `resolved_externally`). O registro continua existindo integralmente no banco e apenas deixa as visões operacionais padrão quando a política explícita o torna elegível.
+
+Os defaults são configuráveis no backend:
+
+- `treated`: 60 dias, usando exclusivamente `treated_at`;
+- `rejected`: 30 dias, usando exclusivamente `rejected_at`;
+- `resolved_externally`: 30 dias, usando exclusivamente `resolved_externally_at`.
+
+A comparação é inclusiva (`reference_timestamp <= cutoff`) e usa UTC/timezone-aware no backend. `updated_at` não participa da retenção.
+
+As configurações são `OPPORTUNITY_RETENTION_ENABLED`, switches por política, `OPPORTUNITY_RETENTION_TREATED_DAYS`, `OPPORTUNITY_RETENTION_REJECTED_DAYS`, `OPPORTUNITY_RETENTION_RESOLVED_EXTERNALLY_DAYS` e `OPPORTUNITY_RETENTION_BATCH_SIZE`. Dias e batch size aceitam somente valores `>= 1`; `0`, negativos e valores inválidos falham na validação de settings. O switch global ou o switch específico permitem desabilitar a automação sem alteração de código.
+
+### Elegibilidade e exceções operacionais
+
+A regra é centralizada em `OpportunityRetentionService`; worker, CLI e models não duplicam a decisão de elegibilidade.
+
+- `open + active` nunca é arquivado automaticamente apenas por idade.
+- `missing` não é resolução confirmada e não usa a política técnica de retenção.
+- `open + resolved_externally` pode ser arquivado após o prazo técnico sem mudar `status=open`.
+- `needs_review=true` tem prioridade sobre todas as políticas e bloqueia o arquivamento automático.
+- Uma oportunidade `treated + active` observada novamente depois de `treated_at` não é arquivada, mesmo que o tratamento seja antigo.
+- Uma oportunidade `rejected + active` pode ser arquivada após o prazo, porque `rejected` é decisão humana explícita.
+- Quando mais de uma política é aplicável, a precedência determinística é `treated_retention`, `rejected_retention`, `resolved_external_retention`. O primeiro archive retira o Finding das consultas subsequentes, impedindo evento duplicado.
+
+### Desarquivamento manual e reaparecimento
+
+O histórico criado na 23.4 também funciona como proteção contra re-arquivamento imediato. Qualquer `UNARCHIVE` recente inicia uma nova janela da política correspondente: o job ignora o Finding enquanto o evento de unarchive estiver dentro do cutoff daquela política.
+
+Isso dá efeito operacional real ao unarchive manual sem criar um novo estado persistente em `Finding`. O mesmo mecanismo protege oportunidades reativadas por `REAPPEARED`; para tratadas, `needs_review` e a presença ativa posterior ao tratamento continuam tendo precedência. Se a oportunidade for tratada novamente, o lifecycle atual renova `treated_at`, e a retenção passa a usar esse timestamp atual.
+
+### Execução periódica e operação manual
+
+O projeto não recebeu Celery, RQ, APScheduler nem um segundo serviço de scheduling. O Compose continua com um único processo de worker, agora iniciado por `app.worker_runtime`, que executa a verificação diária de retenção antes do polling normal de scans e delega a coleta ao `app.worker` existente.
+
+A coordenação multi-instância usa duas proteções no PostgreSQL:
+
+1. advisory lock por dia UTC, evitando execução simultânea do job por workers concorrentes;
+2. `opportunity_retention_runs`, com unicidade por `period_date`, persistindo `RUNNING`, `SUCCESS` ou `FAILED` e o resultado agregado.
+
+Um dia concluído com `SUCCESS` não é executado novamente após restart. Falhas ficam retryable e usam backoff de uma hora; disputa de lock é reavaliada sem bloquear o worker de coleta. A migration `0023_opportunity_retention` cria somente esse checkpoint operacional e não adiciona campos a `Finding`.
+
+Para manutenção/testes existe o comando explícito `python -m app.commands.opportunity_retention --execute`. Não foi criado endpoint administrativo novo porque o backend não possuía um padrão equivalente que justificasse ampliar a superfície HTTP. Execuções manuais continuam protegidas pelos locks de Finding e pela idempotência do serviço.
+
+### Idempotência, concorrência e batching
+
+Somente candidatos com `archived_at IS NULL` são selecionados. Cada lote usa `SELECT ... FOR UPDATE SKIP LOCKED`, archive e audit event na mesma transação e commit por batch. Duas execuções concorrentes não conseguem arquivar o mesmo Finding duas vezes, não reescrevem `archived_at` e não duplicam `OpportunityArchiveHistory`.
+
+Uma repetição imediata após execução concluída encontra zero novos arquivos elegíveis. Se um processo falhar depois de batches já commitados, o retry reencontra somente os Findings ainda não arquivados.
+
+O batch default é 500. As consultas filtram candidatos no banco e não carregam toda a base nem eager-load de histórico. Os índices já existentes em `status`, `presence_status`, `treated_at`, `rejected_at`, `archived_at` e no escopo operacional foram reaproveitados; nenhum índice especulativo adicional em `findings` foi criado nesta etapa.
+
+### Auditoria e observabilidade
+
+Todo archive automático usa `archive_reason=RETENTION_POLICY`, `archived_by=NULL` e registra `OpportunityArchiveHistory` com ator lógico `SYSTEM` no contexto, sem fingir um usuário humano. O contexto registra `policy`, `threshold_days`, `reference_timestamp`, `status` e `presence_status`.
+
+A execução produz counters agregados para avaliados, total arquivado, tratados, rejeitados, resolvidos externamente, `needs_review`, atividade posterior ao tratamento, batches e erros. Logs estruturados resumem cada run e falhas; não existe log INFO por Finding.
+
+### Preservação de histórico e multi-cloud
+
+Nenhuma rotina da 23.5 executa `DELETE` em findings, observations, histórico humano, histórico de presença, collection runs ou archive history. `status`, `presence_status`, observations e decisões anteriores permanecem inalterados durante o archive.
+
+> registros arquivados continuam integralmente preservados no banco; esta política altera apenas sua participação nas visões operacionais.
+
+> nenhuma oportunidade `open + active` é arquivada automaticamente apenas por idade.
+
+A política opera sobre o modelo provider-neutral de Finding e é idêntica para AWS e OCI; não contém regra de pricing, billing, savings realizado ou semântica específica de provider.
+
+### Testes e validação
+
+A suíte focada cobre abaixo do cutoff, cutoff inclusivo, vencimento de treated/rejected/resolved externally, `open + active`, `missing`, `needs_review`, treated ativo reaparecido, rejected ativo, precedência, archive manual existente, idempotência, threshold customizado, configuração inválida, políticas desabilitadas, unarchive manual, reaparecimento, AWS, OCI, preservação de observations/lifecycle, timezone, concorrência PostgreSQL, checkpoint diário, retry após falha e integração do runtime com o worker.
+
+A suite global de migrations avança o head para `0023_opportunity_retention`, verifica schema/drift em SQLite/PostgreSQL e o smoke Compose valida a mesma revisão no banco real do stack. Os resultados finais de CI permanecem registrados no PR #59.
+
+### Limitações deliberadamente deixadas para a 23.6
+
+A 23.5 não cria tela `Histórico / Arquivadas`, não adiciona filtros/UX completos de consulta de arquivadas e não transforma a configuração de retenção em formulário de frontend. A Task 23.6 permanece responsável pela experiência de Histórico/Arquivadas e visualização operacional do archive history.

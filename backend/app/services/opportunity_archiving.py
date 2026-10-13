@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime
+
 from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -32,6 +34,7 @@ def _history(
     changed_by: str | None = None,
     collection_run_id: str | None = None,
     context: dict | None = None,
+    occurred_at: datetime | None = None,
 ) -> None:
     db.add(
         OpportunityArchiveHistory(
@@ -40,7 +43,7 @@ def _history(
             reason=reason.value,
             changed_by=changed_by,
             collection_run_id=collection_run_id,
-            occurred_at=utcnow(),
+            occurred_at=occurred_at or utcnow(),
             context=context or {},
         )
     )
@@ -70,6 +73,40 @@ def archive(db: Session, opportunity_id: str, actor: User) -> Finding:
     )
     refresh_summaries_for_findings(db, [finding])
     return finding
+
+
+def archive_retention_locked(
+    db: Session,
+    finding: Finding,
+    *,
+    archived_at: datetime,
+    policy: str,
+    threshold_days: int,
+    reference_timestamp: datetime,
+) -> bool:
+    """Archive an already locked finding as a SYSTEM retention action."""
+
+    if finding.archived_at is not None:
+        return False
+    finding.archived_at = archived_at
+    finding.archived_by = None
+    finding.archive_reason = OpportunityArchiveReason.RETENTION_POLICY.value
+    _history(
+        db,
+        finding,
+        action=OpportunityArchiveAction.ARCHIVE,
+        reason=OpportunityArchiveReason.RETENTION_POLICY,
+        occurred_at=archived_at,
+        context={
+            "actor": "SYSTEM",
+            "policy": policy,
+            "threshold_days": threshold_days,
+            "reference_timestamp": reference_timestamp.isoformat(),
+            "status": finding.status,
+            "presence_status": finding.presence_status,
+        },
+    )
+    return True
 
 
 def unarchive(db: Session, opportunity_id: str, actor: User) -> Finding:
