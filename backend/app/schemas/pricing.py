@@ -136,7 +136,9 @@ class PricingUpdate(BaseModel):
 
     @model_validator(mode="after")
     def validate_changes(self) -> "PricingUpdate":
-        change_fields = self.model_fields_set.intersection({"price", "description", "effective_from"})
+        change_fields = self.model_fields_set.intersection(
+            {"price", "description", "effective_from"}
+        )
         if not change_fields:
             raise ValueError("at least one pricing change is required")
         if "price" in self.model_fields_set and self.price is None:
