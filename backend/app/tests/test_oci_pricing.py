@@ -3,16 +3,16 @@ from decimal import Decimal
 import pytest
 
 from app.services.oci_pricing import (
-    OCI_BLOCK_STORAGE_GB_MONTH,
-    OCI_BLOCK_VPU_GB_MONTH,
-    OCI_COMPUTE_PRICES,
+    OCI_BLOCK_STORAGE_SKU,
+    OCI_BLOCK_VPU_SKU,
+    OCI_COMPUTE_PRICE_KEYS,
     OCI_MONTHLY_HOURS,
     OCI_PRICING_CURRENCY,
     OCI_PRICING_METADATA,
     OCI_PRICING_SOURCE,
     OCI_PRICING_VERSION,
     OCI_SHAPE_PRICE_FAMILY,
-    OCI_WINDOWS_OCPU_HOUR,
+    OCI_WINDOWS_LICENSE_SKU,
     PRICING_STATUS_INVALID_INPUT,
     PRICING_STATUS_MISSING_INPUT,
     PRICING_STATUS_PRICED,
@@ -73,8 +73,8 @@ def test_compute_shape_rejects_missing_or_blank_values(shape):
         resolve_compute_price_family(shape)
 
 
-def test_all_resolved_shape_families_exist_in_compute_catalog():
-    assert set(OCI_SHAPE_PRICE_FAMILY.values()) <= set(OCI_COMPUTE_PRICES)
+def test_all_resolved_shape_families_exist_in_compute_catalog_keys():
+    assert set(OCI_SHAPE_PRICE_FAMILY.values()) <= set(OCI_COMPUTE_PRICE_KEYS)
     for shape, family in OCI_SHAPE_PRICE_FAMILY.items():
         assert resolve_compute_price_family(shape) == family
 
@@ -230,6 +230,7 @@ def test_windows_license_is_explicit_and_not_included_by_default(pricing):
     assert base.base_monthly_cost == Decimal("114.43")
     assert base.windows_license_included is False
     assert windows.base_monthly_cost == Decimal("800.28")
+    assert windows.windows_monthly_cost == Decimal("685.85")
     assert windows.windows_license_included is True
     assert resource.windows_license_included is False
     assert resource.base_monthly_cost == base.base_monthly_cost
@@ -299,19 +300,15 @@ def test_zero_values_remain_legitimate_for_block_volume(pricing):
     assert pricing.block_volume_monthly_cost(size_gb=0, vpus_per_gb=0) == Decimal("0.00")
 
 
-def test_catalog_metadata_and_rates_are_explicit_decimals():
-    assert OCI_PRICING_METADATA.source == OCI_PRICING_SOURCE == "deepops_oci_price_table"
+def test_catalog_metadata_and_pricing_keys_are_explicit():
+    assert OCI_PRICING_METADATA.source == OCI_PRICING_SOURCE == "IMPORTED_OCI_CALCULATOR"
     assert OCI_PRICING_METADATA.version == OCI_PRICING_VERSION == "2026-10"
     assert OCI_PRICING_METADATA.currency == OCI_PRICING_CURRENCY == "BRL"
     assert OCI_PRICING_METADATA.monthly_hours == OCI_MONTHLY_HOURS == Decimal("744")
-    assert Decimal("0.46092") == OCI_WINDOWS_OCPU_HOUR
-    assert Decimal("0.0531") == OCI_BLOCK_STORAGE_GB_MONTH
-    assert Decimal("0.0036") == OCI_BLOCK_VPU_GB_MONTH
-    assert all(
-        isinstance(value, Decimal)
-        for price in OCI_COMPUTE_PRICES.values()
-        for value in (price.ocpu_hour, price.memory_gb_hour)
-    )
+    assert OCI_WINDOWS_LICENSE_SKU == "WINDOWS_LICENSE_OCPU"
+    assert OCI_BLOCK_STORAGE_SKU == "BLOCK_VOLUME_GB_MONTH"
+    assert OCI_BLOCK_VPU_SKU == "BLOCK_VOLUME_VPU_GB_MONTH"
+    assert all(keys.ocpu_sku and keys.memory_sku for keys in OCI_COMPUTE_PRICE_KEYS.values())
 
 
 def test_money_rounding_uses_cents_and_half_up():
