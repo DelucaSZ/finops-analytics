@@ -40,8 +40,9 @@ services:
     env_file: .env
     # OCI credentials remain encrypted at rest. When OCI is configured, the worker
     # receives the same stable decryption key as the API and executes OCI collections
-    # through the shared provider-aware worker/executor pipeline.
-    command: ["python", "-m", "app.worker"]
+    # through the shared provider-aware worker/executor pipeline. The runtime wrapper
+    # also coordinates the daily logical opportunity-retention job.
+    command: ["python", "-m", "app.worker_runtime"]
     depends_on:
       db:
         condition: service_healthy
