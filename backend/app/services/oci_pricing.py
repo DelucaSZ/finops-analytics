@@ -20,7 +20,12 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Final
 
-from app.services.pricing_catalog import PriceResolver, PricingResolver, PricingSnapshot, ResolvedPrice
+from app.services.pricing_catalog import (
+    PriceResolver,
+    PricingResolver,
+    PricingSnapshot,
+    ResolvedPrice,
+)
 
 OCI_PRICING_SOURCE: Final = "IMPORTED_OCI_CALCULATOR"
 OCI_PRICING_VERSION: Final = "2026-10"
