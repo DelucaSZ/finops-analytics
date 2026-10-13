@@ -24,6 +24,10 @@ test("accounts and policies live inside settings for every authenticated role", 
   assert.ok(!viewer.includes("/settings/users"));
   assert.ok(!viewer.includes("/settings/audit"));
   assert.ok(!viewer.includes("/settings/https"));
+  assert.ok(!viewer.includes("/settings/pricing/oci"));
+
+  const admin = settingsTabsForRole("admin").map((tab) => tab.href);
+  assert.ok(admin.includes("/settings/pricing/oci"));
 });
 
 test("settings active state supports nested routes without widening admin-only areas", () => {
@@ -32,6 +36,8 @@ test("settings active state supports nested routes without widening admin-only a
   assert.equal(isSettingsTabActive("/settings/policies/history", "/settings/policies"), true);
   assert.equal(isSettingsTabActive("/settings/security", "/settings/accounts"), false);
   assert.equal(isAdminOnlySettingsPath("/settings/users/123"), true);
+  assert.equal(isAdminOnlySettingsPath("/settings/pricing/oci"), true);
+  assert.equal(isAdminOnlySettingsPath("/settings/pricing/oci/history"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/accounts/123"), false);
   assert.equal(isAdminOnlySettingsPath("/settings/policies"), false);
 });
@@ -62,6 +68,7 @@ test("main navigation no longer duplicates accounts or policies and old page imp
   assert.ok(!shell.includes('href: "/policies"'));
   await access(new URL("../app/settings/accounts/page.tsx", import.meta.url));
   await access(new URL("../app/settings/policies/page.tsx", import.meta.url));
+  await access(new URL("../app/settings/pricing/oci/page.tsx", import.meta.url));
   await assert.rejects(access(new URL("../app/accounts/page.tsx", import.meta.url)));
   await assert.rejects(access(new URL("../app/policies/page.tsx", import.meta.url)));
 });

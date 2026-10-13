@@ -3959,3 +3959,102 @@ O smoke Compose foi atualizado para validar `0024_pricing_catalog` após startup
 > a Task 23.7 cria a fonte de verdade persistente; a edição administrativa será implementada na Task 23.8 e o versionamento/auditoria completa na Task 23.9.
 
 Esta etapa não implementa CRUD visual de pricing, conversão cambial, serviço de FX, moeda-base global, migração completa do pricing AWS, ledger financeiro ou redesign de navegação.
+
+
+## Etapa 23.8 — Administração do Pricing Catalog OCI
+
+**Status:** implementada na branch `feat/23-8-oci-pricing-admin` e publicada no PR #62; merge na `main` depende de solicitação explícita.
+
+### Objetivo e base arquitetural
+
+A Etapa 23.8 adiciona administração do catálogo persistente criado na 23.7 sem criar uma segunda fonte de pricing. A área fica em `Configurações → Pricing OCI` e modifica diretamente `PricingCatalogItem`; todos os cálculos OCI continuam passando por `PricingResolver`/`PricingSnapshot` e `OciPricingService`.
+
+A entidade permanece provider-neutral. A apresentação e os endpoints desta etapa são OCI-only, mas as regras centrais de listagem, vigência, conflito e versionamento ficam em `PricingCatalogAdminService`, parametrizado por provider. Não foi criada tabela ou service duplicado de preço OCI.
+
+> os preços OCI atualmente administrados pelo DeepOps estão denominados em BRL.
+
+AWS continua usando USD no mecanismo já existente. Não existe conversão cambial nem administração de pricing AWS nesta etapa.
+
+### API administrativa
+
+Foram adicionados os contratos:
+
+- `GET /api/v1/pricing/oci` — listagem paginada com busca, serviço e status;
+- `GET /api/v1/pricing/oci/meta` — serviços, unidades e origens existentes no catálogo;
+- `GET /api/v1/pricing/oci/{id}` — detalhe;
+- `GET /api/v1/pricing/oci/{id}/history` — histórico factual das vigências da mesma key;
+- `POST /api/v1/pricing/oci` — cadastro;
+- `PATCH /api/v1/pricing/oci/{id}` — metadata ou criação de nova vigência quando o preço muda;
+- `POST /api/v1/pricing/oci/{id}/deactivate` — desativação idempotente.
+
+Não existe endpoint de delete físico nem reativação simples de versão histórica. A rota OCI fixa server-side `provider=oci`, `currency=BRL` e `source=MANUAL`; o cliente não pode falsificar provider, moeda ou a procedência `IMPORTED_OCI_CALCULATOR`.
+
+As leituras exigem `require_admin`. Mutations sensíveis reutilizam `require_recent_admin`, seguindo o padrão de Configurações já existente e sem introduzir novo sistema de RBAC. O ator autenticado não é aceito no payload; auditoria detalhada de ator/motivo/diff permanece reservada para a 23.9.
+
+### Listagem, pesquisa e filtros
+
+A query principal é paginada no banco, com ordenação estável por serviço, SKU e início de vigência. A busca SQL cobre SKU, descrição e serviço. O filtro por serviço deriva do domínio persistido e não hardcode somente Compute/Block Volume.
+
+Os estados `active`, `inactive`, `future` e `expired` são derivados de `enabled` + intervalo de vigência; não existe coluna redundante de status. `all` permite consulta completa. A listagem não carrega todas as versões de todas as keys; o histórico de uma key é carregado somente no detalhe.
+
+### Cadastro, BRL e Decimal
+
+O cadastro expõe provider OCI e moeda BRL como valores fixos da operação atual. Preço continua `Decimal` no contrato Python e `Numeric(20,8)` no PostgreSQL. O frontend mantém o valor digitado como string decimal até o envio da API, sem usar floating-point JavaScript para persistência, e formata somente a apresentação como `R$`/pt-BR.
+
+Unidade é normalizada para identificador controlado do domínio e validada no backend. Serviço, SKU, descrição, preço, moeda, source e intervalo são validados server-side. Valores negativos, unidades inválidas, intervalos inválidos e campos inesperados são recusados.
+
+### Alteração não destrutiva e vigências futuras
+
+> alterar um preço não sobrescreve destrutivamente o valor anterior. O registro vigente é encerrado e uma nova vigência é criada, preservando capacidade de cálculo histórico.
+
+Ao alterar o valor de uma versão habilitada, o serviço bloqueia a identidade lógica, encerra `effective_until` da versão selecionada no instante informado e cria um novo `PricingCatalogItem` com o novo preço e `effective_from` correspondente. Provider, service, SKU, unit e currency são preservados. Description pode ser atualizada como metadata; campos de identidade ficam protegidos na UI de edição.
+
+A nova vigência pode ser futura. Até `effective_from`, o resolver continua retornando a versão anterior; depois do instante de transição, retorna a nova. A API histórica continua aceitando data de referência, portanto valores anteriores permanecem reproduzíveis.
+
+### Prevenção de overlap e concorrência
+
+O backend rejeita qualquer intervalo habilitado que se sobreponha a outra versão da mesma identidade `provider + service + sku + unit`. A validação ocorre dentro da mutation e não depende do frontend.
+
+Em PostgreSQL, mutations da mesma identidade são serializadas por advisory transaction lock; a versão diretamente alterada também usa row lock. Depois do lock, a linha é recarregada e o overlap é revalidado antes do flush. Assim, dois administradores não criam silenciosamente vigências incompatíveis.
+
+A constraint única da 23.7 em `provider + service + sku + unit + effective_from` permanece como segunda proteção. Conflitos de integridade retornam erro de domínio/HTTP 409 sem expor SQL ou traceback.
+
+### Desativação e missing price
+
+Desativar apenas muda `enabled=false`; registro, valor, vigência, moeda e origem permanecem no banco e no histórico. A operação repetida é idempotente e não cria registros adicionais.
+
+A interface confirma que o preço deixará de participar de novos cálculos e que recursos dependentes podem ficar sem pricing quando não houver outra vigência válida. O `PricingResolver` continua tratando ausência como `PricingNotFoundError`; não existe fallback para zero.
+
+Reativação simples de versão antiga não foi exposta porque `enabled=true` poderia reintroduzir sobreposição temporal. O caminho seguro é cadastrar/criar uma nova vigência.
+
+### Cache e integração com o resolver
+
+O cache introduzido na 23.7 é local à instância de `PricingResolver`/snapshot usada no cálculo; não existe cache global ou externo persistente entre requests/runs. Por isso a mutation administrativa não precisa invalidar Redis ou singleton de processo. Novas execuções constroem um resolver/snapshot novo e leem o catálogo atualizado sem restart ou redeploy.
+
+Os testes da etapa exercitam a nova vigência diretamente pelo mesmo `PricingResolver`, incluindo resolução anterior e posterior ao instante da mudança. Compute e Block Volume permanecem consumidores do mesmo caminho de pricing da 23.7; não foi introduzido cálculo paralelo.
+
+### Interface em Configurações
+
+`Configurações → Pricing OCI` é uma área admin-only e segue os componentes/estilos existentes. A página prioriza filtros, tabela, `Novo preço` e ações por linha, sem redesign da sidebar.
+
+A tabela apresenta serviço, SKU, descrição, unidade, preço/moeda, vigência, status, origem e ações. Existem estados de loading, erro, vazio com/sem filtros, sucesso e saving. Paginação é server-side. A criação e alteração bloqueiam submit duplicado.
+
+A edição protege Provider, SKU, Unit e Currency. Mudança de preço mostra resumo do preço atual, novo preço e nova vigência antes do save. `Ver vigências` mostra preço, moeda, intervalo, enabled e source das versões da key. A origem `IMPORTED_OCI_CALCULATOR` é apresentada como `Calculadora OCI importada` e novos registros usam `MANUAL`.
+
+### Migration e histórico existente
+
+Nenhuma migration nova foi necessária. A estrutura `0024_pricing_catalog` já possui Decimal/Numeric, moeda, `effective_from`, `effective_until`, `enabled`, `source`, timestamps, constraints e índice necessários para administração segura. O seed da 23.7 é preservado integralmente.
+
+A alteração administrativa não recalcula findings/opportunities históricos nem executa backfill de savings. Novos cálculos usam a vigência aplicável; snapshots já persistidos permanecem intactos conforme o comportamento existente.
+
+### Testes e validação
+
+A cobertura backend adicionada inclui autorização, listagem paginada, busca/filtro, metadata, cadastro, BRL forçado server-side, precisão Decimal, unidade/preço inválidos, tentativa de moeda enviada pelo cliente, overlap, criação de nova vigência, histórico preservado, resolver anterior/atual e desativação idempotente sem delete.
+
+O frontend possui testes para parsing decimal string-based, apresentação BRL, status derivados, labels de unidade/origem, contrato da página, área admin-only e proteção dos campos de identidade. As suítes cumulativas de CI continuam cobrindo OCI Compute, Block Volume, savings/analyzers, migrations, AWS, build Next.js, segurança e smoke Compose.
+
+### Limitações deliberadas para a Task 23.9
+
+> a auditoria detalhada de alterações, incluindo ator, motivo e diff entre versões, será consolidada na Task 23.9.
+
+A 23.8 preserva o histórico factual de preços e executa mutations no contexto autenticado, mas não cria timeline sofisticada, motivo obrigatório, diff before/after ou eventos de auditoria dedicados. Também ficam fora: delete físico, FX/conversão cambial, CRUD AWS, recalcular oportunidades históricas, ledger, Billing/Cost Explorer e redesign global.
