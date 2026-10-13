@@ -23,6 +23,10 @@ from app.models.opportunity_presence_history import (
     OpportunityPresenceHistory,
     OpportunityPresenceReason,
 )
+from app.models.opportunity_retention_run import (
+    OpportunityRetentionRun,
+    OpportunityRetentionRunStatus,
+)
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.policy import Policy
 from app.models.scan import Scan
@@ -52,6 +56,8 @@ __all__ = [
     "OpportunityObservation",
     "OpportunityPresenceHistory",
     "OpportunityPresenceReason",
+    "OpportunityRetentionRun",
+    "OpportunityRetentionRunStatus",
     "OpportunityStatusHistory",
     "Policy",
     "Scan",
