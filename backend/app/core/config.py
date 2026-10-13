@@ -85,6 +85,40 @@ class Settings(BaseSettings):
         le=1000,
         alias="OPPORTUNITY_RESOLUTION_MISSING_RUNS",
     )
+    opportunity_retention_enabled: bool = Field(True, alias="OPPORTUNITY_RETENTION_ENABLED")
+    opportunity_retention_treated_enabled: bool = Field(
+        True, alias="OPPORTUNITY_RETENTION_TREATED_ENABLED"
+    )
+    opportunity_retention_treated_days: int = Field(
+        60,
+        ge=1,
+        le=3650,
+        alias="OPPORTUNITY_RETENTION_TREATED_DAYS",
+    )
+    opportunity_retention_rejected_enabled: bool = Field(
+        True, alias="OPPORTUNITY_RETENTION_REJECTED_ENABLED"
+    )
+    opportunity_retention_rejected_days: int = Field(
+        30,
+        ge=1,
+        le=3650,
+        alias="OPPORTUNITY_RETENTION_REJECTED_DAYS",
+    )
+    opportunity_retention_resolved_externally_enabled: bool = Field(
+        True, alias="OPPORTUNITY_RETENTION_RESOLVED_EXTERNALLY_ENABLED"
+    )
+    opportunity_retention_resolved_externally_days: int = Field(
+        30,
+        ge=1,
+        le=3650,
+        alias="OPPORTUNITY_RETENTION_RESOLVED_EXTERNALLY_DAYS",
+    )
+    opportunity_retention_batch_size: int = Field(
+        500,
+        ge=1,
+        le=50000,
+        alias="OPPORTUNITY_RETENTION_BATCH_SIZE",
+    )
     retention_enabled: bool = Field(True, alias="NUVEMIQ_RETENTION_ENABLED")
     opportunity_observation_retention_days: int = Field(
         90,
