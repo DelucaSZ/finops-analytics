@@ -215,7 +215,7 @@ def _volume_pricing(
         base_evidence["resource_id"] = resource_id
 
     try:
-        monthly_cost = _OCI_PRICING.block_volume_monthly_cost(
+        pricing_result = _OCI_PRICING.block_volume_monthly_pricing(
             size_gb=size_gb,
             vpus_per_gb=vpus_per_gb,
         )
@@ -229,14 +229,18 @@ def _volume_pricing(
             pricing_evidence["missing_fields"] = missing_fields
         return Decimal("0"), metadata.currency, False, pricing_evidence
 
+    monthly_cost = pricing_result.monthly_cost
     return (
         monthly_cost,
-        metadata.currency,
+        pricing_result.currency,
         True,
         {
             "status": "priced",
             **base_evidence,
             "monthly_cost": str(monthly_cost),
+            "pricing_components": [
+                component.as_evidence() for component in pricing_result.pricing_components
+            ],
             "financial_value_populated": True,
         },
     )
