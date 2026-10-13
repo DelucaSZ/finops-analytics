@@ -3836,3 +3836,62 @@ A suite global de migrations avança o head para `0023_opportunity_retention`, v
 ### Limitações deliberadamente deixadas para a 23.6
 
 A 23.5 não cria tela `Histórico / Arquivadas`, não adiciona filtros/UX completos de consulta de arquivadas e não transforma a configuração de retenção em formulário de frontend. A Task 23.6 permanece responsável pela experiência de Histórico/Arquivadas e visualização operacional do archive history.
+
+
+## Etapa 23.6 — Histórico e consulta de oportunidades arquivadas
+
+**Status:** implementada na branch `feat/23-6-opportunity-history` e publicada no PR #60; validação final pelo CI do PR antes de qualquer merge na `main`.
+
+### Objetivo e navegação
+
+A Etapa 23.6 transforma a fundação de arquivamento das Etapas 23.4/23.5 em uma experiência operacional de consulta. A tela de Oportunidades mantém as abas `Abertas`, `Tratadas` e `Rejeitadas` e adiciona a quarta aba `Histórico` na mesma rota, controlada por `view=history`.
+
+> a aba Histórico é uma visão de consulta sobre registros preservados; arquivamento não representa exclusão.
+
+As abas operacionais continuam com `archive_state=active` por padrão. O Histórico usa `archive_state=archived`, sem misturar registros ativos no fluxo histórico nem arquivadas no backlog corrente.
+
+### Filtros, ordenação e paginação
+
+A visão histórica reutiliza a query string e a listagem existentes. Os filtros são aplicados no backend antes da paginação: provider, conta provider-native, status humano, `presence_status`, serviço, região, tipo de recurso, severidade, regra, busca textual, período por `archived_at` (`archived_from`/`archived_to`) e motivo de arquivamento `MANUAL|RETENTION_POLICY`.
+
+A ordenação padrão é `archived_at DESC`. Paginação permanece server-side por `page/page_size`. `GET /opportunities/options` aceita `archive_state`, portanto providers, contas e demais opções respeitam o escopo ativo/histórico. O filtro de conta permanece single-select porque esse é o componente existente; multi-select foi deliberadamente evitado para não criar um segundo sistema de state nesta task.
+
+### Listagem e semânticas
+
+A tabela histórica reutiliza a workspace atual e mostra oportunidade/recurso, provider/conta, região/serviço, status humano, presença técnica, severidade, valor financeiro na moeda persistida, última observação, `archived_at`, motivo e ações de consulta/desarquivamento.
+
+Status humano (`open|treated|rejected`) e presença técnica (`active|missing|resolved_externally`) são exibidos separadamente. Assim, `Tratada` nunca é tratada como sinônimo de `Resolvida externamente`. A tela histórica não habilita tratar, rejeitar ou reabrir em massa; a ação operacional pertinente é `Desarquivar`.
+
+### Detalhe e auditoria
+
+O detalhe por ID continua acessível para registros arquivados e apresenta, em seções separadas, `OpportunityObservation`, `OpportunityStatusHistory`, `OpportunityPresenceHistory` e `OpportunityArchiveHistory`. A opção por seções separadas, em vez de endpoint de timeline unificada, reutiliza os contratos auditáveis existentes, preserva as semânticas distintas e evita duplicação artificial de fatos.
+
+O histórico de arquivamento traduz `MANUAL`, `RETENTION_POLICY` e `REAPPEARED` para labels humanos e exibe o contexto útil da política, como `threshold_days`, quando persistido. Observations e timelines só são carregados no detalhe; a listagem não faz chamadas N+1.
+
+### Desarquivamento e reaparecimento
+
+Listagem e detalhe oferecem `Desarquivar` com confirmação, reutilizando `POST /opportunities/{id}/unarchive`. A operação não altera `status` nem `presence_status`. Após sucesso, as queries de Oportunidades/Dashboard são invalidadas; o item sai do Histórico e volta à aba operacional correspondente ao seu status.
+
+A proteção contra re-arquivamento imediato continua sendo responsabilidade da política da Etapa 23.5. O reaparecimento automático permanece no pipeline existente: uma nova observation reutiliza o mesmo fingerprint/Finding, reativa a presença quando necessário, registra `UNARCHIVE/REAPPEARED` ligado ao CollectionRun e retira o item do Histórico no próximo refetch, sem reabrir silenciosamente o lifecycle humano.
+
+### Multi-cloud e multi-currency
+
+A consulta é provider-neutral e funciona para AWS e OCI pelo contrato comum `provider + account_id`.
+
+> valores AWS e OCI mantêm suas moedas originais. Pricing OCI fornecido para o projeto está em BRL, enquanto o pricing AWS utilizado pelo sistema é em USD. Nenhuma agregação entre moedas diferentes deve ocorrer sem uma futura camada explícita de conversão.
+
+A listagem usa `currency` persistida por oportunidade. Resumos financeiros da página agregam somente valores da mesma moeda e apresentam moedas separadamente; não existe soma BRL + USD nem conversão cambial.
+
+### Performance, índices e migration
+
+A listagem permanece em COUNT + SELECT paginado/limitado. Detalhes e históricos são carregados sob demanda. Foram reaproveitados os índices existentes, incluindo `findings.archived_at`, provider, account, `presence_status`, o composto `(status, archived_at, last_seen_at)` e índices dos históricos por oportunidade/timestamp. Nenhuma query real justificou índice adicional.
+
+Nenhuma migration foi criada; a Etapa 23.6 consome as estruturas existentes até `0023_opportunity_retention`.
+
+### Testes e limitações deliberadas
+
+A cobertura específica valida: somente arquivadas no Histórico; regressão das abas operacionais; paginação/ordenação; filtros combinados; período/motivo; AWS/USD e OCI/BRL; detalhe arquivado; archive history/contexto da política; desarquivamento preservando status/presença; auditabilidade; options por archive state; query string; quatro abas; separação entre lifecycle humano/técnico e ação de desarquivamento.
+
+As suítes cumulativas continuam cobrindo reaparecimento automático, proteção pós-unarchive, reconciliação, lifecycle, migrations e compatibilidade AWS/OCI.
+
+Ficam fora desta task: pricing OCI editável, Fluxo/ledger, Billing/Cost Explorer, instrumentação CloudWatch, purge físico, conversão cambial, redesign global, bulk unarchive e configuração visual da política de retenção.
