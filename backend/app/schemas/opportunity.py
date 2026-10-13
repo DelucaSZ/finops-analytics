@@ -14,6 +14,7 @@ OpportunitySort = Literal[
     "created_at",
     "first_seen_at",
     "last_seen_at",
+    "archived_at",
     "severity",
     "estimated_savings",
     "status",
