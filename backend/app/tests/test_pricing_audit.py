@@ -256,7 +256,9 @@ def test_audit_failure_can_be_rolled_back_with_pricing_change(auth_env, monkeypa
         assert current is not None
         assert current.effective_until == original_until
         replacement_count = db.scalar(
-            select(func.count()).select_from(PricingCatalogItem).where(
+            select(func.count())
+            .select_from(PricingCatalogItem)
+            .where(
                 PricingCatalogItem.sku == "VM.Standard.E3.Flex.OCPU",
                 PricingCatalogItem.price == Decimal("0.09900000"),
             )
@@ -287,8 +289,8 @@ def test_failed_pricing_change_does_not_leave_orphan_audit_event(auth_env):
             )
         db.rollback()
         audit_count = db.scalar(
-            select(func.count()).select_from(PricingAuditEvent).where(
-                PricingAuditEvent.sku == "VM.Standard.E5.Flex.OCPU"
-            )
+            select(func.count())
+            .select_from(PricingAuditEvent)
+            .where(PricingAuditEvent.sku == "VM.Standard.E5.Flex.OCPU")
         )
         assert audit_count == 0
