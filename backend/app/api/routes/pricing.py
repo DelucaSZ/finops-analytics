@@ -136,7 +136,12 @@ def get_oci_pricing_audit(
     db: Session = Depends(get_db),
 ) -> PricingAuditPage:
     try:
-        return PricingAuditPage(**_service(db).audit_history(item_id, page=page, page_size=page_size))
+        history = _service(db).audit_history(
+            item_id,
+            page=page,
+            page_size=page_size,
+        )
+        return PricingAuditPage(**history)
     except PricingAdminError as exc:
         raise _domain_error(exc) from exc
 
