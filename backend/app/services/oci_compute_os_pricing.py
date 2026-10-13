@@ -5,10 +5,8 @@ from decimal import Decimal
 
 from app.services.oci_os import OciOperatingSystemFamily, OciOperatingSystemResolution
 from app.services.oci_pricing import (
-    OCI_WINDOWS_OCPU_HOUR,
     OciComputePricingResult,
     OciPricingService,
-    quantize_money,
     resolve_compute_price_family,
 )
 
@@ -81,11 +79,8 @@ class OciComputeOsPricingService:
                 shape=shape,
             )
             assert compute_result.base_monthly_cost is not None
-            parsed_ocpus = compute_result.ocpus
-            assert parsed_ocpus is not None
-            windows_monthly_cost = quantize_money(
-                parsed_ocpus * OCI_WINDOWS_OCPU_HOUR * compute_result.monthly_hours
-            )
+            assert compute_result.windows_monthly_cost is not None
+            windows_monthly_cost = compute_result.windows_monthly_cost
             total = compute_result.base_monthly_cost
 
         return OciComputeOsPricingResult(

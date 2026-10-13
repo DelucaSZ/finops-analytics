@@ -29,6 +29,7 @@ from app.models.opportunity_retention_run import (
 )
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.policy import Policy
+from app.models.pricing import PricingCatalogItem
 from app.models.scan import Scan
 from app.models.user import AuthState, User
 
@@ -60,6 +61,7 @@ __all__ = [
     "OpportunityRetentionRunStatus",
     "OpportunityStatusHistory",
     "Policy",
+    "PricingCatalogItem",
     "Scan",
     "User",
     "AuthState",

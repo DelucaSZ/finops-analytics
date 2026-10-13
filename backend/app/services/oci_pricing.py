@@ -1,40 +1,47 @@
-"""Centralized, versioned OCI pricing for deterministic DeepOps estimates.
+"""OCI pricing formulas backed by the persistent DeepOps Pricing Catalog.
 
-Prices in this module come from the approved DeepOps OCI commercial price table.
-They are denominated in BRL, use 744 hours per month for Compute, and represent
-cost before taxes. The spreadsheet tax factor is intentionally not applied.
+The approved OCI commercial rates are no longer embedded in application code.
+Task 23.7 migrates those values to ``pricing_catalog_items`` and this module keeps
+only stable pricing keys, formulas, the exact supported-shape allowlist and the
+744-hour monthly Compute convention.
 
-The catalog is versioned in code so analyzers can depend on this service rather
-than embedding rates or formulas. A future contract/API-backed implementation
-can replace the catalog without changing analyzer-facing pricing semantics.
-
-Compute shape resolution is an explicit allowlist. Only commercially validated
-OCI shapes belong in ``OCI_SHAPE_PRICE_FAMILY``; absence from the mapping means
-unsupported. Do not infer pricing families from substrings, prefixes, regexes,
-or case-normalized shape names. The current allowlist covers only E3/E4/E5 Flex.
-
-Compute pricing uses ``OCPU * OCPU/hour * 744 + RAM GB * RAM GB/hour * 744``.
-Windows licensing is never inferred or applied automatically by the resource
-pricing API in this task; callers that explicitly need it must use the lower-
-level family API with ``include_windows_license=True``.
+The imported OCI calculator is denominated in BRL. Every lookup therefore asks
+the provider-neutral resolver for an explicit BRL price. A missing, ambiguous or
+unexpected-currency catalog row is a configuration error and is never converted
+to a zero-valued cost.
 """
 
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from types import MappingProxyType
 from typing import Final
 
-OCI_PRICING_SOURCE: Final = "deepops_oci_price_table"
+from app.services.pricing_catalog import (
+    PriceResolver,
+    PricingResolver,
+    PricingSnapshot,
+    ResolvedPrice,
+)
+
+OCI_PRICING_SOURCE: Final = "IMPORTED_OCI_CALCULATOR"
 OCI_PRICING_VERSION: Final = "2026-10"
 OCI_PRICING_CURRENCY: Final = "BRL"
 OCI_MONTHLY_HOURS: Final = Decimal("744")
 OCI_MONEY_QUANTUM: Final = Decimal("0.01")
-OCI_WINDOWS_OCPU_HOUR: Final = Decimal("0.46092")
-OCI_BLOCK_STORAGE_GB_MONTH: Final = Decimal("0.0531")
-OCI_BLOCK_VPU_GB_MONTH: Final = Decimal("0.0036")
+
+OCI_SERVICE_COMPUTE: Final = "compute"
+OCI_SERVICE_BLOCK_VOLUME: Final = "block_volume"
+OCI_UNIT_OCPU_HOUR: Final = "OCPU_HOUR"
+OCI_UNIT_GB_RAM_HOUR: Final = "GB_RAM_HOUR"
+OCI_UNIT_GB_MONTH: Final = "GB_MONTH"
+OCI_UNIT_VPU_GB_MONTH: Final = "VPU_GB_MONTH"
+OCI_WINDOWS_LICENSE_SKU: Final = "WINDOWS_LICENSE_OCPU"
+OCI_BLOCK_STORAGE_SKU: Final = "BLOCK_VOLUME_GB_MONTH"
+OCI_BLOCK_VPU_SKU: Final = "BLOCK_VOLUME_VPU_GB_MONTH"
 
 PRICING_STATUS_PRICED: Final = "priced"
 PRICING_STATUS_UNSUPPORTED_SHAPE: Final = "unsupported_shape"
@@ -47,7 +54,7 @@ class OciPricingError(ValueError):
 
 
 class UnsupportedOciComputeFamilyError(OciPricingError):
-    """Raised when no approved price exists for a requested Compute family."""
+    """Raised when no approved pricing key exists for a requested Compute family."""
 
 
 class UnsupportedOciComputeShapeError(OciPricingError):
@@ -59,9 +66,9 @@ class InvalidOciPricingInputError(OciPricingError):
 
 
 @dataclass(frozen=True)
-class OciComputePrice:
-    ocpu_hour: Decimal
-    memory_gb_hour: Decimal
+class OciComputePriceKeys:
+    ocpu_sku: str
+    memory_sku: str
 
 
 @dataclass(frozen=True)
@@ -87,6 +94,7 @@ class OciComputePricingResult:
     memory_gb: Decimal | None = None
     ocpu_monthly_cost: Decimal | None = None
     memory_monthly_cost: Decimal | None = None
+    windows_monthly_cost: Decimal | None = None
     base_monthly_cost: Decimal | None = None
     windows_license_included: bool = False
     reason: str | None = None
@@ -96,19 +104,19 @@ class OciComputePricingResult:
         return self.status == PRICING_STATUS_PRICED and self.base_monthly_cost is not None
 
 
-OCI_COMPUTE_PRICES: Final[Mapping[str, OciComputePrice]] = MappingProxyType(
+OCI_COMPUTE_PRICE_KEYS: Final[Mapping[str, OciComputePriceKeys]] = MappingProxyType(
     {
-        "E3": OciComputePrice(
-            ocpu_hour=Decimal("0.0521"),
-            memory_gb_hour=Decimal("0.0031"),
+        "E3": OciComputePriceKeys(
+            ocpu_sku="VM.Standard.E3.Flex.OCPU",
+            memory_sku="VM.Standard.E3.Flex.Memory",
         ),
-        "E4": OciComputePrice(
-            ocpu_hour=Decimal("0.0689"),
-            memory_gb_hour=Decimal("0.0041"),
+        "E4": OciComputePriceKeys(
+            ocpu_sku="VM.Standard.E4.Flex.OCPU",
+            memory_sku="VM.Standard.E4.Flex.Memory",
         ),
-        "E5": OciComputePrice(
-            ocpu_hour=Decimal("0.08266"),
-            memory_gb_hour=Decimal("0.005511"),
+        "E5": OciComputePriceKeys(
+            ocpu_sku="VM.Standard.E5.Flex.OCPU",
+            memory_sku="VM.Standard.E5.Flex.Memory",
         ),
     }
 )
@@ -174,16 +182,21 @@ def _positive_compute_input(name: str, value: Decimal | int | float | str | None
     return parsed
 
 
-def _compute_family(family: str | None) -> tuple[str, OciComputePrice]:
+def _compute_family(family: str | None) -> tuple[str, OciComputePriceKeys]:
     if family is None or not isinstance(family, str) or not family.strip():
         raise InvalidOciPricingInputError("family must be provided")
     normalized = family.strip().upper()
     try:
-        return normalized, OCI_COMPUTE_PRICES[normalized]
+        return normalized, OCI_COMPUTE_PRICE_KEYS[normalized]
     except KeyError as exc:
         raise UnsupportedOciComputeFamilyError(
             f"unsupported OCI Compute family: {family!r}"
         ) from exc
+
+
+def _source_of(*prices: ResolvedPrice) -> str:
+    sources = {price.source for price in prices}
+    return next(iter(sources)) if len(sources) == 1 else "MULTIPLE_SOURCES"
 
 
 def _empty_compute_result(
@@ -207,11 +220,56 @@ def _empty_compute_result(
 
 
 class OciPricingService:
-    """Pure OCI cost calculations over simple domain values, without OCI SDK coupling."""
+    """OCI cost formulas whose unit rates come only from the Pricing Catalog."""
+
+    def __init__(self, resolver: PriceResolver | None = None) -> None:
+        self._resolver = resolver
+        self._catalog_snapshot: PricingSnapshot | None = None
 
     @property
     def metadata(self) -> OciPricingMetadata:
         return OCI_PRICING_METADATA
+
+    def clear_cache(self) -> None:
+        """Discard the process-local read snapshot so a subsequent call reloads the DB catalog."""
+
+        self._catalog_snapshot = None
+
+    def _catalog(self, *, at: datetime | None = None) -> PriceResolver:
+        if self._resolver is not None:
+            return self._resolver
+        if at is None and self._catalog_snapshot is not None:
+            return self._catalog_snapshot
+
+        # Import lazily to keep the pricing formulas independent from application startup wiring.
+        from app.db.session import SessionLocal
+
+        with SessionLocal() as db:
+            snapshot = PricingResolver(db, reference_at=at).snapshot(
+                provider="oci",
+                expected_currency=OCI_PRICING_CURRENCY,
+            )
+        if at is None:
+            self._catalog_snapshot = snapshot
+        return snapshot
+
+    @staticmethod
+    def _price(
+        catalog: PriceResolver,
+        *,
+        service: str,
+        sku: str,
+        unit: str,
+        at: datetime | None = None,
+    ) -> ResolvedPrice:
+        return catalog.resolve_price(
+            provider="oci",
+            service=service,
+            sku=sku,
+            unit=unit,
+            at=at,
+            expected_currency=OCI_PRICING_CURRENCY,
+        )
 
     def compute_monthly_pricing(
         self,
@@ -221,25 +279,54 @@ class OciPricingService:
         memory_gb: Decimal | int | float | str | None,
         include_windows_license: bool = False,
         shape: str | None = None,
+        at: datetime | None = None,
     ) -> OciComputePricingResult:
-        """Calculate an explainable monthly Compute result from an approved family."""
+        """Calculate monthly Compute from effective-dated OCPU/RAM catalog rows."""
 
-        normalized_family, prices = _compute_family(family)
+        normalized_family, keys = _compute_family(family)
         ocpu_count = _positive_compute_input("ocpus", ocpus)
         memory = _positive_compute_input("memory_gb", memory_gb)
         if not isinstance(include_windows_license, bool):
             raise InvalidOciPricingInputError("include_windows_license must be a boolean")
 
-        raw_ocpu_cost = ocpu_count * prices.ocpu_hour * OCI_MONTHLY_HOURS
-        raw_memory_cost = memory * prices.memory_gb_hour * OCI_MONTHLY_HOURS
-        raw_base_cost = raw_ocpu_cost + raw_memory_cost
-        raw_total = raw_base_cost
+        catalog = self._catalog(at=at)
+        ocpu_price = self._price(
+            catalog,
+            service=OCI_SERVICE_COMPUTE,
+            sku=keys.ocpu_sku,
+            unit=OCI_UNIT_OCPU_HOUR,
+            at=at,
+        )
+        memory_price = self._price(
+            catalog,
+            service=OCI_SERVICE_COMPUTE,
+            sku=keys.memory_sku,
+            unit=OCI_UNIT_GB_RAM_HOUR,
+            at=at,
+        )
+        resolved_prices = [ocpu_price, memory_price]
+
+        raw_ocpu_cost = ocpu_count * ocpu_price.amount * OCI_MONTHLY_HOURS
+        raw_memory_cost = memory * memory_price.amount * OCI_MONTHLY_HOURS
+        raw_total = raw_ocpu_cost + raw_memory_cost
+        windows_monthly_cost = Decimal("0")
         if include_windows_license:
-            raw_total += ocpu_count * OCI_WINDOWS_OCPU_HOUR * OCI_MONTHLY_HOURS
+            windows_price = self._price(
+                catalog,
+                service=OCI_SERVICE_COMPUTE,
+                sku=OCI_WINDOWS_LICENSE_SKU,
+                unit=OCI_UNIT_OCPU_HOUR,
+                at=at,
+            )
+            resolved_prices.append(windows_price)
+            windows_monthly_cost = quantize_money(
+                ocpu_count * windows_price.amount * OCI_MONTHLY_HOURS
+            )
+            raw_total += ocpu_count * windows_price.amount * OCI_MONTHLY_HOURS
 
         return OciComputePricingResult(
             status=PRICING_STATUS_PRICED,
-            source=OCI_PRICING_SOURCE,
+            source=_source_of(*resolved_prices),
             version=OCI_PRICING_VERSION,
             currency=OCI_PRICING_CURRENCY,
             monthly_hours=OCI_MONTHLY_HOURS,
@@ -249,6 +336,7 @@ class OciPricingService:
             memory_gb=memory,
             ocpu_monthly_cost=quantize_money(raw_ocpu_cost),
             memory_monthly_cost=quantize_money(raw_memory_cost),
+            windows_monthly_cost=windows_monthly_cost,
             base_monthly_cost=quantize_money(raw_total),
             windows_license_included=include_windows_license,
         )
@@ -260,17 +348,34 @@ class OciPricingService:
         ocpus: Decimal | int | float | str | None,
         memory_gb: Decimal | int | float | str | None,
         include_windows_license: bool = False,
+        at: datetime | None = None,
     ) -> Decimal:
-        """Backward-compatible family API returning only the monthly monetary value."""
-
         result = self.compute_monthly_pricing(
             family=family,
             ocpus=ocpus,
             memory_gb=memory_gb,
             include_windows_license=include_windows_license,
+            at=at,
         )
         assert result.base_monthly_cost is not None
         return result.base_monthly_cost
+
+    def windows_license_monthly_cost(
+        self,
+        *,
+        ocpus: Decimal | int | float | str | None,
+        at: datetime | None = None,
+    ) -> Decimal:
+        ocpu_count = _positive_compute_input("ocpus", ocpus)
+        catalog = self._catalog(at=at)
+        price = self._price(
+            catalog,
+            service=OCI_SERVICE_COMPUTE,
+            sku=OCI_WINDOWS_LICENSE_SKU,
+            unit=OCI_UNIT_OCPU_HOUR,
+            at=at,
+        )
+        return quantize_money(ocpu_count * price.amount * OCI_MONTHLY_HOURS)
 
     def price_compute_resource(
         self,
@@ -278,13 +383,8 @@ class OciPricingService:
         shape: str | None,
         ocpus: Decimal | int | float | str | None,
         memory_gb: Decimal | int | float | str | None,
+        at: datetime | None = None,
     ) -> OciComputePricingResult:
-        """Resolve an OCI shape and return base Compute pricing without Windows licensing.
-
-        Unsupported shapes and expected resource-data problems are represented as
-        domain statuses rather than valid zero-valued prices.
-        """
-
         try:
             family = resolve_compute_price_family(shape)
         except UnsupportedOciComputeShapeError as exc:
@@ -322,6 +422,7 @@ class OciPricingService:
                 memory_gb=memory_gb,
                 include_windows_license=False,
                 shape=shape,
+                at=at,
             )
         except InvalidOciPricingInputError as exc:
             return _empty_compute_result(
@@ -336,8 +437,24 @@ class OciPricingService:
         *,
         size_gb: Decimal | int | str | None,
         vpus_per_gb: Decimal | int | str | None,
+        at: datetime | None = None,
     ) -> Decimal:
         size = _decimal_input("size_gb", size_gb)
         vpus = _decimal_input("vpus_per_gb", vpus_per_gb)
-        monthly = size * OCI_BLOCK_STORAGE_GB_MONTH + size * vpus * OCI_BLOCK_VPU_GB_MONTH
+        catalog = self._catalog(at=at)
+        storage_price = self._price(
+            catalog,
+            service=OCI_SERVICE_BLOCK_VOLUME,
+            sku=OCI_BLOCK_STORAGE_SKU,
+            unit=OCI_UNIT_GB_MONTH,
+            at=at,
+        )
+        vpu_price = self._price(
+            catalog,
+            service=OCI_SERVICE_BLOCK_VOLUME,
+            sku=OCI_BLOCK_VPU_SKU,
+            unit=OCI_UNIT_VPU_GB_MONTH,
+            at=at,
+        )
+        monthly = size * storage_price.amount + size * vpus * vpu_price.amount
         return quantize_money(monthly)
