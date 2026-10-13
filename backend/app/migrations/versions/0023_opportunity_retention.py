@@ -1,7 +1,7 @@
 """Add persistent daily execution checkpoint for opportunity retention."""
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0023_opportunity_retention"
 down_revision = "0022_opportunity_archiving"
