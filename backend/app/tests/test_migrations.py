@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0022_opportunity_archiving"
+            == "0023_opportunity_retention"
         )
         assert (
             compare_metadata(
@@ -239,7 +239,7 @@ def test_stage_one_users_survive_and_old_image_checkpoint_still_works(migration_
         user = db.get(User, "existing")
         assert user.password_set and user.password_hash == existing_hash and user.token_version == 7
         assert db.scalar(select(func.count()).select_from(User)) == 1
-    with migration_engine.begin() as connection:
+    with migration_engine.connect() as connection:
         assert MigrationContext.configure(connection).get_current_revision() == "0002_users"
         cfg = migration_config()
         cfg.attributes["connection"] = connection
