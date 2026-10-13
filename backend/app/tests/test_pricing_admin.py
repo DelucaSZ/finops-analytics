@@ -165,6 +165,7 @@ def test_price_change_creates_new_effective_version_and_preserves_history(auth_e
         json={
             "price": "0.07000000",
             "effective_from": transition.isoformat(),
+            "reason": "Atualização contratual de teste",
         },
     )
     assert response.status_code == 200, response.text
@@ -227,10 +228,12 @@ def test_deactivate_is_idempotent_without_deleting_history(auth_env):
     first = http.post(
         f"/api/v1/pricing/oci/{item_id}/deactivate",
         headers=headers(tokens),
+        json={"reason": "SKU substituído para teste"},
     )
     second = http.post(
         f"/api/v1/pricing/oci/{item_id}/deactivate",
         headers=headers(tokens),
+        json={"reason": "Retry idempotente"},
     )
     assert first.status_code == 200
     assert second.status_code == 200
