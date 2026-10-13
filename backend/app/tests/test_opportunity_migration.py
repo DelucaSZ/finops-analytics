@@ -5,8 +5,8 @@ from alembic import command
 from alembic.migration import MigrationContext
 from sqlalchemy import MetaData, create_engine, select
 
+from app.collectors.contracts import build_opportunity_fingerprint
 from app.db.migrations import migration_config
-from app.services.opportunity_fingerprint import build_opportunity_fingerprint
 
 
 def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
@@ -183,7 +183,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0022_opportunity_archiving"
+            == "0023_opportunity_retention"
         )
 
     engine.dispose()
