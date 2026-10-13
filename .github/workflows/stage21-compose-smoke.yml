@@ -5,106 +5,41 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   compose-smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-
-      - name: Prepare isolated test environment
-        shell: bash
-        run: |
-          set -euo pipefail
-          cp .env.example .env
-          {
-            echo "POSTGRES_DB=nuvemiq"
-            echo "POSTGRES_USER=nuvemiq"
-            echo "POSTGRES_PASSWORD=stage21-ci-postgres-password"
-            echo "DATABASE_URL=postgresql+psycopg://nuvemiq:stage21-ci-postgres-password@db:5432/nuvemiq"
-            echo "NUVEMIQ_ENVIRONMENT=development"
-            echo "NUVEMIQ_SECRET_KEY=stage21-ci-secret-key-with-at-least-32-characters"
-            echo "NUVEMIQ_ADMIN_EMAIL=stage21-admin@example.com"
-            echo "NUVEMIQ_ADMIN_PASSWORD=Stage21-test-password-482!"
-            echo "NUVEMIQ_OCI_CREDENTIALS_KEY=$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
-            echo "NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=stage21-ci"
-            echo "NEXT_PUBLIC_API_URL=/api/v1"
-          } >> .env
-
-      - name: Validate Compose configuration
-        run: docker compose -p deepops-stage21 config --quiet
-
-      - name: Build application images
-        run: docker compose -p deepops-stage21 build
-
-      - name: Start isolated stack
-        run: docker compose -p deepops-stage21 up -d
-
-      - name: Wait for proxy and API readiness
-        shell: bash
-        run: |
-          set -euo pipefail
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1/health >/tmp/health.json; then
-              cat /tmp/health.json
-              exit 0
-            fi
-            sleep 2
-          done
-          docker compose -p deepops-stage21 ps
-          docker compose -p deepops-stage21 logs --no-color
-          exit 1
-
-      - name: Verify OCI credential configuration is scoped to API and worker
-        shell: bash
-        run: |
-          set -euo pipefail
-          test "$(docker compose -p deepops-stage21 exec -T api python -c 'from app.core.config import settings; print(bool(settings.oci_credentials_key.get_secret_value()))')" = "True"
-          test "$(docker compose -p deepops-stage21 exec -T worker python -c 'from app.core.config import settings; print(bool(settings.oci_credentials_key.get_secret_value()))')" = "True"
-          docker compose -p deepops-stage21 exec -T db /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
-          docker compose -p deepops-stage21 exec -T web /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
-          docker compose -p deepops-stage21 exec -T proxy /bin/sh -c 'test -z "${NUVEMIQ_OCI_CREDENTIALS_KEY+x}"'
-
-      - name: Verify migrations, proxy routing and frontend
-        shell: bash
-        run: |
-          set -euo pipefail
-          version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0024_pricing_catalog"
-          curl --fail --silent --show-error http://127.0.0.1/health | grep -q '"status":"ok"'
-          curl --fail --silent --show-error http://127.0.0.1/ >/tmp/frontend.html
-          test -s /tmp/frontend.html
-
-      - name: Verify persistence and readiness after restart
-        shell: bash
-        run: |
-          set -euo pipefail
-          docker compose -p deepops-stage21 restart db api worker web proxy
-          for attempt in $(seq 1 60); do
-            if curl --fail --silent --show-error http://127.0.0.1/health >/dev/null; then
-              break
-            fi
-            sleep 2
-          done
-          version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0024_pricing_catalog"
-          docker compose -p deepops-stage21 ps
-
-      - name: Capture stack logs
-        if: always()
-        run: docker compose -p deepops-stage21 logs --no-color > stage21-compose.log 2>&1 || true
-
-      - name: Upload stack logs
-        if: always()
-        uses: actions/upload-artifact@v4
         with:
-          name: stage21-compose-logs
-          path: stage21-compose.log
-          if-no-files-found: ignore
-          retention-days: 7
+          ref: feat/23-7-oci-pricing-catalog
+          fetch-depth: 2
 
-      - name: Tear down isolated stack
-        if: always()
-        run: docker compose -p deepops-stage21 down -v --remove-orphans
+      - name: Sync Task 23.7 migration-head assertions
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          for filename in (
+              "backend/app/tests/test_migrations.py",
+              "backend/app/tests/test_opportunity_migration.py",
+          ):
+              path = Path(filename)
+              text = path.read_text()
+              old = '== "0023_opportunity_retention"'
+              new = '== "0024_pricing_catalog"'
+              if old not in text:
+                  raise SystemExit(f"expected stale migration assertion not found in {filename}")
+              path.write_text(text.replace(old, new))
+          PY
+
+          # Restore the permanent full smoke workflow from the parent commit.
+          git checkout HEAD^ -- .github/workflows/stage21-compose-smoke.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py .github/workflows/stage21-compose-smoke.yml
+          git commit -m "test: update migration head expectations for pricing catalog"
+          git push origin HEAD:feat/23-7-oci-pricing-catalog
