@@ -206,7 +206,9 @@ class PricingResolver:
         reference = self.reference_at if at is None else _utc_reference(at)
         normalized_provider = provider.strip().lower()
         rows = self._db.scalars(
-            self._effective_query(reference).where(PricingCatalogItem.provider == normalized_provider)
+            self._effective_query(reference).where(
+                PricingCatalogItem.provider == normalized_provider
+            )
         ).all()
         items: dict[PricingIdentity, ResolvedPrice] = {}
         for row in rows:
