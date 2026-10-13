@@ -125,9 +125,7 @@ class PricingCatalogAdminService:
         elif status != "all":
             raise PricingAdminValidationError(f"unsupported pricing status: {status}")
 
-        total = self.db.scalar(
-            select(func.count()).select_from(PricingCatalogItem).where(*filters)
-        )
+        total = self.db.scalar(select(func.count()).select_from(PricingCatalogItem).where(*filters))
         items = list(
             self.db.scalars(
                 select(PricingCatalogItem)
@@ -382,9 +380,7 @@ class PricingCatalogAdminService:
         effective_until: datetime | None,
     ) -> None:
         if not service or not sku or not description or not unit:
-            raise PricingAdminValidationError(
-                "service, sku, description and unit are required"
-            )
+            raise PricingAdminValidationError("service, sku, description and unit are required")
         if price < 0:
             raise PricingAdminValidationError("price must be greater than or equal to zero")
         if len(currency) != 3 or currency != currency.upper():
@@ -392,6 +388,4 @@ class PricingCatalogAdminService:
         if not source:
             raise PricingAdminValidationError("source is required")
         if effective_until is not None and effective_until <= effective_from:
-            raise PricingAdminValidationError(
-                "effective_until must be after effective_from"
-            )
+            raise PricingAdminValidationError("effective_until must be after effective_from")
