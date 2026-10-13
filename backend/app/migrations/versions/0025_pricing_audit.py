@@ -4,8 +4,8 @@ Revision ID: 0025_pricing_audit
 Revises: 0024_pricing_catalog
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0025_pricing_audit"
 down_revision = "0024_pricing_catalog"
