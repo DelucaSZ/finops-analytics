@@ -60,5 +60,10 @@ class PricingCatalogItem(TimestampMixin, Base):
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     effective_from: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     effective_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True, server_default=true(), nullable=False)
+    enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
+        server_default=true(),
+        nullable=False,
+    )
     source: Mapped[str] = mapped_column(String(80), nullable=False)
