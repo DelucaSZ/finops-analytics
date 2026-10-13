@@ -1,7 +1,8 @@
 """Create provider-neutral pricing catalog and seed the approved OCI BRL rates."""
 
-from datetime import UTC, datetime
 import uuid
+from datetime import UTC, datetime
+from decimal import Decimal
 
 import sqlalchemy as sa
 from alembic import op
@@ -160,7 +161,7 @@ def upgrade() -> None:
                 "sku": sku,
                 "description": description,
                 "unit": unit,
-                "price": sa.text(price),
+                "price": Decimal(price),
                 "currency": "BRL",
                 "effective_from": _EFFECTIVE_FROM,
                 "effective_until": None,
