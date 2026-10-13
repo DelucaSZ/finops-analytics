@@ -3,7 +3,14 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_serializer,
+    field_validator,
+    model_validator,
+)
 
 from app.db.base import utcnow
 
@@ -27,6 +34,10 @@ class PricingItemRead(BaseModel):
     source: str
     created_at: datetime
     updated_at: datetime
+
+    @field_serializer("price", when_used="json")
+    def serialize_price(self, value: Decimal) -> str:
+        return format(value, "f")
 
 
 class PricingListRead(BaseModel):
