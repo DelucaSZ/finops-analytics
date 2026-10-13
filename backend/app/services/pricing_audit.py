@@ -214,9 +214,7 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             PricingAuditEvent.unit == item.unit,
         )
         total = (
-            self.db.scalar(
-                select(func.count()).select_from(PricingAuditEvent).where(*key_filter)
-            )
+            self.db.scalar(select(func.count()).select_from(PricingAuditEvent).where(*key_filter))
             or 0
         )
         events = list(
