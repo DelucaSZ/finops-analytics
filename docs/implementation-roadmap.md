@@ -3895,3 +3895,67 @@ A cobertura específica valida: somente arquivadas no Histórico; regressão das
 As suítes cumulativas continuam cobrindo reaparecimento automático, proteção pós-unarchive, reconciliação, lifecycle, migrations e compatibilidade AWS/OCI.
 
 Ficam fora desta task: pricing OCI editável, Fluxo/ledger, Billing/Cost Explorer, instrumentação CloudWatch, purge físico, conversão cambial, redesign global, bulk unarchive e configuração visual da política de retenção.
+
+
+## Etapa 23.7 — Pricing Catalog persistente para OCI
+
+**Status:** implementada na branch `feat/23-7-oci-pricing-catalog` e publicada no PR #61; merge na `main` depende de solicitação explícita.
+
+### Motivação e arquitetura
+
+Antes desta etapa, as tarifas OCI aprovadas estavam incorporadas ao backend em estruturas estáticas do serviço de pricing. A Etapa 23.7 cria `pricing_catalog_items` como fonte de verdade persistente e provider-neutral para preços unitários de cloud. O fluxo passa a ser `Pricing Catalog (PostgreSQL) -> PricingResolver/PricingSnapshot -> OciPricingService -> cálculos OCI`. AWS continua usando o mecanismo existente e não é migrado para esse catálogo nesta etapa.
+
+### Modelo persistente
+
+Cada item persiste `provider`, `service`, `sku`, `description`, `unit`, `price`, `currency`, `effective_from`, `effective_until`, `enabled`, `source`, `created_at` e `updated_at`. `price` usa `Numeric(20, 8)`/`Decimal`, sem float binário. Constraints protegem preço não negativo, moeda ISO explícita, intervalo temporal válido e identidade única por provider/service/SKU/unit/effective_from; o lookup possui índice dedicado.
+
+As chaves são determinísticas e as unidades distinguem `OCPU_HOUR`, `GB_RAM_HOUR`, `GB_MONTH` e `VPU_GB_MONTH`, preservando as fórmulas existentes.
+
+### Moeda e multi-currency
+
+> os valores OCI anteriormente fornecidos ao projeto estão denominados em **BRL (reais brasileiros)**.
+
+> o pricing AWS atualmente utilizado pelo DeepOps está em **USD**. O sistema não assume uma moeda global única e não soma valores de moedas diferentes sem uma camada explícita de conversão, que está fora do escopo desta etapa.
+
+Todos os itens OCI seedados possuem `currency = BRL`. O resolver valida a moeda esperada e trata divergência como erro de configuração. Não existe conversão cambial nesta etapa.
+
+### Seed inicial e migration
+
+A migration `0024_pricing_catalog` cria a tabela, constraints e índice e popula deterministicamente os nove valores já utilizados pelo DeepOps, com `source = IMPORTED_OCI_CALCULATOR`, `enabled = true`, vigência aberta e `effective_from` explícito. O deploy não depende de cadastro manual nem de API externa.
+
+Itens migrados:
+
+- Compute `VM.Standard.E3.Flex`: OCPU e memória;
+- Compute `VM.Standard.E4.Flex`: OCPU e memória;
+- Compute `VM.Standard.E5.Flex`: OCPU e memoria;
+- licença Windows por OCPU/hora;
+- Block Volume por GB/mês;
+- Block Volume performance por VPU/GB/mês.
+
+### Resolver, vigência e erros
+
+`PricingResolver` resolve apenas registros habilitados e vigentes na data de referência (`effective_from <= at` e `effective_until` nulo ou posterior a `at`). A API interna aceita data de referência para permitir reprodução histórica futura. O retorno é um `ResolvedPrice` tipado com identidade, valor, moeda, vigência e source.
+
+Preço ausente gera `PricingNotFoundError`; sobreposição efetiva gera `PricingAmbiguityError`; moeda inesperada gera `PricingCurrencyMismatchError`. Nenhum desses casos é convertido silenciosamente em custo zero e não existe fallback permanente para as antigas tarifas monetárias estálicas.
+
+### Integração OCI
+
+`OciPricingService` mantém as fórmulas existentes e resolve os unit prices pelo catálogo persistente. Compute Flex continua decomposto em OCPU e RAM, usa 744 horas/mês e preserva a licença Windows separadamente. Block Volume continua calculando capacidade e VPU com as mesmas unidades, Decimal e arredondamento anteriores. Os shapes suportados permanecem `VM.Standard.E3.Flex`, `VM.Standard.E4.Flex` e `VM.Standard.E5.Flex`.
+
+As opportunities/observations já persistem moeda junto ao valor monetário. A agregação financeira existente permanece currency-aware, portanto BRL e USD não são somados implicitamente.
+
+### Caching e performance
+
+`PricingResolver` possui cache por identidade/data e `PricingSnapshot` carrega os preços efetivos de um provider em uma única consulta, evitando SELECT por recurso em loops. Não foi adicionada infraestrutura externa de cache. A invalidação administrativa de snapshots deverá acompanhar a edição de preços na Task 23.8.
+
+### Testes e validação 
+
+A cobertura adicionada valida seed, BRL, lookup efetivo, vigência futura, expiração, disabled, ambiguidade, missing price, currency mismatch, coexistência OCI/BRL e AWS/USD, equivalência numérica de Compute e Block Volume, alteração do preço via banco, snapshot sem N+1 e upgrade de migration em SQLite/PostgreSQL quando disponível. As suítes cumulativas continuam cobrindo analyzers/findings OCI e regressões AWS.
+
+O smoke Compose foi atualizado para validar `0024_pricing_catalog` após startup e restart. Os resultados finais de `ruff`, `pytest`, frontend, segurança, migration e smoke ficam registrados no PR #61.
+
+### Limitações deliberadas
+
+> a Task 23.7 cria a fonte de verdade persistente; a edição administrativa será implementada na Task 23.8 e o versionamento/auditoria completa na Task 23.9.
+
+Esta etapa não implementa CRUD visual de pricing, conversão cambial, serviço de FX, moeda-base global, migração completa do pricing AWS, ledger financeiro ou redesign de navegação.
