@@ -9,13 +9,27 @@ import {
   rejectionRequiresNote,
 } from "../lib/opportunity-query.mjs";
 
-test("defaults to the OPEN workspace with server-side pagination defaults", () => {
+test("defaults to the OPEN operational workspace with server-side pagination defaults", () => {
   const state = parseOpportunitySearchParams("");
+  assert.equal(state.view, "operational");
   assert.equal(state.status, "open");
   assert.equal(state.page, 1);
   assert.equal(state.pageSize, 50);
   assert.equal(state.sort, "last_seen_at");
   assert.equal(state.order, "desc");
+});
+
+test("history view defaults to archived records ordered by archived_at desc", () => {
+  const state = parseOpportunitySearchParams("view=history");
+  assert.equal(state.view, "history");
+  assert.equal(state.status, "");
+  assert.equal(state.sort, "archived_at");
+  assert.equal(state.order, "desc");
+  const query = new URLSearchParams(buildOpportunityApiQuery(state));
+  assert.equal(query.get("archive_state"), "archived");
+  assert.equal(query.get("sort"), "archived_at");
+  assert.equal(query.has("status"), false);
+  assert.equal(query.has("current"), false);
 });
 
 test("restores supported filters, status, pagination and sorting from URL", () => {
@@ -52,7 +66,7 @@ test("restores supported filters, status, pagination and sorting from URL", () =
   );
 });
 
-test("builds the exact Stage 4 list query contract", () => {
+test("builds the operational list query contract", () => {
   const state = parseOpportunitySearchParams("status=rejected&provider=aws&account_id=123&severity=medium&rule_key=missing_required_tags&page=2&sort=estimated_savings&order=desc");
   const query = new URLSearchParams(buildOpportunityApiQuery(state));
   assert.equal(query.get("status"), "rejected");
@@ -63,6 +77,31 @@ test("builds the exact Stage 4 list query contract", () => {
   assert.equal(query.get("page"), "2");
   assert.equal(query.get("sort"), "estimated_savings");
   assert.equal(query.has("rule_key"), false);
+  assert.equal(query.has("archive_state"), false);
+});
+
+test("builds history filters entirely on the backend query", () => {
+  const state = parseOpportunitySearchParams([
+    "view=history",
+    "status=treated",
+    "provider=oci",
+    "account_id=ocid1.tenancy.oc1..example",
+    "service=BlockStorage",
+    "presence_status=resolved_externally",
+    "archived_from=2026-08-01",
+    "archived_to=2026-10-13",
+    "archive_reason=RETENTION_POLICY",
+  ].join("&"));
+  const query = new URLSearchParams(buildOpportunityApiQuery(state));
+  assert.equal(query.get("archive_state"), "archived");
+  assert.equal(query.get("status"), "treated");
+  assert.equal(query.get("provider"), "oci");
+  assert.equal(query.get("account_id"), "ocid1.tenancy.oc1..example");
+  assert.equal(query.get("service"), "BlockStorage");
+  assert.equal(query.get("presence_status"), "resolved_externally");
+  assert.equal(query.get("archived_from"), "2026-08-01T00:00:00Z");
+  assert.equal(query.get("archived_to"), "2026-10-13T23:59:59.999999Z");
+  assert.equal(query.get("archive_reason"), "RETENTION_POLICY");
 });
 
 test("stats query keeps global filters but omits status and pagination", () => {
@@ -76,7 +115,16 @@ test("stats query keeps global filters but omits status and pagination", () => {
   assert.equal(query.has("page"), false);
 });
 
-test("current-state context survives opportunity API queries", () => {
+test("history stats retain historical dimensions but do not mix status into grouping", () => {
+  const state = parseOpportunitySearchParams("view=history&status=rejected&presence_status=missing&archive_reason=MANUAL");
+  const query = new URLSearchParams(buildOpportunityStatsQuery(state));
+  assert.equal(query.get("archive_state"), "archived");
+  assert.equal(query.get("presence_status"), "missing");
+  assert.equal(query.get("archive_reason"), "MANUAL");
+  assert.equal(query.has("status"), false);
+});
+
+test("current-state context survives operational API queries only", () => {
   const state = parseOpportunitySearchParams(
     "provider=aws&account_id=123&status=open&current=true",
   );
@@ -87,6 +135,10 @@ test("current-state context survives opportunity API queries", () => {
   assert.equal(stats.get("current"), "true");
   assert.equal(list.get("provider"), "aws");
   assert.equal(list.get("account_id"), "123");
+
+  const history = parseOpportunitySearchParams("view=history&current=true");
+  assert.equal(history.current, false);
+  assert.equal(new URLSearchParams(buildOpportunityApiQuery(history)).has("current"), false);
 });
 
 test("changing a filter resets page while explicit pagination does not", () => {
@@ -98,7 +150,7 @@ test("changing a filter resets page while explicit pagination does not", () => {
   assert.equal(paged.get("page"), "3");
 });
 
-test("changing lifecycle status preserves filters, page size and sorting while keeping the existing page reset", () => {
+test("changing lifecycle status preserves operational filters, page size and sorting", () => {
   const current = [
     "status=open",
     "provider=oci",
@@ -138,6 +190,18 @@ test("changing lifecycle status preserves filters, page size and sorting while k
   assert.equal(next.get("order"), "asc");
 });
 
+test("history URLs preserve broad filters and can clear the optional human status", () => {
+  const current = "view=history&provider=aws&status=treated&presence_status=missing&page=4&archived_from=2026-01-01";
+  const next = patchOpportunityUrl(current, { status: null, archive_reason: "RETENTION_POLICY" });
+  assert.equal(next.get("view"), "history");
+  assert.equal(next.get("provider"), "aws");
+  assert.equal(next.has("status"), false);
+  assert.equal(next.get("presence_status"), "missing");
+  assert.equal(next.get("archived_from"), "2026-01-01");
+  assert.equal(next.get("archive_reason"), "RETENTION_POLICY");
+  assert.equal(next.get("page"), "1");
+});
+
 test("builds individual and bulk lifecycle requests without optimistic semantics", () => {
   assert.deepEqual(
     buildLifecycleRequest({ action: "treat", opportunityIds: ["opp-1"], note: "feito", bulk: false }),
@@ -158,7 +222,7 @@ test("OTHER is the only rejection reason that requires a note in the client", ()
   assert.equal(rejectionRequiresNote("FALSE_POSITIVE"), false);
 });
 
-test("preserves the three lifecycle states used by the workspace tabs", () => {
+test("preserves the three lifecycle states used by the operational workspace tabs", () => {
   for (const status of ["open", "treated", "rejected"]) {
     const state = parseOpportunitySearchParams(`status=${status}`);
     assert.equal(state.status, status);
@@ -166,21 +230,28 @@ test("preserves the three lifecycle states used by the workspace tabs", () => {
   }
 });
 
-test("workspace source keeps Stage 5 operational semantics without legacy prompts or reloads", async () => {
+test("workspace source exposes history without regressing operational semantics", async () => {
   const { readFile } = await import("node:fs/promises");
   const page = await readFile(new URL("../app/opportunities/page.tsx", import.meta.url), "utf8");
   const detail = await readFile(new URL("../components/opportunity-detail.tsx", import.meta.url), "utf8");
+  const archiveHistory = await readFile(new URL("../components/opportunity-archive-history.tsx", import.meta.url), "utf8");
   const dialog = await readFile(new URL("../components/opportunity-decision-dialog.tsx", import.meta.url), "utf8");
 
   assert.match(page, /Abertas/);
   assert.match(page, /Tratadas/);
   assert.match(page, /Rejeitadas/);
+  assert.match(page, /Histórico/);
+  assert.match(page, /archive_state/);
+  assert.match(page, /Presença técnica/);
+  assert.match(page, /Arquivada desde/);
+  assert.match(page, /Desarquivar/);
+  assert.match(page, /sem conversão entre BRL e USD/);
   const filterPosition = page.indexOf('className="panel opportunity-filter-panel"');
   const tabsPosition = page.indexOf('className="opportunity-tabs"');
   const summaryPosition = page.indexOf('className="opportunity-summary-grid"');
   assert.ok(filterPosition >= 0 && filterPosition < tabsPosition);
   assert.ok(tabsPosition < summaryPosition);
-  assert.match(page, /const active = state\.status === tab\.value/);
+  assert.match(page, /const active = !isHistory && state\.status === tab\.value/);
   assert.match(page, /const count = stats\[tab\.value\]/);
   assert.match(page, /aria-current=\{active \? "page" : undefined\}/);
   assert.match(page, /\/opportunities\/stats/);
@@ -192,7 +263,15 @@ test("workspace source keeps Stage 5 operational semantics without legacy prompt
   assert.match(detail, /Por que|FindingEvidence/);
   assert.match(detail, /Histórico de detecção/);
   assert.match(detail, /Histórico de decisões/);
+  assert.match(detail, /OpportunityPresenceHistory/);
+  assert.match(detail, /OpportunityArchiveHistory/);
+  assert.match(detail, /Status humano/);
+  assert.match(detail, /Presença técnica/);
+  assert.match(detail, /Arquivada em/);
+  assert.match(detail, /Desarquivar/);
   assert.match(detail, /Ver histórico completo/);
+  assert.match(archiveHistory, /Política de retenção/);
+  assert.match(archiveHistory, /Reaparecimento automático/);
   assert.match(dialog, /FALSE_POSITIVE/);
   assert.match(dialog, /OPERATIONAL_EXCEPTION/);
   assert.match(dialog, /OTHER/);

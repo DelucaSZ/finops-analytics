@@ -1,15 +1,19 @@
 export const OPPORTUNITY_STATUSES = ["open", "treated", "rejected"];
+export const OPPORTUNITY_PRESENCE_STATUSES = ["active", "missing", "resolved_externally"];
 export const OPPORTUNITY_SEVERITIES = ["high", "medium", "low"];
 export const OPPORTUNITY_SORTS = [
   "created_at",
   "first_seen_at",
   "last_seen_at",
+  "archived_at",
   "severity",
   "estimated_savings",
   "status",
 ];
 export const OPPORTUNITY_ORDERS = ["asc", "desc"];
 export const OPPORTUNITY_PAGE_SIZES = [25, 50, 100];
+export const OPPORTUNITY_VIEWS = ["operational", "history"];
+export const OPPORTUNITY_ARCHIVE_REASONS = ["MANUAL", "RETENTION_POLICY"];
 
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value || "", 10);
@@ -18,14 +22,19 @@ function positiveInteger(value, fallback) {
 
 export function parseOpportunitySearchParams(value) {
   const params = value instanceof URLSearchParams ? value : new URLSearchParams(value || "");
-  const requestedStatus = params.get("status") || "open";
+  const view = params.get("view") === "history" ? "history" : "operational";
+  const requestedStatus = params.get("status") || (view === "history" ? "" : "open");
+  const requestedPresence = params.get("presence_status") || "";
   const requestedSeverity = params.get("severity") || "";
-  const requestedSort = params.get("sort") || "last_seen_at";
+  const requestedSort = params.get("sort") || (view === "history" ? "archived_at" : "last_seen_at");
   const requestedOrder = params.get("order") || "desc";
   const requestedPageSize = positiveInteger(params.get("page_size"), 50);
+  const requestedArchiveReason = params.get("archive_reason") || "";
 
   return {
-    status: OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : "open",
+    view,
+    status: OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : (view === "history" ? "" : "open"),
+    presenceStatus: OPPORTUNITY_PRESENCE_STATUSES.includes(requestedPresence) ? requestedPresence : "",
     provider: params.get("provider") || "",
     accountId: params.get("account_id") || "",
     region: params.get("region") || "",
@@ -36,12 +45,17 @@ export function parseOpportunitySearchParams(value) {
     collectionRunId: params.get("collection_run_id") || "",
     resourceId: params.get("resource_id") || "",
     search: params.get("search") || "",
+    archivedFrom: params.get("archived_from") || "",
+    archivedTo: params.get("archived_to") || "",
+    archiveReason: OPPORTUNITY_ARCHIVE_REASONS.includes(requestedArchiveReason) ? requestedArchiveReason : "",
     page: positiveInteger(params.get("page"), 1),
     pageSize: OPPORTUNITY_PAGE_SIZES.includes(requestedPageSize) ? requestedPageSize : 50,
-    sort: OPPORTUNITY_SORTS.includes(requestedSort) ? requestedSort : "last_seen_at",
+    sort: OPPORTUNITY_SORTS.includes(requestedSort)
+      ? requestedSort
+      : (view === "history" ? "archived_at" : "last_seen_at"),
     order: OPPORTUNITY_ORDERS.includes(requestedOrder) ? requestedOrder : "desc",
     opportunityId: params.get("opportunity_id") || "",
-    current: params.get("current") === "true",
+    current: view === "operational" && params.get("current") === "true",
   };
 }
 
@@ -51,13 +65,13 @@ function addFilter(params, key, value) {
   }
 }
 
-export function buildOpportunityApiQuery(state) {
-  const params = new URLSearchParams();
-  params.set("status", state.status);
-  params.set("page", String(state.page));
-  params.set("page_size", String(state.pageSize));
-  params.set("sort", state.sort);
-  params.set("order", state.order);
+function archivedBoundary(value, endOfDay = false) {
+  if (!value) return "";
+  if (value.includes("T")) return value;
+  return `${value}T${endOfDay ? "23:59:59.999999" : "00:00:00"}Z`;
+}
+
+function addSharedFilters(params, state) {
   addFilter(params, "provider", state.provider);
   addFilter(params, "account_id", state.accountId);
   addFilter(params, "region", state.region);
@@ -68,23 +82,32 @@ export function buildOpportunityApiQuery(state) {
   addFilter(params, "collection_run_id", state.collectionRunId);
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
-  if (state.current) params.set("current", "true");
+
+  if (state.view === "history") {
+    params.set("archive_state", "archived");
+    addFilter(params, "presence_status", state.presenceStatus);
+    addFilter(params, "archived_from", archivedBoundary(state.archivedFrom));
+    addFilter(params, "archived_to", archivedBoundary(state.archivedTo, true));
+    addFilter(params, "archive_reason", state.archiveReason);
+  } else if (state.current) {
+    params.set("current", "true");
+  }
+}
+
+export function buildOpportunityApiQuery(state) {
+  const params = new URLSearchParams();
+  addFilter(params, "status", state.status);
+  params.set("page", String(state.page));
+  params.set("page_size", String(state.pageSize));
+  params.set("sort", state.sort);
+  params.set("order", state.order);
+  addSharedFilters(params, state);
   return params.toString();
 }
 
 export function buildOpportunityStatsQuery(state) {
   const params = new URLSearchParams();
-  addFilter(params, "provider", state.provider);
-  addFilter(params, "account_id", state.accountId);
-  addFilter(params, "region", state.region);
-  addFilter(params, "service", state.service);
-  addFilter(params, "resource_type", state.resourceType);
-  addFilter(params, "severity", state.severity);
-  addFilter(params, "rule", state.rule);
-  addFilter(params, "collection_run_id", state.collectionRunId);
-  addFilter(params, "resource_id", state.resourceId);
-  addFilter(params, "search", state.search);
-  if (state.current) params.set("current", "true");
+  addSharedFilters(params, state);
   return params.toString();
 }
 

@@ -1,9 +1,12 @@
+from datetime import datetime
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
 from app.models.collection_run import CollectionRun
+from app.models.finding import OpportunityPresenceStatus
 from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
 from app.schemas.opportunity import (
@@ -71,6 +74,7 @@ def _filters(
     service: str | None,
     resource_type: str | None,
     status: str | None,
+    presence_status: str | None,
     severity: str | None,
     rule: str | None,
     collection_run_id: str | None,
@@ -78,6 +82,9 @@ def _filters(
     search: str | None,
     current: bool,
     archive_state: OpportunityArchiveState,
+    archived_from: datetime | None,
+    archived_to: datetime | None,
+    archive_reason: str | None,
 ) -> OpportunityFilters:
     return OpportunityFilters(
         provider=provider.lower() if provider else None,
@@ -86,6 +93,7 @@ def _filters(
         service=service,
         resource_type=resource_type,
         status=status,
+        presence_status=presence_status,
         severity=severity,
         rule=rule,
         collection_run_id=collection_run_id,
@@ -93,6 +101,9 @@ def _filters(
         search=search,
         current=current,
         archive_state=archive_state,
+        archived_from=archived_from,
+        archived_to=archived_to,
+        archive_reason=archive_reason,
     )
 
 
@@ -104,6 +115,7 @@ def list_opportunity_page(
     service: str | None = Query(default=None, max_length=120),
     resource_type: str | None = Query(default=None, max_length=120),
     opportunity_status: OpportunityStatus | None = Query(default=None, alias="status"),
+    presence_status: OpportunityPresenceStatus | None = None,
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
     collection_run_id: str | None = None,
@@ -111,6 +123,12 @@ def list_opportunity_page(
     search: str | None = Query(default=None, max_length=200),
     current: bool = False,
     archive_state: OpportunityArchiveState = "active",
+    archived_from: datetime | None = None,
+    archived_to: datetime | None = None,
+    archive_reason: str | None = Query(
+        default=None,
+        pattern="^(MANUAL|RETENTION_POLICY)$",
+    ),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
     sort: OpportunitySort = "last_seen_at",
@@ -125,6 +143,7 @@ def list_opportunity_page(
         service,
         resource_type,
         opportunity_status,
+        presence_status.value if presence_status else None,
         severity,
         rule,
         collection_run_id,
@@ -132,6 +151,9 @@ def list_opportunity_page(
         search,
         current,
         archive_state,
+        archived_from,
+        archived_to,
+        archive_reason,
     )
     return list_opportunities(
         db,
@@ -150,6 +172,7 @@ def stats(
     region: str | None = None,
     service: str | None = Query(default=None, max_length=120),
     resource_type: str | None = Query(default=None, max_length=120),
+    presence_status: OpportunityPresenceStatus | None = None,
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
     collection_run_id: str | None = None,
@@ -157,6 +180,12 @@ def stats(
     search: str | None = Query(default=None, max_length=200),
     current: bool = False,
     archive_state: OpportunityArchiveState = "active",
+    archived_from: datetime | None = None,
+    archived_to: datetime | None = None,
+    archive_reason: str | None = Query(
+        default=None,
+        pattern="^(MANUAL|RETENTION_POLICY)$",
+    ),
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
     _ensure_collection_history_available(db, collection_run_id)
@@ -167,6 +196,7 @@ def stats(
         service,
         resource_type,
         None,
+        presence_status.value if presence_status else None,
         severity,
         rule,
         collection_run_id,
@@ -174,6 +204,9 @@ def stats(
         search,
         current,
         archive_state,
+        archived_from,
+        archived_to,
+        archive_reason,
     )
     return opportunity_stats(db, filters)
 
@@ -183,6 +216,7 @@ def options(
     provider: str | None = Query(default=None, max_length=16),
     account_id: str | None = Query(default=None, max_length=255),
     search: str | None = Query(default=None, max_length=255),
+    archive_state: OpportunityArchiveState = "active",
     limit: int = Query(default=200, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -191,6 +225,7 @@ def options(
         provider=provider,
         account_id=account_id,
         search=search,
+        archive_state=archive_state,
         limit=limit,
     )
 

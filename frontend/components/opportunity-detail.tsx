@@ -5,12 +5,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
+import { OpportunityArchiveHistory } from "@/components/opportunity-archive-history";
 import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
-import { useApiQuery } from "@/lib/server-state";
+import { invalidateApiQueries, useApiQuery } from "@/lib/server-state";
 import type {
   OpportunityDetail as OpportunityDetailType,
   OpportunityObservation,
@@ -26,6 +27,18 @@ const rejectionReasonLabels: Record<string, string> = {
   RESOURCE_REQUIRED: "Recurso necessário",
   RISK_ACCEPTED: "Risco aceito",
   OTHER: "Outro",
+};
+
+const archiveReasonLabels: Record<string, string> = {
+  MANUAL: "Manual",
+  RETENTION_POLICY: "Política de retenção",
+};
+
+type HistoricalOpportunityDetail = OpportunityDetailType & {
+  archived: boolean;
+  archived_at: string | null;
+  archived_by: string | null;
+  archive_reason: string | null;
 };
 
 function monthlySavings(item: OpportunityDetailType) {
@@ -47,9 +60,10 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const [historyPage, setHistoryPage] = useState(1);
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
+  const [unarchiveSaving, setUnarchiveSaving] = useState(false);
   const closeRef = useRef<HTMLButtonElement>(null);
   const historyPageSize = historyExpanded ? 50 : 8;
-  const detailRequest = useApiQuery<OpportunityDetailType>({
+  const detailRequest = useApiQuery<HistoricalOpportunityDetail>({
     key: queryKeys.opportunities.detail(opportunityId),
     path: `/opportunities/${opportunityId}`,
     ...cachePolicy.detail,
@@ -82,8 +96,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
   const decisionError = decisionRequest.error
     ? "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível."
     : "";
-  const error =
-    actionError || detailError || observationError || decisionError;
+  const error = actionError || detailError || observationError || decisionError;
 
   useEffect(() => {
     closeRef.current?.focus();
@@ -118,6 +131,26 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     }
   }
 
+  async function unarchiveCurrent() {
+    if (!detail?.archived || unarchiveSaving) return;
+    const confirmed = window.confirm(
+      "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
+    );
+    if (!confirmed) return;
+    setUnarchiveSaving(true);
+    setActionError("");
+    try {
+      await api(`/opportunities/${detail.id}/unarchive`, { method: "POST" });
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.dashboard.all);
+      onClose();
+    } catch (err) {
+      setActionError(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+    } finally {
+      setUnarchiveSaving(false);
+    }
+  }
+
   return (
     <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => {
       if (event.target === event.currentTarget) onClose();
@@ -142,7 +175,9 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             <section className="detail-overview" aria-label="Resumo da oportunidade">
               <div className="detail-status-line">
                 <StatusBadge value={detail.status} />
+                <StatusBadge value={detail.presence_status} />
                 <StatusBadge value={detail.severity} />
+                {detail.archived && <span className="review-flag">Arquivada</span>}
                 {detail.needs_review && <span className="review-flag">Detectada novamente após tratamento</span>}
               </div>
               <p className="detail-description">{detail.description}</p>
@@ -160,10 +195,17 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                     <span>{detail.rule.description}</span>
                   </dd>
                 </div>
+                <div><dt>Status humano</dt><dd><StatusBadge value={detail.status} /></dd></div>
+                <div><dt>Presença técnica</dt><dd><StatusBadge value={detail.presence_status} /></dd></div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
                 <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
                 <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
                 <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
+                {detail.treated_at && <div><dt>Tratada em</dt><dd>{formatDate(detail.treated_at)}</dd></div>}
+                {detail.rejected_at && <div><dt>Rejeitada em</dt><dd>{formatDate(detail.rejected_at)}</dd></div>}
+                {detail.resolved_externally_at && <div><dt>Resolvida externamente em</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div>}
+                {detail.archived && <div><dt>Arquivada em</dt><dd>{formatDate(detail.archived_at)}</dd></div>}
+                {detail.archived && <div><dt>Motivo do arquivamento</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div>}
                 <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
                 <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
                 <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
@@ -190,15 +232,9 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 <div className="historical-evidence-banner">
                   <div>
                     <strong>Evidência histórica</strong>
-                    <span>
-                      Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.
-                    </span>
+                    <span>Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.</span>
                   </div>
-                  <button
-                    className="button ghost"
-                    type="button"
-                    onClick={() => setSelectedObservation(null)}
-                  >
+                  <button className="button ghost" type="button" onClick={() => setSelectedObservation(null)}>
                     Voltar à evidência mais recente
                   </button>
                 </div>
@@ -251,10 +287,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               {observations?.items.length ? (
                 <div className="history-list">
                   {observations.items.map((item) => (
-                    <article
-                      key={item.id}
-                      className={`history-item${selectedObservation?.id === item.id ? " selected" : ""}`}
-                    >
+                    <article key={item.id} className={`history-item${selectedObservation?.id === item.id ? " selected" : ""}`}>
                       <div>
                         <strong>{formatDate(item.observed_at)}</strong>
                         <span>{providerLabel(item.collection_provider)} · {item.collection_account_id}</span>
@@ -269,11 +302,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                         <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Link>
                       </div>
                       <p className="history-evidence-summary">{item.evidence.summary}</p>
-                      <button
-                        className="button ghost history-evidence-button"
-                        type="button"
-                        onClick={() => setSelectedObservation(item)}
-                      >
+                      <button className="button ghost history-evidence-button" type="button" onClick={() => setSelectedObservation(item)}>
                         Ver evidência desta coleta
                       </button>
                     </article>
@@ -299,6 +328,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             </section>
 
             <OpportunityPresenceHistory opportunityId={opportunityId} />
+            <OpportunityArchiveHistory opportunityId={opportunityId} />
 
             <section className="detail-section" aria-labelledby="decision-history-title">
               <div className="section-heading-inline">
@@ -342,7 +372,11 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
 
         {detail && (
           <footer className="drawer-actions">
-            {detail.status === "open" ? (
+            {detail.archived ? (
+              <button className="button primary" type="button" disabled={unarchiveSaving} onClick={() => void unarchiveCurrent()}>
+                <RotateCcw size={17} /> {unarchiveSaving ? "Desarquivando…" : "Desarquivar"}
+              </button>
+            ) : detail.status === "open" ? (
               <>
                 <button className="button ghost" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
                 <button className="button primary" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
