@@ -1,34 +1,65 @@
 # OCI pricing contract
 
-This document closes the DeepOps OCI pricing track (Tasks 1/7–7/7) and records the deterministic pricing contract implemented in code.
+This document records the deterministic OCI pricing contract after Task 23.7, when the approved commercial rates moved from application constants to the persistent provider-neutral Pricing Catalog.
 
-## Source and monetary policy
+## Persistent source of truth
 
-The single source of approved OCI commercial prices is `backend/app/services/oci_pricing.py`.
+The single runtime source of approved OCI commercial unit prices is the `pricing_catalog_items` table. `backend/app/services/oci_pricing.py` contains only stable pricing keys, formulas, shape allowlists and monetary conventions; it does not contain the production rate amounts.
 
-- source: `deepops_oci_price_table`
-- version: `2026-10`
+The initial OCI rows are inserted deterministically by Alembic migration `0024_pricing_catalog` so a deployment does not require manual pricing setup.
+
+- provider: `oci`
+- source: `IMPORTED_OCI_CALCULATOR`
+- catalog generation/version used by current evidence: `2026-10`
 - currency: `BRL`
 - monthly Compute convention: `744` hours/month
-- money arithmetic: `Decimal`
+- persisted price type: `Numeric(20, 8)` / Python `Decimal`
 - public monetary precision: BRL cents (`0.01`, `ROUND_HALF_UP`)
 - taxes: not included
-- regional/tenant/contract price variation: not implemented in this track
-- Oracle Price List API / automatic catalog import / FX conversion: not implemented in this track
+- regional/tenant/contract price variation: not implemented in Task 23.7
+- Oracle Price List API / automatic public-price import / FX conversion: not implemented
 
-Approved rates:
+The values OCI previously supplied to the project are denominated in **BRL (Brazilian reais)**. The AWS pricing currently used by DeepOps is denominated in **USD**. DeepOps does not assume one global currency and must not sum BRL and USD without an explicit conversion layer; FX is outside Task 23.7.
 
-| Component | Rate |
-| --- | ---: |
-| E3 OCPU | 0.0521 BRL/OCPU-hour |
-| E3 RAM | 0.0031 BRL/GB-hour |
-| E4 OCPU | 0.0689 BRL/OCPU-hour |
-| E4 RAM | 0.0041 BRL/GB-hour |
-| E5 OCPU | 0.08266 BRL/OCPU-hour |
-| E5 RAM | 0.005511 BRL/GB-hour |
-| Windows | 0.46092 BRL/OCPU-hour |
-| Block Storage capacity | 0.0531 BRL/GB-month |
-| Block Storage performance | 0.0036 BRL/VPU/GB-month |
+## Seeded OCI pricing items
+
+The migration preserves the exact commercial rates that were already used by the application:
+
+| Service | SKU | Unit | Rate | Currency |
+| --- | --- | --- | ---: | --- |
+| Compute | `VM.Standard.E3.Flex.OCPU` | `OCPU_HOUR` | 0.0521 | BRL |
+| Compute | `VM.Standard.E3.Flex.Memory` | `GB_RAM_HOUR` | 0.0031 | BRL |
+| Compute | `VM.Standard.E4.Flex.OCPU` | `OCPU_HOUR` | 0.0689 | BRL |
+| Compute | `VM.Standard.E4.Flex.Memory` | `GB_RAM_HOUR` | 0.0041 | BRL |
+| Compute | `VM.Standard.E5.Flex.OCPU` | `OCPU_HOUR` | 0.08266 | BRL |
+| Compute | `VM.Standard.E5.Flex.Memory` | `GB_RAM_HOUR` | 0.005511 | BRL |
+| Compute | `WINDOWS_LICENSE_OCPU` | `OCPU_HOUR` | 0.46092 | BRL |
+| Block Volume | `BLOCK_VOLUME_GB_MONTH` | `GB_MONTH` | 0.0531 | BRL |
+| Block Volume | `BLOCK_VOLUME_VPU_GB_MONTH` | `VPU_GB_MONTH` | 0.0036 | BRL |
+
+Each row also persists description, `effective_from`, optional `effective_until`, `enabled`, source and timestamps. The schema is provider-neutral and can represent OCI, AWS, Azure, GCP or another provider without a structural change. Task 23.7 does not migrate AWS rates into this table.
+
+## Effective-dated resolver
+
+`PricingResolver` is the only generic database lookup layer. A current price must satisfy:
+
+```text
+enabled = true
+effective_from <= reference_date
+effective_until is null OR reference_date < effective_until
+```
+
+The caller supplies provider, service, SKU, unit and optionally a reference date. The returned `ResolvedPrice` carries the amount together with provider, service, SKU, unit, currency, source and validity data.
+
+Failure is explicit:
+
+- no valid row: `PricingNotFoundError`;
+- more than one simultaneously valid row for the same pricing identity: `PricingAmbiguityError`;
+- unexpected currency: `PricingCurrencyMismatchError`.
+
+A missing catalog row is never silently interpreted as `price = 0` and there is no runtime fallback to the former static prices.
+
+The resolver supports a provider snapshot that loads effective rows in one query. `OciPricingService` can operate over that immutable snapshot, so loops do not issue one SQL query per resource. Its default path also keeps a read snapshot and exposes `clear_cache()` for the administrative lifecycle that will be added in Task 23.8.
 
 ## Supported Compute shapes
 
@@ -40,29 +71,29 @@ Shape pricing uses an exact allowlist. It must not infer pricing families from s
 | `VM.Standard.E4.Flex` | E4 |
 | `VM.Standard.E5.Flex` | E5 |
 
-Examples that remain unsupported in this track include `VM.Standard.A1.Flex`, `VM.Standard.E6.Flex`, `BM.Standard.E4.128` and `VM.DenseIO.E4.Flex`.
+Examples that remain unsupported include `VM.Standard.A1.Flex`, `VM.Standard.E6.Flex`, `BM.Standard.E4.128` and `VM.DenseIO.E4.Flex`.
 
-Unsupported or incomplete Compute input is not a valid zero-price result. Pricing returns an explicit non-priced status such as `unsupported_shape`, `missing_pricing_input` or `invalid_pricing_input`.
+Unsupported or incomplete Compute resource input is not a valid zero-price result. Resource pricing returns an explicit non-priced status such as `unsupported_shape`, `missing_pricing_input` or `invalid_pricing_input`. Catalog configuration errors remain exceptions rather than resource-data statuses.
 
 ## Compute and Windows
 
-Base Compute pricing is:
+Base Compute pricing preserves the existing formula:
 
 ```text
-OCPU * OCPU-hour rate * 744
+OCPU * resolved OCPU-hour rate * 744
 +
-RAM GB * RAM GB-hour rate * 744
+RAM GB * resolved RAM GB-hour rate * 744
 ```
 
 Windows is added only after OCI image metadata resolves the operating-system family as `WINDOWS`:
 
 ```text
-OCPU * 0.46092 * 744
+OCPU * resolved WINDOWS_LICENSE_OCPU rate * 744
 ```
 
 Operating-system states are `WINDOWS`, `NON_WINDOWS` and `UNKNOWN`.
 
-- `WINDOWS`: base Compute plus Windows license.
+- `WINDOWS`: base Compute plus resolved Windows license.
 - `NON_WINDOWS`: base Compute only.
 - `UNKNOWN`: base Compute may still be calculated when shape/OCPU/RAM are valid, but Windows is not added and OS uncertainty remains explicit.
 
@@ -70,99 +101,51 @@ Instance name, hostname, tags, display name and shape are not authoritative Wind
 
 ## Storage pricing
 
-Block/boot volume monthly price is:
+Block/boot volume monthly price preserves the existing formula but resolves both unit prices from the catalog:
 
 ```text
-size_gb * 0.0531
+size_gb * resolved BLOCK_VOLUME_GB_MONTH
 +
-size_gb * vpus_per_gb * 0.0036
+size_gb * vpus_per_gb * resolved BLOCK_VOLUME_VPU_GB_MONTH
 ```
 
-`vpus_per_gb = 0` is valid. `vpus_per_gb = None` is incomplete input and must not be converted to zero.
+`vpus_per_gb = 0` is valid. `vpus_per_gb = None` is incomplete resource input and must not be converted to zero.
 
-### `oci_block_volume_unattached`
+A 500 GB volume at 10 VPU/GB remains 44.55 BRL/month. The approved stopped-Compute example with a 100 GB boot volume plus a 500 GB block volume, both at 10 VPU/GB, remains 53.46 BRL/month.
 
-When both storage inputs are valid:
+`oci_block_volume_unattached` continues to use the full priced volume cost as its monthly saving. `oci_stopped_compute_with_storage` continues to price only persistent related storage and deliberately excludes OCPU, RAM and Windows licensing.
 
-```text
-current_monthly_cost = estimated_monthly_savings = full monthly volume cost
-currency = BRL
-financial_value_populated = true
-```
+## Currency and persisted opportunities
 
-A 500 GB volume at 10 VPU/GB is 44.55 BRL/month.
+Pricing fields continue to use the provider-neutral opportunity contract:
 
-### `oci_stopped_compute_with_storage`
+- `current_monthly_cost`;
+- `estimated_monthly_savings`;
+- `currency`;
+- `provider_metadata.financial_value_populated`;
+- evidence payload.
 
-This rule prices only persistent storage related to the stopped instance:
+OCI priced findings persist `BRL`. AWS findings continue to persist/use `USD` according to the existing AWS path. Currency accompanies the monetary value, so a historical OCI saving is not reinterpreted as USD later.
 
-```text
-Boot Volumes + Block Volumes
-```
-
-It deliberately excludes OCPU, RAM and Windows licensing even when the instance is Windows. Relationship IDs are deduplicated before pricing, so the same OCID is not counted twice.
-
-The approved example (100 GB boot + 500 GB block, both at 10 VPU/GB) is 53.46 BRL/month.
-
-If any related volume cannot be priced, the rule is financially incomplete: the main opportunity saving is not promoted from the partial subtotal and `financial_value_populated` remains false.
-
-## Rules without pricing in this track
-
-| Rule/resource | Pricing | Currency | Saving |
-| --- | --- | --- | --- |
-| OCI Block Volume unattached | Yes | BRL | 100% of priced volume cost |
-| OCI stopped compute with storage | Yes | BRL | 100% of priced persistent storage |
-| OCI Compute E3/E4/E5 | Available to compatible consumers | BRL | Depends on analyzer/consumer |
-| OCI Windows | Additional only when confirmed | BRL | Depends on analyzer/consumer |
-| OCI Public IP unassigned | No | — | — |
-| OCI Untagged Resource | No | — | — |
-| Unsupported shape | No | — | — |
-
-Public IP and untagged-resource opportunities remain operational findings with `financial_value_populated = false`; this track does not invent savings for them.
-
-## Evidence and Usage API
-
-Priced OCI findings record pricing metadata in the existing evidence structure, including:
-
-- pricing status;
-- source;
-- catalog version;
-- BRL currency;
-- calculation inputs;
-- calculated result;
-- whether the financial value is populated.
-
-Storage evidence records size/VPU and monthly cost. Stopped-compute evidence records the boot/block volume sets, per-volume pricing, subtotal and final persistent-storage total.
-
-OCI Usage API evidence remains separate as observed billing/spend evidence. Its observed currency does not overwrite the BRL catalog-pricing currency, and this track does not reconcile catalog estimates with actual billing.
-
-## Persistence and opportunity identity
-
-Pricing fields use the existing provider-neutral opportunity contract:
-
-- `current_monthly_cost`
-- `estimated_monthly_savings`
-- `currency`
-- `provider_metadata.financial_value_populated`
-- evidence payload
-
-Persistence refreshes those fields on subsequent observations. Pricing amount, currency and pricing version are not part of the opportunity fingerprint. Therefore the same logical opportunity can receive a new price in a later collection without creating a duplicate or changing lifecycle status semantics.
-
-The Opportunities API serializes the same financial fields used by AWS; no OCI-specific frontend contract is required.
+OCI Usage API evidence remains separate observed billing/spend evidence. Its observed currency does not overwrite the catalog-pricing currency, and Task 23.7 does not reconcile catalog estimates with actual billing.
 
 ## Validation coverage
 
-The OCI pricing test suite covers, among other cases:
+Task 23.7 adds coverage for:
 
-- E3/E4/E5 catalog rates and exact shape resolver behavior;
-- unsupported shapes;
-- 500 GB / 10 VPU block volume = 44.55 BRL;
-- VPU zero = capacity-only price;
-- missing storage input remains unpriced;
-- boot + block storage for stopped Compute = 53.46 BRL;
-- multiple volumes and duplicate relationship protection;
-- stopped Compute excluding OCPU/RAM/Windows;
-- Windows confirmed, non-Windows and unknown OS;
-- persistence of OCI financial values and evidence;
-- API serialization of persisted OCI pricing;
-- same fingerprint with a refreshed financial amount across collection runs.
+- deterministic nine-row OCI seed after migration;
+- all imported OCI rows explicitly `BRL`;
+- numeric precision, constraints and lookup index;
+- enabled/current, future, expired and disabled validity cases;
+- ambiguous effective rows;
+- missing prices;
+- currency mismatch and simultaneous OCI/BRL plus AWS/USD contexts;
+- database-backed Compute and Block Volume equivalence;
+- catalog-value changes affecting calculations, proving there is no static production fallback;
+- provider snapshot behavior that avoids per-resource SELECTs;
+- existing OCI E3/E4/E5, Windows, Block Volume and savings regressions;
+- full AWS regression through the existing backend suite.
+
+## Deliberate follow-up scope
+
+Task 23.7 creates the persistent source of truth. Administrative price editing belongs to Task 23.8. Complete price-change versioning/audit lifecycle belongs to Task 23.9. Neither FX conversion nor a global base currency is introduced here.
