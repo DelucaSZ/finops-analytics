@@ -250,7 +250,7 @@ def test_audit_failure_can_be_rolled_back_with_pricing_change(auth_env, monkeypa
             select(PricingCatalogItem).where(
                 PricingCatalogItem.provider == "oci",
                 PricingCatalogItem.sku == "VM.Standard.E3.Flex.OCPU",
-                PricingCatalogItem.price == Decimal("0.05800000"),
+                PricingCatalogItem.price == Decimal("0.05210000"),
             )
         )
         assert current is not None
