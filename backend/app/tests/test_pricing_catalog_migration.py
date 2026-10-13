@@ -64,7 +64,10 @@ def test_stage23_7_migration_creates_and_seeds_oci_brl_catalog(pricing_migration
 
         inspector = inspect(connection)
         assert "pricing_catalog_items" in inspector.get_table_names()
-        columns = {column["name"]: column for column in inspector.get_columns("pricing_catalog_items")}
+        columns = {
+            column["name"]: column
+            for column in inspector.get_columns("pricing_catalog_items")
+        }
         assert columns["provider"]["nullable"] is False
         assert columns["service"]["nullable"] is False
         assert columns["sku"]["nullable"] is False
@@ -78,7 +81,8 @@ def test_stage23_7_migration_creates_and_seeds_oci_brl_catalog(pricing_migration
             index["name"] for index in inspector.get_indexes("pricing_catalog_items")
         }
         constraint_names = {
-            constraint["name"] for constraint in inspector.get_check_constraints("pricing_catalog_items")
+            constraint["name"]
+            for constraint in inspector.get_check_constraints("pricing_catalog_items")
         }
         assert "ck_pricing_catalog_items_price_non_negative" in constraint_names
         assert "ck_pricing_catalog_items_currency_iso_code" in constraint_names
