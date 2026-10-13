@@ -1,9 +1,14 @@
 export type OpportunityStatus = "open" | "treated" | "rejected";
+export type OpportunityPresenceStatus = "active" | "missing" | "resolved_externally";
 export type OpportunitySeverity = "high" | "medium" | "low";
-export type OpportunitySort = "created_at" | "first_seen_at" | "last_seen_at" | "severity" | "estimated_savings" | "status";
+export type OpportunitySort = "created_at" | "first_seen_at" | "last_seen_at" | "archived_at" | "severity" | "estimated_savings" | "status";
 export type OpportunityOrder = "asc" | "desc";
+export type OpportunityView = "operational" | "history";
+export type OpportunityArchiveReason = "MANUAL" | "RETENTION_POLICY";
 export type OpportunityQueryState = {
-  status: OpportunityStatus;
+  view: OpportunityView;
+  status: OpportunityStatus | "";
+  presenceStatus: OpportunityPresenceStatus | "";
   provider: string;
   accountId: string;
   region: string;
@@ -14,6 +19,9 @@ export type OpportunityQueryState = {
   collectionRunId: string;
   resourceId: string;
   search: string;
+  archivedFrom: string;
+  archivedTo: string;
+  archiveReason: OpportunityArchiveReason | "";
   page: number;
   pageSize: number;
   sort: OpportunitySort;
@@ -22,10 +30,13 @@ export type OpportunityQueryState = {
   current: boolean;
 };
 export const OPPORTUNITY_STATUSES: OpportunityStatus[];
+export const OPPORTUNITY_PRESENCE_STATUSES: OpportunityPresenceStatus[];
 export const OPPORTUNITY_SEVERITIES: OpportunitySeverity[];
 export const OPPORTUNITY_SORTS: OpportunitySort[];
 export const OPPORTUNITY_ORDERS: OpportunityOrder[];
 export const OPPORTUNITY_PAGE_SIZES: number[];
+export const OPPORTUNITY_VIEWS: OpportunityView[];
+export const OPPORTUNITY_ARCHIVE_REASONS: OpportunityArchiveReason[];
 export function parseOpportunitySearchParams(value: string | URLSearchParams): OpportunityQueryState;
 export function buildOpportunityApiQuery(state: OpportunityQueryState): string;
 export function buildOpportunityStatsQuery(state: OpportunityQueryState): string;
