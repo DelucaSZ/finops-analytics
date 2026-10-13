@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 from app.db.base import utcnow
 from app.models.pricing import PricingCatalogItem
 from app.services.pricing_catalog import PricingNotFoundError, PricingResolver
-from app.tests.test_security import headers
 from app.tests.test_security import auth_env as auth_env
+from app.tests.test_security import headers
 
 
 def _seed_item(http, tokens, sku: str):
