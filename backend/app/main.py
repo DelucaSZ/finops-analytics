@@ -17,6 +17,7 @@ from app.api.routes import (
     mfa,
     opportunities,
     policies,
+    pricing,
     scans,
     tls,
     users,
@@ -62,7 +63,14 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 async def sensitive_response_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith(
-        ("/api/v1/auth", "/api/v1/users", "/api/v1/audit", "/api/v1/tls", "/api/v1/cloud-accounts")
+        (
+            "/api/v1/auth",
+            "/api/v1/users",
+            "/api/v1/audit",
+            "/api/v1/tls",
+            "/api/v1/cloud-accounts",
+            "/api/v1/pricing",
+        )
     ):
         response.headers["Cache-Control"] = "no-store"
         response.headers["Referrer-Policy"] = "no-referrer"
@@ -85,6 +93,7 @@ app.include_router(tls.router, prefix="/api/v1")
 app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(cloud_accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
+app.include_router(pricing.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
