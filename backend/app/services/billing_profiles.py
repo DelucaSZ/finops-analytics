@@ -183,9 +183,7 @@ class BillingProfileService:
         for field, value in enum_fields.items():
             if field in fields:
                 if value is None:
-                    raise BillingProfileError(
-                        "INVALID_PROFILE", f"{field} não pode ser nulo."
-                    )
+                    raise BillingProfileError("INVALID_PROFILE", f"{field} não pode ser nulo.")
                 setattr(profile, field, value.value)
         if "exclude_record_types" in fields:
             if payload.exclude_record_types is None:
