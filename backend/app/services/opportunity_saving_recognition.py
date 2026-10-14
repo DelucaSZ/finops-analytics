@@ -95,21 +95,12 @@ class OpportunitySavingRecognitionService:
         if not opportunity_ids:
             return {}
         current_event_ids = {finding.id: event.id for finding, event in candidates}
-        rows = self.db.scalars(
+        treatment_rows = self.db.scalars(
             select(OpportunityStatusHistory)
             .where(
                 OpportunityStatusHistory.opportunity_id.in_(opportunity_ids),
-                (
-                    (
-                        (OpportunityStatusHistory.action == "treat")
-                        & (OpportunityStatusHistory.to_status == "treated")
-                    )
-                    | (
-                        (OpportunityStatusHistory.action == "reopen")
-                        & (OpportunityStatusHistory.from_status == "treated")
-                        & (OpportunityStatusHistory.to_status == "open")
-                    )
-                ),
+                OpportunityStatusHistory.action == "treat",
+                OpportunityStatusHistory.to_status == "treated",
             )
             .order_by(
                 OpportunityStatusHistory.opportunity_id,
@@ -118,10 +109,33 @@ class OpportunitySavingRecognitionService:
             )
         ).all()
         previous: dict[str, OpportunityStatusHistory] = {}
-        for row in rows:
+        for row in treatment_rows:
             if row.id == current_event_ids.get(row.opportunity_id):
                 continue
             previous.setdefault(row.opportunity_id, row)
+
+        # A legacy treated finding can have no historical treat event. A later reopen
+        # still proves there was an earlier treatment, so use that reopen only as a
+        # conservative fallback baseline. This prevents retroactive credit without
+        # inventing a timestamp for the legacy treatment.
+        legacy_ids = [opportunity_id for opportunity_id in opportunity_ids if opportunity_id not in previous]
+        if legacy_ids:
+            reopen_rows = self.db.scalars(
+                select(OpportunityStatusHistory)
+                .where(
+                    OpportunityStatusHistory.opportunity_id.in_(legacy_ids),
+                    OpportunityStatusHistory.action == "reopen",
+                    OpportunityStatusHistory.from_status == "treated",
+                    OpportunityStatusHistory.to_status == "open",
+                )
+                .order_by(
+                    OpportunityStatusHistory.opportunity_id,
+                    OpportunityStatusHistory.changed_at.desc(),
+                    OpportunityStatusHistory.id.desc(),
+                )
+            ).all()
+            for row in reopen_rows:
+                previous.setdefault(row.opportunity_id, row)
         return previous
 
     def _cloud_accounts(self, findings: list[Finding]) -> dict[tuple[str, str], CloudAccount]:
@@ -193,19 +207,19 @@ class OpportunitySavingRecognitionService:
         for finding, event in candidates:
             observation = latest_observations.get(finding.id)
             previous_cycle = previous_cycles.get(finding.id)
-            if previous_cycle is not None:
-                if observation is None or _aware(observation.observed_at) <= _aware(
-                    previous_cycle.changed_at
-                ):
-                    results.append(
-                        self._skip(
-                            finding,
-                            event,
-                            NO_NEW_FINANCIAL_EVENT,
-                            observation,
-                        )
+            if previous_cycle is not None and (
+                observation is None
+                or _aware(observation.observed_at) <= _aware(previous_cycle.changed_at)
+            ):
+                results.append(
+                    self._skip(
+                        finding,
+                        event,
+                        NO_NEW_FINANCIAL_EVENT,
+                        observation,
                     )
-                    continue
+                )
+                continue
 
             snapshot = observation if observation is not None else finding
             amount = _decimal(snapshot.estimated_monthly_savings)
