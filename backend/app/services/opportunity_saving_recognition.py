@@ -118,7 +118,11 @@ class OpportunitySavingRecognitionService:
         # still proves there was an earlier treatment, so use that reopen only as a
         # conservative fallback baseline. This prevents retroactive credit without
         # inventing a timestamp for the legacy treatment.
-        legacy_ids = [opportunity_id for opportunity_id in opportunity_ids if opportunity_id not in previous]
+        legacy_ids = [
+            opportunity_id
+            for opportunity_id in opportunity_ids
+            if opportunity_id not in previous
+        ]
         if legacy_ids:
             reopen_rows = self.db.scalars(
                 select(OpportunityStatusHistory)
