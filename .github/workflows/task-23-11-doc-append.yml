@@ -26,95 +26,95 @@ jobs:
             exit 0
           fi
 
-          cat >> docs/implementation-roadmap.md <<'EOF'
-
-
-## Etapa 23.11 — Integração de oportunidades tratadas com o Fluxo FinOps
-
-**Status:** implementada na branch `feat/23-11-treated-to-finops-flow` e publicada no PR #65; merge na `main` depende de solicitação explícita.
-
-### Objetivo e evento de reconhecimento financeiro
-
-A Etapa 23.11 conecta o lifecycle humano de oportunidades ao ledger criado na 23.10 sem transformar saving estimado em dinheiro apenas por detecção ou por estado persistido.
-
-> uma oportunidade `treated` com saving monetário válido passa a poder gerar uma movimentação `SAVING/CREDIT` no Fluxo.
-
-O evento financeiro é exclusivamente uma transição humana efetiva `open -> treated`, registrada em `OpportunityStatusHistory` com `action=treat`. `Finding.status == treated` isoladamente não é usado como gatilho. `rejected`, `resolved_externally`, archive/unarchive e simples observação técnica não criam movimentação financeira.
-
-A entry automática usa `source=OPPORTUNITY`, `source_reference=Finding.id`, `opportunity_id=Finding.id` e `source_event_id=OpportunityStatusHistory.id`. O ator financeiro é o mesmo usuário autenticado que executou o treatment e `effective_at` corresponde ao timestamp do evento de tratamento.
-
-> o evento financeiro é vinculado ao treatment específico, não apenas ao Finding, permitindo idempotência e múltiplos ciclos reais da mesma oportunidade.
-
-### Snapshot, provenance e periodicidade
-
-O reconhecimento usa preferencialmente a `OpportunityObservation` mais recente disponível no momento do treatment. Ela fornece o snapshot monetário de `estimated_monthly_savings` e `currency`; quando uma oportunidade legada não possui observation, o snapshot corrente persistido no `Finding` é usado como fallback explícito, sem nova consulta a pricing.
-
-A entry preserva `amount`, `currency` e `periodicity=MONTHLY`, coerente com a semântica persistida de `estimated_monthly_savings`. Não existe annualization, multiplicação por 12, recorrência mensal automática ou recálculo usando o Pricing Catalog atual.
-
-A provenance estruturada inclui a origem do snapshot, `opportunity_observation_id` quando existente, regra, recurso, serviço e região. A observation não recebeu FK nova no ledger porque a estrutura da 23.10 já possui `context` auditável para metadados de origem; assim a integração não exige migration adicional.
-
-Uma alteração posterior de `Finding.estimated_monthly_savings` não modifica entries anteriores. Cada novo ciclo financeiramente reconhecido captura seu próprio snapshot.
-
-### Amount e currency
-
-Somente saving monetário estritamente positivo e com moeda válida de três letras é elegível para criação automática.
-
-- saving inexistente/inválido: treatment conclui sem ledger entry;
-- saving zero: treatment conclui sem `CREDIT 0`;
-- saving negativo: não é convertido em `DEBIT` e não cria entry automática;
-- currency ausente/inválida: não existe default global e nenhuma entry monetária é criada.
-
-AWS mantém os snapshots em USD e OCI mantém os snapshots em BRL. O provider é usado apenas como validação de consistência; a moeda persistida no snapshot continua sendo a fonte financeira. Divergência é registrada para observabilidade sem conversão silenciosa.
-
-> OCI utiliza BRL e AWS utiliza USD. As moedas permanecem independentes.
-
-Não existe FX nem soma entre moedas diferentes. O summary do ledger continua agrupado por moeda conforme a 23.10. As entries automáticas desta etapa são mensais e preservam essa periodicidade individualmente.
-
-### Atomicidade e idempotência
-
-O lifecycle cria e faz `flush` do `OpportunityStatusHistory` dentro da mesma transação que reconhecerá o saving. A criação financeira passa exclusivamente por `FinOpsLedgerService`; o lifecycle não insere diretamente na tabela do ledger.
-
-A chave idempotente é determinística por evento: `opportunity-treated:{source_event_id}:saving`. A constraint única já existente no ledger e o tratamento transacional de `IntegrityError` protegem retry e processos concorrentes. Requests concorrentes de treatment continuam serializados pelo `FOR UPDATE` do Finding; reconhecer novamente o mesmo event retorna a mesma entry, sem crédito duplicado.
-
-Quando não existe saving elegível, o lifecycle humano pode concluir normalmente. Quando existe saving válido mas a criação da entry falha de fato, a exceção propaga e o commit externo não acontece, mantendo treatment, histórico e reconhecimento financeiro como uma unidade consistente.
-
-Bulk treatment preserva a semântica all-or-nothing atual. Observations, treatments anteriores e contas são resolvidos em lote antes das criações, evitando consultas de duplicate-check por item. Itens sem saving elegível continuam tratados, mas não criam movimentação fictícia.
-
-### Reopen, re-treatment e novo ciclo
-
-> reabrir uma oportunidade não reverte automaticamente o saving anteriormente reconhecido.
-
-Reopen, archive/unarchive e reaparecimento não alteram uma entry já registrada. Correções financeiras continuam usando reversal/adjustment do domínio do ledger, de forma independente do lifecycle da oportunidade.
-
-Um novo `open -> treated` após tratamento anterior só cria outro `SAVING` quando existe evidência concreta de nova ocorrência técnica: a `OpportunityObservation` mais recente precisa ser posterior ao treatment anterior. Um reopen administrativo seguido de novo treatment sem observation posterior é processado no lifecycle, mas o reconhecimento retorna `NO_NEW_FINANCIAL_EVENT` e não duplica o crédito.
-
-Quando existe nova observation posterior, o novo treatment possui seu próprio `OpportunityStatusHistory.id`, sua própria idempotency key e captura o novo snapshot. Assim um primeiro ciclo de 500 USD/mês e um segundo ciclo real de 350 USD/mês geram `+500` e `+350`, nunca `+500` e `+500` por reutilização do snapshot anterior.
-
-Para oportunidades legadas sem histórico estável de treatment anterior, um evento de reopen a partir de `treated` funciona como baseline conservadora quando necessário. Isso evita transformar a ausência de ledger histórico em backfill retroativo.
-
-### Ausência de backfill e compatibilidade
-
-A implantação da 23.11 não percorre findings já `treated` e não cria entries retroativas. Apenas novos treatment events após a integração podem reconhecer saving. O endpoint existente de treatment mantém seu contrato para preservar frontend e consumidores; o enriquecimento opcional `financial_result` não foi introduzido nesta etapa.
-
-Nenhuma migration foi necessária. A `0026_finops_ledger` da 23.10 já fornece `opportunity_id`, `source_event_id`, `idempotency_key`, currency, periodicity, constraints, FKs e proteção append-only necessárias.
-
-### Implementação e testes
-
-Principais arquivos da etapa:
-
-- `backend/app/services/opportunity_saving_recognition.py`;
-- `backend/app/services/opportunity_lifecycle.py`;
-- `backend/app/tests/test_opportunity_saving_recognition.py`;
-- este `docs/implementation-roadmap.md`.
-
-A cobertura focada valida primeiro treatment, `SAVING/CREDIT`, actor/effective date, snapshot imutável, provenance de observation, retry do mesmo event, saving zero/negativo/sem currency, OCI/BRL sem conversão, bulk, reject sem ledger, reopen administrativo sem segundo crédito e novo ciclo real usando seu próprio valor.
-
-No head funcional do PR #65 antes deste append documental, o CI #543 aprovou `ruff check .`, `ruff format --check .` e `pytest -q` com **769 testes aprovados** em PostgreSQL 17. Frontend `npm test` e `npm run build`, security, Stage 21 Compose smoke #296 e Auto Deploy Tests #536 também foram aprovados. O head definitivo deve manter esses gates verdes após a atualização documental.
-
-### Limitações deliberadamente preservadas
-
-A Etapa 23.11 não implementa cadastro manual de saving, realocação ou adjustment no frontend; isso pertence à 23.12. Também não implementa a aba Fluxo completa, reservada para a 23.13. Permanecem fora de escopo FX, annualization, recorrência automática, backfill financeiro, reversal automático em reopen, saving para `resolved_externally` e redesign global.
-EOF
+          cat <<'EOF' | sed 's/^          //' >> docs/implementation-roadmap.md
+          
+          
+          ## Etapa 23.11 — Integração de oportunidades tratadas com o Fluxo FinOps
+          
+          **Status:** implementada na branch `feat/23-11-treated-to-finops-flow` e publicada no PR #65; merge na `main` depende de solicitação explícita.
+          
+          ### Objetivo e evento de reconhecimento financeiro
+          
+          A Etapa 23.11 conecta o lifecycle humano de oportunidades ao ledger criado na 23.10 sem transformar saving estimado em dinheiro apenas por detecção ou por estado persistido.
+          
+          > uma oportunidade `treated` com saving monetário válido passa a poder gerar uma movimentação `SAVING/CREDIT` no Fluxo.
+          
+          O evento financeiro é exclusivamente uma transição humana efetiva `open -> treated`, registrada em `OpportunityStatusHistory` com `action=treat`. `Finding.status == treated` isoladamente não é usado como gatilho. `rejected`, `resolved_externally`, archive/unarchive e simples observação técnica não criam movimentação financeira.
+          
+          A entry automática usa `source=OPPORTUNITY`, `source_reference=Finding.id`, `opportunity_id=Finding.id` e `source_event_id=OpportunityStatusHistory.id`. O ator financeiro é o mesmo usuário autenticado que executou o treatment e `effective_at` corresponde ao timestamp do evento de tratamento.
+          
+          > o evento financeiro é vinculado ao treatment específico, não apenas ao Finding, permitindo idempotência e múltiplos ciclos reais da mesma oportunidade.
+          
+          ### Snapshot, provenance e periodicidade
+          
+          O reconhecimento usa preferencialmente a `OpportunityObservation` mais recente disponível no momento do treatment. Ela fornece o snapshot monetário de `estimated_monthly_savings` e `currency`; quando uma oportunidade legada não possui observation, o snapshot corrente persistido no `Finding` é usado como fallback explícito, sem nova consulta a pricing.
+          
+          A entry preserva `amount`, `currency` e `periodicity=MONTHLY`, coerente com a semântica persistida de `estimated_monthly_savings`. Não existe annualization, multiplicação por 12, recorrência mensal automática ou recálculo usando o Pricing Catalog atual.
+          
+          A provenance estruturada inclui a origem do snapshot, `opportunity_observation_id` quando existente, regra, recurso, serviço e região. A observation não recebeu FK nova no ledger porque a estrutura da 23.10 já possui `context` auditável para metadados de origem; assim a integração não exige migration adicional.
+          
+          Uma alteração posterior de `Finding.estimated_monthly_savings` não modifica entries anteriores. Cada novo ciclo financeiramente reconhecido captura seu próprio snapshot.
+          
+          ### Amount e currency
+          
+          Somente saving monetário estritamente positivo e com moeda válida de três letras é elegível para criação automática.
+          
+          - saving inexistente/inválido: treatment conclui sem ledger entry;
+          - saving zero: treatment conclui sem `CREDIT 0`;
+          - saving negativo: não é convertido em `DEBIT` e não cria entry automática;
+          - currency ausente/inválida: não existe default global e nenhuma entry monetária é criada.
+          
+          AWS mantém os snapshots em USD e OCI mantém os snapshots em BRL. O provider é usado apenas como validação de consistência; a moeda persistida no snapshot continua sendo a fonte financeira. Divergência é registrada para observabilidade sem conversão silenciosa.
+          
+          > OCI utiliza BRL e AWS utiliza USD. As moedas permanecem independentes.
+          
+          Não existe FX nem soma entre moedas diferentes. O summary do ledger continua agrupado por moeda conforme a 23.10. As entries automáticas desta etapa são mensais e preservam essa periodicidade individualmente.
+          
+          ### Atomicidade e idempotência
+          
+          O lifecycle cria e faz `flush` do `OpportunityStatusHistory` dentro da mesma transação que reconhecerá o saving. A criação financeira passa exclusivamente por `FinOpsLedgerService`; o lifecycle não insere diretamente na tabela do ledger.
+          
+          A chave idempotente é determinística por evento: `opportunity-treated:{source_event_id}:saving`. A constraint única já existente no ledger e o tratamento transacional de `IntegrityError` protegem retry e processos concorrentes. Requests concorrentes de treatment continuam serializados pelo `FOR UPDATE` do Finding; reconhecer novamente o mesmo event retorna a mesma entry, sem crédito duplicado.
+          
+          Quando não existe saving elegível, o lifecycle humano pode concluir normalmente. Quando existe saving válido mas a criação da entry falha de fato, a exceção propaga e o commit externo não acontece, mantendo treatment, histórico e reconhecimento financeiro como uma unidade consistente.
+          
+          Bulk treatment preserva a semântica all-or-nothing atual. Observations, treatments anteriores e contas são resolvidos em lote antes das criações, evitando consultas de duplicate-check por item. Itens sem saving elegível continuam tratados, mas não criam movimentação fictícia.
+          
+          ### Reopen, re-treatment e novo ciclo
+          
+          > reabrir uma oportunidade não reverte automaticamente o saving anteriormente reconhecido.
+          
+          Reopen, archive/unarchive e reaparecimento não alteram uma entry já registrada. Correções financeiras continuam usando reversal/adjustment do domínio do ledger, de forma independente do lifecycle da oportunidade.
+          
+          Um novo `open -> treated` após tratamento anterior só cria outro `SAVING` quando existe evidência concreta de nova ocorrência técnica: a `OpportunityObservation` mais recente precisa ser posterior ao treatment anterior. Um reopen administrativo seguido de novo treatment sem observation posterior é processado no lifecycle, mas o reconhecimento retorna `NO_NEW_FINANCIAL_EVENT` e não duplica o crédito.
+          
+          Quando existe nova observation posterior, o novo treatment possui seu próprio `OpportunityStatusHistory.id`, sua própria idempotency key e captura o novo snapshot. Assim um primeiro ciclo de 500 USD/mês e um segundo ciclo real de 350 USD/mês geram `+500` e `+350`, nunca `+500` e `+500` por reutilização do snapshot anterior.
+          
+          Para oportunidades legadas sem histórico estável de treatment anterior, um evento de reopen a partir de `treated` funciona como baseline conservadora quando necessário. Isso evita transformar a ausência de ledger histórico em backfill retroativo.
+          
+          ### Ausência de backfill e compatibilidade
+          
+          A implantação da 23.11 não percorre findings já `treated` e não cria entries retroativas. Apenas novos treatment events após a integração podem reconhecer saving. O endpoint existente de treatment mantém seu contrato para preservar frontend e consumidores; o enriquecimento opcional `financial_result` não foi introduzido nesta etapa.
+          
+          Nenhuma migration foi necessária. A `0026_finops_ledger` da 23.10 já fornece `opportunity_id`, `source_event_id`, `idempotency_key`, currency, periodicity, constraints, FKs e proteção append-only necessárias.
+          
+          ### Implementação e testes
+          
+          Principais arquivos da etapa:
+          
+          - `backend/app/services/opportunity_saving_recognition.py`;
+          - `backend/app/services/opportunity_lifecycle.py`;
+          - `backend/app/tests/test_opportunity_saving_recognition.py`;
+          - este `docs/implementation-roadmap.md`.
+          
+          A cobertura focada valida primeiro treatment, `SAVING/CREDIT`, actor/effective date, snapshot imutável, provenance de observation, retry do mesmo event, saving zero/negativo/sem currency, OCI/BRL sem conversão, bulk, reject sem ledger, reopen administrativo sem segundo crédito e novo ciclo real usando seu próprio valor.
+          
+          No head funcional do PR #65 antes deste append documental, o CI #543 aprovou `ruff check .`, `ruff format --check .` e `pytest -q` com **769 testes aprovados** em PostgreSQL 17. Frontend `npm test` e `npm run build`, security, Stage 21 Compose smoke #296 e Auto Deploy Tests #536 também foram aprovados. O head definitivo deve manter esses gates verdes após a atualização documental.
+          
+          ### Limitações deliberadamente preservadas
+          
+          A Etapa 23.11 não implementa cadastro manual de saving, realocação ou adjustment no frontend; isso pertence à 23.12. Também não implementa a aba Fluxo completa, reservada para a 23.13. Permanecem fora de escopo FX, annualization, recorrência automática, backfill financeiro, reversal automático em reopen, saving para `resolved_externally` e redesign global.
+          EOF
 
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
