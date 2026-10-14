@@ -10,6 +10,7 @@ const adminSettingsTabs = [
   { href: "/settings/audit", label: "Auditoria" },
   { href: "/settings/https", label: "HTTPS" },
   { href: "/settings/pricing/oci", label: "Pricing OCI" },
+  { href: "/settings/billing/profiles", label: "Billing" },
 ];
 
 export const legacySettingsRedirects = [
