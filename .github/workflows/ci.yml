@@ -6,7 +6,7 @@ on:
   pull_request:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   backend:
@@ -58,7 +58,6 @@ jobs:
       - run: npm test
       - run: npm run build
 
-
   security:
     runs-on: ubuntu-latest
     steps:
@@ -73,3 +72,25 @@ jobs:
         run: |
           python3 -m pip install --disable-pip-version-check cfn-lint
           cfn-lint infrastructure/cloudformation/deepops-public-security-group.yaml
+
+  append-task-23-14-roadmap:
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 1
+      - name: Append roadmap and push once
+        shell: bash
+        run: |
+          if grep -Fq '## Etapa 23.14 — Backend de AWS Billing com Cost Explorer' docs/implementation-roadmap.md; then
+            echo 'Task 23.14 already documented.'
+            exit 0
+          fi
+          bash scripts/append-task-23-14-roadmap.sh
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add docs/implementation-roadmap.md
+          git commit -m 'docs(roadmap): document task 23.14'
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
