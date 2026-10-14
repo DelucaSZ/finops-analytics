@@ -8,10 +8,50 @@ export type AwsBillingRequest = {
   account_ids: number[];
   start_date: string;
   end_date: string;
+  profile_id?: string;
   granularity?: BillingGranularity;
   metric?: BillingMetric;
   group_by?: BillingGroupBy;
   exclude_record_types?: string[];
+};
+
+export type BillingProfile = {
+  id: string;
+  name: string;
+  description: string | null;
+  granularity: BillingGranularity;
+  metric: BillingMetric;
+  group_by: BillingGroupBy;
+  exclude_record_types: string[];
+  is_default: boolean;
+  enabled: boolean;
+  is_system: boolean;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BillingProfileInput = {
+  name: string;
+  description?: string | null;
+  granularity: BillingGranularity;
+  metric: BillingMetric;
+  group_by: BillingGroupBy;
+  exclude_record_types: string[];
+  is_default?: boolean;
+};
+
+export type ResolvedBillingOptions = {
+  granularity: BillingGranularity;
+  metric: BillingMetric;
+  group_by: BillingGroupBy;
+  exclude_record_types: string[];
+};
+
+export type BillingProfileMetadata = {
+  profile_id: string | null;
+  profile_name: string | null;
+  resolved_options: ResolvedBillingOptions | null;
 };
 
 export type BillingSummaryTotal = {
@@ -20,7 +60,7 @@ export type BillingSummaryTotal = {
   estimated: boolean;
 };
 
-export type BillingSummaryResponse = {
+export type BillingSummaryResponse = BillingProfileMetadata & {
   metric: BillingMetric;
   start_date: string;
   end_date: string;
@@ -32,7 +72,7 @@ export type BillingSeriesPoint = BillingSummaryTotal & {
   end_date: string;
 };
 
-export type BillingTimeSeriesResponse = {
+export type BillingTimeSeriesResponse = BillingProfileMetadata & {
   metric: BillingMetric;
   granularity: BillingGranularity;
   start_date: string;
@@ -48,7 +88,7 @@ export type BillingBreakdownItem = BillingSummaryTotal & {
   display_name: string | null;
 };
 
-export type BillingBreakdownResponse = {
+export type BillingBreakdownResponse = BillingProfileMetadata & {
   metric: BillingMetric;
   group_by: BillingGroupBy;
   start_date: string;
@@ -85,4 +125,33 @@ export function getAwsBillingBreakdown(
   request: AwsBillingRequest & { group_by: Exclude<BillingGroupBy, "NONE"> },
 ): Promise<BillingBreakdownResponse> {
   return postBilling<BillingBreakdownResponse>("/billing/aws/breakdown", request);
+}
+
+export function listBillingProfiles(): Promise<BillingProfile[]> {
+  return api<BillingProfile[]>("/billing/aws/profiles");
+}
+
+export function createBillingProfile(input: BillingProfileInput): Promise<BillingProfile> {
+  return api<BillingProfile>("/billing/aws/profiles", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updateBillingProfile(
+  id: string,
+  input: Partial<Omit<BillingProfileInput, "is_default">>,
+): Promise<BillingProfile> {
+  return api<BillingProfile>(`/billing/aws/profiles/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function setDefaultBillingProfile(id: string): Promise<BillingProfile> {
+  return api<BillingProfile>(`/billing/aws/profiles/${id}/set-default`, { method: "POST" });
+}
+
+export function deactivateBillingProfile(id: string): Promise<BillingProfile> {
+  return api<BillingProfile>(`/billing/aws/profiles/${id}/deactivate`, { method: "POST" });
 }
