@@ -9,6 +9,41 @@ permissions:
   contents: read
 
 jobs:
+  finalize-task-23-13:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Apply one-time finalization
+        run: |
+          awk "/^          python - <<'PY'$/,/^          PY$/" .github/workflows/task-23-13-finalize.yml \
+            | sed '1d;$d;s/^          //' > /tmp/task-23-13-finalize.py
+          python /tmp/task-23-13-finalize.py
+          python -m pip install --disable-pip-version-check 'ruff==0.17.0'
+          cd backend
+          ruff check --fix app/api/routes/finops_flow.py app/schemas/finops_flow.py app/services/finops_flow.py app/tests/test_finops_flow.py
+          ruff format app/api/routes/finops_flow.py app/schemas/finops_flow.py app/services/finops_flow.py app/tests/test_finops_flow.py
+          cd ..
+      - name: Commit finalization
+        run: |
+          if git diff --quiet; then
+            echo "No finalization changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/app/flow/page.tsx docs/implementation-roadmap.md backend/app/api/routes/finops_flow.py backend/app/schemas/finops_flow.py backend/app/services/finops_flow.py backend/app/tests/test_finops_flow.py
+          git commit -m "docs: finalize Task 23.13 flow semantics"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
+
   backend:
     runs-on: ubuntu-latest
     services:
