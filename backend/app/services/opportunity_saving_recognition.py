@@ -68,9 +68,7 @@ class OpportunitySavingRecognitionService:
         self.db = db
         self.ledger = FinOpsLedgerService(db)
 
-    def _latest_observations(
-        self, opportunity_ids: list[str]
-    ) -> dict[str, OpportunityObservation]:
+    def _latest_observations(self, opportunity_ids: list[str]) -> dict[str, OpportunityObservation]:
         if not opportunity_ids:
             return {}
         rows = self.db.scalars(
@@ -119,9 +117,7 @@ class OpportunitySavingRecognitionService:
         # conservative fallback baseline. This prevents retroactive credit without
         # inventing a timestamp for the legacy treatment.
         legacy_ids = [
-            opportunity_id
-            for opportunity_id in opportunity_ids
-            if opportunity_id not in previous
+            opportunity_id for opportunity_id in opportunity_ids if opportunity_id not in previous
         ]
         if legacy_ids:
             reopen_rows = self.db.scalars(
