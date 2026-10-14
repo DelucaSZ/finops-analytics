@@ -62,7 +62,7 @@ test("minimal Fluxo page exposes create, validation, idempotency and reversal wo
   assert.ok(source.includes("BRL — Real brasileiro"));
   assert.ok(source.includes("USD — Dólar americano"));
   assert.ok(source.includes("Data da movimentação"));
-  assert.ok(source.includes("Period icidade".replace(" ", "")) || source.includes("Periodicidade"));
+  assert.ok(source.includes("Periodicidade"));
   assert.ok(source.includes("Descrição"));
   assert.ok(source.includes("crypto.randomUUID()"));
   assert.ok(source.includes("normalizePositiveDecimal(amount)"));
@@ -73,8 +73,7 @@ test("minimal Fluxo page exposes create, validation, idempotency and reversal wo
   assert.ok(source.includes("Motivo da reversão"));
   assert.ok(source.includes("entry.is_reversed"));
   assert.ok(source.includes("entry.reversal_of_id"));
-  assert.ok(source.includes("Manual"));
-  assert.ok(source.includes("Oportunidade"));
+  assert.ok(source.includes("sourceLabel(entry.source)"));
   assert.ok(source.includes("Nenhuma movimentação registrada."));
   assert.ok(source.includes("Carregando movimentações…"));
   assert.ok(source.includes("Não foi possível registrar a movimentação."));
