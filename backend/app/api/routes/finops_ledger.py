@@ -36,8 +36,16 @@ def _filters(
     effective_to: datetime | None,
 ) -> FinOpsLedgerFilters:
     if effective_from and effective_to:
-        left = effective_from if effective_from.tzinfo else effective_from.replace(tzinfo=effective_to.tzinfo)
-        right = effective_to if effective_to.tzinfo else effective_to.replace(tzinfo=effective_from.tzinfo)
+        left = (
+            effective_from
+            if effective_from.tzinfo
+            else effective_from.replace(tzinfo=effective_to.tzinfo)
+        )
+        right = (
+            effective_to
+            if effective_to.tzinfo
+            else effective_to.replace(tzinfo=effective_from.tzinfo)
+        )
         if left >= right:
             raise HTTPException(status_code=422, detail="effective_from must precede effective_to")
     return FinOpsLedgerFilters(
