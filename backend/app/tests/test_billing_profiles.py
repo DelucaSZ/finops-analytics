@@ -3,6 +3,7 @@ from datetime import date
 import pytest
 from pydantic import ValidationError
 from sqlalchemy import create_engine, func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.db.base import Base
@@ -146,7 +147,7 @@ def test_database_rejects_two_defaults(db):
             is_system=False,
         )
     )
-    with pytest.raises(Exception):
+    with pytest.raises(IntegrityError):
         db.commit()
     db.rollback()
 
