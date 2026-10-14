@@ -91,7 +91,11 @@ def test_flow_summary_separates_currency_and_periodicity(auth_env):
     response = http.get("/api/v1/finops/flow/summary", headers=headers(tokens))
     assert response.status_code == 200, response.text
     data = {(item["currency"], item["basis"]): item for item in response.json()}
-    assert set(data) == {("USD", "MONTHLY"), ("USD", "ONE_TIME"), ("BRL", "MONTHLY")}
+    assert set(data) == {
+        ("USD", "MONTHLY"),
+        ("USD", "ONE_TIME"),
+        ("BRL", "MONTHLY"),
+    }
     monthly_usd = data[("USD", "MONTHLY")]
     assert Decimal(monthly_usd["recognized_savings"]) == Decimal("1000")
     assert Decimal(monthly_usd["reallocated"]) == Decimal("300")
@@ -195,10 +199,17 @@ def test_flow_filters_breakdowns_and_timeseries_use_effective_date(auth_env):
         db.commit()
         aws_native = aws.native_account_id
 
-    start = (now - timedelta(days=15)).isoformat()
-    end = (now + timedelta(days=1)).isoformat()
-    query = f"currency=USD&periodicity=ONE_TIME&effective_from={start}&effective_to={end}"
-    series = http.get(f"/api/v1/finops/flow/timeseries?{query}", headers=headers(tokens))
+    params = {
+        "currency": "USD",
+        "periodicity": "ONE_TIME",
+        "effective_from": (now - timedelta(days=15)).isoformat(),
+        "effective_to": (now + timedelta(days=1)).isoformat(),
+    }
+    series = http.get(
+        "/api/v1/finops/flow/timeseries",
+        params=params,
+        headers=headers(tokens),
+    )
     assert series.status_code == 200, series.text
     data = series.json()
     assert data["granularity"] == "day"
@@ -206,7 +217,11 @@ def test_flow_filters_breakdowns_and_timeseries_use_effective_date(auth_env):
     assert Decimal(data["items"][-1]["cumulative_balance"]) == Decimal("100")
     assert all(item["currency"] == "USD" for item in data["items"])
 
-    breakdowns = http.get(f"/api/v1/finops/flow/breakdowns?{query}", headers=headers(tokens))
+    breakdowns = http.get(
+        "/api/v1/finops/flow/breakdowns",
+        params=params,
+        headers=headers(tokens),
+    )
     assert breakdowns.status_code == 200, breakdowns.text
     by_account = breakdowns.json()["by_account"]
     assert len(by_account) == 1
