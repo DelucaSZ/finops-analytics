@@ -42,11 +42,12 @@ test("monetary input stays a positive decimal string", () => {
   assert.equal(normalizePositiveDecimal("1.123456789"), null);
 });
 
-test("money formatting distinguishes BRL and USD", () => {
+test("money formatting and origin labels distinguish multi-currency ledger entries", () => {
   assert.equal(formatLedgerMoney("2500.00", "BRL"), "R$ 2.500,00");
   assert.equal(formatLedgerMoney("2500.00", "USD"), "US$ 2,500.00");
   assert.equal(sourceLabel("MANUAL"), "Manual");
   assert.equal(sourceLabel("OPPORTUNITY"), "Oportunidade");
+  assert.equal(sourceLabel("SYSTEM"), "Sistema");
 });
 
 test("minimal Fluxo page exposes create, validation, idempotency and reversal workflows", async () => {
