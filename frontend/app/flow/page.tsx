@@ -356,15 +356,24 @@ export default function FlowPage() {
     return () => { active = false; };
   }, [globalQuery.provider, globalQuery.account_id, range.from, range.to, reloadToken, chartCurrency, chartBasis]);
 
+  const effectiveChartCurrency = currency === "all" ? chartCurrency : currency;
+  const effectiveChartBasis = periodicity === "all" ? chartBasis : (periodicity as Periodicity);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
     setAnalyticsError("");
     const base = queryString(globalQuery);
-    const chart = queryString({ ...globalQuery, currency: chartCurrency || undefined, periodicity: chartBasis || undefined });
+    const chart = queryString({
+      ...globalQuery,
+      currency: effectiveChartCurrency || undefined,
+      periodicity: effectiveChartBasis || undefined,
+    });
     Promise.all([
       api<SummaryItem[]>(`/finops/flow/summary?${base}`),
-      chartCurrency && chartBasis ? api<TimeseriesResponse>(`/finops/flow/timeseries?${chart}`) : Promise.resolve({ granularity: "month" as const, items: [] }),
+      effectiveChartCurrency && effectiveChartBasis
+        ? api<TimeseriesResponse>(`/finops/flow/timeseries?${chart}`)
+        : Promise.resolve({ granularity: "month" as const, items: [] }),
       api<Breakdowns>(`/finops/flow/breakdowns?${base}`),
     ]).then(([nextSummary, nextSeries, nextBreakdowns]) => {
       if (!active) return;
@@ -375,7 +384,7 @@ export default function FlowPage() {
       if (active) setAnalyticsError(error instanceof Error ? error.message : "Não foi possível carregar os indicadores do Fluxo.");
     }).finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [globalQuery, chartCurrency, chartBasis, reloadToken]);
+  }, [globalQuery, effectiveChartCurrency, effectiveChartBasis, reloadToken]);
 
   useEffect(() => {
     let active = true;
@@ -404,9 +413,19 @@ export default function FlowPage() {
     finally { setReversing(false); }
   }
 
-  const activeSeries = series.items.filter((item) => item.currency === chartCurrency && item.basis === chartBasis);
-  const accountBreakdown = breakdowns.by_account.filter((item) => (!chartCurrency || item.currency === chartCurrency) && (!chartBasis || item.basis === chartBasis));
-  const sourceBreakdown = breakdowns.by_source.filter((item) => (!chartCurrency || item.currency === chartCurrency) && (!chartBasis || item.basis === chartBasis));
+  const activeSeries = series.items.filter(
+    (item) => item.currency === effectiveChartCurrency && item.basis === effectiveChartBasis,
+  );
+  const accountBreakdown = breakdowns.by_account.filter(
+    (item) =>
+      (!effectiveChartCurrency || item.currency === effectiveChartCurrency) &&
+      (!effectiveChartBasis || item.basis === effectiveChartBasis),
+  );
+  const sourceBreakdown = breakdowns.by_source.filter(
+    (item) =>
+      (!effectiveChartCurrency || item.currency === effectiveChartCurrency) &&
+      (!effectiveChartBasis || item.basis === effectiveChartBasis),
+  );
   const maxAccountSaving = Math.max(...accountBreakdown.map((item) => Math.abs(Number(item.recognized_savings))), 1);
 
   return <div className="page-stack">
@@ -433,7 +452,7 @@ export default function FlowPage() {
     </section>
 
     <section className="panel">
-      <div className="opportunity-workspace-toolbar"><div className="selection-summary"><strong>Evolução temporal</strong><small>Valores são agregados no backend por moeda e base financeira; o saldo acumulado inclui o saldo anterior ao período.</small></div><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><label className="dialog-field">Moeda do gráfico<select value={chartCurrency} onChange={(event) => setChartCurrency(event.target.value)}>{options.currencies.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="dialog-field">Base<select value={chartBasis} onChange={(event) => setChartBasis(event.target.value as Periodicity)}>{options.periodicities.map((value) => <option key={value} value={value}>{basisLabels[value as Periodicity]}</option>)}</select></label></div></div>
+      <div className="opportunity-workspace-toolbar"><div className="selection-summary"><strong>Evolução temporal</strong><small>Valores são agregados no backend por moeda e base financeira; o saldo acumulado inclui o saldo anterior ao período.</small></div><div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}><label className="dialog-field">Moeda do gráfico<select value={effectiveChartCurrency} disabled={currency !== "all"} onChange={(event) => setChartCurrency(event.target.value)}>{options.currencies.map((value) => <option key={value} value={value}>{value}</option>)}</select></label><label className="dialog-field">Base<select value={effectiveChartBasis} disabled={periodicity !== "all"} onChange={(event) => setChartBasis(event.target.value as Periodicity)}>{options.periodicities.map((value) => <option key={value} value={value}>{basisLabels[value as Periodicity]}</option>)}</select></label></div></div>
       <FlowChart points={activeSeries} />
     </section>
 

@@ -4288,3 +4288,119 @@ O frontend cobre helpers de direction, defaults AWS/USD e OCI/BRL, filtro de con
 ### Limitações deliberadamente deixadas para a Task 23.13
 
 A Etapa 23.12 não implementa dashboard completo da aba Fluxo, KPIs, gráficos, filtros consolidados, FX, Cost Explorer/Billing, recorrência automática, anualização, budget enforcement, delete físico, edição destrutiva ou redesign global. A Task 23.13 permanece responsável pela experiência consolidada do Fluxo FinOps sobre o mesmo ledger.
+
+
+
+## Etapa 23.13 — Dashboard e experiência completa do Fluxo FinOps
+
+**Status:** implementada na branch `feat/23-13-finops-flow-dashboard` e publicada em PR dedicado; merge na `main` depende de solicitação explícita.
+
+### Objetivo e conceito do Fluxo
+
+A Etapa 23.13 transforma o ledger das etapas 23.10–23.12 em uma experiência operacional de consulta e ação. A área principal passa a ser `Fluxo`, em `/flow`, logo após Oportunidades na navegação. O caminho legado `/finops/ledger` redireciona para a nova rota para preservar compatibilidade.
+
+> Fluxo não representa custo faturado pela cloud. Fluxo representa movimentações FinOps de savings, reutilizações e ajustes.
+
+Billing continua sendo outro domínio: custo cloud faturado/consumido. Esta etapa não consulta Cost Explorer, Billing AWS ou CloudWatch de custo e não mistura custo faturado com o ledger FinOps.
+
+> o ledger é a única fonte de verdade para os valores exibidos nesta área.
+
+A página não recalcula pricing, não deriva saving a partir do estado atual do Finding e não reprocessa histórico. Entries criadas pela 23.11 e 23.12 aparecem naturalmente porque o dashboard lê o mesmo `FinOpsLedgerEntry`.
+
+### Semântica financeira confirmada
+
+O modelo real possui `SAVING`, `REALLOCATION` e `ADJUSTMENT`; reversal não é um quarto `entry_type`. A reversão da 23.12 é uma nova entry `ADJUSTMENT` de direção oposta, `source=SYSTEM` e `reversal_of_id` apontando para a original. O ledger permanece append-only e a original continua consultável.
+
+Para analytics, a reversal herda logicamente `entry_type` e `source` da entry original. Isso permite que a reversão de um `SAVING` reduza `Savings reconhecidos`, e que a reversão de uma `REALLOCATION` reduza `Reutilizado`, em vez de distorcer `Ajustes líquidos`. O efeito matemático continua exatamente o crédito/débito persistido no ledger.
+
+Os KPIs são:
+
+- **Savings reconhecidos:** efeito líquido de entries cujo tipo lógico é `SAVING`;
+- **Reutilizado:** efeito líquido de `REALLOCATION`, apresentado como magnitude de débito e reduzido por reversals;
+- **Ajustes líquidos:** `ADJUSTMENT CREDIT - ADJUSTMENT DEBIT` apenas para adjustments logicamente independentes;
+- **Saldo:** todos os créditos menos todos os débitos no mesmo recorte dimensional.
+
+Saldo negativo é válido e não é truncado para zero. Para `ONE_TIME`, a interface usa `Saldo FinOps disponível` como resultado matemático do ledger, sem prometer caixa bancário ou verba contábil oficial.
+
+### Multi-currency e precisão
+
+> AWS utiliza USD e o pricing OCI fornecido ao projeto utiliza BRL. Valores em moedas diferentes nunca são agregados em um único KPI monetário sem conversão explícita.
+
+O backend agrupa analytics por `currency + periodicity`; o frontend renderiza cards independentes e exige uma moeda única para cada gráfico monetário. O filtro `Todas` é permitido na tabela e no resumo porque cada linha/card conserva sua currency, mas não existe total consolidado BRL+USD. Também não existem percentuais AWS/OCI calculados sobre moedas diferentes.
+
+Não há FX, moeda base ou cotação. Decimal/Numeric continua no backend; contratos monetários analíticos serializam decimal como string. O browser formata os valores e usa conversão numérica apenas para geometria visual do SVG, nunca para recomputar KPI financeiro.
+
+### Periodicidade, run-rate e consistência dimensional
+
+A 23.11 reconhece saving de opportunity como `MONTHLY`, pois o snapshot de origem é `estimated_monthly_savings`. A 23.12 também permite `ONE_TIME` e `MONTHLY` conforme o tipo de entrada.
+
+> grandezas com periodicidades incompatíveis, como `USD/mês` e `USD one-time`, não devem ser somadas como se fossem equivalentes.
+
+Por isso toda agregação financeira nova é segmentada por `currency + periodicity`. A UI distingue `Mensal / run-rate` de `Pontual`: valores mensais são apresentados como `Run-rate reconhecido` e `Saldo líquido de run-rate`, enquanto valores pontuais podem usar `Saldo FinOps disponível`.
+
+> esta etapa não materializa automaticamente savings recorrentes nem anualiza savings mensais.
+
+Não existe `monthly saving × meses`, multiplicação por 12 ou geração retroativa de créditos periódicos.
+
+### Filtros e effective date
+
+O recorte global suporta período, provider, conta, moeda, origem e base financeira. A tabela acrescenta tipo e busca simples por descrição, conta, título/resource/id da oportunidade. O default temporal é `Este ano`, com presets de mês atual, mês anterior, últimos 3/6 meses e intervalo personalizado.
+
+Todos os filtros temporais usam `effective_at`, nunca `created_at`, com limite superior exclusivo para evitar off-by-one. Provider filtra as contas disponíveis no frontend; filtros são enviados ao backend e não aplicados sobre um dataset paginado localmente.
+
+Moeda e base selecionadas globalmente também comandam o gráfico. Quando o global está em `Todas`, o gráfico exige seleção explícita de uma única `currency` e uma única `periodicity`.
+
+### API analítica e read model
+
+Foi criado `FinOpsFlowAnalyticsService`, separado das mutations do ledger, e a API `GET /api/v1/finops/flow/*`:
+
+- `/summary` — KPIs por currency/basis;
+- `/timeseries` — buckets de saving, realocação, adjustment, variação e saldo acumulado;
+- `/breakdowns` — saving por conta (Top N) e por source;
+- `/entries` — ledger enriquecido, filtrado e paginado;
+- `/entries/{id}` — detalhe/provenance;
+- `/options` — currencies, periodicities, providers e sources existentes no ledger.
+
+A camada analítica usa SQL `SUM/GROUP BY`, joins explícitos e paginação. Não carrega milhares de entries para `reduce` no frontend. A granularidade temporal usa dia para janelas de até aproximadamente 45 dias e mês para períodos maiores.
+
+O saldo acumulado é calculado no backend em ordem cronológica. Quando há `effective_from`, o serviço calcula também o saldo de abertura anterior ao período, sob os mesmos filtros de provider/conta/currency/source/type/periodicity, e aplica os deltas do período. A UI apenas renderiza a série retornada.
+
+### Breakdowns e escala
+
+`Savings reconhecidos por conta` usa Top N configurável (default 10), com `Outros` apenas dentro da mesma `currency + periodicity`. `Savings reconhecidos por origem` distingue `OPPORTUNITY`, `MANUAL` e outros sources reais sem fabricar categoria.
+
+Não foi adicionado gráfico de provider baseado em percentuais monetários porque AWS/USD e OCI/BRL não são comparáveis sem FX. Também não foi adicionado breakdown por service nesta etapa porque manual entries não possuem service confiável e a visão por conta/origem já atende o critério sem inferência enganosa.
+
+Os índices existentes da migration `0026_finops_ledger` já cobrem os principais padrões desta leitura: currency/effective date, provider/account/effective date, entry type/effective date e source/source reference. Nenhuma migration ou índice adicional foi necessário nesta etapa.
+
+### Movimentações, detail e provenance
+
+A tabela do Fluxo é server-side paginada e ordenada por `effective_at DESC`, `created_at DESC`. Ela mostra data, tipo lógico, descrição, provider, conta, origem, valor assinado, periodicidade, status e ações. Original revertida e entry de reversal continuam visíveis.
+
+O detalhe apresenta direção, valor/currency, provider/conta, data efetiva, criação, origem, ator, descrição, periodicidade, relacionamento original/reversal e, quando aplicável, opportunity, service e treatment event.
+
+Entries de `OPPORTUNITY` expõem `Ver oportunidade` usando deep link por `opportunity_id`. O detalhe existente de oportunidade resolve Finding diretamente por id, portanto o vínculo continua funcionando quando a oportunidade está arquivada/Histórico; não depende da lista ativa.
+
+### Mutations reutilizadas
+
+`Nova movimentação` reutiliza o contrato e a lógica da 23.12 (`POST /finops/ledger/manual`), incluindo idempotência de submit, source MANUAL, Decimal, provider/conta, periodicidade e autorização server-side. `Reverter` reutiliza `POST /finops/ledger/{id}/reverse`; não existe segunda implementação financeira no dashboard.
+
+Após criação ou reversal, a página invalida/refaz summary, timeseries, breakdowns e tabela. Treatment de opportunity continua criando ledger entry pela 23.11 sem qualquer sincronização paralela; ao abrir Fluxo, a entry já faz parte do read model.
+
+As mutations continuam protegidas por `require_operator`; esconder ou exibir controles no frontend não substitui autorização backend.
+
+### Frontend
+
+A nova página `/flow` segue os componentes e tokens atuais, sem redesign global. O projeto não possuía biblioteca de charts; para evitar introduzir uma segunda dependência visual apenas para esta task, a evolução temporal é renderizada com SVG simples e acessível, alimentado exclusivamente por dados agregados da API.
+
+A página possui loading/error/empty states por blocos funcionais, cards responsivos, filtros adaptáveis, tabela no padrão existente, modal de detalhe e os mesmos diálogos semânticos de criação/reversal da 23.12. O caminho `/finops/ledger` permanece apenas como redirect para `/flow`.
+
+### Testes e validação
+
+A cobertura backend adicionada valida separação currency/periodicity, saldo com saving/realocação/adjustment, multi-currency sem total global, reversal líquido classificado pela entry original, filtros por effective date, timeseries, saldo acumulado, breakdown por conta/origem, paginação, busca e filtro server-side de periodicidade.
+
+Os testes frontend cobrem contrato da rota Fluxo, navegação, filtros, currency/base explícitas, KPIs, ausência de consolidação cross-currency, série temporal, breakdowns, tabela paginada, detail/provenance, deep link de opportunity, criação manual, reversal e redirect da rota legada. O CI executa `ruff check`, `ruff format --check`, `pytest`, `npm test`, `npm run build`, security e os workflows cumulativos do projeto.
+
+### Limitações deliberadas
+
+Permanecem fora da 23.13: Billing AWS/Cost Explorer, CloudWatch cost tracking, FX, base currency, anualização, materialização recorrente, recálculo/backfill de histórico, update/delete destrutivo de ledger e redesign global. Billing será tratado nas etapas 23.14–23.16, observabilidade de custos nas 23.17–23.19 e revisão global de UX/navegação na 23.20.

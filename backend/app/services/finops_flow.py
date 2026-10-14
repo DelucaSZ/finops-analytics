@@ -104,13 +104,11 @@ class FinOpsFlowAnalyticsService:
             conditions.append(entry.currency == _currency(filters.currency))
         if filters.source:
             conditions.append(
-                logical_source
-                == _enum_value(filters.source, FinOpsLedgerSource, "source")
+                logical_source == _enum_value(filters.source, FinOpsLedgerSource, "source")
             )
         if filters.entry_type:
             conditions.append(
-                logical_type
-                == _enum_value(filters.entry_type, FinOpsLedgerEntryType, "entry_type")
+                logical_type == _enum_value(filters.entry_type, FinOpsLedgerEntryType, "entry_type")
             )
         if filters.periodicity:
             conditions.append(
@@ -244,10 +242,7 @@ class FinOpsFlowAnalyticsService:
             .where(*conditions)
             .group_by(entry.currency, entry.periodicity)
         ).all()
-        return {
-            (currency, periodicity): Decimal(value)
-            for currency, periodicity, value in rows
-        }
+        return {(currency, periodicity): Decimal(value) for currency, periodicity, value in rows}
 
     def timeseries(
         self,
@@ -356,9 +351,7 @@ class FinOpsFlowAnalyticsService:
             list[tuple[str, str | None, Decimal]],
         ] = defaultdict(list)
         for currency, basis, account_id, account_name, value in account_rows:
-            grouped_accounts[(currency, basis)].append(
-                (account_id, account_name, Decimal(value))
-            )
+            grouped_accounts[(currency, basis)].append((account_id, account_name, Decimal(value)))
 
         by_account: list[dict[str, Any]] = []
         for (currency, basis), items in sorted(grouped_accounts.items()):
@@ -381,9 +374,7 @@ class FinOpsFlowAnalyticsService:
                         "basis": basis,
                         "account_id": "__other__",
                         "account_name": "Outros",
-                        "recognized_savings": sum(
-                            (item[2] for item in remainder), Decimal("0")
-                        ),
+                        "recognized_savings": sum((item[2] for item in remainder), Decimal("0")),
                     }
                 )
 
@@ -533,9 +524,7 @@ class FinOpsFlowAnalyticsService:
             return None
         item = row[0]
         reversed_by_id = self.db.scalar(
-            select(FinOpsLedgerEntry.id).where(
-                FinOpsLedgerEntry.reversal_of_id == item.id
-            )
+            select(FinOpsLedgerEntry.id).where(FinOpsLedgerEntry.reversal_of_id == item.id)
         )
         return {
             "entry": item,
