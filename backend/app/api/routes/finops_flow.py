@@ -63,9 +63,10 @@ def _filters(
 
 
 def _entry_read(item: dict[str, Any]) -> FinOpsFlowEntryRead:
-    base = FinOpsLedgerEntryRead.model_validate(item["entry"]).model_dump()
-    return FinOpsFlowEntryRead(
-        **base,
+    payload = FinOpsLedgerEntryRead.model_validate(item["entry"]).model_dump()
+    payload.update(
+        is_reversed=item["is_reversed"],
+        reversed_by_id=item["reversed_by_id"],
         account_name=item["account_name"],
         created_by_name=item["created_by_name"],
         opportunity_title=item["opportunity_title"],
@@ -74,9 +75,8 @@ def _entry_read(item: dict[str, Any]) -> FinOpsFlowEntryRead:
         logical_entry_type=item["logical_entry_type"],
         logical_source=item["logical_source"],
         is_reversal=item["is_reversal"],
-        is_reversed=item["is_reversed"],
-        reversed_by_id=item["reversed_by_id"],
     )
+    return FinOpsFlowEntryRead(**payload)
 
 
 def _common_filters(
