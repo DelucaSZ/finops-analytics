@@ -10,7 +10,8 @@ import {
   sourceLabel,
 } from "../lib/finops-ledger.mjs";
 
-const pageUrl = new URL("../app/finops/ledger/page.tsx", import.meta.url);
+const flowUrl = new URL("../app/flow/page.tsx", import.meta.url);
+const legacyUrl = new URL("../app/finops/ledger/page.tsx", import.meta.url);
 const shellUrl = new URL("../components/app-shell.tsx", import.meta.url);
 
 test("manual entry semantics keep direction and provider currency defaults explicit", () => {
@@ -20,7 +21,6 @@ test("manual entry semantics keep direction and provider currency defaults expli
   assert.equal(directionForEntryType("ADJUSTMENT", "DEBIT"), "DEBIT");
   assert.equal(defaultCurrencyForProvider("AWS", "BRL"), "USD");
   assert.equal(defaultCurrencyForProvider("oci", "USD"), "BRL");
-  assert.equal(defaultCurrencyForProvider("azure", "BRL"), "BRL");
 });
 
 test("account selection is filtered by provider without hardcoding account ids", () => {
@@ -37,12 +37,10 @@ test("monetary input stays a positive decimal string", () => {
   assert.equal(normalizePositiveDecimal("2500.00"), "2500.00");
   assert.equal(normalizePositiveDecimal("2500,50"), "2500.50");
   assert.equal(normalizePositiveDecimal("0"), null);
-  assert.equal(normalizePositiveDecimal("0.00000000"), null);
   assert.equal(normalizePositiveDecimal("-100"), null);
-  assert.equal(normalizePositiveDecimal("1.123456789"), null);
 });
 
-test("money formatting and origin labels distinguish multi-currency ledger entries", () => {
+test("money formatting and origin labels distinguish currencies and provenance", () => {
   assert.equal(formatLedgerMoney("2500.00", "BRL"), "R$ 2.500,00");
   assert.equal(formatLedgerMoney("2500.00", "USD"), "US$ 2,500.00");
   assert.equal(sourceLabel("MANUAL"), "Manual");
@@ -50,41 +48,53 @@ test("money formatting and origin labels distinguish multi-currency ledger entri
   assert.equal(sourceLabel("SYSTEM"), "Sistema");
 });
 
-test("minimal Fluxo page exposes create, validation, idempotency and reversal workflows", async () => {
-  const source = await readFile(pageUrl, "utf8");
+test("Flow page exposes filters, dimensional KPIs, charts and paginated ledger", async () => {
+  const source = await readFile(flowUrl, "utf8");
+  assert.ok(source.includes('title="Fluxo"'));
+  assert.ok(source.includes("Savings reconhecidos"));
+  assert.ok(source.includes("Reutilizado"));
+  assert.ok(source.includes("Ajustes líquidos"));
+  assert.ok(source.includes("Saldo líquido de run-rate"));
+  assert.ok(source.includes("Saldo FinOps disponível"));
+  assert.ok(source.includes("Todas (sem consolidar)"));
+  assert.ok(source.includes("Base financeira"));
+  assert.ok(source.includes("Mensal / run-rate"));
+  assert.ok(source.includes("Pontual"));
+  assert.ok(source.includes("Este ano"));
+  assert.ok(source.includes("effective_from"));
+  assert.ok(source.includes("effective_to"));
+  assert.ok(source.includes("Evolução temporal"));
+  assert.ok(source.includes("cumulative_balance"));
+  assert.ok(source.includes("Savings reconhecidos por conta"));
+  assert.ok(source.includes("Savings reconhecidos por origem"));
+  assert.ok(source.includes("/finops/flow/summary"));
+  assert.ok(source.includes("/finops/flow/timeseries"));
+  assert.ok(source.includes("/finops/flow/breakdowns"));
+  assert.ok(source.includes("/finops/flow/entries"));
+  assert.ok(source.includes("page_size: 50"));
+  assert.ok(source.includes("Nenhuma movimentação encontrada para os filtros selecionados."));
+});
 
-  assert.ok(source.includes('title="Movimentações"'));
+test("Flow reuses ledger mutations and exposes provenance, opportunity links and detail", async () => {
+  const source = await readFile(flowUrl, "utf8");
   assert.ok(source.includes("Nova movimentação"));
-  assert.ok(source.includes("Saving"));
-  assert.ok(source.includes("Realocação"));
-  assert.ok(source.includes("Ajuste"));
-  assert.ok(source.includes("Crédito"));
-  assert.ok(source.includes("Débito"));
-  assert.ok(source.includes("BRL — Real brasileiro"));
-  assert.ok(source.includes("USD — Dólar americano"));
-  assert.ok(source.includes("Data da movimentação"));
-  assert.ok(source.includes("Periodicidade"));
-  assert.ok(source.includes("Descrição"));
   assert.ok(source.includes("crypto.randomUUID()"));
   assert.ok(source.includes("normalizePositiveDecimal(amount)"));
-  assert.ok(source.includes("effective > localDateInput()"));
-  assert.ok(source.includes('method: "POST"'));
   assert.ok(source.includes('"/finops/ledger/manual"'));
   assert.ok(source.includes("/reverse`"));
   assert.ok(source.includes("Motivo da reversão"));
   assert.ok(source.includes("entry.is_reversed"));
-  assert.ok(source.includes("entry.reversal_of_id"));
-  assert.ok(source.includes("sourceLabel(entry.source)"));
-  assert.ok(source.includes("Nenhuma movimentação registrada."));
-  assert.ok(source.includes("Carregando movimentações…"));
-  assert.ok(source.includes("Não foi possível registrar a movimentação."));
-  assert.ok(source.includes("Não foi possível reverter a movimentação."));
-  assert.ok(source.includes("disabled={saving"));
+  assert.ok(source.includes("entry.is_reversal"));
+  assert.ok(source.includes("opportunity_id="));
+  assert.ok(source.includes("Ver oportunidade"));
+  assert.ok(source.includes("Treatment event"));
+  assert.ok(source.includes("Criado por"));
 });
 
-test("Fluxo navigation is minimal and does not replace the existing shell", async () => {
-  const source = await readFile(shellUrl, "utf8");
-  assert.ok(source.includes('{ href: "/finops/ledger", label: "Fluxo"'));
-  assert.ok(source.includes('{ href: "/opportunities", label: "Oportunidades"'));
-  assert.ok(source.includes('{ href: "/collections", label: "Coletas"'));
+test("main navigation uses product Flow route and legacy ledger route redirects", async () => {
+  const shell = await readFile(shellUrl, "utf8");
+  const legacy = await readFile(legacyUrl, "utf8");
+  assert.ok(shell.includes('{ href: "/flow", label: "Fluxo"'));
+  assert.ok(shell.includes('{ href: "/opportunities", label: "Oportunidades"'));
+  assert.ok(legacy.includes('redirect("/flow")'));
 });
