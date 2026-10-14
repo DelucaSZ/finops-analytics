@@ -25,9 +25,11 @@ test("accounts and policies live inside settings for every authenticated role", 
   assert.ok(!viewer.includes("/settings/audit"));
   assert.ok(!viewer.includes("/settings/https"));
   assert.ok(!viewer.includes("/settings/pricing/oci"));
+  assert.ok(!viewer.includes("/settings/billing/profiles"));
 
   const admin = settingsTabsForRole("admin").map((tab) => tab.href);
   assert.ok(admin.includes("/settings/pricing/oci"));
+  assert.ok(admin.includes("/settings/billing/profiles"));
 });
 
 test("settings active state supports nested routes without widening admin-only areas", () => {
@@ -38,6 +40,7 @@ test("settings active state supports nested routes without widening admin-only a
   assert.equal(isAdminOnlySettingsPath("/settings/users/123"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/pricing/oci"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/pricing/oci/history"), true);
+  assert.equal(isAdminOnlySettingsPath("/settings/billing/profiles"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/accounts/123"), false);
   assert.equal(isAdminOnlySettingsPath("/settings/policies"), false);
 });
@@ -62,13 +65,14 @@ test("legacy account and policy routes redirect canonically under settings", asy
   ]);
 });
 
-test("main navigation no longer duplicates accounts or policies and old page implementations are removed", async () => {
+test("main navigation no longer duplicates accounts or policies and settings pages exist", async () => {
   const shell = await readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8");
   assert.ok(!shell.includes('href: "/accounts"'));
   assert.ok(!shell.includes('href: "/policies"'));
   await access(new URL("../app/settings/accounts/page.tsx", import.meta.url));
   await access(new URL("../app/settings/policies/page.tsx", import.meta.url));
   await access(new URL("../app/settings/pricing/oci/page.tsx", import.meta.url));
+  await access(new URL("../app/settings/billing/profiles/page.tsx", import.meta.url));
   await assert.rejects(access(new URL("../app/accounts/page.tsx", import.meta.url)));
   await assert.rejects(access(new URL("../app/policies/page.tsx", import.meta.url)));
 });
