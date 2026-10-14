@@ -244,9 +244,7 @@ class FinOpsLedgerService:
         description: str | None = None,
     ) -> FinOpsLedgerEntry:
         original = self.db.scalar(
-            select(FinOpsLedgerEntry)
-            .where(FinOpsLedgerEntry.id == entry_id)
-            .with_for_update()
+            select(FinOpsLedgerEntry).where(FinOpsLedgerEntry.id == entry_id).with_for_update()
         )
         if original is None:
             raise FinOpsLedgerNotFoundError("FinOps ledger entry not found")
@@ -338,9 +336,7 @@ class FinOpsLedgerService:
     ) -> dict[str, Any]:
         conditions = self._conditions(filters)
         total = (
-            self.db.scalar(
-                select(func.count()).select_from(FinOpsLedgerEntry).where(*conditions)
-            )
+            self.db.scalar(select(func.count()).select_from(FinOpsLedgerEntry).where(*conditions))
             or 0
         )
         items = list(
