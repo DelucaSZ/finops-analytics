@@ -300,9 +300,7 @@ def test_management_account_is_filtered_to_its_registered_linked_account():
         "Dimensions": {"Key": "LINKED_ACCOUNT", "Values": ["111111111111"]}
     }
     member_filter = clients[member.native_account_id].queries[0]["Filter"]
-    assert member_filter == {
-        "Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit"]}}
-    }
+    assert member_filter == {"Not": {"Dimensions": {"Key": "RECORD_TYPE", "Values": ["Credit"]}}}
 
 
 def test_unknown_internal_account_is_rejected_before_aws_call():
@@ -333,9 +331,7 @@ def test_future_period_is_rejected_before_aws_call():
     service = _service([account], {account.native_account_id: client})
 
     with pytest.raises(BillingServiceError) as error:
-        service.summary(
-            _request(start=date(2026, 10, 15), end=date(2026, 10, 16))
-        )
+        service.summary(_request(start=date(2026, 10, 15), end=date(2026, 10, 16)))
 
     assert error.value.code == "INVALID_PERIOD"
     assert client.queries == []
@@ -343,9 +339,7 @@ def test_future_period_is_rejected_before_aws_call():
 
 def test_identical_query_hits_cache_but_metric_change_misses():
     account = _account(1, "111111111111", "Prod")
-    client = _ServiceClient(
-        [{"ResultsByTime": [_bucket("2026-10-01", "2026-10-02", "10")]}]
-    )
+    client = _ServiceClient([{"ResultsByTime": [_bucket("2026-10-01", "2026-10-02", "10")]}])
     service = _service([account], {account.native_account_id: client})
 
     service.summary(_request())
@@ -369,9 +363,7 @@ def test_service_breakdown_by_service_aggregates_accounts_in_same_currency():
                     "Groups": [
                         {
                             "Keys": ["Amazon Elastic Compute Cloud - Compute"],
-                            "Metrics": {
-                                "AmortizedCost": {"Amount": str(amount), "Unit": "USD"}
-                            },
+                            "Metrics": {"AmortizedCost": {"Amount": str(amount), "Unit": "USD"}},
                         }
                     ],
                 }
@@ -403,9 +395,7 @@ def test_account_breakdown_maps_registered_account_name():
                         "Groups": [
                             {
                                 "Keys": ["111111111111"],
-                                "Metrics": {
-                                    "AmortizedCost": {"Amount": "42", "Unit": "USD"}
-                                },
+                                "Metrics": {"AmortizedCost": {"Amount": "42", "Unit": "USD"}},
                             }
                         ],
                     }
