@@ -1,0 +1,73 @@
+## Etapa 23.15 — Perfis e presets de AWS Billing
+
+**Status:** implementada na branch `feat/23-15-billing-profiles` e publicada em PR dedicado; merge na `main` depende de solicitação explícita.
+
+### Objetivo e separação de responsabilidades
+
+A Etapa 23.15 adiciona configurações persistentes e reutilizáveis para o backend AWS Billing da 23.14. Um Billing Profile descreve a metodologia da consulta; não substitui `AwsBillingService`, não monta uma segunda query do Cost Explorer e não persiste resultados financeiros.
+
+> o profile padrão `FinOps` representa atualmente a visão operacional `DAILY + AmortizedCost + exclusão de Credit`.
+
+> profiles armazenam metodologia/configuração de consulta, não resultados financeiros e não concedem acesso a contas.
+
+> período e seleção de contas permanecem parâmetros da consulta e não precisam ser acoplados ao profile.
+
+Billing continua independente de Fluxo. Nenhum profile cria savings, movimentação no ledger, forecast, dado OCI ou conversão cambial.
+
+### Modelo, ownership e autorização
+
+A arquitetura atual não possui tenant nem ACL persistida por usuário/conta. Por isso `BillingProfile` é global ao ambiente DeepOps, seguindo o mesmo escopo operacional global já usado pela autorização de contas da 23.14, sem inventar multi-tenancy.
+
+O modelo persiste `id`, `name`, `description`, `granularity`, `metric`, `group_by`, `exclude_record_types`, `is_default`, `enabled`, `is_system`, `created_by`, `created_at` e `updated_at`. `created_by` é preenchido server-side em profiles criados pela API; o profile de sistema não falsifica ator.
+
+Leitura e uso de profiles exigem usuário autenticado. Mutations de configuração exigem `admin`, coerente com as demais configurações globais. Profile não altera nem amplia as permissões das contas consultadas: `AwsBillingService` continua resolvendo somente `CloudAccount` existente e autorizado pelo modelo atual.
+
+### Profile FinOps, seed e default
+
+A migration `0027_billing_profiles` cria a tabela, constraints, índices e o profile de sistema `FinOps` com `DAILY`, `AMORTIZED_COST`, `group_by=NONE` e `exclude_record_types=[Credit]`. Ele nasce como default em instalação nova.
+
+Além da migration, o startup executa bootstrap idempotente: se `FinOps` já existir, nenhuma configuração é sobrescrita; se estiver ausente, ele é criado e só assume `is_default=true` quando nenhum outro default existir. Assim o bootstrap reexecutado não duplica o profile nem destrói customizações.
+
+Existe no máximo um default global. A troca bloqueia as linhas de profile na transação, remove o default anterior e marca o novo; um índice parcial único em PostgreSQL/SQLite funciona como segunda proteção contra dois defaults concorrentes. O default não pode ser desativado. O profile de sistema permanece habilitado como fallback.
+
+### Domínio configurável
+
+Os profiles reutilizam exatamente os enums e validações da 23.14: granularidade `DAILY` ou `MONTHLY`; métricas `AMORTIZED_COST`, `NET_AMORTIZED_COST` e `UNBLENDED_COST`; grouping `NONE`, `SERVICE` ou `ACCOUNT`; e `exclude_record_types` validado contra os record types aceitos pelo backend AWS. Strings arbitrárias são rejeitadas pelo contrato.
+
+Datas absolutas e `account_ids` não fazem parte de `BillingProfile`. A mesma metodologia pode ser aplicada a diferentes períodos e conjuntos de contas sem criar profiles duplicados.
+
+### Resolução e runtime overrides
+
+A API pública de Billing aceita `profile_id` opcional. Antes de chamar `AwsBillingService`, `BillingProfileService` resolve uma requisição canônica `AwsBillingRequest`. A precedência é explícita:
+
+`override explícito > profile selecionado > profile default > defaults técnicos do sistema`.
+
+`granularity`, `metric`, `group_by` e `exclude_record_types` podem ser sobrescritos apenas para a chamada corrente; o profile persistido não é alterado. `account_ids`, `start_date` e `end_date` continuam obrigatoriamente no escopo da request.
+
+As respostas de summary, timeseries e breakdown incluem `profile_id`, `profile_name` e `resolved_options`, permitindo à futura UI mostrar a configuração efetivamente usada sem inferir defaults.
+
+### Cache e integração com 23.14
+
+A resolução do profile acontece antes de `AwsBillingService`. A cache key da 23.14 continua contendo billing scope, conta interna, período, granularidade, métrica, grouping e record types excluídos. `profile_id` não entra na chave.
+
+Consequentemente, dois profiles que resolvem para a mesma query podem compartilhar a mesma entrada de cache; editar um profile para outra configuração produz naturalmente outra chave. Não existe invalidação especial por profile e nenhuma resposta financeira é gravada no profile.
+
+### API de profiles
+
+Foram adicionados endpoints sob `/api/v1/billing/aws/profiles`: listagem, detalhe, criação, edição, `set-default` e `deactivate`. Perfis inativos não podem ser selecionados para novas consultas. Delete físico e duplicação dedicada não são necessários nesta etapa; a estratégia adotada é desativação para profiles customizados.
+
+### Interface mínima
+
+`Configurações → Billing` expõe uma área administrativa simples para listar, criar, editar, definir default e desativar profiles. O formulário usa labels amigáveis para métricas/granularidade/grouping e record types controlados pelo backend. O profile `FinOps` mostra claramente o estado padrão e o resumo da metodologia.
+
+Essa tela é somente configuração. Dashboard, gráficos e a experiência final multi-account permanecem para a 23.16.
+
+### Migration e testes
+
+A revisão `0027_billing_profiles` parte de `0026_finops_ledger`, cria a tabela com FKs/timestamps/constraints, unicidade de nome, índice parcial para um único default e seed inicial. A suíte cumulativa de migrations continua validando SQLite e PostgreSQL e `compare_metadata(...) == []`.
+
+Testes focados cobrem seed idempotente, preservação de customização, domínio inválido, criação/edição, conflito de nome, troca/default único, proteção de desativação, resolução do profile, default implícito, fallback `FinOps`, overrides, separação de datas/contas e rejeição de profile inativo. As suítes da 23.14 continuam cobrindo query builder, Cost Explorer, cache, autorização, multi-account, summary, timeseries e breakdown.
+
+### Limitações deliberadas para a 23.16
+
+Ficam fora desta etapa: dashboard Billing completo, gráficos de custo, seletor multi-account final, UX de exploração completa e outras visualizações. Também continuam fora forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, materialização contábil de Billing, integração com Fluxo e redesign global.
