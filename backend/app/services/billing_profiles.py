@@ -51,11 +51,13 @@ class ResolvedBillingRequest:
 def ensure_finops_profile(db: Session) -> BillingProfile:
     """Create the system FinOps profile once without overwriting existing customization."""
 
-    existing = db.scalar(
-        select(BillingProfile).where(
-            func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower()
+    existing = db.get(BillingProfile, FINOPS_SYSTEM_PROFILE_ID)
+    if existing is None:
+        existing = db.scalar(
+            select(BillingProfile).where(
+                func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower()
+            )
         )
-    )
     if existing is not None:
         return existing
 
@@ -78,11 +80,13 @@ def ensure_finops_profile(db: Session) -> BillingProfile:
         db.commit()
     except IntegrityError:
         db.rollback()
-        concurrent = db.scalar(
-            select(BillingProfile).where(
-                func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower()
+        concurrent = db.get(BillingProfile, FINOPS_SYSTEM_PROFILE_ID)
+        if concurrent is None:
+            concurrent = db.scalar(
+                select(BillingProfile).where(
+                    func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower()
+                )
             )
-        )
         if concurrent is not None:
             return concurrent
         raise
