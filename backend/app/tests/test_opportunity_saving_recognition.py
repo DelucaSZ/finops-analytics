@@ -264,15 +264,18 @@ def test_administrative_reopen_and_retreat_does_not_duplicate_saving(auth_env):
         finding.currency = "USD"
         db.commit()
 
-    assert http.post(
-        "/api/v1/findings/finding/treat", headers=headers(tokens), json={}
-    ).status_code == 200
-    assert http.post(
-        "/api/v1/findings/finding/reopen", headers=headers(tokens), json={}
-    ).status_code == 200
-    assert http.post(
-        "/api/v1/findings/finding/treat", headers=headers(tokens), json={}
-    ).status_code == 200
+    assert (
+        http.post("/api/v1/findings/finding/treat", headers=headers(tokens), json={}).status_code
+        == 200
+    )
+    assert (
+        http.post("/api/v1/findings/finding/reopen", headers=headers(tokens), json={}).status_code
+        == 200
+    )
+    assert (
+        http.post("/api/v1/findings/finding/treat", headers=headers(tokens), json={}).status_code
+        == 200
+    )
 
     with Session(engine) as db:
         assert len(_treatment_events(db, "finding")) == 2
@@ -347,9 +350,7 @@ def test_bulk_treatment_creates_only_eligible_entries_and_remains_atomic(auth_en
     with Session(engine) as db:
         assert db.scalar(select(func.count()).select_from(OpportunityStatusHistory)) == 3
         entries = list(
-            db.scalars(
-                select(FinOpsLedgerEntry).where(FinOpsLedgerEntry.source == "OPPORTUNITY")
-            )
+            db.scalars(select(FinOpsLedgerEntry).where(FinOpsLedgerEntry.source == "OPPORTUNITY"))
         )
         assert sorted(entry.amount for entry in entries) == [Decimal("100"), Decimal("250")]
 
