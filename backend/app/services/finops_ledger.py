@@ -27,6 +27,8 @@ from app.models.user import User
 
 logger = logging.getLogger(__name__)
 
+MANUAL_CURRENCIES = frozenset({"BRL", "USD"})
+
 
 class FinOpsLedgerError(ValueError):
     pass
@@ -229,11 +231,115 @@ class FinOpsLedgerService:
         )
         return entry
 
+    def create_manual_entry(
+        self,
+        *,
+        entry_type: str,
+        direction: str | None,
+        provider: str,
+        cloud_account_id: int,
+        amount: Decimal | str | int,
+        currency: str,
+        effective_at: datetime,
+        actor: User,
+        description: str,
+        manual_entry_request_id: str,
+        periodicity: str = FinOpsLedgerPeriodicity.ONE_TIME.value,
+        reference_period_start: date | None = None,
+        reference_period_end: date | None = None,
+    ) -> FinOpsLedgerEntry:
+        """Create an authenticated manual movement without exposing provenance fields."""
+        try:
+            provider_value = normalize_provider(provider)
+        except ValueError as exc:
+            raise FinOpsLedgerError(f"Unsupported provider: {provider}") from exc
+        account = self._account(cloud_account_id, provider_value)
+
+        type_value = _enum_value(entry_type, FinOpsLedgerEntryType, "entry_type")
+        if type_value == FinOpsLedgerEntryType.SAVING.value:
+            if (
+                direction is not None
+                and _enum_value(direction, FinOpsLedgerDirection, "direction")
+                != FinOpsLedgerDirection.CREDIT.value
+            ):
+                raise FinOpsLedgerError("SAVING entries must use CREDIT direction")
+            direction_value = FinOpsLedgerDirection.CREDIT.value
+        elif type_value == FinOpsLedgerEntryType.REALLOCATION.value:
+            if (
+                direction is not None
+                and _enum_value(direction, FinOpsLedgerDirection, "direction")
+                != FinOpsLedgerDirection.DEBIT.value
+            ):
+                raise FinOpsLedgerError("REALLOCATION entries must use DEBIT direction")
+            direction_value = FinOpsLedgerDirection.DEBIT.value
+        else:
+            if direction is None:
+                raise FinOpsLedgerError("ADJUSTMENT entries require direction")
+            direction_value = _enum_value(direction, FinOpsLedgerDirection, "direction")
+
+        currency_value = _currency(currency)
+        if currency_value not in MANUAL_CURRENCIES:
+            raise FinOpsLedgerError("Manual entries currently support BRL and USD currencies")
+
+        normalized_description = description.strip()
+        if len(normalized_description) < 3:
+            raise FinOpsLedgerError("description must contain at least 3 characters")
+
+        effective_value = _aware(effective_at)
+        if effective_value.astimezone(UTC).date() > utcnow().astimezone(UTC).date():
+            raise FinOpsLedgerError("effective_date cannot be in the future")
+
+        request_id = str(manual_entry_request_id).strip()
+        if not request_id:
+            raise FinOpsLedgerError("manual_entry_request_id is required")
+        key = f"manual:{request_id}"
+
+        entry = self.create_entry(
+            entry_type=type_value,
+            direction=direction_value,
+            cloud_account_id=account.id,
+            amount=amount,
+            currency=currency_value,
+            effective_at=effective_value,
+            source=FinOpsLedgerSource.MANUAL.value,
+            actor=actor,
+            description=normalized_description,
+            idempotency_key=key,
+            periodicity=periodicity,
+            reference_period_start=reference_period_start,
+            reference_period_end=reference_period_end,
+            context={"manual_entry_request_id": request_id},
+        )
+        logger.info(
+            "manual_finops_entry_created entry_id=%s entry_type=%s direction=%s currency=%s "
+            "provider=%s account=%s actor=%s",
+            entry.id,
+            entry.entry_type,
+            entry.direction,
+            entry.currency,
+            entry.provider,
+            entry.account_id,
+            actor.id,
+        )
+        return entry
+
     def get_entry(self, entry_id: str) -> FinOpsLedgerEntry:
         entry = self.db.get(FinOpsLedgerEntry, entry_id)
         if entry is None:
             raise FinOpsLedgerNotFoundError("FinOps ledger entry not found")
         return entry
+
+    def reversal_map(self, entry_ids: list[str]) -> dict[str, str]:
+        if not entry_ids:
+            return {}
+        rows = self.db.execute(
+            select(FinOpsLedgerEntry.reversal_of_id, FinOpsLedgerEntry.id).where(
+                FinOpsLedgerEntry.reversal_of_id.in_(entry_ids)
+            )
+        ).all()
+        return {
+            original_id: reversal_id for original_id, reversal_id in rows if original_id is not None
+        }
 
     def reverse_entry(
         self,
@@ -261,6 +367,7 @@ class FinOpsLedgerService:
             if original.direction == FinOpsLedgerDirection.CREDIT.value
             else FinOpsLedgerDirection.CREDIT.value
         )
+        normalized_description = (description or f"Reversal of ledger entry {original.id}").strip()
         reversal = FinOpsLedgerEntry(
             entry_type=FinOpsLedgerEntryType.ADJUSTMENT.value,
             direction=reverse_direction,
@@ -273,8 +380,8 @@ class FinOpsLedgerService:
             source=FinOpsLedgerSource.SYSTEM.value,
             source_reference=original.id,
             idempotency_key=f"finops-reversal:{original.id}",
-            description=(description or f"Reversal of ledger entry {original.id}").strip(),
-            context={"reversal_of": original.id},
+            description=normalized_description,
+            context={"reversal_of": original.id, "reason": normalized_description},
             periodicity=original.periodicity,
             reference_period_start=original.reference_period_start,
             reference_period_end=original.reference_period_end,
@@ -289,11 +396,16 @@ class FinOpsLedgerService:
             raise FinOpsLedgerConflictError("FinOps ledger entry is already reversed") from exc
 
         logger.info(
-            "finops_ledger_entry_reversed entry_id=%s reversal_id=%s currency=%s provider=%s",
+            "finops_entry_reversed entry_id=%s reversal_id=%s entry_type=%s direction=%s "
+            "currency=%s provider=%s account=%s actor=%s",
             original.id,
             reversal.id,
+            reversal.entry_type,
+            reversal.direction,
             reversal.currency,
             reversal.provider,
+            reversal.account_id,
+            actor.id if actor is not None else "system",
         )
         return reversal
 
