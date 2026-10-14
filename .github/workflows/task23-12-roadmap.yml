@@ -1,0 +1,119 @@
+name: Task 23.12 roadmap update
+
+on:
+  push:
+    branches: [feat/23-12-manual-finops-flow]
+    paths: [.github/workflows/task23-12-roadmap.yml]
+
+permissions:
+  contents: write
+
+jobs:
+  append-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/23-12-manual-finops-flow
+      - name: Append Task 23.12 documentation
+        shell: bash
+        run: |
+          cat >> docs/implementation-roadmap.md <<'ROADMAP'
+
+
+          ## Etapa 23.12 — Cadastro manual de movimentações do Fluxo FinOps
+
+          **Status:** implementada na branch `feat/23-12-manual-finops-flow` e publicada no PR #66; merge na `main` depende de solicitação explícita.
+
+          ### Objetivo e arquitetura
+
+          A Etapa 23.12 adiciona cadastro administrativo de movimentações financeiras que não nasceram de uma opportunity tratada, reutilizando integralmente `FinOpsLedgerEntry` e `FinOpsLedgerService` criados na 23.10. Não existe segundo modelo financeiro, tabela paralela ou bypass de service.
+
+          São suportadas três entradas manuais: `SAVING`, `REALLOCATION` e `ADJUSTMENT`. Saving sempre gera `CREDIT`; Realocation sempre gera `DEBIT`; Adjustment exige escolha explícita entre `CREDIT` e `DEBIT`. `amount` continua estritamente positivo e o sinal financeiro é representado exclusivamente por `direction`.
+
+          > movimentações criadas manualmente utilizam `source = MANUAL` e nunca simulam uma origem `OPPORTUNITY`.
+
+          O endpoint manual não aceita provenance interno, `created_by` nem `reversal_of`. O source é fixado server-side e o autor é derivado do usuário autenticado. Mutations de criação e reversão reutilizam `require_operator`, coerente com as mutations financeiras/lifecycle sensíveis já existentes; leituras continuam disponíveis para usuários autenticados.
+
+          ### Provider, conta, amount e currency
+
+          Toda movimentação manual permanece vinculada a `CloudAccount`, porque o modelo real da 23.10 possui `cloud_account_id` obrigatório. Portanto esta etapa exige conta também para `ADJUSTMENT`; tornar adjustment global exigiria alterar o contrato persistente do ledger e não foi inventado nesta task.
+
+          O backend normaliza provider e valida que a conta selecionada existe e pertence ao mesmo provider. A UI deriva os providers das contas disponíveis e filtra o select de conta pelo provider, evitando combinações AWS/OCI incoerentes.
+
+          Valores monetários continuam em `Decimal`/`Numeric(20,8)` no backend e são enviados pelo frontend como string decimal. Moeda é explícita e obrigatória. A UI sugere `USD` para AWS e `BRL` para OCI, mas essa relação não é acoplada estruturalmente ao domínio: uma movimentação manual legítima pode declarar outra moeda suportada desde que permaneça explícita.
+
+          > AWS e OCI mantêm suas moedas originais. Atualmente AWS utiliza USD e o pricing OCI fornecido ao projeto utiliza BRL. Nenhuma agregação ou conversão entre moedas diferentes é realizada automaticamente.
+
+          A criação manual desta etapa aceita `BRL` e `USD`. Não existe FX, cotação, moeda-base global ou total convertido. O summary existente continua agrupando por `currency/direction` no banco e nunca soma BRL e USD diretamente.
+
+          ### Data efetiva, periodicidade e descrição
+
+          O formulário expõe `effective_date` com default no dia corrente e permite datas retroativas. Cadastro manual com data futura é rejeitado no backend e limitado também na UI. `created_at` continua sendo o instante real de persistência, separado da data financeira efetiva.
+
+          Saving expõe `ONE_TIME` e `MONTHLY`; Realocation e Adjustment usam `ONE_TIME` por default nesta experiência. O ledger continua armazenando periodicidade e período de referência quando aplicável, sem materializar ocorrências futuras.
+
+          > esta etapa não implementa recorrência automática de savings mensais nem anualização de valores.
+
+          A descrição é obrigatória nas movimentações manuais, com validação mínima simples, para manter contexto humano de auditoria.
+
+          ### Idempotência
+
+          Cada abertura de formulário gera um UUID de submissão `manual_entry_request_id`. O backend transforma esse identificador em `idempotency_key=manual:<uuid>` e reutiliza a proteção única da 23.10. Retry da mesma submissão retorna a mesma entry, sem duplicar crédito/débito. O botão de submit também fica desabilitado durante a mutation.
+
+          ### Append-only, reversal e adjustment
+
+          > o ledger continua append-only. Uma movimentação incorreta deve ser corrigida através de reversal ou adjustment, e não por edição/destruição do registro original.
+
+          A proteção ORM da 23.10 contra UPDATE/DELETE permanece intacta. Nenhum endpoint de edição ou delete físico foi criado.
+
+          Reversal é uma operação explícita em `POST /api/v1/finops/ledger/{id}/reverse`. O usuário fornece motivo obrigatório; o service cria uma nova entry `ADJUSTMENT` com `source=SYSTEM`, mesmo amount, mesma currency/conta/período, direction oposta e `reversal_of_id` apontando para a original. O motivo fica preservado em `description` e `context`. A entry original não é alterada nem removida, e uma segunda reversal integral é bloqueada no backend.
+
+          A leitura do ledger expõe `is_reversed` e `reversed_by_id` derivados, permitindo marcar a original como “Revertida” sem modificar seus campos históricos. A summary continua contabilizando original + reversal, chegando ao saldo líquido correto.
+
+          `REVERSAL` é usado semanticamente para cancelar integralmente uma entry específica. `ADJUSTMENT` representa uma correção financeira independente que pode ser crédito ou débito e não precisa apontar para uma entry anterior.
+
+          Entries automáticas `source=OPPORTUNITY` também podem ser revertidas pelo mesmo domínio. A reversão financeira não chama lifecycle, não reabre Finding, não altera `treated/rejected`, presence ou archive e não apaga o treatment event original.
+
+          ### API e UI mínima
+
+          Endpoints adicionados/evoluídos:
+
+          - `POST /api/v1/finops/ledger/manual` — criação manual autenticada;
+          - `POST /api/v1/finops/ledger/{id}/reverse` — reversal integral com motivo;
+          - `GET /api/v1/finops/ledger` e `GET /api/v1/finops/ledger/{id}` — enriquecidos com estado derivado de reversal;
+          - `GET /api/v1/finops/ledger/summary` — preservado, multi-currency e server-side.
+
+          A navegação recebe somente a entrada mínima `Fluxo`, apontando para `/finops/ledger`. A página implementa formulário de nova movimentação, tabela paginada, origem `Manual`/`Oportunidade`/`Sistema`, autoria/data, identificação de reversão, loading, empty state, erros, sucesso e ação `Reverter`. Não há dashboard, KPI ou gráfico nesta etapa.
+
+          A formatação distingue `R$` e `US$`; não utiliza símbolo `$` ambíguo em contexto multi-currency. A UI não possui ação `Editar movimentação`.
+
+          ### Logs e auditoria
+
+          Criações manuais emitem `manual_finops_entry_created` com entry, tipo, direção, moeda, provider, conta e ator. Reversões emitem `finops_entry_reversed` com original/reversal e o mesmo contexto estrutural, sem registrar credenciais ou payloads sensíveis.
+
+          O ledger permite responder quem criou, quando, data efetiva, tipo, valor, moeda, provider, conta e descrição. Reversal preserva quem executou a reversão e o motivo sem substituir a autoria da entry original.
+
+          ### Migration
+
+          Nenhuma migration foi necessária. `0026_finops_ledger` já possui `description`, `idempotency_key`, `created_by`, `periodicity`, períodos de referência e `reversal_of_id`, além das constraints e da proteção append-only necessárias. As entries existentes da 23.10/23.11 são preservadas integralmente.
+
+          ### Testes
+
+          A cobertura backend da etapa inclui SAVING/REALLOCATION/ADJUSTMENT, direction obrigatória/coerente, amount zero/negativo, currencies suportadas, source/actor spoofing, provider/account mismatch, currency explícita sem acoplamento estrutural, data retroativa/futura, periodicidade mensal, idempotência, autorização, reversal completo, motivo obrigatório, dupla reversal, estado derivado de reversão e reversal de entry `OPPORTUNITY` sem alteração do lifecycle do Finding.
+
+          O frontend cobre helpers de direction, defaults AWS/USD e OCI/BRL, filtro de contas por provider, decimal string, formatação BRL/USD, labels de source, contrato do formulário, idempotência de submit, reversal e navegação mínima de Fluxo. As suítes cumulativas continuam responsáveis pela regressão da 23.11, migrations, multi-currency, lifecycle, build Next.js, security e smoke Compose.
+
+          ### Limitações deliberadamente deixadas para a Task 23.13
+
+          A Etapa 23.12 não implementa dashboard completo da aba Fluxo, KPIs, gráficos, filtros consolidados, FX, Cost Explorer/Billing, recorrência automática, anualização, budget enforcement, delete físico, edição destrutiva ou redesign global. A Task 23.13 permanece responsável pela experiência consolidada do Fluxo FinOps sobre o mesmo ledger.
+          ROADMAP
+      - name: Commit roadmap and remove helper workflow
+        shell: bash
+        run: |
+          rm .github/workflows/task23-12-roadmap.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/implementation-roadmap.md .github/workflows/task23-12-roadmap.yml
+          git commit -m "docs(finops): document Task 23.12"
+          git push origin HEAD:feat/23-12-manual-finops-flow
