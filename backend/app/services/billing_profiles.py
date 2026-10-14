@@ -52,7 +52,9 @@ def ensure_finops_profile(db: Session) -> BillingProfile:
     """Create the system FinOps profile once without overwriting existing customization."""
 
     existing = db.scalar(
-        select(BillingProfile).where(func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower())
+        select(BillingProfile).where(
+            func.lower(BillingProfile.name) == FINOPS_SYSTEM_PROFILE_NAME.lower()
+        )
     )
     if existing is not None:
         return existing
@@ -98,7 +100,10 @@ class BillingProfileService:
             statement = statement.where(BillingProfile.enabled.is_(enabled))
         return list(
             self._db.scalars(
-                statement.order_by(BillingProfile.is_default.desc(), func.lower(BillingProfile.name))
+                statement.order_by(
+                    BillingProfile.is_default.desc(),
+                    func.lower(BillingProfile.name),
+                )
             )
         )
 
@@ -121,7 +126,8 @@ class BillingProfileService:
             )
 
     def _lock_profiles(self) -> list[BillingProfile]:
-        return list(self._db.scalars(select(BillingProfile).order_by(BillingProfile.id).with_for_update()))
+        statement = select(BillingProfile).order_by(BillingProfile.id).with_for_update()
+        return list(self._db.scalars(statement))
 
     def create(self, payload: BillingProfileCreate, *, actor_user_id: str) -> BillingProfile:
         self._ensure_unique_name(payload.name)
