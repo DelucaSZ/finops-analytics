@@ -94,7 +94,7 @@ class FinOpsFlowAnalyticsService:
         *,
         include_dates: bool = True,
     ) -> list[Any]:
-        logical_type, logical_source, _ = self._logical(entry, original)
+        logical_type, logical_source, logical_opportunity_id = self._logical(entry, original)
         conditions: list[Any] = []
         if filters.provider:
             conditions.append(entry.provider == normalize_provider(filters.provider))
@@ -115,7 +115,11 @@ class FinOpsFlowAnalyticsService:
         if filters.periodicity:
             conditions.append(
                 entry.periodicity
-                == _enum_value(filters.periodicity, FinOpsLedgerPeriodicity, "periodicity")
+                == _enum_value(
+                    filters.periodicity,
+                    FinOpsLedgerPeriodicity,
+                    "periodicity",
+                )
             )
         if include_dates and filters.effective_from:
             conditions.append(entry.effective_at >= _aware(filters.effective_from))
@@ -129,6 +133,7 @@ class FinOpsFlowAnalyticsService:
                     func.lower(entry.account_id).like(pattern),
                     func.lower(func.coalesce(finding.title, "")).like(pattern),
                     func.lower(func.coalesce(finding.resource_id, "")).like(pattern),
+                    func.lower(func.coalesce(logical_opportunity_id, "")).like(pattern),
                 )
             )
         return conditions
@@ -157,7 +162,10 @@ class FinOpsFlowAnalyticsService:
 
     def summary(self, filters: FinOpsFlowFilters) -> list[dict[str, Any]]:
         entry, original, finding, _, _ = self._aliases()
-        recognized, reallocated, adjustment, balance = self._metric_expressions(entry, original)
+        recognized, reallocated, adjustment, balance = self._metric_expressions(
+            entry,
+            original,
+        )
         conditions = self._conditions(filters, entry, original, finding)
         rows = self.db.execute(
             select(
@@ -241,9 +249,15 @@ class FinOpsFlowAnalyticsService:
             for currency, periodicity, value in rows
         }
 
-    def timeseries(self, filters: FinOpsFlowFilters) -> tuple[str, list[dict[str, Any]]]:
+    def timeseries(
+        self,
+        filters: FinOpsFlowFilters,
+    ) -> tuple[str, list[dict[str, Any]]]:
         entry, original, finding, _, _ = self._aliases()
-        recognized, reallocated, adjustment, balance = self._metric_expressions(entry, original)
+        recognized, reallocated, adjustment, balance = self._metric_expressions(
+            entry,
+            original,
+        )
         conditions = self._conditions(filters, entry, original, finding)
         granularity = self._granularity(filters)
         year = extract("year", entry.effective_at)
@@ -337,7 +351,10 @@ class FinOpsFlowAnalyticsService:
             .group_by(entry.currency, entry.periodicity, entry.account_id, account.name)
         ).all()
 
-        grouped_accounts: dict[tuple[str, str], list[tuple[str, str | None, Decimal]]] = defaultdict(list)
+        grouped_accounts: dict[
+            tuple[str, str],
+            list[tuple[str, str | None, Decimal]],
+        ] = defaultdict(list)
         for currency, basis, account_id, account_name, value in account_rows:
             grouped_accounts[(currency, basis)].append(
                 (account_id, account_name, Decimal(value))
@@ -407,12 +424,21 @@ class FinOpsFlowAnalyticsService:
         page_size: int,
     ) -> dict[str, Any]:
         entry, original, finding, account, actor = self._aliases()
-        logical_type, logical_source, logical_opportunity_id = self._logical(entry, original)
-        conditions = self._conditions(filters, entry, original, finding)
-        joins = (
-            lambda stmt: stmt.outerjoin(original, entry.reversal_of_id == original.id)
-            .outerjoin(finding, finding.id == logical_opportunity_id)
+        logical_type, logical_source, logical_opportunity_id = self._logical(
+            entry,
+            original,
         )
+        conditions = self._conditions(filters, entry, original, finding)
+
+        def joins(stmt):
+            return stmt.outerjoin(
+                original,
+                entry.reversal_of_id == original.id,
+            ).outerjoin(
+                finding,
+                finding.id == logical_opportunity_id,
+            )
+
         total_stmt = joins(select(func.count()).select_from(entry)).where(*conditions)
         total = self.db.scalar(total_stmt) or 0
 
@@ -438,11 +464,15 @@ class FinOpsFlowAnalyticsService:
         ).all()
         entries = [row[0] for row in rows]
         entry_ids = [item.id for item in entries]
-        reversal_rows = self.db.execute(
-            select(FinOpsLedgerEntry.reversal_of_id, FinOpsLedgerEntry.id).where(
-                FinOpsLedgerEntry.reversal_of_id.in_(entry_ids)
-            )
-        ).all() if entry_ids else []
+        reversal_rows = (
+            self.db.execute(
+                select(FinOpsLedgerEntry.reversal_of_id, FinOpsLedgerEntry.id).where(
+                    FinOpsLedgerEntry.reversal_of_id.in_(entry_ids)
+                )
+            ).all()
+            if entry_ids
+            else []
+        )
         reversed_by = {
             original_id: reversal_id
             for original_id, reversal_id in reversal_rows
@@ -476,10 +506,11 @@ class FinOpsFlowAnalyticsService:
         }
 
     def get_entry(self, entry_id: str) -> dict[str, Any] | None:
-        filters = FinOpsFlowFilters()
-        result = self.list_entries(filters, page=1, page_size=1) if False else None
         entry, original, finding, account, actor = self._aliases()
-        logical_type, logical_source, logical_opportunity_id = self._logical(entry, original)
+        logical_type, logical_source, logical_opportunity_id = self._logical(
+            entry,
+            original,
+        )
         row = self.db.execute(
             select(
                 entry,
@@ -502,7 +533,9 @@ class FinOpsFlowAnalyticsService:
             return None
         item = row[0]
         reversed_by_id = self.db.scalar(
-            select(FinOpsLedgerEntry.id).where(FinOpsLedgerEntry.reversal_of_id == item.id)
+            select(FinOpsLedgerEntry.id).where(
+                FinOpsLedgerEntry.reversal_of_id == item.id
+            )
         )
         return {
             "entry": item,
