@@ -169,7 +169,7 @@ def test_priced_block_volume_evidence_identifies_internal_catalog_and_inputs():
     finding = OciBlockVolumeUnattachedAnalyzer().analyze(_block_volume_context())[0]
     pricing = finding.evidence["pricing"]
 
-    assert pricing == {
+    assert {key: value for key, value in pricing.items() if key != "pricing_components"} == {
         "status": "priced",
         "source": OCI_PRICING_SOURCE,
         "version": OCI_PRICING_VERSION,
@@ -180,6 +180,13 @@ def test_priced_block_volume_evidence_identifies_internal_catalog_and_inputs():
         "monthly_cost": "44.55",
         "financial_value_populated": True,
     }
+    components = pricing["pricing_components"]
+    assert [component["sku"] for component in components] == [
+        "BLOCK_VOLUME_GB_MONTH",
+        "BLOCK_VOLUME_VPU_GB_MONTH",
+    ]
+    assert all(component["currency"] == "BRL" for component in components)
+    assert all(component["pricing_item_id"] for component in components)
 
 
 def test_public_ip_and_untagged_analyzers_remain_financially_unpopulated():

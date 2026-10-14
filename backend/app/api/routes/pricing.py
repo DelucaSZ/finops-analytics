@@ -9,7 +9,9 @@ from app.db.session import get_db
 from app.models.pricing import PricingCatalogItem
 from app.models.user import User
 from app.schemas.pricing import (
+    PricingAuditPage,
     PricingCreate,
+    PricingDeactivate,
     PricingItemRead,
     PricingListRead,
     PricingMetadataRead,
@@ -21,8 +23,8 @@ from app.services.pricing_admin import (
     PricingAdminError,
     PricingAdminNotFoundError,
     PricingAdminValidationError,
-    PricingCatalogAdminService,
 )
+from app.services.pricing_audit import AuditedPricingCatalogAdminService
 
 OCI_PROVIDER = "oci"
 OCI_CURRENCY = "BRL"
@@ -35,8 +37,8 @@ router = APIRouter(
 )
 
 
-def _service(db: Session) -> PricingCatalogAdminService:
-    return PricingCatalogAdminService(db, provider=OCI_PROVIDER)
+def _service(db: Session) -> AuditedPricingCatalogAdminService:
+    return AuditedPricingCatalogAdminService(db, provider=OCI_PROVIDER)
 
 
 def _domain_error(exc: PricingAdminError) -> HTTPException:
@@ -118,8 +120,28 @@ def get_oci_pricing_history(
     item_id: str,
     db: Session = Depends(get_db),
 ) -> list[PricingCatalogItem]:
+    """Temporal catalog versions. Audit events are intentionally a separate resource."""
+
     try:
         return _service(db).history(item_id)
+    except PricingAdminError as exc:
+        raise _domain_error(exc) from exc
+
+
+@router.get("/{item_id}/audit", response_model=PricingAuditPage)
+def get_oci_pricing_audit(
+    item_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    db: Session = Depends(get_db),
+) -> PricingAuditPage:
+    try:
+        history = _service(db).audit_history(
+            item_id,
+            page=page,
+            page_size=page_size,
+        )
+        return PricingAuditPage(**history)
     except PricingAdminError as exc:
         raise _domain_error(exc) from exc
 
@@ -128,10 +150,12 @@ def get_oci_pricing_history(
 def create_oci_pricing(
     payload: PricingCreate,
     db: Session = Depends(get_db),
-    _actor: User = Depends(require_recent_admin),
+    actor: User = Depends(require_recent_admin),
 ) -> PricingCatalogItem:
     try:
-        item = _service(db).create_item(
+        item = _service(db).create_item_audited(
+            actor=actor,
+            reason=payload.reason,
             service=payload.service,
             sku=payload.sku,
             description=payload.description,
@@ -154,11 +178,13 @@ def update_oci_pricing(
     item_id: str,
     payload: PricingUpdate,
     db: Session = Depends(get_db),
-    _actor: User = Depends(require_recent_admin),
+    actor: User = Depends(require_recent_admin),
 ) -> PricingCatalogItem:
     try:
-        item = _service(db).update_item(
+        item = _service(db).update_item_audited(
             item_id,
+            actor=actor,
+            reason=payload.reason,
             price=payload.price,
             description=payload.description,
             effective_from=payload.effective_from,
@@ -173,11 +199,12 @@ def update_oci_pricing(
 @router.post("/{item_id}/deactivate", response_model=PricingItemRead)
 def deactivate_oci_pricing(
     item_id: str,
+    payload: PricingDeactivate,
     db: Session = Depends(get_db),
-    _actor: User = Depends(require_recent_admin),
+    actor: User = Depends(require_recent_admin),
 ) -> PricingCatalogItem:
     try:
-        item = _service(db).deactivate(item_id)
+        item = _service(db).deactivate_audited(item_id, actor=actor, reason=payload.reason)
         return _commit(db, item)
     except PricingAdminError as exc:
         db.rollback()

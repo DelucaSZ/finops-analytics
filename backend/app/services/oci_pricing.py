@@ -80,6 +80,38 @@ class OciPricingMetadata:
 
 
 @dataclass(frozen=True)
+class OciPricingComponent:
+    """Exact catalog version plus the monetary snapshot used by one formula component."""
+
+    pricing_item_id: str
+    service: str
+    sku: str
+    unit: str
+    unit_price: Decimal
+    currency: str
+    source: str
+    effective_from: datetime
+    effective_until: datetime | None
+    quantity: Decimal
+
+    def as_evidence(self) -> dict[str, str | None]:
+        return {
+            "pricing_item_id": self.pricing_item_id,
+            "service": self.service,
+            "sku": self.sku,
+            "unit": self.unit,
+            "unit_price": format(self.unit_price, "f"),
+            "currency": self.currency,
+            "source": self.source,
+            "effective_from": self.effective_from.isoformat(),
+            "effective_until": (
+                self.effective_until.isoformat() if self.effective_until is not None else None
+            ),
+            "quantity": format(self.quantity, "f"),
+        }
+
+
+@dataclass(frozen=True)
 class OciComputePricingResult:
     """Explainable OCI Compute pricing result for resource-level consumers."""
 
@@ -98,10 +130,20 @@ class OciComputePricingResult:
     base_monthly_cost: Decimal | None = None
     windows_license_included: bool = False
     reason: str | None = None
+    pricing_components: tuple[OciPricingComponent, ...] = ()
 
     @property
     def financial_value_populated(self) -> bool:
         return self.status == PRICING_STATUS_PRICED and self.base_monthly_cost is not None
+
+
+@dataclass(frozen=True)
+class OciBlockVolumePricingResult:
+    monthly_cost: Decimal
+    currency: str
+    size_gb: Decimal
+    vpus_per_gb: Decimal
+    pricing_components: tuple[OciPricingComponent, ...]
 
 
 OCI_COMPUTE_PRICE_KEYS: Final[Mapping[str, OciComputePriceKeys]] = MappingProxyType(
@@ -199,6 +241,21 @@ def _source_of(*prices: ResolvedPrice) -> str:
     return next(iter(sources)) if len(sources) == 1 else "MULTIPLE_SOURCES"
 
 
+def _component(price: ResolvedPrice, *, quantity: Decimal) -> OciPricingComponent:
+    return OciPricingComponent(
+        pricing_item_id=price.id,
+        service=price.service,
+        sku=price.sku,
+        unit=price.unit,
+        unit_price=price.amount,
+        currency=price.currency,
+        source=price.source,
+        effective_from=price.effective_from,
+        effective_until=price.effective_until,
+        quantity=quantity,
+    )
+
+
 def _empty_compute_result(
     *,
     status: str,
@@ -241,7 +298,6 @@ class OciPricingService:
         if at is None and self._catalog_snapshot is not None:
             return self._catalog_snapshot
 
-        # Import lazily to keep the pricing formulas independent from application startup wiring.
         from app.db.session import SessionLocal
 
         with SessionLocal() as db:
@@ -281,7 +337,7 @@ class OciPricingService:
         shape: str | None = None,
         at: datetime | None = None,
     ) -> OciComputePricingResult:
-        """Calculate monthly Compute from effective-dated OCPU/RAM catalog rows."""
+        """Calculate monthly Compute and retain every catalog version used."""
 
         normalized_family, keys = _compute_family(family)
         ocpu_count = _positive_compute_input("ocpus", ocpus)
@@ -305,6 +361,10 @@ class OciPricingService:
             at=at,
         )
         resolved_prices = [ocpu_price, memory_price]
+        components = [
+            _component(ocpu_price, quantity=ocpu_count * OCI_MONTHLY_HOURS),
+            _component(memory_price, quantity=memory * OCI_MONTHLY_HOURS),
+        ]
 
         raw_ocpu_cost = ocpu_count * ocpu_price.amount * OCI_MONTHLY_HOURS
         raw_memory_cost = memory * memory_price.amount * OCI_MONTHLY_HOURS
@@ -319,6 +379,7 @@ class OciPricingService:
                 at=at,
             )
             resolved_prices.append(windows_price)
+            components.append(_component(windows_price, quantity=ocpu_count * OCI_MONTHLY_HOURS))
             windows_monthly_cost = quantize_money(
                 ocpu_count * windows_price.amount * OCI_MONTHLY_HOURS
             )
@@ -339,6 +400,7 @@ class OciPricingService:
             windows_monthly_cost=windows_monthly_cost,
             base_monthly_cost=quantize_money(raw_total),
             windows_license_included=include_windows_license,
+            pricing_components=tuple(components),
         )
 
     def compute_monthly_cost(
@@ -432,13 +494,15 @@ class OciPricingService:
                 reason=str(exc),
             )
 
-    def block_volume_monthly_cost(
+    def block_volume_monthly_pricing(
         self,
         *,
         size_gb: Decimal | int | str | None,
         vpus_per_gb: Decimal | int | str | None,
         at: datetime | None = None,
-    ) -> Decimal:
+    ) -> OciBlockVolumePricingResult:
+        """Calculate Block Volume and retain both capacity and VPU catalog versions."""
+
         size = _decimal_input("size_gb", size_gb)
         vpus = _decimal_input("vpus_per_gb", vpus_per_gb)
         catalog = self._catalog(at=at)
@@ -457,4 +521,26 @@ class OciPricingService:
             at=at,
         )
         monthly = size * storage_price.amount + size * vpus * vpu_price.amount
-        return quantize_money(monthly)
+        return OciBlockVolumePricingResult(
+            monthly_cost=quantize_money(monthly),
+            currency=OCI_PRICING_CURRENCY,
+            size_gb=size,
+            vpus_per_gb=vpus,
+            pricing_components=(
+                _component(storage_price, quantity=size),
+                _component(vpu_price, quantity=size * vpus),
+            ),
+        )
+
+    def block_volume_monthly_cost(
+        self,
+        *,
+        size_gb: Decimal | int | str | None,
+        vpus_per_gb: Decimal | int | str | None,
+        at: datetime | None = None,
+    ) -> Decimal:
+        return self.block_volume_monthly_pricing(
+            size_gb=size_gb,
+            vpus_per_gb=vpus_per_gb,
+            at=at,
+        ).monthly_cost
