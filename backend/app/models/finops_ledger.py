@@ -131,7 +131,9 @@ class FinOpsLedgerEntry(Base):
 
     amount: Mapped[Decimal] = mapped_column(Numeric(20, 8), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, index=True)
-    effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    effective_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, index=True
+    )
 
     source: Mapped[str] = mapped_column(String(24), nullable=False, index=True)
     source_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -182,7 +184,9 @@ def _enforce_finops_ledger_append_only(session, _flush_context, _instances) -> N
         if isinstance(item, FinOpsLedgerEntry) and session.is_modified(
             item, include_collections=False
         ):
-            raise ValueError("FinOps ledger entries are append-only; create a reversal or adjustment")
+            raise ValueError(
+                "FinOps ledger entries are append-only; create a reversal or adjustment"
+            )
     for item in tuple(session.deleted):
         if isinstance(item, FinOpsLedgerEntry):
             raise ValueError("FinOps ledger entries are append-only and cannot be deleted")
