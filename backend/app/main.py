@@ -28,14 +28,16 @@ from app.api.routes import (
 from app.core.config import settings
 from app.db.migrations import initialize_database
 from app.db.session import SessionLocal, engine
+from app.services.billing_profiles import ensure_finops_profile
 from app.services.demo import seed_demo_data
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database(engine)
-    if settings.demo_mode:
-        with SessionLocal() as db:
+    with SessionLocal() as db:
+        ensure_finops_profile(db)
+        if settings.demo_mode:
             seed_demo_data(db)
     yield
 
