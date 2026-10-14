@@ -73,7 +73,7 @@ class AwsBillingRequest(BaseModel):
         return cleaned
 
     @model_validator(mode="after")
-    def valid_period(self) -> "AwsBillingRequest":
+    def valid_period(self) -> AwsBillingRequest:
         if self.start_date >= self.end_date:
             raise ValueError("start_date must be before end_date")
         return self
