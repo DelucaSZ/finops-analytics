@@ -12,6 +12,13 @@ from app.models.collection_scope_execution import (
 )
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
+from app.models.finops_ledger import (
+    FinOpsLedgerDirection,
+    FinOpsLedgerEntry,
+    FinOpsLedgerEntryType,
+    FinOpsLedgerPeriodicity,
+    FinOpsLedgerSource,
+)
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
 from app.models.opportunity_archive_history import (
     OpportunityArchiveAction,
@@ -56,6 +63,11 @@ __all__ = [
     "CollectionScopeExecutionStatus",
     "DashboardAccountSummary",
     "Finding",
+    "FinOpsLedgerDirection",
+    "FinOpsLedgerEntry",
+    "FinOpsLedgerEntryType",
+    "FinOpsLedgerPeriodicity",
+    "FinOpsLedgerSource",
     "OpportunityArchiveAction",
     "OpportunityArchiveHistory",
     "OpportunityArchiveReason",
