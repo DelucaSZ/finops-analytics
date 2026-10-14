@@ -141,6 +141,18 @@ class Settings(BaseSettings):
     demo_mode: bool = Field(False, alias="NUVEMIQ_DEMO_MODE")
     aws_default_region: str = Field("sa-east-1", alias="AWS_DEFAULT_REGION")
     aws_role_session_name: str = Field("nuvemiq-collector", alias="AWS_ROLE_SESSION_NAME")
+    aws_billing_cache_ttl_current_seconds: int = Field(
+        3600,
+        ge=60,
+        le=86400,
+        alias="AWS_BILLING_CACHE_TTL_CURRENT_SECONDS",
+    )
+    aws_billing_cache_ttl_historical_seconds: int = Field(
+        86400,
+        ge=300,
+        le=604800,
+        alias="AWS_BILLING_CACHE_TTL_HISTORICAL_SECONDS",
+    )
     ai_provider: str = Field("disabled", alias="NUVEMIQ_AI_PROVIDER")
     bedrock_region: str = Field("us-east-1", alias="NUVEMIQ_BEDROCK_REGION")
     bedrock_model_id: str = Field("", alias="NUVEMIQ_BEDROCK_MODEL_ID")

@@ -41,13 +41,60 @@ ARN. The API rejects mismatched values.
 
 ## 3. Cost data
 
-Cost Explorer must be enabled before the cost-growth detector can return data.
-For organization-wide consolidated analysis, register the management/payer
-account and mark it accordingly in DeepOps.
+Cost Explorer must be enabled before Billing or the cost-growth detector can
+return data. Cost Explorer is queried with the same assumed role already used
+for AWS collection; Billing does not introduce long-lived credentials.
 
-Some billing APIs can require explicit console settings in addition to IAM
-permissions. A failure in one collector is recorded as a warning and does not
-discard results from the other collectors.
+For Task 23.14, the only IAM action required by the new Billing backend is:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": "ce:GetCostAndUsage",
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+The repository's `NuvemIQReadOnly` CloudFormation template already grants this
+action. It also contains other Cost Explorer/Pricing actions used by existing or
+separate DeepOps capabilities; those broader permissions are not required by
+the Task 23.14 Billing query itself.
+
+AWS Cost Explorer is exposed through the `us-east-1` billing endpoint even when
+the analyzed resources live in other regions. DeepOps therefore creates the
+Cost Explorer client in `us-east-1` while continuing to assume the target
+account role using the existing authentication path.
+
+### Management/payer, member and standalone accounts
+
+AWS gives a management account visibility over its organization, while a member
+account normally has only its own cost data. Member Cost Explorer access can
+also be disabled centrally in Cost Explorer preferences, in which case IAM
+permission alone is not sufficient.
+
+The current DeepOps data model records whether an AWS account is a management
+account, but it does not persist a payer/member relationship between registered
+accounts. To avoid inventing or mixing billing scopes, Task 23.14 treats every
+registered role as an independent billing scope:
+
+- member/standalone account: assume its configured role and query its own Cost
+  Explorer data;
+- management account: assume its configured role and constrain the Cost
+  Explorer query to that management account's own `LINKED_ACCOUNT` ID;
+- multi-account DeepOps requests aggregate only complete results from the
+  explicitly requested registered accounts; if one account fails, the aggregate
+  request fails instead of returning a silently partial total.
+
+This strategy intentionally does not use a management account to query arbitrary
+member IDs until DeepOps has an explicit, trustworthy payer/member relationship.
+The Billing API accepts DeepOps internal account IDs, resolves the corresponding
+AWS Account IDs server-side, and never accepts a raw linked-account selector from
+the client.
 
 ## 4. Least privilege hardening
 
