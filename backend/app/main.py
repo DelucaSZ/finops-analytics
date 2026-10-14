@@ -14,6 +14,7 @@ from app.api.routes import (
     collections,
     dashboard,
     findings,
+    finops_flow,
     finops_ledger,
     mfa,
     opportunities,
@@ -101,6 +102,7 @@ app.include_router(collections.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")
 app.include_router(finops_ledger.router, prefix="/api/v1")
+app.include_router(finops_flow.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 
 
