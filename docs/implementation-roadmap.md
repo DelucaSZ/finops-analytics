@@ -4058,3 +4058,58 @@ O frontend possui testes para parsing decimal string-based, apresentação BRL, 
 > a auditoria detalhada de alterações, incluindo ator, motivo e diff entre versões, será consolidada na Task 23.9.
 
 A 23.8 preserva o histórico factual de preços e executa mutations no contexto autenticado, mas não cria timeline sofisticada, motivo obrigatório, diff before/after ou eventos de auditoria dedicados. Também ficam fora: delete físico, FX/conversão cambial, CRUD AWS, recalcular oportunidades históricas, ledger, Billing/Cost Explorer e redesign global.
+
+
+## Etapa 23.10 — Ledger financeiro do Fluxo FinOps
+
+**Status:** implementada em branch/PR dedicada; integração automática e UI permanecem nas etapas seguintes.
+
+### Motivação e separação financeira
+
+O Fluxo FinOps passa a possuir um ledger próprio para responder quanto de economia foi efetivamente reconhecida e quanto já foi reutilizado. `Finding.estimated_monthly_savings` e `OpportunityObservation.estimated_monthly_savings` continuam sendo estimativas técnicas; uma oportunidade com saving estimado não cria movimentação financeira automaticamente nesta etapa. `resolved_externally` também não representa saving reconhecido.
+
+### Modelo do ledger
+
+- `FinOpsLedgerEntry` é provider-neutral e separado de `Finding`.
+- Tipos iniciais: `SAVING`, `REALLOCATION` e `ADJUSTMENT`.
+- Direções explícitas: `CREDIT` e `DEBIT`; `amount` é sempre positivo.
+- Valores usam `Numeric(20, 8)`/`Decimal`, nunca `float`.
+- `currency` é obrigatória e armazenada como código de três letras.
+- `effective_at` representa a data financeira; `created_at` registra a criação no sistema.
+- `periodicity` (`ONE_TIME`/`MONTHLY`) e período de referência opcional preservam a unidade temporal sem anualização ou geração recorrente automática.
+
+### Provider e conta
+
+O ledger referencia `CloudAccount`, a abstração provider-neutral já existente, e também preserva snapshots de `provider` e do identificador nativo `account_id` para rastreabilidade histórica. Não existe FK exclusiva para `aws_accounts`.
+
+O Pricing OCI utilizado pelo projeto está em BRL, enquanto AWS utiliza USD. O Fluxo preserva a moeda original de cada movimentação e nunca soma moedas diferentes sem conversão explícita. Não existe FX nesta etapa.
+
+### Source, tratamento e idempotência
+
+Sources estruturados: `OPPORTUNITY`, `MANUAL` e `SYSTEM`. Entries de oportunidade possuem vínculo opcional forte com `Finding` e com `OpportunityStatusHistory`; quando `source=OPPORTUNITY`, o evento de tratamento e uma `idempotency_key` são obrigatórios. A identidade idempotente é ligada ao evento de tratamento, não apenas ao `Finding`, permitindo reopen/treat futuro sem bloquear eventos legítimos distintos.
+
+A Task 23.10 apenas prepara essa estrutura. `treated` ainda não gera saving automaticamente; essa integração pertence à 23.11. Cadastro manual visual pertence à 23.12.
+
+### Append-only e reversal
+
+O ledger é append-only. O fluxo ORM normal bloqueia UPDATE e DELETE de entries persistidas. Correções devem ocorrer por nova movimentação de `ADJUSTMENT` ou por reversal. Uma reversal preserva a entry original, mantém amount/currency/conta, usa direção oposta e referencia `reversal_of_id`. Existe no máximo uma reversal integral por entry.
+
+### API e consultas
+
+- `GET /api/v1/finops/ledger`: listagem paginada e ordenação determinística por data efetiva/criação.
+- `GET /api/v1/finops/ledger/{id}`: detalhe.
+- `GET /api/v1/finops/ledger/summary`: créditos, débitos e saldo agrupados por moeda.
+- Filtros: provider, conta nativa, currency, entry type, direction, source e período efetivo.
+- Summary usa `SUM` no banco agrupado por `currency/direction`; não carrega todo o ledger para somar em Python.
+
+Não existe saldo global persistido. O ledger é a fonte de verdade e o saldo é derivado. Saldo negativo permanece representável.
+
+### Migration e índices
+
+`0026_finops_ledger` cria apenas `finops_ledger_entries`, suas FKs, checks, unicidades e índices de consulta. Não há backfill de oportunidades tratadas nem de oportunidades resolvidas externamente.
+
+### Testes e limites desta etapa
+
+A suíte cobre CREDIT/DEBIT, SAVING/REALLOCATION/ADJUSTMENT, amount inválido, AWS/USD e OCI/BRL, summary multi-currency, filtros, paginação, idempotência, source opportunity ligado ao evento de treatment, reversal e append-only. A suíte geral de migrations continua validando SQLite/PostgreSQL e drift de metadata.
+
+Ficam explicitamente para 23.11–23.13: Treat → Fluxo, cadastro manual completo e aba Fluxo. Não foi implementado FX, billing, Cost Explorer, CloudWatch de custos ou redesign global.

@@ -14,6 +14,7 @@ from app.api.routes import (
     collections,
     dashboard,
     findings,
+    finops_ledger,
     mfa,
     opportunities,
     policies,
@@ -70,6 +71,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/tls",
             "/api/v1/cloud-accounts",
             "/api/v1/pricing",
+            "/api/v1/finops",
         )
     ):
         response.headers["Cache-Control"] = "no-store"
@@ -98,6 +100,7 @@ app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")
+app.include_router(finops_ledger.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 
 
