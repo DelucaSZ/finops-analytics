@@ -18,7 +18,7 @@ import { clearApiQueryCache } from "@/lib/server-state";
 const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/opportunities", label: "Oportunidades", icon: ScanSearch },
-  { href: "/finops/ledger", label: "Fluxo", icon: WalletCards },
+  { href: "/flow", label: "Fluxo", icon: WalletCards },
   { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
