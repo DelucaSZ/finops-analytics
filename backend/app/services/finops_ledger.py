@@ -257,15 +257,19 @@ class FinOpsLedgerService:
 
         type_value = _enum_value(entry_type, FinOpsLedgerEntryType, "entry_type")
         if type_value == FinOpsLedgerEntryType.SAVING.value:
-            if direction is not None and _enum_value(
-                direction, FinOpsLedgerDirection, "direction"
-            ) != FinOpsLedgerDirection.CREDIT.value:
+            if (
+                direction is not None
+                and _enum_value(direction, FinOpsLedgerDirection, "direction")
+                != FinOpsLedgerDirection.CREDIT.value
+            ):
                 raise FinOpsLedgerError("SAVING entries must use CREDIT direction")
             direction_value = FinOpsLedgerDirection.CREDIT.value
         elif type_value == FinOpsLedgerEntryType.REALLOCATION.value:
-            if direction is not None and _enum_value(
-                direction, FinOpsLedgerDirection, "direction"
-            ) != FinOpsLedgerDirection.DEBIT.value:
+            if (
+                direction is not None
+                and _enum_value(direction, FinOpsLedgerDirection, "direction")
+                != FinOpsLedgerDirection.DEBIT.value
+            ):
                 raise FinOpsLedgerError("REALLOCATION entries must use DEBIT direction")
             direction_value = FinOpsLedgerDirection.DEBIT.value
         else:
@@ -334,9 +338,7 @@ class FinOpsLedgerService:
             )
         ).all()
         return {
-            original_id: reversal_id
-            for original_id, reversal_id in rows
-            if original_id is not None
+            original_id: reversal_id for original_id, reversal_id in rows if original_id is not None
         }
 
     def reverse_entry(
