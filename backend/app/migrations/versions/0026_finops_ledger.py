@@ -81,9 +81,7 @@ def upgrade() -> None:
             "reversal_of_id IS NULL OR reversal_of_id != id",
             name="ck_finops_ledger_not_self_reversal",
         ),
-        sa.ForeignKeyConstraint(
-            ["cloud_account_id"], ["cloud_accounts.id"], ondelete="RESTRICT"
-        ),
+        sa.ForeignKeyConstraint(["cloud_account_id"], ["cloud_accounts.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(["opportunity_id"], ["findings.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(
             ["source_event_id"], ["opportunity_status_history.id"], ondelete="RESTRICT"
