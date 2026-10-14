@@ -7,6 +7,7 @@ from app.models.finding import Finding
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
+from app.services.opportunity_saving_recognition import OpportunitySavingRecognitionService
 
 OPEN = "open"
 TREATED = "treated"
@@ -37,30 +38,36 @@ def _history(
     action: str,
     reason: str | None = None,
     note: str | None = None,
-) -> None:
-    db.add(
-        OpportunityStatusHistory(
-            opportunity_id=finding.id,
-            from_status=finding.status,
-            to_status=to_status,
-            action=action,
-            reason=reason,
-            note=note,
-            changed_by=actor.id,
-            changed_at=utcnow(),
-        )
+) -> OpportunityStatusHistory:
+    event = OpportunityStatusHistory(
+        opportunity_id=finding.id,
+        from_status=finding.status,
+        to_status=to_status,
+        action=action,
+        reason=reason,
+        note=note,
+        changed_by=actor.id,
+        changed_at=utcnow(),
     )
+    db.add(event)
+    return event
 
 
-def _apply_treat(db: Session, finding: Finding, actor: User, note: str | None) -> None:
+def _apply_treat(
+    db: Session,
+    finding: Finding,
+    actor: User,
+    note: str | None,
+) -> OpportunityStatusHistory:
     if finding.status != OPEN:
         raise HTTPException(status_code=409, detail="Only open opportunities can be treated")
-    _history(db, finding, actor, to_status=TREATED, action="treat", note=note)
+    event = _history(db, finding, actor, to_status=TREATED, action="treat", note=note)
     finding.status = TREATED
-    finding.treated_at = utcnow()
+    finding.treated_at = event.changed_at
     finding.treated_by = actor.id
     finding.treatment_note = note
     finding.needs_review = False
+    return event
 
 
 def _apply_reject(
@@ -100,6 +107,19 @@ def _apply_reopen(db: Session, finding: Finding, actor: User, note: str | None) 
     finding.needs_review = False
 
 
+def _recognize_treatments(
+    db: Session,
+    candidates: list[tuple[Finding, OpportunityStatusHistory]],
+    actor: User,
+) -> None:
+    if not candidates:
+        return
+    # Allocate stable history IDs and persist the lifecycle snapshot before the ledger
+    # service validates the treatment event. The route owns the outer transaction.
+    db.flush()
+    OpportunitySavingRecognitionService(db).recognize_many(candidates, actor)
+
+
 def treat(
     db: Session,
     opportunity_id: str,
@@ -107,7 +127,8 @@ def treat(
     note: str | None = None,
 ) -> Finding:
     finding = _locked(db, opportunity_id)
-    _apply_treat(db, finding, actor, note)
+    event = _apply_treat(db, finding, actor, note)
+    _recognize_treatments(db, [(finding, event)], actor)
     refresh_summaries_for_findings(db, [finding])
     return finding
 
@@ -174,13 +195,16 @@ def bulk_transition(
         )
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
+    treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
     for finding in ordered:
         if action == "treat":
-            _apply_treat(db, finding, actor, note)
+            event = _apply_treat(db, finding, actor, note)
+            treatment_candidates.append((finding, event))
         elif action == "reject":
             _apply_reject(db, finding, actor, reason or "", note)
         else:
             _apply_reopen(db, finding, actor, note)
+    _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
     return ordered
 
@@ -203,16 +227,15 @@ def _apply_legacy_status(
     status: str,
     reason: str | None = None,
     note: str | None = None,
-) -> None:
+) -> OpportunityStatusHistory | None:
     target = _legacy_target(status)
     if finding.status == target:
-        return
+        return None
     if target == OPEN:
         _apply_reopen(db, finding, actor, note)
-        return
+        return None
     if target == TREATED:
-        _apply_treat(db, finding, actor, note)
-        return
+        return _apply_treat(db, finding, actor, note)
 
     rejection_reason = reason
     rejection_note = note
@@ -223,6 +246,7 @@ def _apply_legacy_status(
         )
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
+    return None
 
 
 def set_legacy_status(
@@ -235,7 +259,7 @@ def set_legacy_status(
     note: str | None = None,
 ) -> Finding:
     finding = _locked(db, opportunity_id)
-    _apply_legacy_status(
+    event = _apply_legacy_status(
         db,
         finding,
         actor,
@@ -243,6 +267,8 @@ def set_legacy_status(
         reason=reason,
         note=note,
     )
+    if event is not None:
+        _recognize_treatments(db, [(finding, event)], actor)
     refresh_summaries_for_findings(db, [finding])
     return finding
 
@@ -271,8 +297,9 @@ def bulk_set_legacy_status(
         )
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
+    treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
     for finding in ordered:
-        _apply_legacy_status(
+        event = _apply_legacy_status(
             db,
             finding,
             actor,
@@ -280,5 +307,8 @@ def bulk_set_legacy_status(
             reason=reason,
             note=note,
         )
+        if event is not None:
+            treatment_candidates.append((finding, event))
+    _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
     return ordered
