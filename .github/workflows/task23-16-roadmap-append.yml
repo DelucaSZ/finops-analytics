@@ -20,141 +20,16 @@ jobs:
         shell: bash
         run: |
           python - <<'PY'
+          import base64
           from pathlib import Path
-
           path = Path("docs/implementation-roadmap.md")
           heading = "## Etapa 23.16 — Interface multi-account de AWS Billing"
           if heading in path.read_text(encoding="utf-8"):
               raise SystemExit(0)
-
-          section = r'''
-
-
-## Etapa 23.16 — Interface multi-account de AWS Billing
-
-**Status:** implementada na branch `feat/23-16-aws-billing-ui` e publicada em PR dedicado; merge na `main` depende de solicitação explícita posterior.
-
-### Objetivo, navegação e separação de domínios
-
-A Etapa 23.16 fecha o primeiro bloco de AWS Billing transformando os contratos da 23.14 e os Billing Profiles da 23.15 em uma área operacional de primeiro nível, `Billing`, na rota `/billing`. A versão atual é explicitamente AWS-only e usa o AWS Cost Explorer por meio do backend existente; não apresenta seletor OCI nem uma falsa experiência multi-cloud.
-
-> Billing e Fluxo permanecem domínios independentes. Custos do Cost Explorer não criam automaticamente savings ou movimentações financeiras.
-
-A navegação principal recebe somente a nova entrada `Billing`, sem reorganização global da sidebar. A configuração de profiles continua em `Configurações → Billing`; a página operacional oferece link para essa área somente quando o usuário é admin.
-
-### Profiles, default e runtime overrides
-
-A página lista os Billing Profiles habilitados da 23.15. A seleção inicial respeita o default persistido; `FinOps` permanece o fallback de sistema quando necessário. A UI não reconstrói o default manualmente.
-
-> o profile operacional padrão `FinOps` utiliza atualmente `DAILY + AmortizedCost + exclusão de Credit`, mas a tela permite trabalhar com outras configurações suportadas.
-
-A página permite overrides temporários de `metric`, `granularity` e `exclude_record_types`. Overrides são enviados apenas na consulta corrente, não persistem alterações no profile e são marcados visualmente. A ação `Restaurar perfil` volta aos valores persistidos. A troca de profile também redefine os overrides para a configuração daquele profile.
-
-### Seleção de contas e multi-account
-
-O frontend usa `CloudAccount` para listar somente contas `provider=aws`, exibindo nome amigável e AWS Account ID quando disponíveis. É possível selecionar uma conta, várias contas ou `Todas as contas` disponíveis ao usuário atual.
-
-A seleção é enviada de uma vez ao backend da 23.14 por `account_ids`; o browser não executa uma consulta Cost Explorer por conta. Autorização e resolução do billing scope continuam sendo responsabilidade do backend. Se um scope falhar ou não puder ser agregado de forma segura, a seção apresenta erro explícito e nenhum total silenciosamente parcial é mostrado.
-
-### Período e comparação
-
-O default é `Este mês`. Presets disponíveis: mês atual, mês anterior, últimos 30 dias, últimos 3 meses, últimos 6 meses, ano atual e intervalo personalizado.
-
-A UI trabalha com datas inclusivas para o usuário, mas envia ao backend a semântica já estabelecida pela 23.14, com `end_date` exclusivo. Essa adaptação fica centralizada nos helpers da página e não recria regras AWS do Cost Explorer nos componentes visuais.
-
-A comparação usa uma segunda consulta de summary com o mesmo conjunto de contas, profile resolvido, métrica, granularidade e record filters. Mês corrente e mês anterior usam o mesmo recorte relativo do mês; ranges móveis/customizados usam um período imediatamente anterior com o mesmo número de dias. `previous=0` não produz infinito e ausência de valor na mesma moeda/unidade não gera comparação monetária incorreta.
-
-### Métrica, granularidade e Credit
-
-A interface oferece somente o domínio realmente suportado pelo backend:
-
-- métricas `AMORTIZED_COST`, `NET_AMORTIZED_COST` e `UNBLENDED_COST`;
-- granularidade `DAILY` e `MONTHLY`;
-- record types AWS validados pelo contrato da 23.14.
-
-A exclusão de `Credit` é visível porque faz parte do profile FinOps. Record types adicionais ficam em `Mais filtros`, evitando poluir a primeira linha de controles.
-
-### Summary, timeseries e breakdowns
-
-Todos os blocos usam uma única fonte de verdade para filtros globais.
-
-- `Custo do período`: um KPI por currency/unit retornada pelo backend, com badge `Estimado` quando aplicável;
-- comparação: valor do período anterior equivalente e variação quando matematicamente válida;
-- `Evolução de custos`: série `DAILY` ou `MONTHLY` da 23.14, separada por currency, com tooltip por bucket e indicação textual de `Estimated`;
-- `Custo por serviço`: `GroupBy SERVICE`, ordenado por custo e limitado visualmente ao Top 10 de cada currency sem fabricar bucket `Outros` a partir de página incompleta;
-- `Custo por conta`: `GroupBy ACCOUNT`, somente quando mais de uma conta está selecionada, exibindo nome, AWS Account ID, valor e estado estimado.
-
-O frontend não recalcula Pricing Catalog nem reconstrói dados do Cost Explorer a partir de outra fonte.
-
-### Currency, Estimated e precisão
-
-> os valores exibidos vêm do AWS Cost Explorer e podem estar marcados como estimados para períodos ainda não consolidados; eles não devem ser apresentados como fatura final quando essa garantia não existe.
-
-> nenhuma conversão cambial é realizada. A moeda/unidade retornada pela AWS é preservada.
-
-Resumo, timeseries e breakdowns agrupam visualmente por `currency`. Duas currencies nunca são somadas entre si e a comparação só ocorre contra o valor anterior da mesma unit. A formatação usa `Intl.NumberFormat` quando o Unit é uma currency ISO e preserva literalmente unidades não reconhecidas, sem hardcode de USD.
-
-Valores negativos não são truncados, custo zero permanece um valor válido e ausência de dados é exibida como empty state distinto de erro.
-
-### Estado, deep link, refresh e concorrência
-
-Os filtros principais são sincronizados na query string (`profile`, `accounts`, `period`, datas customizadas e overrides quando existirem), permitindo refresh e compartilhamento do recorte sem criar um storage paralelo.
-
-A página usa uma assinatura determinística contendo profile, contas, período, métrica, granularidade, record filters e revisão manual. Cada mudança cancela requests anteriores com `AbortController` e usa uma sequência de request para impedir resposta stale de sobrescrever a seleção atual.
-
-O botão `Atualizar` inicia uma nova leitura usando os mesmos contratos e respeita o cache do backend; não existe parâmetro de bypass de cache.
-
-### Erros, loading e empty states
-
-Summary, comparação, timeseries e breakdowns possuem estados locais, evitando bloquear toda a página quando um bloco secundário é atualizado. Erros de domínio conhecidos são traduzidos para mensagens específicas de permissão, Cost Explorer indisponível, billing scope inválido, throttling, período inválido e falha upstream.
-
-Uma consulta válida sem custo retorna empty state, nunca erro. Cost Explorer indisponível nunca é transformado em custo zero. Resultados parciais não são promovidos a total completo porque a 23.14 falha a agregação multi-account quando qualquer scope não conclui corretamente.
-
-### Cache e performance
-
-Nenhuma camada de cache financeira foi duplicada no frontend. As chamadas reutilizam o cache canônico da 23.14, cuja identidade já inclui scope/conta, período, métrica, granularidade, grouping e record filters. Current e previous period possuem keys distintas; `SERVICE` e `ACCOUNT` continuam fazendo parte da key por meio do grouping.
-
-A página faz chamadas por dataset necessário, nunca por conta. Account metadata é carregada uma única vez e o breakdown multi-account continua server-side. O Top 10 é somente uma decisão de apresentação sobre o dataset de breakdown retornado; não há N+1 por conta ou recurso.
-
-### Autorização
-
-Profile configura metodologia e não concede acesso. A lista de contas vem do cadastro disponível ao usuário, enquanto o backend permanece a fonte definitiva de autorização, provider e billing scope. Um request manual com conta inválida continua sendo rejeitado pelo contrato da 23.14.
-
-### Frontend e gráficos
-
-O projeto não possui biblioteca de charts instalada. Para evitar dependência pesada apenas para esta página, a série temporal usa SVG simples e acessível, seguindo o padrão já utilizado pelo Fluxo. O gráfico possui título/`aria-label`, tooltips e marcador textual para estimativa, sem depender somente de cor.
-
-O layout é responsivo: filtros e contas quebram em linhas, KPIs empilham, gráficos ocupam largura disponível com scroll local quando necessário e tabelas seguem o padrão existente. Não foi feito redesign mobile/global.
-
-### Migration e arquivos principais
-
-Nenhuma migration foi necessária; a tela consome `CloudAccount`, `BillingProfile` e os read models da 23.14/23.15 existentes.
-
-Principais arquivos da etapa:
-
-- `frontend/app/billing/page.tsx`;
-- `frontend/app/billing/billing.module.css`;
-- `frontend/lib/billing.ts`;
-- `frontend/lib/billing-dashboard.mjs` e `billing-dashboard.d.mts`;
-- `frontend/tests/billing-dashboard.test.mjs`;
-- `frontend/components/app-shell.tsx`;
-- este `docs/implementation-roadmap.md`.
-
-### Testes e validação
-
-Os testes frontend específicos cobrem período atual e comparação month-to-date, range customizado com end date exclusivo no contrato backend, período anterior de mesmo comprimento, variação com baseline zero, preservação de currency/unit, Top N, assinatura determinística de filtros e contrato estático da página/navegação AWS Billing.
-
-As suítes cumulativas do backend continuam cobrindo Cost Explorer client, query builder, autorização, paginação, cache, multi-account, mixed currency, Estimated, erros, profile CRUD, default, resolução e runtime overrides.
-
-O CI do PR da 23.16 executa `ruff check .`, `ruff format --check .`, `pytest -q`, `npm test`, `npm run build`, security e os workflows de smoke já existentes. Os resultados finais são registrados na resposta de entrega e no PR depois que o head definitivo fica verde.
-
-### Limitações deliberadamente preservadas
-
-A Etapa 23.16 não implementa Forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, Pricing Catalog como fonte de Billing, geração automática de savings/ledger, integração automática com Opportunities, export pipeline novo, materialização financeira nem redesign global. Custos operacionais do próprio DeepOps permanecem para as Tasks 23.17–23.19 e a revisão estrutural de UX/navegação permanece para a 23.20.
-'''
-
-          with path.open("a", encoding="utf-8") as handle:
-              handle.write(section)
+          payload = "IyMgRXRhcGEgMjMuMTYg4oCUIEludGVyZmFjZSBtdWx0aS1hY2NvdW50IGRlIEFXUyBCaWxsaW5nCgoqKlN0YXR1czoqKiBpbXBsZW1lbnRhZGEgbmEgYnJhbmNoIGBmZWF0LzIzLTE2LWF3cy1iaWxsaW5nLXVpYCBlIHB1YmxpY2FkYSBlbSBQUiBkZWRpY2FkbzsgbWVyZ2UgbmEgYG1haW5gIGRlcGVuZGUgZGUgc29saWNpdGHDp8OjbyBleHBsw61jaXRhIHBvc3Rlcmlvci4KCiMjIyBPYmpldGl2bywgbmF2ZWdhw6fDo28gZSBzZXBhcmHDp8OjbyBkZSBkb23DrW5pb3MKCkEgRXRhcGEgMjMuMTYgZmVjaGEgbyBwcmltZWlybyBibG9jbyBkZSBBV1MgQmlsbGluZyB0cmFuc2Zvcm1hbmRvIG9zIGNvbnRyYXRvcyBkYSAyMy4xNCBlIG9zIEJpbGxpbmcgUHJvZmlsZXMgZGEgMjMuMTUgZW0gdW1hIMOhcmVhIG9wZXJhY2lvbmFsIGRlIHByaW1laXJvIG7DrXZlbCwgYEJpbGxpbmdgLCBuYSByb3RhIGAvYmlsbGluZ2AuIEEgdmVyc8OjbyBhdHVhbCDDqSBleHBsaWNpdGFtZW50ZSBBV1Mtb25seSBlIHVzYSBvIEFXUyBDb3N0IEV4cGxvcmVyIHBvciBtZWlvIGRvIGJhY2tlbmQgZXhpc3RlbnRlOyBuw6NvIGFwcmVzZW50YSBzZWxldG9yIE9DSSBuZW0gdW1hIGZhbHNhIGV4cGVyacOqbmNpYSBtdWx0aS1jbG91ZC4KCj4gQmlsbGluZyBlIEZsdXhvIHBlcm1hbmVjZW0gZG9tw61uaW9zIGluZGVwZW5kZW50ZXMuIEN1c3RvcyBkbyBDb3N0IEV4cGxvcmVyIG7Do28gY3JpYW0gYXV0b21hdGljYW1lbnRlIHNhdmluZ3Mgb3UgbW92aW1lbnRhw6fDtWVzIGZpbmFuY2VpcmFzLgoKQSBuYXZlZ2HDp8OjbyBwcmluY2lwYWwgcmVjZWJlIHNvbWVudGUgYSBub3ZhIGVudHJhZGEgYEJpbGxpbmdgLCBzZW0gcmVvcmdhbml6YcOnw6NvIGdsb2JhbCBkYSBzaWRlYmFyLiBBIGNvbmZpZ3VyYcOnw6NvIGRlIHByb2ZpbGVzIGNvbnRpbnVhIGVtIGBDb25maWd1cmHDp8O1ZXMg4oaSIEJpbGxpbmdgOyBhIHDDoWdpbmEgb3BlcmFjaW9uYWwgb2ZlcmVjZSBsaW5rIHBhcmEgZXNzYSDDoXJlYSBzb21lbnRlIHF1YW5kbyBvIHVzdcOhcmlvIMOpIGFkbWluLgoKIyMjIFByb2ZpbGVzLCBkZWZhdWx0IGUgcnVudGltZSBvdmVycmlkZXMKCkEgcMOhZ2luYSBsaXN0YSBvcyBCaWxsaW5nIFByb2ZpbGVzIGhhYmlsaXRhZG9zIGRhIDIzLjE1LiBBIHNlbGXDp8OjbyBpbmljaWFsIHJlc3BlaXRhIG8gZGVmYXVsdCBwZXJzaXN0aWRvOyBgRmluT3BzYCBwZXJtYW5lY2UgbyBmYWxsYmFjayBkZSBzaXN0ZW1hIHF1YW5kbyBuZWNlc3PDoXJpby4gQSBVSSBuw6NvIHJlY29uc3Ryw7NpIG8gZGVmYXVsdCBtYW51YWxtZW50ZS4KCj4gbyBwcm9maWxlIG9wZXJhY2lvbmFsIHBhZHLDo28gYEZpbk9wc2AgdXRpbGl6YSBhdHVhbG1lbnRlIGBEQUlMWSArIEFtb3J0aXplZENvc3QgKyBleGNsdXPDo28gZGUgQ3JlZGl0YCwgbWFzIGEgdGVsYSBwZXJtaXRlIHRyYWJhbGhhciBjb20gb3V0cmFzIGNvbmZpZ3VyYcOnw7VlcyBzdXBvcnRhZGFzLgoKQSBww6FnaW5hIHBlcm1pdGUgb3ZlcnJpZGVzIHRlbXBvcsOhcmlvcyBkZSBgbWV0cmljYCwgYGdyYW51bGFyaXR5YCBlIGBleGNsdWRlX3JlY29yZF90eXBlc2AuIE92ZXJyaWRlcyBzw6NvIGVudmlhZG9zIGFwZW5hcyBuYSBjb25zdWx0YSBjb3JyZW50ZSwgbsOjbyBwZXJzaXN0ZW0gYWx0ZXJhw6fDtWVzIG5vIHByb2ZpbGUgZSBzw6NvIG1hcmNhZG9zIHZpc3VhbG1lbnRlLiBBIGHDp8OjbyBgUmVzdGF1cmFyIHBlcmZpbGAgdm9sdGEgYW9zIHZhbG9yZXMgcGVyc2lzdGlkb3MuIEEgdHJvY2EgZGUgcHJvZmlsZSB0YW1iw6ltIHJlZGVmaW5lIG9zIG92ZXJyaWRlcyBwYXJhIGEgY29uZmlndXJhw6fDo28gZGFxdWVsZSBwcm9maWxlLgoKIyMjIFNlbGXDp8OjbyBkZSBjb250YXMgZSBtdWx0aS1hY2NvdW50CgpPIGZyb250ZW5kIHVzYSBgQ2xvdWRBY2NvdW50YCBwYXJhIGxpc3RhciBzb21lbnRlIGNvbnRhcyBgcHJvdmlkZXI9YXdzYCwgZXhpYmluZG8gbm9tZSBhbWlnw6F2ZWwgZSBBV1MgQWNjb3VudCBJRCBxdWFuZG8gZGlzcG9uw612ZWlzLiDDiSBwb3Nzw612ZWwgc2VsZWNpb25hciB1bWEgY29udGEsIHbDoXJpYXMgY29udGFzIG91IGBUb2RhcyBhcyBjb250YXNgIGRpc3BvbsOtdmVpcyBhbyB1c3XDoXJpbyBhdHVhbC4KCkEgc2VsZcOnw6NvIMOpIGVudmlhZGEgZGUgdW1hIHZleiBhbyBiYWNrZW5kIGRhIDIzLjE0IHBvciBgYWNjb3VudF9pZHNgOyBvIGJyb3dzZXIgbsOjbyBleGVjdXRhIHVtYSBjb25zdWx0YSBDb3N0IEV4cGxvcmVyIHBvciBjb250YS4gQXV0b3JpemHDp8OjbyBlIHJlc29sdcOnw6NvIGRvIGJpbGxpbmcgc2NvcGUgY29udGludWFtIHNlbmRvIHJlc3BvbnNhYmlsaWRhZGUgZG8gYmFja2VuZC4gU2UgdW0gc2NvcGUgZmFsaGFyIG91IG7Do28gcHVkZXIgc2VyIGFncmVnYWRvIGRlIGZvcm1hIHNlZ3VyYSwgYSBzZcOnw6NvIGFwcmVzZW50YSBlcnJvIGV4cGzDrWNpdG8gZSBuZW5odW0gdG90YWwgc2lsZW5jaW9zYW1lbnRlIHBhcmNpYWwgw6kgbW9zdHJhZG8uCgojIyMgUGVyw61vZG8gZSBjb21wYXJhw6fDo28KCk8gZGVmYXVsdCDDqSBgRXN0ZSBtw6pzYC4gUHJlc2V0cyBkaXNwb27DrXZlaXM6IG3DqnMgYXR1YWwsIG3DqnMgYW50ZXJpb3IsIMO6bHRpbW9zIDMwIGRpYXMsIMO6bHRpbW9zIDMgbWVzZXMsIMO6bHRpbW9zIDYgbWVzZXMsIGFubyBhdHVhbCBlIGludGVydmFsbyBwZXJzb25hbGl6YWRvLgoKQSBVSSB0cmFiYWxoYSBjb20gZGF0YXMgaW5jbHVzaXZhcyBwYXJhIG8gdXN1w6FyaW8sIG1hcyBlbnZpYSBhbyBiYWNrZW5kIGEgc2Vtw6JudGljYSBqw6EgZXN0YWJlbGVjaWRhIHBlbGEgMjMuMTQsIGNvbSBgZW5kX2RhdGVgIGV4Y2x1c2l2by4gRXNzYSBhZGFwdGHDp8OjbyBmaWNhIGNlbnRyYWxpemFkYSBub3MgaGVscGVycyBkYSBww6FnaW5hIGUgbsOjbyByZWNyaWEgcmVncmFzIEFXUyBkbyBDb3N0IEV4cGxvcmVyIG5vcyBjb21wb25lbnRlcyB2aXN1YWlzLgoKQSBjb21wYXJhw6fDo28gdXNhIHVtYSBzZWd1bmRhIGNvbnN1bHRhIGRlIHN1bW1hcnkgY29tIG8gbWVzbW8gY29uanVudG8gZGUgY29udGFzLCBwcm9maWxlIHJlc29sdmlkbywgbcOpdHJpY2EsIGdyYW51bGFyaWRhZGUgZSByZWNvcmQgZmlsdGVycy4gTcOqcyBjb3JyZW50ZSBlIG3DqnMgYW50ZXJpb3IgdXNhbSBvIG1lc21vIHJlY29ydGUgcmVsYXRpdm8gZG8gbcOqczsgcmFuZ2VzIG3Ds3ZlaXMvY3VzdG9taXphZG9zIHVzYW0gdW0gcGVyw61vZG8gaW1lZGlhdGFtZW50ZSBhbnRlcmlvciBjb20gbyBtZXNtbyBuw7ptZXJvIGRlIGRpYXMuIGBwcmV2aW91cz0wYCBuw6NvIHByb2R1eiBpbmZpbml0byBlIGF1c8OqbmNpYSBkZSB2YWxvciBuYSBtZXNtYSBtb2VkYS91bmlkYWRlIG7Do28gZ2VyYSBjb21wYXJhw6fDo28gbW9uZXTDoXJpYSBpbmNvcnJldGEuCgojIyMgTcOpdHJpY2EsIGdyYW51bGFyaWRhZGUgZSBDcmVkaXQKCkEgaW50ZXJmYWNlIG9mZXJlY2Ugc29tZW50ZSBvIGRvbcOtbmlvIHJlYWxtZW50ZSBzdXBvcnRhZG8gcGVsbyBiYWNrZW5kOgoKLSBtw6l0cmljYXMgYEFNT1JUSVpFRF9DT1NUYCwgYE5FVF9BTU9SVElaRURfQ09TVGAgZSBgVU5CTEVOREVEX0NPU1RgOwotIGdyYW51bGFyaWRhZGUgYERBSUxZYCBlIGBNT05USExZYDsKLSByZWNvcmQgdHlwZXMgQVdTIHZhbGlkYWRvcyBwZWxvIGNvbnRyYXRvIGRhIDIzLjE0LgoKQSBleGNsdXPDo28gZGUgYENyZWRpdGAgw6kgdmlzw612ZWwgcG9ycXVlIGZheiBwYXJ0ZSBkbyBwcm9maWxlIEZpbk9wcy4gUmVjb3JkIHR5cGVzIGFkaWNpb25haXMgZmljYW0gZW0gYE1haXMgZmlsdHJvc2AsIGV2aXRhbmRvIHBvbHVpciBhIHByaW1laXJhIGxpbmhhIGRlIGNvbnRyb2xlcy4KCiMjIyBTdW1tYXJ5LCB0aW1lc2VyaWVzIGUgYnJlYWtkb3ducwoKVG9kb3Mgb3MgYmxvY29zIHVzYW0gdW1hIMO6bmljYSBmb250ZSBkZSB2ZXJkYWRlIHBhcmEgZmlsdHJvcyBnbG9iYWlzLgoKLSBgQ3VzdG8gZG8gcGVyw61vZG9gOiB1bSBLUEkgcG9yIGN1cnJlbmN5L3VuaXQgcmV0b3JuYWRhIHBlbG8gYmFja2VuZCwgY29tIGJhZGdlIGBFc3RpbWFkb2AgcXVhbmRvIGFwbGljw6F2ZWw7Ci0gY29tcGFyYcOnw6NvOiB2YWxvciBkbyBwZXLDrW9kbyBhbnRlcmlvciBlcXVpdmFsZW50ZSBlIHZhcmlhw6fDo28gcXVhbmRvIG1hdGVtYXRpY2FtZW50ZSB2w6FsaWRhOwotIGBFdm9sdcOnw6NvIGRlIGN1c3Rvc2A6IHPDqXJpZSBgREFJTFlgIG91IGBNT05USExZYCBkYSAyMy4xNCwgc2VwYXJhZGEgcG9yIGN1cnJlbmN5LCBjb20gdG9vbHRpcCBwb3IgYnVja2V0IGUgaW5kaWNhw6fDo28gdGV4dHVhbCBkZSBgRXN0aW1hdGVkYDsKLSBgQ3VzdG8gcG9yIHNlcnZpw6dvYDogYEdyb3VwQnkgU0VSVklDRWAsIG9yZGVuYWRvIHBvciBjdXN0byBlIGxpbWl0YWRvIHZpc3VhbG1lbnRlIGFvIFRvcCAxMCBkZSBjYWRhIGN1cnJlbmN5IHNlbSBmYWJyaWNhciBidWNrZXQgYE91dHJvc2AgYSBwYXJ0aXIgZGUgcMOhZ2luYSBpbmNvbXBsZXRhOwotIGBDdXN0byBwb3IgY29udGFgOiBgR3JvdXBCeSBBQ0NPVU5UYCwgc29tZW50ZSBxdWFuZG8gbWFpcyBkZSB1bWEgY29udGEgZXN0w6Egc2VsZWNpb25hZGEsIGV4aWJpbmRvIG5vbWUsIEFXUyBBY2NvdW50IElELCB2YWxvciBlIGVzdGFkbyBlc3RpbWFkby4KCk8gZnJvbnRlbmQgbsOjbyByZWNhbGN1bGEgUHJpY2luZyBDYXRhbG9nIG5lbSByZWNvbnN0csOzaSBkYWRvcyBkbyBDb3N0IEV4cGxvcmVyIGEgcGFydGlyIGRlIG91dHJhIGZvbnRlLgoKIyMjIEN1cnJlbmN5LCBFc3RpbWF0ZWQgZSBwcmVjaXPDo28KCj4gb3MgdmFsb3JlcyBleGliaWRvcyB2w6ptIGRvIEFXUyBDb3N0IEV4cGxvcmVyIGUgcG9kZW0gZXN0YXIgbWFyY2Fkb3MgY29tbyBlc3RpbWFkb3MgcGFyYSBwZXLDrW9kb3MgYWluZGEgbsOjbyBjb25zb2xpZGFkb3M7IGVsZXMgbsOjbyBkZXZlbSBzZXIgYXByZXNlbnRhZG9zIGNvbW8gZmF0dXJhIGZpbmFsIHF1YW5kbyBlc3NhIGdhcmFudGlhIG7Do28gZXhpc3RlLgoKPiBuZW5odW1hIGNvbnZlcnPDo28gY2FtYmlhbCDDqSByZWFsaXphZGEuIEEgbW9lZGEvdW5pZGFkZSByZXRvcm5hZGEgcGVsYSBBV1Mgw6kgcHJlc2VydmFkYS4KClJlc3VtbywgdGltZXNlcmllcyBlIGJyZWFrZG93bnMgYWdydXBhbSB2aXN1YWxtZW50ZSBwb3IgYGN1cnJlbmN5YC4gRHVhcyBjdXJyZW5jaWVzIG51bmNhIHPDo28gc29tYWRhcyBlbnRyZSBzaSBlIGEgY29tcGFyYcOnw6NvIHPDsyBvY29ycmUgY29udHJhIG8gdmFsb3IgYW50ZXJpb3IgZGEgbWVzbWEgdW5pdC4gQSBmb3JtYXRhw6fDo28gdXNhIGBJbnRsLk51bWJlckZvcm1hdGAgcXVhbmRvIG8gVW5pdCDDqSB1bWEgY3VycmVuY3kgSVNPIGUgcHJlc2VydmEgbGl0ZXJhbG1lbnRlIHVuaWRhZGVzIG7Do28gcmVjb25oZWNpZGFzLCBzZW0gaGFyZGNvZGUgZGUgVVNELgoKVmFsb3JlcyBuZWdhdGl2b3MgbsOjbyBzw6NvIHRydW5jYWRvcywgY3VzdG8gemVybyBwZXJtYW5lY2UgdW0gdmFsb3IgdsOhbGlkbyBlIGF1c8OqbmNpYSBkZSBkYWRvcyDDqSBleGliaWRhIGNvbW8gZW1wdHkgc3RhdGUgZGlzdGludG8gZGUgZXJyby4KCiMjIyBFc3RhZG8sIGRlZXAgbGluaywgcmVmcmVzaCBlIGNvbmNvcnLDqm5jaWEKCk9zIGZpbHRyb3MgcHJpbmNpcGFpcyBzw6NvIHNpbmNyb25pemFkb3MgbmEgcXVlcnkgc3RyaW5nIChgcHJvZmlsZWAsIGBhY2NvdW50c2AsIGBwZXJpb2RgLCBkYXRhcyBjdXN0b21pemFkYXMgZSBvdmVycmlkZXMgcXVhbmRvIGV4aXN0aXJlbSksIHBlcm1pdGluZG8gcmVmcmVzaCBlIGNvbXBhcnRpbGhhbWVudG8gZG8gcmVjb3J0ZSBzZW0gY3JpYXIgdW0gc3RvcmFnZSBwYXJhbGVsby4KCkEgcMOhZ2luYSB1c2EgdW1hIGFzc2luYXR1cmEgZGV0ZXJtaW7DrXN0aWNhIGNvbnRlbmRvIHByb2ZpbGUsIGNvbnRhcywgcGVyw61vZG8sIG3DqXRyaWNhLCBncmFudWxhcmlkYWRlLCByZWNvcmQgZmlsdGVycyBlIHJldmlzw6NvIG1hbnVhbC4gQ2FkYSBtdWRhbsOnYSBjYW5jZWxhIHJlcXVlc3RzIGFudGVyaW9yZXMgY29tIGBBYm9ydENvbnRyb2xsZXJgIGUgdXNhIHVtYSBzZXF1w6puY2lhIGRlIHJlcXVlc3QgcGFyYSBpbXBlZGlyIHJlc3Bvc3RhIHN0YWxlIGRlIHNvYnJlc2NyZXZlciBhIHNlbGXDp8OjbyBhdHVhbC4KCk8gYm90w6NvIGBBdHVhbGl6YXJgIGluaWNpYSB1bWEgbm92YSBsZWl0dXJhIHVzYW5kbyBvcyBtZXNtb3MgY29udHJhdG9zIGUgcmVzcGVpdGEgbyBjYWNoZSBkbyBiYWNrZW5kOyBuw6NvIGV4aXN0ZSBwYXLDom1ldHJvIGRlIGJ5cGFzcyBkZSBjYWNoZS4KCiMjIyBFcnJvcywgbG9hZGluZyBlIGVtcHR5IHN0YXRlcwoKU3VtbWFyeSwgY29tcGFyYcOnw6NvLCB0aW1lc2VyaWVzIGUgYnJlYWtkb3ducyBwb3NzdWVtIGVzdGFkb3MgbG9jYWlzLCBldml0YW5kbyBibG9xdWVhciB0b2RhIGEgcMOhZ2luYSBxdWFuZG8gdW0gYmxvY28gc2VjdW5kw6FyaW8gw6kgYXR1YWxpemFkby4gRXJyb3MgZGUgZG9tw61uaW8gY29uaGVjaWRvcyBzw6NvIHRyYWR1emlkb3MgcGFyYSBtZW5zYWdlbnMgZXNwZWPDrWZpY2FzIGRlIHBlcm1pc3PDo28sIENvc3QgRXhwbG9yZXIgaW5kaXNwb27DrXZlbCwgYmlsbGluZyBzY29wZSBpbnbDoWxpZG8sIHRocm90dGxpbmcsIHBlcsOtb2RvIGludsOhbGlkbyBlIGZhbGhhIHVwc3RyZWFtLgoKVW1hIGNvbnN1bHRhIHbDoWxpZGEgc2VtIGN1c3RvIHJldG9ybmEgZW1wdHkgc3RhdGUsIG51bmNhIGVycm8uIENvc3QgRXhwbG9yZXIgaW5kaXNwb27DrXZlbCBudW5jYSDDqSB0cmFuc2Zvcm1hZG8gZW0gY3VzdG8gemVyby4gUmVzdWx0YWRvcyBwYXJjaWFpcyBuw6NvIHPDo28gcHJvbW92aWRvcyBhIHRvdGFsIGNvbXBsZXRvIHBvcnF1ZSBhIDIzLjE0IGZhbGhhIGEgYWdyZWdhw6fDo28gbXVsdGktYWNjb3VudCBxdWFuZG8gcXVhbHF1ZXIgc2NvcGUgbsOjbyBjb25jbHVpIGNvcnJldGFtZW50ZS4KCiMjIyBDYWNoZSBlIHBlcmZvcm1hbmNlCgpOZW5odW1hIGNhbWFkYSBkZSBjYWNoZSBmaW5hbmNlaXJhIGZvaSBkdXBsaWNhZGEgbm8gZnJvbnRlbmQuIEFzIGNoYW1hZGFzIHJldXRpbGl6YW0gbyBjYWNoZSBjYW7DtG5pY28gZGEgMjMuMTQsIGN1amEgaWRlbnRpZGFkZSBqw6EgaW5jbHVpIHNjb3BlL2NvbnRhLCBwZXLDrW9kbywgbcOpdHJpY2EsIGdyYW51bGFyaWRhZGUsIGdyb3VwaW5nIGUgcmVjb3JkIGZpbHRlcnMuIEN1cnJlbnQgZSBwcmV2aW91cyBwZXJpb2QgcG9zc3VlbSBrZXlzIGRpc3RpbnRhczsgYFNFUlZJQ0VgIGUgYEFDQ09VTlRgIGNvbnRpbnVhbSBmYXplbmRvIHBhcnRlIGRhIGtleSBwb3IgbWVpbyBkbyBncm91cGluZy4KCkEgcMOhZ2luYSBmYXogY2hhbWFkYXMgcG9yIGRhdGFzZXQgbmVjZXNzw6FyaW8sIG51bmNhIHBvciBjb250YS4gQWNjb3VudCBtZXRhZGF0YSDDqSBjYXJyZWdhZGEgdW1hIMO6bmljYSB2ZXogZSBvIGJyZWFrZG93biBtdWx0aS1hY2NvdW50IGNvbnRpbnVhIHNlcnZlci1zaWRlLiBPIFRvcCAxMCDDqSBzb21lbnRlIHVtYSBkZWNpc8OjbyBkZSBhcHJlc2VudGHDp8OjbyBzb2JyZSBvIGRhdGFzZXQgZGUgYnJlYWtkb3duIHJldG9ybmFkbzsgbsOjbyBow6EgTisxIHBvciBjb250YSBvdSByZWN1cnNvLgoKIyMjIEF1dG9yaXphw6fDo28KClByb2ZpbGUgY29uZmlndXJhIG1ldG9kb2xvZ2lhIGUgbsOjbyBjb25jZWRlIGFjZXNzby4gQSBsaXN0YSBkZSBjb250YXMgdmVtIGRvIGNhZGFzdHJvIGRpc3BvbsOtdmVsIGFvIHVzdcOhcmlvLCBlbnF1YW50byBvIGJhY2tlbmQgcGVybWFuZWNlIGEgZm9udGUgZGVmaW5pdGl2YSBkZSBhdXRvcml6YcOnw6NvLCBwcm92aWRlciBlIGJpbGxpbmcgc2NvcGUuIFVtIHJlcXVlc3QgbWFudWFsIGNvbSBjb250YSBpbnbDoWxpZGEgY29udGludWEgc2VuZG8gcmVqZWl0YWRvIHBlbG8gY29udHJhdG8gZGEgMjMuMTQuCgojIyMgRnJvbnRlbmQgZSBncsOhZmljb3MKCk8gcHJvamV0byBuw6NvIHBvc3N1aSBiaWJsaW90ZWNhIGRlIGNoYXJ0cyBpbnN0YWxhZGEuIFBhcmEgZXZpdGFyIGRlcGVuZMOqbmNpYSBwZXNhZGEgYXBlbmFzIHBhcmEgZXN0YSBww6FnaW5hLCBhIHPDqXJpZSB0ZW1wb3JhbCB1c2EgU1ZHIHNpbXBsZXMgZSBhY2Vzc8OtdmVsLCBzZWd1aW5kbyBvIHBhZHLDo28gasOhIHV0aWxpemFkbyBwZWxvIEZsdXhvLiBPIGdyw6FmaWNvIHBvc3N1aSB0w610dWxvL2BhcmlhLWxhYmVsYCwgdG9vbHRpcHMgZSBtYXJjYWRvciB0ZXh0dWFsIHBhcmEgZXN0aW1hdGl2YSwgc2VtIGRlcGVuZGVyIHNvbWVudGUgZGUgY29yLgoKTyBsYXlvdXQgw6kgcmVzcG9uc2l2bzogZmlsdHJvcyBlIGNvbnRhcyBxdWVicmFtIGVtIGxpbmhhcywgS1BJcyBlbXBpbGhhbSwgZ3LDoWZpY29zIG9jdXBhbSBsYXJndXJhIGRpc3BvbsOtdmVsIGNvbSBzY3JvbGwgbG9jYWwgcXVhbmRvIG5lY2Vzc8OhcmlvIGUgdGFiZWxhcyBzZWd1ZW0gbyBwYWRyw6NvIGV4aXN0ZW50ZS4gTsOjbyBmb2kgZmVpdG8gcmVkZXNpZ24gbW9iaWxlL2dsb2JhbC4KCiMjIyBNaWdyYXRpb24gZSBhcnF1aXZvcyBwcmluY2lwYWlzCgpOZW5odW1hIG1pZ3JhdGlvbiBmb2kgbmVjZXNzw6FyaWE7IGEgdGVsYSBjb25zb21lIGBDbG91ZEFjY291bnRgLCBgQmlsbGluZ1Byb2ZpbGVgIGUgb3MgcmVhZCBtb2RlbHMgZGEgMjMuMTQvMjMuMTUgZXhpc3RlbnRlcy4KClByaW5jaXBhaXMgYXJxdWl2b3MgZGEgZXRhcGE6CgotIGBmcm9udGVuZC9hcHAvYmlsbGluZy9wYWdlLnRzeGA7Ci0gYGZyb250ZW5kL2FwcC9iaWxsaW5nL2JpbGxpbmcubW9kdWxlLmNzc2A7Ci0gYGZyb250ZW5kL2xpYi9iaWxsaW5nLnRzYDsKLSBgZnJvbnRlbmQvbGliL2JpbGxpbmctZGFzaGJvYXJkLm1qc2AgZSBgYmlsbGluZy1kYXNoYm9hcmQuZC5tdHNgOwotIGBmcm9udGVuZC90ZXN0cy9iaWxsaW5nLWRhc2hib2FyZC50ZXN0Lm1qc2A7Ci0gYGZyb250ZW5kL2NvbXBvbmVudHMvYXBwLXNoZWxsLnRzeGA7Ci0gZXN0ZSBgZG9jcy9pbXBsZW1lbnRhdGlvbi1yb2FkbWFwLm1kYC4KCiMjIyBUZXN0ZXMgZSB2YWxpZGHDp8OjbwoKT3MgdGVzdGVzIGZyb250ZW5kIGVzcGVjw61maWNvcyBjb2JyZW0gcGVyw61vZG8gYXR1YWwgZSBjb21wYXJhw6fDo28gbW9udGgtdG8tZGF0ZSwgcmFuZ2UgY3VzdG9taXphZG8gY29tIGVuZCBkYXRlIGV4Y2x1c2l2byBubyBjb250cmF0byBiYWNrZW5kLCBwZXLDrW9kbyBhbnRlcmlvciBkZSBtZXNtbyBjb21wcmltZW50bywgdmFyaWHDp8OjbyBjb20gYmFzZWxpbmUgemVybywgcHJlc2VydmHDp8OjbyBkZSBjdXJyZW5jeS91bml0LCBUb3AgTiwgYXNzaW5hdHVyYSBkZXRlcm1pbsOtc3RpY2EgZGUgZmlsdHJvcyBlIGNvbnRyYXRvIGVzdMOhdGljbyBkYSBww6FnaW5hL25hdmVnYcOnw6NvIEFXUyBCaWxsaW5nLgoKQXMgc3XDrXRlcyBjdW11bGF0aXZhcyBkbyBiYWNrZW5kIGNvbnRpbnVhbSBjb2JyaW5kbyBDb3N0IEV4cGxvcmVyIGNsaWVudCwgcXVlcnkgYnVpbGRlciwgYXV0b3JpemHDp8OjbywgcGFnaW5hw6fDo28sIGNhY2hlLCBtdWx0aS1hY2NvdW50LCBtaXhlZCBjdXJyZW5jeSwgRXN0aW1hdGVkLCBlcnJvcywgcHJvZmlsZSBDUlVELCBkZWZhdWx0LCByZXNvbHXDp8OjbyBlIHJ1bnRpbWUgb3ZlcnJpZGVzLgoKTyBDSSBkbyBQUiBkYSAyMy4xNiBleGVjdXRhIGBydWZmIGNoZWNrIC5gLCBgcnVmZiBmb3JtYXQgLS1jaGVjayAuYCwgYHB5dGVzdCAtcWAsIGBucG0gdGVzdGAsIGBucG0gcnVuIGJ1aWxkYCwgc2VjdXJpdHkgZSBvcyB3b3JrZmxvd3MgZGUgc21va2UgasOhIGV4aXN0ZW50ZXMuIE9zIHJlc3VsdGFkb3MgZmluYWlzIHPDo28gcmVnaXN0cmFkb3MgbmEgcmVzcG9zdGEgZGUgZW50cmVnYSBlIG5vIFBSIGRlcG9pcyBxdWUgbyBoZWFkIGRlZmluaXRpdm8gZmljYSB2ZXJkZS4KCiMjIyBMaW1pdGHDp8O1ZXMgZGVsaWJlcmFkYW1lbnRlIHByZXNlcnZhZGFzCgpBIEV0YXBhIDIzLjE2IG7Do28gaW1wbGVtZW50YSBGb3JlY2FzdCwgQVdTIEJ1ZGdldHMsIENVUi9BdGhlbmEsIE9DSSBCaWxsaW5nLCBGWCwgUHJpY2luZyBDYXRhbG9nIGNvbW8gZm9udGUgZGUgQmlsbGluZywgZ2VyYcOnw6NvIGF1dG9tw6F0aWNhIGRlIHNhdmluZ3MvbGVkZ2VyLCBpbnRlZ3Jhw6fDo28gYXV0b23DoXRpY2EgY29tIE9wcG9ydHVuaXRpZXMsIGV4cG9ydCBwaXBlbGluZSBub3ZvLCBtYXRlcmlhbGl6YcOnw6NvIGZpbmFuY2VpcmEgbmVtIHJlZGVzaWduIGdsb2JhbC4gQ3VzdG9zIG9wZXJhY2lvbmFpcyBkbyBwcsOzcHJpbyBEZWVwT3BzIHBlcm1hbmVjZW0gcGFyYSBhcyBUYXNrcyAyMy4xN+KAkzIzLjE5IGUgYSByZXZpc8OjbyBlc3RydXR1cmFsIGRlIFVYL25hdmVnYcOnw6NvIHBlcm1hbmVjZSBwYXJhIGEgMjMuMjAuCg=="
+          section = base64.b64decode(payload).decode("utf-8")
+          current = path.read_text(encoding="utf-8").rstrip()
+          path.write_text(current + "\n\n" + section.strip() + "\n", encoding="utf-8")
           PY
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
