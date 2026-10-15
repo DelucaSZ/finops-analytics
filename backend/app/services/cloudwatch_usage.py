@@ -59,9 +59,7 @@ def _error_type(error: Exception) -> str:
     return type(error).__name__[:80]
 
 
-def _retry_observation(
-    metadata: dict[str, Any], *, success: bool
-) -> tuple[int, int | None, bool]:
+def _retry_observation(metadata: dict[str, Any], *, success: bool) -> tuple[int, int | None, bool]:
     raw = metadata.get("RetryAttempts")
     if isinstance(raw, int) and raw >= 0:
         return raw + 1, raw, True
@@ -102,9 +100,7 @@ def _metric_dimensions(method_name: str, request: dict[str, Any]) -> dict[str, A
     if method_name == "get_metric_data":
         queries = request.get("MetricDataQueries") or []
         metric_stats = sum(
-            1
-            for query in queries
-            if isinstance(query, dict) and query.get("MetricStat")
+            1 for query in queries if isinstance(query, dict) and query.get("MetricStat")
         )
         expressions = [
             str(query.get("Expression", ""))
@@ -112,9 +108,7 @@ def _metric_dimensions(method_name: str, request: dict[str, Any]) -> dict[str, A
             if isinstance(query, dict) and query.get("Expression")
         ]
         insights = sum(
-            1
-            for expression in expressions
-            if expression.lstrip().upper().startswith("SELECT ")
+            1 for expression in expressions if expression.lstrip().upper().startswith("SELECT ")
         )
         return {
             "metrics_requested": metric_stats,
@@ -160,9 +154,7 @@ def _record_event(
     metric = _metric_dimensions(method_name, request)
     request_count, retry_count, exact = _retry_observation(response_metadata, success=success)
     inferred_collector, inferred_analyzer = _current_attribution(method_name, request)
-    metadata = {
-        key: value for key, value in metric["metadata"].items() if value is not None
-    }
+    metadata = {key: value for key, value in metric["metadata"].items() if value is not None}
     if not exact:
         metadata["request_count_basis"] = "logical_minimum"
     _buffered_events().append(
