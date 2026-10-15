@@ -8,6 +8,7 @@ import {
   CloudCog,
   LayoutDashboard,
   LogOut,
+  ReceiptText,
   ScanSearch,
   Settings2,
   WalletCards,
@@ -19,6 +20,7 @@ const nav = [
   { href: "/", label: "Visão geral", icon: LayoutDashboard },
   { href: "/opportunities", label: "Oportunidades", icon: ScanSearch },
   { href: "/flow", label: "Fluxo", icon: WalletCards },
+  { href: "/billing", label: "Billing", icon: ReceiptText },
   { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
