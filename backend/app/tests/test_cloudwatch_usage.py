@@ -152,7 +152,7 @@ def test_get_metric_data_classifies_queries_and_each_page_is_a_separate_event():
     queries = [
         {"Id": "m1", "MetricStat": {"Metric": {"Namespace": "AWS/EC2"}}},
         {"Id": "e1", "Expression": "m1 * 2"},
-        {"Id": "q1", "Expression": "SELECT AVG(CPUUtilization) FROM SCHEMA(\"AWS/EC2\")"},
+        {"Id": "q1", "Expression": 'SELECT AVG(CPUUtilization) FROM SCHEMA("AWS/EC2")'},
     ]
     client.get_metric_data(MetricDataQueries=queries)
     client.get_metric_data(MetricDataQueries=queries, NextToken="page-2")
