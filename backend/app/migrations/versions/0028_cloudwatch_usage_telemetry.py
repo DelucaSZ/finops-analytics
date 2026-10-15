@@ -40,12 +40,8 @@ def upgrade() -> None:
         sa.Column("request_duration_ms", sa.Integer(), nullable=True),
         sa.Column("aws_request_id", sa.String(length=128), nullable=True),
         sa.Column("metadata", sa.JSON(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["cloud_account_id"], ["cloud_accounts.id"], ondelete="SET NULL"
-        ),
-        sa.ForeignKeyConstraint(
-            ["collection_run_id"], ["collection_runs.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["cloud_account_id"], ["cloud_accounts.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["collection_run_id"], ["collection_runs.id"], ondelete="SET NULL"),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
