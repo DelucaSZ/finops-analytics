@@ -63,9 +63,7 @@ def list_usage_events(
     page: int = 1,
     page_size: int = 50,
 ) -> dict:
-    count_statement = _filtered(
-        select(func.count()).select_from(CloudWatchUsageEvent), filters
-    )
+    count_statement = _filtered(select(func.count()).select_from(CloudWatchUsageEvent), filters)
     total = int(db.scalar(count_statement) or 0)
     statement = _filtered(select(CloudWatchUsageEvent), filters).order_by(
         CloudWatchUsageEvent.occurred_at.desc(), CloudWatchUsageEvent.id.desc()
@@ -97,9 +95,7 @@ def usage_summary(
         group.label("group"),
         func.count(CloudWatchUsageEvent.id).label("events"),
         func.coalesce(func.sum(CloudWatchUsageEvent.request_count), 0).label("requests"),
-        func.coalesce(func.sum(CloudWatchUsageEvent.metric_query_count), 0).label(
-            "metric_queries"
-        ),
+        func.coalesce(func.sum(CloudWatchUsageEvent.metric_query_count), 0).label("metric_queries"),
         func.coalesce(func.sum(CloudWatchUsageEvent.metrics_requested), 0).label(
             "metrics_requested"
         ),
