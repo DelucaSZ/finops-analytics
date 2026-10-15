@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Literal
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, case, func, select
 from sqlalchemy.orm import Session
 
 from app.models.cloudwatch_usage import CloudWatchUsageEvent
@@ -104,7 +104,7 @@ def usage_summary(
             "metrics_requested"
         ),
         func.coalesce(
-            func.sum(func.cast(~CloudWatchUsageEvent.success, CloudWatchUsageEvent.request_count.type)),
+            func.sum(case((CloudWatchUsageEvent.success.is_(False), 1), else_=0)),
             0,
         ).label("failed_events"),
     ).group_by(group)
