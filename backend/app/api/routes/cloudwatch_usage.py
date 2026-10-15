@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -20,6 +20,10 @@ router = APIRouter(
 )
 
 
+def _utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def _filters(
     *,
     date_from: datetime | None,
@@ -33,11 +37,8 @@ def _filters(
     collection_run_id: str | None,
     success: bool | None,
 ) -> CloudWatchUsageFilters:
-    if date_from and date_to:
-        left = date_from.replace(tzinfo=None) if date_from.tzinfo else date_from
-        right = date_to.replace(tzinfo=None) if date_to.tzinfo else date_to
-        if left >= right:
-            raise HTTPException(status_code=422, detail="date_from must precede date_to")
+    if date_from and date_to and _utc(date_from) >= _utc(date_to):
+        raise HTTPException(status_code=422, detail="date_from must precede date_to")
     return CloudWatchUsageFilters(
         date_from=date_from,
         date_to=date_to,
@@ -89,7 +90,9 @@ def cloudwatch_usage_events(
 
 @router.get("/summary", response_model=CloudWatchUsageSummary)
 def cloudwatch_usage_summary(
-    group_by: Literal["operation", "account", "region", "collector", "analyzer"] = "operation",
+    group_by: Literal[
+        "operation", "account", "region", "collector", "analyzer"
+    ] = "operation",
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     cloud_account_id: int | None = None,
