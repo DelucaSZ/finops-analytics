@@ -4562,3 +4562,125 @@ Testes focados cobrem seed idempotente, preservação de customização, domíni
 ### Limitações deliberadas para a 23.16
 
 Ficam fora desta etapa: dashboard Billing completo, gráficos de custo, seletor multi-account final, UX de exploração completa e outras visualizações. Também continuam fora forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, materialização contábil de Billing, integração com Fluxo e redesign global.
+
+## Etapa 23.16 — Interface multi-account de AWS Billing
+
+**Status:** implementada na branch `feat/23-16-aws-billing-ui` e publicada em PR dedicado; merge na `main` depende de solicitação explícita posterior.
+
+### Objetivo, navegação e separação de domínios
+
+A Etapa 23.16 fecha o primeiro bloco de AWS Billing transformando os contratos da 23.14 e os Billing Profiles da 23.15 em uma área operacional de primeiro nível, `Billing`, na rota `/billing`. A versão atual é explicitamente AWS-only e usa o AWS Cost Explorer por meio do backend existente; não apresenta seletor OCI nem uma falsa experiência multi-cloud.
+
+> Billing e Fluxo permanecem domínios independentes. Custos do Cost Explorer não criam automaticamente savings ou movimentações financeiras.
+
+A navegação principal recebe somente a nova entrada `Billing`, sem reorganização global da sidebar. A configuração de profiles continua em `Configurações → Billing`; a página operacional oferece link para essa área somente quando o usuário é admin.
+
+### Profiles, default e runtime overrides
+
+A página lista os Billing Profiles habilitados da 23.15. A seleção inicial respeita o default persistido; `FinOps` permanece o fallback de sistema quando necessário. A UI não reconstrói o default manualmente.
+
+> o profile operacional padrão `FinOps` utiliza atualmente `DAILY + AmortizedCost + exclusão de Credit`, mas a tela permite trabalhar com outras configurações suportadas.
+
+A página permite overrides temporários de `metric`, `granularity` e `exclude_record_types`. Overrides são enviados apenas na consulta corrente, não persistem alterações no profile e são marcados visualmente. A ação `Restaurar perfil` volta aos valores persistidos. A troca de profile também redefine os overrides para a configuração daquele profile.
+
+### Seleção de contas e multi-account
+
+O frontend usa `CloudAccount` para listar somente contas `provider=aws`, exibindo nome amigável e AWS Account ID quando disponíveis. É possível selecionar uma conta, várias contas ou `Todas as contas` disponíveis ao usuário atual.
+
+A seleção é enviada de uma vez ao backend da 23.14 por `account_ids`; o browser não executa uma consulta Cost Explorer por conta. Autorização e resolução do billing scope continuam sendo responsabilidade do backend. Se um scope falhar ou não puder ser agregado de forma segura, a seção apresenta erro explícito e nenhum total silenciosamente parcial é mostrado.
+
+### Período e comparação
+
+O default é `Este mês`. Presets disponíveis: mês atual, mês anterior, últimos 30 dias, últimos 3 meses, últimos 6 meses, ano atual e intervalo personalizado.
+
+A UI trabalha com datas inclusivas para o usuário, mas envia ao backend a semântica já estabelecida pela 23.14, com `end_date` exclusivo. Essa adaptação fica centralizada nos helpers da página e não recria regras AWS do Cost Explorer nos componentes visuais.
+
+A comparação usa uma segunda consulta de summary com o mesmo conjunto de contas, profile resolvido, métrica, granularidade e record filters. Mês corrente e mês anterior usam o mesmo recorte relativo do mês; ranges móveis/customizados usam um período imediatamente anterior com o mesmo número de dias. `previous=0` não produz infinito e ausência de valor na mesma moeda/unidade não gera comparação monetária incorreta.
+
+### Métrica, granularidade e Credit
+
+A interface oferece somente o domínio realmente suportado pelo backend:
+
+- métricas `AMORTIZED_COST`, `NET_AMORTIZED_COST` e `UNBLENDED_COST`;
+- granularidade `DAILY` e `MONTHLY`;
+- record types AWS validados pelo contrato da 23.14.
+
+A exclusão de `Credit` é visível porque faz parte do profile FinOps. Record types adicionais ficam em `Mais filtros`, evitando poluir a primeira linha de controles.
+
+### Summary, timeseries e breakdowns
+
+Todos os blocos usam uma única fonte de verdade para filtros globais.
+
+- `Custo do período`: um KPI por currency/unit retornada pelo backend, com badge `Estimado` quando aplicável;
+- comparação: valor do período anterior equivalente e variação quando matematicamente válida;
+- `Evolução de custos`: série `DAILY` ou `MONTHLY` da 23.14, separada por currency, com tooltip por bucket e indicação textual de `Estimated`;
+- `Custo por serviço`: `GroupBy SERVICE`, ordenado por custo e limitado visualmente ao Top 10 de cada currency sem fabricar bucket `Outros` a partir de página incompleta;
+- `Custo por conta`: `GroupBy ACCOUNT`, somente quando mais de uma conta está selecionada, exibindo nome, AWS Account ID, valor e estado estimado.
+
+O frontend não recalcula Pricing Catalog nem reconstrói dados do Cost Explorer a partir de outra fonte.
+
+### Currency, Estimated e precisão
+
+> os valores exibidos vêm do AWS Cost Explorer e podem estar marcados como estimados para períodos ainda não consolidados; eles não devem ser apresentados como fatura final quando essa garantia não existe.
+
+> nenhuma conversão cambial é realizada. A moeda/unidade retornada pela AWS é preservada.
+
+Resumo, timeseries e breakdowns agrupam visualmente por `currency`. Duas currencies nunca são somadas entre si e a comparação só ocorre contra o valor anterior da mesma unit. A formatação usa `Intl.NumberFormat` quando o Unit é uma currency ISO e preserva literalmente unidades não reconhecidas, sem hardcode de USD.
+
+Valores negativos não são truncados, custo zero permanece um valor válido e ausência de dados é exibida como empty state distinto de erro.
+
+### Estado, deep link, refresh e concorrência
+
+Os filtros principais são sincronizados na query string (`profile`, `accounts`, `period`, datas customizadas e overrides quando existirem), permitindo refresh e compartilhamento do recorte sem criar um storage paralelo.
+
+A página usa uma assinatura determinística contendo profile, contas, período, métrica, granularidade, record filters e revisão manual. Cada mudança cancela requests anteriores com `AbortController` e usa uma sequência de request para impedir resposta stale de sobrescrever a seleção atual.
+
+O botão `Atualizar` inicia uma nova leitura usando os mesmos contratos e respeita o cache do backend; não existe parâmetro de bypass de cache.
+
+### Erros, loading e empty states
+
+Summary, comparação, timeseries e breakdowns possuem estados locais, evitando bloquear toda a página quando um bloco secundário é atualizado. Erros de domínio conhecidos são traduzidos para mensagens específicas de permissão, Cost Explorer indisponível, billing scope inválido, throttling, período inválido e falha upstream.
+
+Uma consulta válida sem custo retorna empty state, nunca erro. Cost Explorer indisponível nunca é transformado em custo zero. Resultados parciais não são promovidos a total completo porque a 23.14 falha a agregação multi-account quando qualquer scope não conclui corretamente.
+
+### Cache e performance
+
+Nenhuma camada de cache financeira foi duplicada no frontend. As chamadas reutilizam o cache canônico da 23.14, cuja identidade já inclui scope/conta, período, métrica, granularidade, grouping e record filters. Current e previous period possuem keys distintas; `SERVICE` e `ACCOUNT` continuam fazendo parte da key por meio do grouping.
+
+A página faz chamadas por dataset necessário, nunca por conta. Account metadata é carregada uma única vez e o breakdown multi-account continua server-side. O Top 10 é somente uma decisão de apresentação sobre o dataset de breakdown retornado; não há N+1 por conta ou recurso.
+
+### Autorização
+
+Profile configura metodologia e não concede acesso. A lista de contas vem do cadastro disponível ao usuário, enquanto o backend permanece a fonte definitiva de autorização, provider e billing scope. Um request manual com conta inválida continua sendo rejeitado pelo contrato da 23.14.
+
+### Frontend e gráficos
+
+O projeto não possui biblioteca de charts instalada. Para evitar dependência pesada apenas para esta página, a série temporal usa SVG simples e acessível, seguindo o padrão já utilizado pelo Fluxo. O gráfico possui título/`aria-label`, tooltips e marcador textual para estimativa, sem depender somente de cor.
+
+O layout é responsivo: filtros e contas quebram em linhas, KPIs empilham, gráficos ocupam largura disponível com scroll local quando necessário e tabelas seguem o padrão existente. Não foi feito redesign mobile/global.
+
+### Migration e arquivos principais
+
+Nenhuma migration foi necessária; a tela consome `CloudAccount`, `BillingProfile` e os read models da 23.14/23.15 existentes.
+
+Principais arquivos da etapa:
+
+- `frontend/app/billing/page.tsx`;
+- `frontend/app/billing/billing.module.css`;
+- `frontend/lib/billing.ts`;
+- `frontend/lib/billing-dashboard.mjs` e `billing-dashboard.d.mts`;
+- `frontend/tests/billing-dashboard.test.mjs`;
+- `frontend/components/app-shell.tsx`;
+- este `docs/implementation-roadmap.md`.
+
+### Testes e validação
+
+Os testes frontend específicos cobrem período atual e comparação month-to-date, range customizado com end date exclusivo no contrato backend, período anterior de mesmo comprimento, variação com baseline zero, preservação de currency/unit, Top N, assinatura determinística de filtros e contrato estático da página/navegação AWS Billing.
+
+As suítes cumulativas do backend continuam cobrindo Cost Explorer client, query builder, autorização, paginação, cache, multi-account, mixed currency, Estimated, erros, profile CRUD, default, resolução e runtime overrides.
+
+O CI do PR da 23.16 executa `ruff check .`, `ruff format --check .`, `pytest -q`, `npm test`, `npm run build`, security e os workflows de smoke já existentes. Os resultados finais são registrados na resposta de entrega e no PR depois que o head definitivo fica verde.
+
+### Limitações deliberadamente preservadas
+
+A Etapa 23.16 não implementa Forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, Pricing Catalog como fonte de Billing, geração automática de savings/ledger, integração automática com Opportunities, export pipeline novo, materialização financeira nem redesign global. Custos operacionais do próprio DeepOps permanecem para as Tasks 23.17–23.19 e a revisão estrutural de UX/navegação permanece para a 23.20.
