@@ -36,7 +36,7 @@ from app.services.demo import seed_demo_data
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database(engine)
-    with SessionLocal() as db:
+    with SessionLocal(bind=engine) as db:
         ensure_finops_profile(db)
         if settings.demo_mode:
             seed_demo_data(db)
