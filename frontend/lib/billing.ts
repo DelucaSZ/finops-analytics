@@ -96,39 +96,47 @@ export type BillingBreakdownResponse = BillingProfileMetadata & {
   items: BillingBreakdownItem[];
 };
 
-function postBilling<T>(path: string, request: AwsBillingRequest): Promise<T> {
+function postBilling<T>(
+  path: string,
+  request: AwsBillingRequest,
+  signal?: AbortSignal,
+): Promise<T> {
   return api<T>(path, {
     method: "POST",
     body: JSON.stringify(request),
+    signal,
   });
 }
 
 export function getAwsBillingSummary(
   request: AwsBillingRequest,
+  signal?: AbortSignal,
 ): Promise<BillingSummaryResponse> {
   return postBilling<BillingSummaryResponse>("/billing/aws/summary", {
     ...request,
     group_by: "NONE",
-  });
+  }, signal);
 }
 
 export function getAwsBillingTimeSeries(
   request: AwsBillingRequest,
+  signal?: AbortSignal,
 ): Promise<BillingTimeSeriesResponse> {
   return postBilling<BillingTimeSeriesResponse>("/billing/aws/timeseries", {
     ...request,
     group_by: "NONE",
-  });
+  }, signal);
 }
 
 export function getAwsBillingBreakdown(
   request: AwsBillingRequest & { group_by: Exclude<BillingGroupBy, "NONE"> },
+  signal?: AbortSignal,
 ): Promise<BillingBreakdownResponse> {
-  return postBilling<BillingBreakdownResponse>("/billing/aws/breakdown", request);
+  return postBilling<BillingBreakdownResponse>("/billing/aws/breakdown", request, signal);
 }
 
-export function listBillingProfiles(): Promise<BillingProfile[]> {
-  return api<BillingProfile[]>("/billing/aws/profiles");
+export function listBillingProfiles(signal?: AbortSignal): Promise<BillingProfile[]> {
+  return api<BillingProfile[]>("/billing/aws/profiles", { signal });
 }
 
 export function createBillingProfile(input: BillingProfileInput): Promise<BillingProfile> {
