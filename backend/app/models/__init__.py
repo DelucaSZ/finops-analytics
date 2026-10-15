@@ -6,6 +6,7 @@ from app.models.account import (
 )
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.billing_profile import BillingProfile
+from app.models.cloudwatch_usage import CloudWatchUsageEvent
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.collection_scope_execution import (
     CollectionScopeExecution,
@@ -58,6 +59,7 @@ __all__ = [
     "BillingProfile",
     "CloudAccount",
     "CloudAccountAuditEvent",
+    "CloudWatchUsageEvent",
     "OciAccountConfiguration",
     "CollectionRun",
     "CollectionRunStatus",
