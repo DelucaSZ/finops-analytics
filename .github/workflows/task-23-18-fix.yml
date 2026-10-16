@@ -33,8 +33,22 @@ jobs:
           path.write_text(text.replace(old, new, 1))
           PY
           cd backend
-          ruff check --fix app/api/routes/cloudwatch_cost.py app/main.py app/migrations/versions/0029_cloudwatch_cost_engine.py app/models/__init__.py app/models/cloudwatch_pricing.py app/schemas/cloudwatch_cost.py app/services/cloudwatch_cost_engine.py app/services/cloudwatch_pricing.py app/tests/test_cloudwatch_cost_engine.py app/tests/test_migrations.py
-          ruff format app/api/routes/cloudwatch_cost.py app/main.py app/migrations/versions/0029_cloudwatch_cost_engine.py app/models/__init__.py app/models/cloudwatch_pricing.py app/schemas/cloudwatch_cost.py app/services/cloudwatch_cost_engine.py app/services/cloudwatch_pricing.py app/tests/test_cloudwatch_cost_engine.py app/tests/test_migrations.py
+          files=(
+            app/api/routes/cloudwatch_cost.py
+            app/main.py
+            app/migrations/versions/0029_cloudwatch_cost_engine.py
+            app/models/__init__.py
+            app/models/cloudwatch_pricing.py
+            app/schemas/cloudwatch_cost.py
+            app/services/cloudwatch_cost_engine.py
+            app/services/cloudwatch_pricing.py
+            app/tests/test_cloudwatch_cost_engine.py
+            app/tests/test_migrations.py
+          )
+          ruff format "${files[@]}"
+          ruff check --fix "${files[@]}"
+          ruff format "${files[@]}"
+          ruff check "${files[@]}"
           cd ..
           git add backend
           if git diff --cached --quiet; then
