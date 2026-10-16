@@ -1,6 +1,6 @@
 # Etapa 23.20 — Redesign global, navegação e experiência multi-cloud
 
-**Status:** implementada na branch `feat/23-20-product-ui-redesign`; validação final pelo CI do PR.
+**Status:** concluída, validada e incorporada à `main` pelo PR #74; merge commit `029a1b579ac6c91f8adee14ac9748a91eb7c8ef4`.
 
 ## Objetivo e auditoria visual
 
@@ -70,9 +70,28 @@ Human status e technical presence continuam conceitos distintos. Billing e Fluxo
 
 Foram adicionados testes para normalização/resolução de tema, default System, persistência de sidebar, bootstrap pré-hidratação, ausência do branding global obsoleto, collapse/tooltips, mobile drawer, tokens semânticos, reduced motion, diferenciação visual de human status/presence e navegação Settings/Aparência.
 
-O CI cumulativo executa backend `ruff check .`, `ruff format --check .`, `pytest -q`; frontend `npm test` e `npm run build`; além dos jobs de security, compose smoke e auto deploy tests existentes.
+Validação do head funcional `1534c4c005ae861a24e0beb226dfa9e44a98a01b` no PR #74:
 
-A validação visual/manual prevista para merge cobre Light, Dark, System, sidebar expanded/collapsed e drawer mobile nas rotas principais. Não foi introduzido framework novo de visual regression.
+- backend: `ruff check .` aprovado;
+- backend: `ruff format --check .` aprovado;
+- backend: `pytest -q` com **850 testes aprovados**;
+- frontend: `npm test` com **113 testes aprovados**;
+- frontend: `npm run build` aprovado, incluindo lint/type validation e geração das páginas;
+- security job aprovado;
+- Stage 21 Compose smoke aprovado;
+- Auto deploy tests aprovado;
+- First Load JS compartilhado no build final: **103 kB**;
+- nenhuma dependência visual nova adicionada.
+
+O smoke visual manual não foi executado antes do merge. Após o fechamento da implementação, a decisão operacional é realizar essa validação diretamente no ambiente implantado durante o próximo rollout/pull de produção. Isso não deve ser descrito como teste já executado; qualquer regressão encontrada deve ser tratada como hotfix/follow-up da 23.20.
+
+## Publicação
+
+- PR: `#74 — feat: Task 23.20 — redesign global e experiência multi-cloud`;
+- head funcional: `1534c4c005ae861a24e0beb226dfa9e44a98a01b`;
+- merge commit na `main`: `029a1b579ac6c91f8adee14ac9748a91eb7c8ef4`.
+
+O fechamento pós-merge e o checklist operacional do smoke estão registrados também em `docs/task-23-20-closeout.md`.
 
 ## Limites deliberados
 
