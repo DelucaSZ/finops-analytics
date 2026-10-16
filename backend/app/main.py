@@ -12,6 +12,7 @@ from app.api.routes import (
     auth,
     billing,
     cloud_accounts,
+    cloudwatch_usage,
     collections,
     dashboard,
     findings,
@@ -35,7 +36,7 @@ from app.services.demo import seed_demo_data
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     initialize_database(engine)
-    with SessionLocal() as db:
+    with SessionLocal(bind=engine) as db:
         ensure_finops_profile(db)
         if settings.demo_mode:
             seed_demo_data(db)
@@ -77,6 +78,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/pricing",
             "/api/v1/finops",
             "/api/v1/billing",
+            "/api/v1/usage",
         )
     ):
         response.headers["Cache-Control"] = "no-store"
@@ -108,6 +110,7 @@ app.include_router(opportunities.router, prefix="/api/v1")
 app.include_router(finops_ledger.router, prefix="/api/v1")
 app.include_router(finops_flow.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
+app.include_router(cloudwatch_usage.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
 
 
