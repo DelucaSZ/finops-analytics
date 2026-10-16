@@ -24,13 +24,17 @@ import type {
 } from "@/lib/billing";
 import {
   BILLING_PERIOD_PRESETS,
+  areAllBillingAccountsSelected,
+  billingAccountIdsForSelectAll,
   billingQuerySignature,
   billingVariation,
   formatBillingDate,
   formatBillingMoney,
   formatBillingRange,
   groupBillingByCurrency,
+  hasBillingAccountSelection,
   inclusiveEndDate,
+  parseBillingAccountIds,
   previousEquivalentPeriod,
   resolveBillingPeriod,
   sameStringSet,
@@ -319,9 +323,11 @@ export default function BillingPage() {
     () => (period ? previousEquivalentPeriod(period, periodPreset) : null),
     [period, periodPreset],
   );
-  const allAccountsSelected = accounts.length > 0
-    && selectedAccountIds.length === accounts.length
-    && accounts.every((account) => selectedAccountIds.includes(account.id));
+  const hasAccountSelection = hasBillingAccountSelection(selectedAccountIds);
+  const allAccountsSelected = areAllBillingAccountsSelected(
+    accounts.map((account) => account.id),
+    selectedAccountIds,
+  );
   const hasOverrides = Boolean(
     selectedProfile
     && (
@@ -366,13 +372,10 @@ export default function BillingPage() {
           || enabledProfiles.find((profile) => profile.name === "FinOps")
           || enabledProfiles[0];
 
-        const requestedAccounts = (params.get("accounts") || "")
-          .split(",")
-          .map((value) => Number(value))
-          .filter((value) => Number.isInteger(value) && awsAccounts.some((account) => account.id === value));
-        const initialAccounts = requestedAccounts.length
-          ? Array.from(new Set(requestedAccounts))
-          : awsAccounts.map((account) => account.id);
+        const initialAccounts = parseBillingAccountIds(
+          params.get("accounts"),
+          awsAccounts.map((account) => account.id),
+        );
 
         const requestedPreset = params.get("period") as BillingPeriodPreset | null;
         const initialPreset = requestedPreset && VALID_PRESETS.has(requestedPreset)
@@ -418,7 +421,7 @@ export default function BillingPage() {
     const params = new URLSearchParams();
     params.set("profile", selectedProfile.id);
     params.set("period", periodPreset);
-    if (!allAccountsSelected && selectedAccountIds.length) params.set("accounts", selectedAccountIds.join(","));
+    if (hasAccountSelection) params.set("accounts", selectedAccountIds.join(","));
     if (periodPreset === "custom") {
       if (customFrom) params.set("from", customFrom);
       if (customTo) params.set("to", customTo);
@@ -431,11 +434,11 @@ export default function BillingPage() {
     const next = `/billing?${params.toString()}`;
     window.history.replaceState(window.history.state, "", next);
   }, [
-    allAccountsSelected,
     customFrom,
     customTo,
     excludeRecordTypes,
     granularity,
+    hasAccountSelection,
     initialized,
     metric,
     periodPreset,
@@ -444,7 +447,13 @@ export default function BillingPage() {
   ]);
 
   useEffect(() => {
-    if (!initialized || !selectedProfile || !period || !previousPeriod || !selectedAccountIds.length) {
+    if (
+      !initialized
+      || !selectedProfile
+      || !period
+      || !previousPeriod
+      || !hasBillingAccountSelection(selectedAccountIds)
+    ) {
       setSummary(sectionState());
       setPreviousSummary(sectionState());
       setTimeseries(sectionState());
@@ -548,7 +557,7 @@ export default function BillingPage() {
     });
   }
 
-  const queryMetadata = selectedProfile && period
+  const queryMetadata = hasAccountSelection && selectedProfile && period
     ? `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta" : "contas"} · ${formatBillingRange(period)} · ${GRANULARITY_LABELS[granularity]} · ${METRIC_LABELS[metric]} · ${excludeRecordTypes.length ? `Exclui ${excludeRecordTypes.join(", ")}` : "Sem exclusões"}`
     : "";
   const anyLoading = summary.loading || previousSummary.loading || timeseries.loading || serviceBreakdown.loading || accountBreakdown.loading;
@@ -571,7 +580,7 @@ export default function BillingPage() {
             <button
               className="button ghost"
               type="button"
-              disabled={!initialized || !selectedAccountIds.length || !period || anyLoading}
+              disabled={!initialized || !hasAccountSelection || !period || anyLoading}
               onClick={() => setRefreshRevision((value) => value + 1)}
             >
               <RefreshCw size={16} /> Atualizar
@@ -654,7 +663,12 @@ export default function BillingPage() {
                 type="checkbox"
                 checked={allAccountsSelected}
                 disabled={!accounts.length}
-                onChange={(event) => setSelectedAccountIds(event.target.checked ? accounts.map((account) => account.id) : [])}
+                onChange={(event) => setSelectedAccountIds(
+                  billingAccountIdsForSelectAll(
+                    event.target.checked,
+                    accounts.map((account) => account.id),
+                  ),
+                )}
               />
               <span><strong>Todas as contas</strong><small>Todas as contas AWS cadastradas e disponíveis ao usuário atual.</small></span>
             </label>
@@ -671,7 +685,7 @@ export default function BillingPage() {
               ))}
             </div>
             {!accounts.length && initialized && <p className={styles.validationMessage}>Nenhuma conta AWS cadastrada está disponível para Billing.</p>}
-            {accounts.length > 0 && !selectedAccountIds.length && <p className={styles.validationMessage}>Selecione ao menos uma conta.</p>}
+            {accounts.length > 0 && !hasAccountSelection && <p className={styles.validationMessage}>Selecione ao menos uma conta.</p>}
           </fieldset>
 
           <details className={styles.advancedFilters}>
@@ -696,6 +710,14 @@ export default function BillingPage() {
 
       {queryMetadata && <div className={styles.queryMetadata}><strong>Consulta:</strong> {queryMetadata}</div>}
 
+      {!hasAccountSelection ? (
+        <section className={`panel ${styles.dataPanel}`} aria-live="polite">
+          <div className={styles.panelBody}>
+            <div className={styles.sectionState}>Selecione ao menos uma conta para consultar os custos.</div>
+          </div>
+        </section>
+      ) : (
+        <>
       <section aria-labelledby="billing-summary-title">
         <div className={styles.sectionHeading}>
           <div><span className="eyebrow">RESUMO</span><h2 id="billing-summary-title">Custo do período</h2></div>
@@ -787,6 +809,8 @@ export default function BillingPage() {
           </section>
         )}
       </div>
+        </>
+      )}
 
       <p className={styles.disclaimer}>
         Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Billing e Fluxo permanecem domínios independentes.
