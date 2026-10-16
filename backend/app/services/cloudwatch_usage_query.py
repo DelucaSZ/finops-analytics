@@ -7,7 +7,14 @@ from sqlalchemy.orm import Session
 
 from app.models.cloudwatch_usage import CloudWatchUsageEvent
 
-CloudWatchUsageGroup = Literal["operation", "account", "region", "collector", "analyzer"]
+CloudWatchUsageGroup = Literal[
+    "operation",
+    "account",
+    "region",
+    "collector",
+    "analyzer",
+    "collection_run",
+]
 
 
 @dataclass(frozen=True)
@@ -89,6 +96,7 @@ def usage_summary(
         "region": CloudWatchUsageEvent.region,
         "collector": CloudWatchUsageEvent.collector,
         "analyzer": CloudWatchUsageEvent.analyzer,
+        "collection_run": CloudWatchUsageEvent.collection_run_id,
     }
     group = group_columns[group_by]
     statement = select(
