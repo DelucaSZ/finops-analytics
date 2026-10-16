@@ -5,7 +5,7 @@
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
-  box-shadow: var(--shadow);
+  box-shadow: none;
 }
 
 .filtersPanel {
@@ -30,12 +30,12 @@
 .field select,
 .field input {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--text);
-  background: rgba(255, 255, 255, .025);
+  background: var(--control-bg);
 }
 
 .customDates {
@@ -64,20 +64,20 @@
 .kpiGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
+  gap: 12px;
   margin-bottom: 18px;
 }
 
 .kpiCard {
-  min-height: 154px;
+  min-height: 136px;
   display: grid;
   align-content: start;
-  gap: 9px;
-  padding: 18px;
-  border: 1px solid rgba(85, 229, 182, .18);
+  gap: 8px;
+  padding: 16px;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(145deg, rgba(19, 27, 43, .96), rgba(12, 18, 30, .96));
-  box-shadow: var(--shadow);
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .kpiCard > span {
@@ -89,7 +89,7 @@
 .kpiCard > strong,
 .moneyStack strong,
 .unavailableValue {
-  font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+  font-size: clamp(1.35rem, 2.5vw, 1.85rem);
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
 }
@@ -119,20 +119,20 @@
 .errorBanner {
   margin-bottom: 18px;
   padding: 13px 15px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   font-size: .8125rem;
 }
 
 .warningBanner {
-  color: #ffd790;
-  border: 1px solid rgba(249, 189, 79, .22);
-  background: rgba(249, 189, 79, .075);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+  background: var(--warning-soft);
 }
 
 .errorBanner {
-  color: #ffb0b4;
-  border: 1px solid rgba(255, 107, 114, .2);
-  background: rgba(255, 107, 114, .065);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
 }
 
 .warning {
@@ -168,7 +168,7 @@
   justify-content: space-between;
   align-items: flex-start;
   gap: 16px;
-  padding: 17px 20px;
+  padding: 15px 18px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -191,11 +191,11 @@
 .warningBadge {
   display: inline-flex;
   align-items: center;
-  min-height: 25px;
+  min-height: 24px;
   padding: 2px 8px;
   border-radius: 999px;
-  color: #ffd176;
-  background: rgba(249, 189, 79, .11);
+  color: var(--warning);
+  background: var(--warning-soft);
   font-size: .6875rem;
   font-weight: 800;
   white-space: nowrap;
@@ -207,20 +207,20 @@
   display: grid;
   place-items: center;
   padding: 22px;
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   text-align: center;
   font-size: .875rem;
 }
 
 .sectionState {
   color: var(--muted);
-  background: rgba(255, 255, 255, .012);
+  background: var(--surface-muted);
 }
 
 .sectionError {
-  color: #ffb0b4;
-  border: 1px solid rgba(255, 107, 114, .18);
-  background: rgba(255, 107, 114, .05);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
 }
 
 .chartGroups {
@@ -267,15 +267,15 @@
 
 .costLine {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--chart-1);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .costPoint {
-  fill: var(--surface-2);
-  stroke: var(--accent);
+  fill: var(--surface);
+  stroke: var(--chart-1);
   stroke-width: 2;
 }
 
@@ -293,10 +293,10 @@
 .usageGrid > div {
   display: grid;
   gap: 5px;
-  padding: 14px;
+  padding: 13px;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .015);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
 }
 
 .usageGrid span {
@@ -334,7 +334,7 @@
 
 .table th,
 .table td {
-  padding: 11px 10px;
+  padding: 10px;
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: top;
@@ -342,6 +342,7 @@
 
 .table th {
   color: var(--muted-2);
+  background: var(--surface-muted);
   font-size: .6875rem;
   letter-spacing: .03em;
   text-transform: uppercase;
@@ -379,8 +380,8 @@
   margin-top: 7px;
   padding: 8px 10px;
   border: 1px solid var(--border);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, .015);
+  border-radius: var(--radius-sm);
+  background: var(--surface-muted);
 }
 
 .status,
@@ -393,13 +394,13 @@
 }
 
 .status {
-  color: var(--accent);
-  background: rgba(85, 229, 182, .08);
+  color: var(--success);
+  background: var(--success-soft);
 }
 
 .failedStatus {
-  color: #ffb0b4;
-  background: rgba(255, 107, 114, .08);
+  color: var(--danger);
+  background: var(--danger-soft);
 }
 
 .note,
@@ -419,10 +420,10 @@
 
 .assumptions > div {
   min-width: 0;
-  padding: 14px;
+  padding: 13px;
   border: 1px solid var(--border);
-  border-radius: 9px;
-  background: rgba(255, 255, 255, .014);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
 }
 
 .assumptions span,
