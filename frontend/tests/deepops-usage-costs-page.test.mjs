@@ -9,9 +9,10 @@ test("Usage & Costs dashboard consumes telemetry and Cost Engine read models", a
 
   assert.ok(page.includes('title="Uso e custos"'));
   assert.ok(page.includes("/usage/cloudwatch/summary"));
-  assert.ok(page.includes("/deepops-costs/cloudwatch/summary"));
-  assert.ok(page.includes("/deepops-costs/cloudwatch/timeseries"));
-  assert.ok(page.includes("/deepops-costs/cloudwatch/breakdown"));
+  assert.ok(page.includes("/deepops-costs/cloudwatch/${suffix}"));
+  assert.ok(page.includes('costQuery("summary")'));
+  assert.ok(page.includes('costQuery("timeseries"'));
+  assert.ok(page.includes('costQuery("breakdown"'));
   assert.ok(page.includes('group_by: "collection_run"'));
   assert.ok(page.includes("Compartilhado / não atribuído"));
 });
