@@ -16,9 +16,9 @@ import type {
   BillingBreakdownItem,
   BillingBreakdownResponse,
   BillingGranularity,
+  BillingGroupBy,
   BillingMetric,
   BillingProfile,
-  BillingSeriesPoint,
   BillingSummaryResponse,
   BillingTimeSeriesResponse,
 } from "@/lib/billing";
@@ -28,12 +28,11 @@ import {
   billingAccountIdsForSelectAll,
   billingQuerySignature,
   billingVariation,
-  formatBillingDate,
   formatBillingMoney,
   formatBillingRange,
   groupBillingByCurrency,
   hasBillingAccountSelection,
-  inclusiveEndDate,
+  mapBillingTimeSeriesToChartData,
   parseBillingAccountIds,
   previousEquivalentPeriod,
   resolveBillingPeriod,
@@ -42,6 +41,7 @@ import {
 } from "@/lib/billing-dashboard.mjs";
 import type { BillingPeriod, BillingPeriodPreset } from "@/lib/billing-dashboard.mjs";
 import type { CloudAccount } from "@/lib/types";
+import { BillingCostChart } from "./billing-cost-chart";
 import styles from "./billing.module.css";
 
 const METRIC_LABELS: Record<BillingMetric, string> = {
@@ -53,6 +53,12 @@ const METRIC_LABELS: Record<BillingMetric, string> = {
 const GRANULARITY_LABELS: Record<BillingGranularity, string> = {
   DAILY: "Diária",
   MONTHLY: "Mensal",
+};
+
+const GROUP_BY_LABELS: Record<BillingGroupBy, string> = {
+  NONE: "Sem agrupamento",
+  SERVICE: "Serviço",
+  ACCOUNT: "Conta",
 };
 
 const AWS_RECORD_TYPES = [
@@ -72,6 +78,7 @@ const AWS_RECORD_TYPES = [
 const VALID_PRESETS = new Set(BILLING_PERIOD_PRESETS.map((item) => item.value));
 const VALID_METRICS = new Set<BillingMetric>(Object.keys(METRIC_LABELS) as BillingMetric[]);
 const VALID_GRANULARITIES = new Set<BillingGranularity>(Object.keys(GRANULARITY_LABELS) as BillingGranularity[]);
+const VALID_GROUPINGS = new Set<BillingGroupBy>(Object.keys(GROUP_BY_LABELS) as BillingGroupBy[]);
 const VALID_RECORD_TYPES = new Set<string>(AWS_RECORD_TYPES);
 
 type CurrentUser = { role: string };
@@ -89,17 +96,11 @@ function localTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function accountLabel(account: CloudAccount) {
-  return account.name
-    ? `${account.name} · ${account.native_account_id}`
-    : account.native_account_id;
-}
-
 function profileSummary(profile: BillingProfile) {
   const excluded = profile.exclude_record_types.length
     ? `Exclui ${profile.exclude_record_types.join(", ")}`
     : "Sem exclusões por tipo";
-  return `${GRANULARITY_LABELS[profile.granularity]} · ${METRIC_LABELS[profile.metric]} · ${excluded}`;
+  return `${GRANULARITY_LABELS[profile.granularity]} · ${METRIC_LABELS[profile.metric]} · ${GROUP_BY_LABELS[profile.group_by]} · ${excluded}`;
 }
 
 function billingErrorMessage(error: unknown, fallback: string) {
@@ -139,6 +140,7 @@ function buildRequest(
   period: BillingPeriod,
   granularity: BillingGranularity,
   metric: BillingMetric,
+  groupBy: BillingGroupBy,
   excludeRecordTypes: string[],
 ): AwsBillingRequest {
   const request: AwsBillingRequest = {
@@ -149,6 +151,7 @@ function buildRequest(
   };
   if (granularity !== profile.granularity) request.granularity = granularity;
   if (metric !== profile.metric) request.metric = metric;
+  if (groupBy !== profile.group_by) request.group_by = groupBy;
   if (!sameStringSet(excludeRecordTypes, profile.exclude_record_types)) {
     request.exclude_record_types = excludeRecordTypes;
   }
@@ -173,72 +176,6 @@ function SectionStatus({ loading, error, empty, emptyText }: {
   if (error) return <div className={styles.sectionError} role="alert">{error}</div>;
   if (empty) return <div className={styles.sectionState}>{emptyText}</div>;
   return null;
-}
-
-function BillingCostChart({ points, currency, granularity }: {
-  points: BillingSeriesPoint[];
-  currency: string;
-  granularity: BillingGranularity;
-}) {
-  if (!points.length) return null;
-  const width = 920;
-  const height = 300;
-  const padX = 52;
-  const padY = 34;
-  const values = points.map((point) => Number(point.amount)).filter(Number.isFinite);
-  const minimum = Math.min(0, ...values);
-  const maximum = Math.max(0, ...values);
-  const span = maximum - minimum || 1;
-  const innerWidth = width - padX * 2;
-  const innerHeight = height - padY * 2;
-  const x = (index: number) => padX + (points.length === 1 ? innerWidth / 2 : (index / (points.length - 1)) * innerWidth);
-  const y = (value: number) => padY + ((maximum - value) / span) * innerHeight;
-  const zeroY = y(0);
-  const path = points
-    .map((point, index) => `${index === 0 ? "M" : "L"} ${x(index)} ${y(Number(point.amount))}`)
-    .join(" ");
-  const estimated = points.some((point) => point.estimated);
-  const first = points[0];
-  const last = points[points.length - 1];
-
-  return (
-    <div className={styles.chartGroup}>
-      <div className={styles.chartMeta}>
-        <strong>{currency}</strong>
-        <span>{granularity === "DAILY" ? "Dia a dia" : "Mês a mês"}</span>
-        {estimated && <span className={styles.estimatedBadge}>Inclui dados estimados</span>}
-      </div>
-      <div className={styles.chartScroll}>
-        <svg
-          className={styles.chart}
-          viewBox={`0 0 ${width} ${height}`}
-          role="img"
-          aria-label={`Evolução de custos em ${currency}. ${estimated ? "Inclui dados estimados." : "Dados não marcados como estimados."}`}
-        >
-          <line x1={padX} x2={width - padX} y1={zeroY} y2={zeroY} className={styles.axisLine} />
-          <path d={path} className={styles.costLine} />
-          {points.map((point, index) => (
-            <g key={`${point.start_date}-${point.currency}`}>
-              <circle
-                cx={x(index)}
-                cy={y(Number(point.amount))}
-                r={point.estimated ? 5 : 4}
-                className={point.estimated ? styles.estimatedPoint : styles.costPoint}
-              >
-                <title>{`${formatBillingDate(point.start_date)} · ${formatBillingMoney(point.amount, point.currency)}${point.estimated ? " · Estimado" : ""}`}</title>
-              </circle>
-              {point.estimated && (
-                <text x={x(index)} y={y(Number(point.amount)) - 10} textAnchor="middle" className={styles.estimatedMark}>*</text>
-              )}
-            </g>
-          ))}
-          <text x={padX} y={height - 8} className={styles.axisLabel}>{formatBillingDate(first.start_date)}</text>
-          <text x={width - padX} y={height - 8} textAnchor="end" className={styles.axisLabel}>{formatBillingDate(last.start_date)}</text>
-        </svg>
-      </div>
-      {estimated && <p className={styles.chartNote}>* Bucket marcado como estimado pelo AWS Cost Explorer.</p>}
-    </div>
-  );
 }
 
 function BreakdownTable({ items, kind }: {
@@ -301,6 +238,7 @@ export default function BillingPage() {
   const [customTo, setCustomTo] = useState("");
   const [metric, setMetric] = useState<BillingMetric>("AMORTIZED_COST");
   const [granularity, setGranularity] = useState<BillingGranularity>("DAILY");
+  const [groupBy, setGroupBy] = useState<BillingGroupBy>("NONE");
   const [excludeRecordTypes, setExcludeRecordTypes] = useState<string[]>(["Credit"]);
   const [refreshRevision, setRefreshRevision] = useState(0);
 
@@ -333,6 +271,7 @@ export default function BillingPage() {
     && (
       selectedProfile.metric !== metric
       || selectedProfile.granularity !== granularity
+      || selectedProfile.group_by !== groupBy
       || !sameStringSet(selectedProfile.exclude_record_types, excludeRecordTypes)
     )
   );
@@ -344,10 +283,18 @@ export default function BillingPage() {
       period,
       metric,
       granularity,
+      groupBy,
       excludeRecordTypes,
       revision: refreshRevision,
     }),
-    [excludeRecordTypes, granularity, metric, period, profileId, refreshRevision, selectedAccountIds],
+    [excludeRecordTypes, granularity, groupBy, metric, period, profileId, refreshRevision, selectedAccountIds],
+  );
+
+  const chartDatasets = useMemo(
+    () => timeseries.data
+      ? mapBillingTimeSeriesToChartData(timeseries.data.points, timeseries.data.group_by)
+      : [],
+    [timeseries.data],
   );
 
   useEffect(() => {
@@ -383,6 +330,7 @@ export default function BillingPage() {
           : "this_month";
         const requestedMetric = params.get("metric") as BillingMetric | null;
         const requestedGranularity = params.get("granularity") as BillingGranularity | null;
+        const requestedGroupBy = params.get("group") as BillingGroupBy | null;
         const hasExcludeOverride = params.has("exclude");
         const requestedExclusions = (params.get("exclude") || "")
           .split(",")
@@ -401,6 +349,11 @@ export default function BillingPage() {
           requestedGranularity && VALID_GRANULARITIES.has(requestedGranularity)
             ? requestedGranularity
             : initialProfile.granularity,
+        );
+        setGroupBy(
+          requestedGroupBy && VALID_GROUPINGS.has(requestedGroupBy)
+            ? requestedGroupBy
+            : initialProfile.group_by,
         );
         setExcludeRecordTypes(hasExcludeOverride ? requestedExclusions : initialProfile.exclude_record_types);
         setBootstrapError("");
@@ -428,6 +381,7 @@ export default function BillingPage() {
     }
     if (metric !== selectedProfile.metric) params.set("metric", metric);
     if (granularity !== selectedProfile.granularity) params.set("granularity", granularity);
+    if (groupBy !== selectedProfile.group_by) params.set("group", groupBy);
     if (!sameStringSet(excludeRecordTypes, selectedProfile.exclude_record_types)) {
       params.set("exclude", excludeRecordTypes.join(","));
     }
@@ -438,6 +392,7 @@ export default function BillingPage() {
     customTo,
     excludeRecordTypes,
     granularity,
+    groupBy,
     hasAccountSelection,
     initialized,
     metric,
@@ -470,6 +425,7 @@ export default function BillingPage() {
       period,
       granularity,
       metric,
+      groupBy,
       excludeRecordTypes,
     );
     const comparisonRequest = buildRequest(
@@ -478,6 +434,7 @@ export default function BillingPage() {
       previousPeriod,
       granularity,
       metric,
+      groupBy,
       excludeRecordTypes,
     );
     const active = () => requestSequence.current === sequence && !controller.signal.aborted;
@@ -533,6 +490,7 @@ export default function BillingPage() {
     setProfileId(profile.id);
     setMetric(profile.metric);
     setGranularity(profile.granularity);
+    setGroupBy(profile.group_by);
     setExcludeRecordTypes(profile.exclude_record_types);
   }
 
@@ -540,6 +498,7 @@ export default function BillingPage() {
     if (!selectedProfile) return;
     setMetric(selectedProfile.metric);
     setGranularity(selectedProfile.granularity);
+    setGroupBy(selectedProfile.group_by);
     setExcludeRecordTypes(selectedProfile.exclude_record_types);
   }
 
@@ -558,10 +517,9 @@ export default function BillingPage() {
   }
 
   const queryMetadata = hasAccountSelection && selectedProfile && period
-    ? `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta" : "contas"} · ${formatBillingRange(period)} · ${GRANULARITY_LABELS[granularity]} · ${METRIC_LABELS[metric]} · ${excludeRecordTypes.length ? `Exclui ${excludeRecordTypes.join(", ")}` : "Sem exclusões"}`
+    ? `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta" : "contas"} · ${formatBillingRange(period)} · ${GRANULARITY_LABELS[granularity]} · ${GROUP_BY_LABELS[groupBy]} · ${METRIC_LABELS[metric]} · ${excludeRecordTypes.length ? `Exclui ${excludeRecordTypes.join(", ")}` : "Sem exclusões"}`
     : "";
   const anyLoading = summary.loading || previousSummary.loading || timeseries.loading || serviceBreakdown.loading || accountBreakdown.loading;
-  const timeSeriesGroups = timeseries.data ? groupBillingByCurrency(timeseries.data.points) : [];
   const today = localTodayKey();
 
   return (
@@ -630,6 +588,13 @@ export default function BillingPage() {
               <span>Granularidade {selectedProfile?.granularity !== granularity && <em>Sobrescrito</em>}</span>
               <select value={granularity} onChange={(event) => setGranularity(event.target.value as BillingGranularity)}>
                 {(Object.keys(GRANULARITY_LABELS) as BillingGranularity[]).map((value) => <option key={value} value={value}>{GRANULARITY_LABELS[value]}</option>)}
+              </select>
+            </label>
+
+            <label className={styles.field}>
+              <span>Agrupamento {selectedProfile?.group_by !== groupBy && <em>Sobrescrito</em>}</span>
+              <select value={groupBy} onChange={(event) => setGroupBy(event.target.value as BillingGroupBy)}>
+                {(Object.keys(GROUP_BY_LABELS) as BillingGroupBy[]).map((value) => <option key={value} value={value}>{GROUP_BY_LABELS[value]}</option>)}
               </select>
             </label>
           </div>
@@ -718,97 +683,106 @@ export default function BillingPage() {
         </section>
       ) : (
         <>
-      <section aria-labelledby="billing-summary-title">
-        <div className={styles.sectionHeading}>
-          <div><span className="eyebrow">RESUMO</span><h2 id="billing-summary-title">Custo do período</h2></div>
-          {period && previousPeriod && <span>Comparação: {formatBillingRange(previousPeriod)} → {formatBillingRange(period)}</span>}
-        </div>
-        <SectionStatus
-          loading={summary.loading}
-          error={summary.error}
-          empty={!summary.loading && !summary.error && Boolean(summary.data) && summary.data!.totals.length === 0}
-          emptyText="Nenhum custo encontrado para o período e filtros selecionados."
-        />
-        {summary.data?.totals.length ? (
-          <div className={styles.kpiGrid}>
-            {summary.data.totals.map((total) => {
-              const previous = previousSummary.data?.totals.find((item) => item.currency === total.currency);
-              return (
-                <article key={total.currency} className={styles.kpiCard}>
-                  <div className={styles.kpiHeading}>
-                    <span>Custo do período · {total.currency}</span>
-                    {total.estimated && <span className={styles.estimatedBadge}>Estimado</span>}
-                  </div>
-                  <strong>{formatBillingMoney(total.amount, total.currency)}</strong>
-                  <div className={styles.comparisonBlock}>
-                    {previousSummary.loading ? (
-                      <span>Carregando comparação…</span>
-                    ) : previousSummary.error ? (
-                      <span>Comparação indisponível</span>
-                    ) : previous ? (
-                      <>
-                        <span>Anterior: {formatBillingMoney(previous.amount, previous.currency)}{previous.estimated ? " · estimado" : ""}</span>
-                        <b>{formatVariation(total.amount, previous.amount)}</b>
-                      </>
-                    ) : (
-                      <span>Período anterior sem valor na mesma moeda/unidade.</span>
-                    )}
-                  </div>
-                  {total.estimated && <small>Inclui dados estimados pelo AWS Cost Explorer.</small>}
-                </article>
-              );
-            })}
-          </div>
-        ) : null}
-      </section>
-
-      <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-timeseries-title">
-        <div className="panel-heading">
-          <div><div className="eyebrow">TENDÊNCIA</div><h2 id="billing-timeseries-title">Evolução de custos</h2></div>
-          {timeseries.data && <span className={styles.panelMeta}>{GRANULARITY_LABELS[timeseries.data.granularity]}</span>}
-        </div>
-        <div className={styles.panelBody}>
-          <SectionStatus
-            loading={timeseries.loading}
-            error={timeseries.error}
-            empty={!timeseries.loading && !timeseries.error && Boolean(timeseries.data) && timeseries.data!.points.length === 0}
-            emptyText="Nenhum ponto de custo encontrado para o período selecionado."
-          />
-          {timeSeriesGroups.map(([currency, points]) => (
-            <BillingCostChart key={currency} currency={currency} points={points} granularity={timeseries.data!.granularity} />
-          ))}
-        </div>
-      </section>
-
-      <div className={styles.breakdownLayout}>
-        <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-service-title">
-          <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-service-title">Custo por serviço</h2></div></div>
-          <div className={styles.panelBody}>
+          <section aria-labelledby="billing-summary-title">
+            <div className={styles.sectionHeading}>
+              <div><span className="eyebrow">RESUMO</span><h2 id="billing-summary-title">Custo do período</h2></div>
+              {period && previousPeriod && <span>Comparação: {formatBillingRange(previousPeriod)} → {formatBillingRange(period)}</span>}
+            </div>
             <SectionStatus
-              loading={serviceBreakdown.loading}
-              error={serviceBreakdown.error}
-              empty={!serviceBreakdown.loading && !serviceBreakdown.error && Boolean(serviceBreakdown.data) && serviceBreakdown.data!.items.length === 0}
-              emptyText="Nenhum serviço com custo foi retornado para esta consulta."
+              loading={summary.loading}
+              error={summary.error}
+              empty={!summary.loading && !summary.error && Boolean(summary.data) && summary.data!.totals.length === 0}
+              emptyText="Nenhum custo encontrado para o período e filtros selecionados."
             />
-            {serviceBreakdown.data?.items.length ? <BreakdownTable items={serviceBreakdown.data.items} kind="service" /> : null}
-          </div>
-        </section>
+            {summary.data?.totals.length ? (
+              <div className={styles.kpiGrid}>
+                {summary.data.totals.map((total) => {
+                  const previous = previousSummary.data?.totals.find((item) => item.currency === total.currency);
+                  return (
+                    <article key={total.currency} className={styles.kpiCard}>
+                      <div className={styles.kpiHeading}>
+                        <span>Custo do período · {total.currency}</span>
+                        {total.estimated && <span className={styles.estimatedBadge}>Estimado</span>}
+                      </div>
+                      <strong>{formatBillingMoney(total.amount, total.currency)}</strong>
+                      <div className={styles.comparisonBlock}>
+                        {previousSummary.loading ? (
+                          <span>Carregando comparação…</span>
+                        ) : previousSummary.error ? (
+                          <span>Comparação indisponível</span>
+                        ) : previous ? (
+                          <>
+                            <span>Anterior: {formatBillingMoney(previous.amount, previous.currency)}{previous.estimated ? " · estimado" : ""}</span>
+                            <b>{formatVariation(total.amount, previous.amount)}</b>
+                          </>
+                        ) : (
+                          <span>Período anterior sem valor na mesma moeda/unidade.</span>
+                        )}
+                      </div>
+                      {total.estimated && <small>Inclui dados estimados pelo AWS Cost Explorer.</small>}
+                    </article>
+                  );
+                })}
+              </div>
+            ) : null}
+          </section>
 
-        {selectedAccountIds.length > 1 && (
-          <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-account-title">
-            <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-account-title">Custo por conta</h2></div></div>
+          <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-timeseries-title">
+            <div className="panel-heading">
+              <div><div className="eyebrow">TENDÊNCIA</div><h2 id="billing-timeseries-title">Evolução de custos</h2></div>
+              {timeseries.data && (
+                <span className={styles.panelMeta}>
+                  {GRANULARITY_LABELS[timeseries.data.granularity]} · {GROUP_BY_LABELS[timeseries.data.group_by]}
+                </span>
+              )}
+            </div>
             <div className={styles.panelBody}>
               <SectionStatus
-                loading={accountBreakdown.loading}
-                error={accountBreakdown.error}
-                empty={!accountBreakdown.loading && !accountBreakdown.error && Boolean(accountBreakdown.data) && accountBreakdown.data!.items.length === 0}
-                emptyText="Nenhum custo por conta foi retornado para esta consulta."
+                loading={timeseries.loading}
+                error={timeseries.error}
+                empty={!timeseries.loading && !timeseries.error && Boolean(timeseries.data) && timeseries.data!.points.length === 0}
+                emptyText="Nenhum custo encontrado para o período e filtros selecionados."
               />
-              {accountBreakdown.data?.items.length ? <BreakdownTable items={accountBreakdown.data.items} kind="account" /> : null}
+              {timeseries.data && chartDatasets.map((dataset) => (
+                <BillingCostChart
+                  key={dataset.currency}
+                  dataset={dataset}
+                  granularity={timeseries.data!.granularity}
+                  groupBy={timeseries.data!.group_by}
+                />
+              ))}
             </div>
           </section>
-        )}
-      </div>
+
+          <div className={styles.breakdownLayout}>
+            <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-service-title">
+              <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-service-title">Custo por serviço</h2></div></div>
+              <div className={styles.panelBody}>
+                <SectionStatus
+                  loading={serviceBreakdown.loading}
+                  error={serviceBreakdown.error}
+                  empty={!serviceBreakdown.loading && !serviceBreakdown.error && Boolean(serviceBreakdown.data) && serviceBreakdown.data!.items.length === 0}
+                  emptyText="Nenhum serviço com custo foi retornado para esta consulta."
+                />
+                {serviceBreakdown.data?.items.length ? <BreakdownTable items={serviceBreakdown.data.items} kind="service" /> : null}
+              </div>
+            </section>
+
+            {selectedAccountIds.length > 1 && (
+              <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-account-title">
+                <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-account-title">Custo por conta</h2></div></div>
+                <div className={styles.panelBody}>
+                  <SectionStatus
+                    loading={accountBreakdown.loading}
+                    error={accountBreakdown.error}
+                    empty={!accountBreakdown.loading && !accountBreakdown.error && Boolean(accountBreakdown.data) && accountBreakdown.data!.items.length === 0}
+                    emptyText="Nenhum custo por conta foi retornado para esta consulta."
+                  />
+                  {accountBreakdown.data?.items.length ? <BreakdownTable items={accountBreakdown.data.items} kind="account" /> : null}
+                </div>
+              </section>
+            )}
+          </div>
         </>
       )}
 

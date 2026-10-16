@@ -175,11 +175,47 @@ export function formatBillingMoney(amount, currency, locale = "pt-BR") {
   return unit ? `${unit} ${formatted}` : formatted;
 }
 
+export function formatBillingAxisMoney(amount, currency, locale = "pt-BR") {
+  const numeric = Number(amount);
+  const unit = String(currency || "").trim().toUpperCase();
+  if (!Number.isFinite(numeric)) return formatBillingMoney(amount, currency, locale);
+  if (Math.abs(numeric) < 1000) {
+    const formatted = new Intl.NumberFormat(locale, { maximumFractionDigits: 0 }).format(numeric);
+    return unit ? `${unit} ${formatted}` : formatted;
+  }
+  if (unit) {
+    try {
+      return new Intl.NumberFormat(locale, {
+        style: "currency",
+        currency: unit,
+        notation: "compact",
+        maximumFractionDigits: 1,
+      }).format(numeric);
+    } catch {
+      // Preserve non-ISO units using compact numeric notation below.
+    }
+  }
+  const formatted = new Intl.NumberFormat(locale, {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(numeric);
+  return unit ? `${unit} ${formatted}` : formatted;
+}
+
 export function formatBillingDate(value, locale = "pt-BR") {
   const parsed = parseDateKey(value);
   return parsed
     ? new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed)
     : value;
+}
+
+export function formatBillingAxisDate(value, granularity, locale = "pt-BR") {
+  const parsed = parseDateKey(value);
+  if (!parsed) return value;
+  const options = granularity === "MONTHLY"
+    ? { month: "short", year: "2-digit" }
+    : { day: "2-digit", month: "2-digit" };
+  return new Intl.DateTimeFormat(locale, options).format(parsed).replace(/\.$/, "");
 }
 
 export function formatBillingRange(period, locale = "pt-BR") {
@@ -241,12 +277,99 @@ export function groupBillingByCurrency(items) {
   return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right));
 }
 
+export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
+  const byCurrency = new Map();
+
+  for (const point of points) {
+    const currency = point.currency || "";
+    if (!byCurrency.has(currency)) {
+      byCurrency.set(currency, {
+        periods: new Map(),
+        series: new Map(),
+      });
+    }
+    const currencyData = byCurrency.get(currency);
+    const periodKey = `${point.start_date}|${point.end_date}`;
+    if (!currencyData.periods.has(periodKey)) {
+      currencyData.periods.set(periodKey, {
+        start_date: point.start_date,
+        end_date: point.end_date,
+        total: 0,
+        estimated: false,
+        series: new Map(),
+      });
+    }
+
+    const period = currencyData.periods.get(periodKey);
+    const total = Number(point.amount);
+    if (Number.isFinite(total)) period.total += total;
+    period.estimated ||= Boolean(point.estimated);
+
+    const sourceSeries = groupBy === "NONE"
+      ? [{ key: "__total__", label: "Custo total", amount: point.amount, estimated: point.estimated }]
+      : (point.groups || []);
+
+    for (const item of sourceSeries) {
+      const amount = Number(item.amount);
+      if (!Number.isFinite(amount)) continue;
+      const key = String(item.key || "Sem categoria");
+      const label = item.display_name || item.label || item.aws_account_id || key;
+      const existing = period.series.get(key) || {
+        key,
+        label,
+        amount: 0,
+        estimated: false,
+      };
+      existing.amount += amount;
+      existing.estimated ||= Boolean(item.estimated);
+      period.series.set(key, existing);
+
+      const series = currencyData.series.get(key) || { key, label, total: 0 };
+      series.total += amount;
+      currencyData.series.set(key, series);
+    }
+  }
+
+  return Array.from(byCurrency.entries())
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([currency, currencyData]) => {
+      const series = Array.from(currencyData.series.values())
+        .sort((left, right) => (
+          Math.abs(right.total) - Math.abs(left.total)
+          || left.label.localeCompare(right.label)
+          || left.key.localeCompare(right.key)
+        ));
+      const order = new Map(series.map((item, index) => [item.key, index]));
+      const periods = Array.from(currencyData.periods.values())
+        .sort((left, right) => left.start_date.localeCompare(right.start_date))
+        .map((period) => ({
+          start_date: period.start_date,
+          end_date: period.end_date,
+          total: period.total,
+          estimated: period.estimated,
+          series: Array.from(period.series.values()).sort((left, right) => (
+            (order.get(left.key) ?? Number.MAX_SAFE_INTEGER)
+            - (order.get(right.key) ?? Number.MAX_SAFE_INTEGER)
+          )),
+        }));
+
+      return {
+        currency,
+        total: periods.reduce((sum, period) => sum + period.total, 0),
+        estimated: periods.some((period) => period.estimated),
+        series,
+        periods,
+      };
+    });
+}
+
 export function billingQuerySignature({
   profileId,
   accountIds,
   period,
   metric,
   granularity,
+  groupBy,
   excludeRecordTypes,
   revision = 0,
 }) {
@@ -257,6 +380,7 @@ export function billingQuerySignature({
     endDate: period?.end_date || "",
     metric,
     granularity,
+    groupBy,
     excludeRecordTypes: [...excludeRecordTypes].sort(),
     revision,
   });

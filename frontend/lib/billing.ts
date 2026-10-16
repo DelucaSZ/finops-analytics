@@ -67,14 +67,24 @@ export type BillingSummaryResponse = BillingProfileMetadata & {
   totals: BillingSummaryTotal[];
 };
 
+export type BillingSeriesGroup = BillingSummaryTotal & {
+  key: string;
+  label: string;
+  deepops_account_id: number | null;
+  aws_account_id: string | null;
+  display_name: string | null;
+};
+
 export type BillingSeriesPoint = BillingSummaryTotal & {
   start_date: string;
   end_date: string;
+  groups: BillingSeriesGroup[];
 };
 
 export type BillingTimeSeriesResponse = BillingProfileMetadata & {
   metric: BillingMetric;
   granularity: BillingGranularity;
+  group_by: BillingGroupBy;
   start_date: string;
   end_date: string;
   points: BillingSeriesPoint[];
@@ -122,10 +132,7 @@ export function getAwsBillingTimeSeries(
   request: AwsBillingRequest,
   signal?: AbortSignal,
 ): Promise<BillingTimeSeriesResponse> {
-  return postBilling<BillingTimeSeriesResponse>("/billing/aws/timeseries", {
-    ...request,
-    group_by: "NONE",
-  }, signal);
+  return postBilling<BillingTimeSeriesResponse>("/billing/aws/timeseries", request, signal);
 }
 
 export function getAwsBillingBreakdown(

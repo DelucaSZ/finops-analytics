@@ -10,7 +10,7 @@
 
 .primaryFilters {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -343,74 +343,241 @@
 }
 
 .chartGroup + .chartGroup {
-  margin-top: 18px;
-  padding-top: 18px;
+  margin-top: 22px;
+  padding-top: 22px;
   border-top: 1px solid var(--border);
 }
 
-.chartMeta {
+.chartContextGrid {
+  display: grid;
+  grid-template-columns: minmax(190px, 1.35fr) repeat(3, minmax(150px, 1fr)) auto;
+  gap: 10px;
+  align-items: stretch;
+  margin-bottom: 14px;
+}
+
+.chartContextGrid > div {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
+}
+
+.chartContextGrid > div span {
+  color: var(--muted-2);
+  font-size: .6875rem;
+  font-weight: 750;
+  letter-spacing: .2px;
+  text-transform: uppercase;
+}
+
+.chartContextGrid > div strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: .8125rem;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chartContextGrid > div:first-child strong {
+  font-size: 1.15rem;
+}
+
+.chartContextGrid > .estimatedBadge {
+  align-self: center;
+}
+
+.chartLegend {
+  max-height: 98px;
   display: flex;
   flex-wrap: wrap;
+  gap: 7px 14px;
+  margin: 0 0 11px;
+  padding: 9px 10px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: rgba(255, 255, 255, .012);
+}
+
+.chartLegend > span {
+  min-width: 0;
+  max-width: min(240px, 100%);
+  display: inline-flex;
   align-items: center;
-  gap: 8px 12px;
-  margin-bottom: 10px;
+  gap: 7px;
   color: var(--muted);
   font-size: .75rem;
 }
 
-.chartMeta strong {
-  color: var(--text);
-  font-size: .8125rem;
+.chartLegend i,
+.tooltipSeries i {
+  width: 9px;
+  height: 9px;
+  flex: 0 0 auto;
+  border-radius: 2px;
+}
+
+.chartLegend b {
+  overflow: hidden;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chartScroll {
   overflow-x: auto;
+  overflow-y: hidden;
+  padding-bottom: 5px;
+  scrollbar-gutter: stable;
+}
+
+.chartCanvas {
+  position: relative;
+  width: 100%;
 }
 
 .chart {
   width: 100%;
-  min-width: 620px;
   height: auto;
+  min-height: 330px;
+  display: block;
 }
 
-.axisLine {
-  stroke: var(--border-strong);
+.axisTitle {
+  fill: var(--muted-2);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gridLine {
+  stroke: var(--border);
   stroke-width: 1;
-  opacity: .6;
+  opacity: .52;
 }
 
-.costLine {
-  fill: none;
-  stroke: var(--chart-1);
-  stroke-width: 2.5;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.costPoint,
-.estimatedPoint {
-  stroke-width: 2;
-}
-
-.costPoint {
-  fill: var(--surface);
-  stroke: var(--chart-1);
-}
-
-.estimatedPoint {
-  fill: var(--warning);
-  stroke: var(--surface);
-}
-
-.estimatedMark {
-  fill: var(--warning);
-  font-size: 15px;
-  font-weight: 900;
+.zeroLine {
+  stroke: var(--border-strong);
+  stroke-width: 1.2;
+  opacity: .9;
 }
 
 .axisLabel {
   fill: var(--muted-2);
   font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.hoverBand {
+  fill: transparent;
+  transition: fill 120ms ease;
+}
+
+.hoverBand:hover {
+  fill: rgba(97, 169, 255, .025);
+}
+
+.chartBar {
+  cursor: default;
+  transition: opacity 120ms ease;
+}
+
+.chartBar:hover {
+  opacity: .82;
+}
+
+.estimatedMark {
+  fill: var(--warning);
+  font-size: 14px;
+  font-weight: 900;
+  pointer-events: none;
+}
+
+.chartTooltip {
+  position: absolute;
+  z-index: 3;
+  top: 18px;
+  width: min(330px, calc(100vw - 60px));
+  max-height: 300px;
+  display: grid;
+  gap: 9px;
+  padding: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  color: var(--text);
+  background: rgba(7, 11, 20, .97);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, .38);
+  pointer-events: none;
+}
+
+.tooltipHeading,
+.tooltipTotal {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tooltipHeading strong,
+.tooltipTotal strong {
+  font-size: .8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipHeading span {
+  color: var(--warning);
+  font-size: .6875rem;
+  font-weight: 800;
+}
+
+.tooltipSeries {
+  max-height: 190px;
+  display: grid;
+  gap: 3px;
+  overflow-y: auto;
+  padding-right: 3px;
+}
+
+.tooltipSeries > div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 9px minmax(0, 1fr) auto;
+  gap: 7px;
+  align-items: center;
+  padding: 4px 5px;
+  border-radius: 5px;
+  color: var(--muted);
+  font-size: .75rem;
+}
+
+.tooltipSeries > div span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tooltipSeries > div strong {
+  color: var(--text);
+  font-size: .75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.tooltipSeriesActive {
+  background: rgba(255, 255, 255, .045);
+}
+
+.tooltipTotal {
+  padding-top: 9px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: .75rem;
 }
 
 .chartNote {
@@ -459,11 +626,21 @@
   line-height: 1.6;
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1350px) {
   .primaryFilters {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .chartContextGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .chartContextGrid > .estimatedBadge {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 1180px) {
   .accountGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -481,6 +658,12 @@
   }
 }
 
+@media (max-width: 900px) {
+  .primaryFilters {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 760px) {
   .filtersBody,
   .panelBody {
@@ -490,7 +673,8 @@
   .primaryFilters,
   .customDates,
   .accountGrid,
-  .recordTypeGrid {
+  .recordTypeGrid,
+  .chartContextGrid {
     grid-template-columns: 1fr;
   }
 
@@ -510,5 +694,13 @@
 
   .kpiGrid {
     grid-template-columns: 1fr;
+  }
+
+  .chartContextGrid > .estimatedBadge {
+    grid-column: auto;
+  }
+
+  .chartLegend {
+    max-height: 122px;
   }
 }

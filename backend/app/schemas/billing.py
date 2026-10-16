@@ -214,17 +214,30 @@ class BillingSummaryResponse(BillingProfileMetadata):
     totals: list[BillingSummaryTotal]
 
 
+class BillingSeriesGroup(BaseModel):
+    key: str
+    label: str
+    amount: Decimal
+    currency: str
+    estimated: bool
+    deepops_account_id: int | None = None
+    aws_account_id: str | None = None
+    display_name: str | None = None
+
+
 class BillingSeriesPoint(BaseModel):
     start_date: date
     end_date: date
     amount: Decimal
     currency: str
     estimated: bool
+    groups: list[BillingSeriesGroup] = Field(default_factory=list)
 
 
 class BillingTimeSeriesResponse(BillingProfileMetadata):
     metric: BillingMetric
     granularity: BillingGranularity
+    group_by: BillingGroupBy
     start_date: date
     end_date: date
     points: list[BillingSeriesPoint]
