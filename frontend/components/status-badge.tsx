@@ -19,6 +19,9 @@ const labels: Record<string, string> = {
   low: "Baixa",
 };
 
+const humanStatuses = new Set(["open", "treated", "rejected"]);
+const presenceStatuses = new Set(["active", "missing", "resolved_externally"]);
+
 export function statusLabel(value: string): string {
   const normalized = String(value || "").trim().toLowerCase();
   return labels[normalized] || value;
@@ -26,10 +29,16 @@ export function statusLabel(value: string): string {
 
 export function StatusBadge({ value }: { value: string }) {
   const normalized = String(value || "").trim().toLowerCase();
+  const kind = presenceStatuses.has(normalized)
+    ? "presence"
+    : humanStatuses.has(normalized)
+      ? "human"
+      : "generic";
   return (
     <span
-      className={`status-badge status-${normalized || "unknown"}`}
+      className={`status-badge status-${normalized || "unknown"} ${kind}-status-badge`}
       data-status={normalized || "unknown"}
+      data-status-kind={kind}
     >
       {statusLabel(value)}
     </span>
