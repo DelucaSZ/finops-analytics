@@ -161,7 +161,7 @@ export default function BillingProfilesPage() {
   }
 
   return (
-    <>
+    <div className="billing-profiles-page">
       <PageHeader
         eyebrow="CONFIGURAÇÕES · BILLING"
         title="Perfis de Billing"
@@ -177,7 +177,7 @@ export default function BillingProfilesPage() {
       {success && <div className="alert success"><Check size={17} />{success}</div>}
 
       {form && (
-        <section className="panel">
+        <section className="panel billing-profile-form-panel">
           <h2>{form.id ? "Editar perfil" : "Novo perfil"}</h2>
           <form onSubmit={submit} className="form-grid">
             <label>
@@ -269,37 +269,48 @@ export default function BillingProfilesPage() {
         </section>
       )}
 
-      <section className="panel">
+      <section className="panel billing-profiles-panel">
         <h2>Perfis disponíveis</h2>
         {loading ? (
           <p role="status">Carregando perfis…</p>
         ) : profiles.length === 0 ? (
           <p>Nenhum perfil disponível.</p>
         ) : (
-          <div className="table-wrap">
-            <table>
+          <div className="table-wrap billing-profiles-table-wrap">
+            <table className="billing-profiles-table">
+              <colgroup>
+                <col className="billing-col-profile" />
+                <col className="billing-col-configuration" />
+                <col className="billing-col-grouping" />
+                <col className="billing-col-status" />
+                <col className="billing-col-actions" />
+              </colgroup>
               <thead>
                 <tr>
-                  <th>Perfil</th>
-                  <th>Configuração</th>
-                  <th>Agrupamento</th>
-                  <th>Status</th>
-                  <th>Ações</th>
+                  <th scope="col">Perfil</th>
+                  <th scope="col">Configuração</th>
+                  <th scope="col">Agrupamento</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Ações</th>
                 </tr>
               </thead>
               <tbody>
                 {profiles.map((profile) => (
                   <tr key={profile.id}>
                     <td>
-                      <strong>{profile.name}</strong>{" "}
-                      {profile.is_default && <span className="badge">Padrão</span>}
-                      <div className="muted">{profile.description || (profile.is_system ? "Perfil de sistema" : "Sem descrição")}</div>
+                      <div className="billing-profile-name">
+                        <strong>{profile.name}</strong>
+                        {profile.is_default && <span className="badge">Padrão</span>}
+                      </div>
+                      <div className="muted billing-profile-description">
+                        {profile.description || (profile.is_system ? "Perfil de sistema" : "Sem descrição")}
+                      </div>
                     </td>
-                    <td>{profileSummary(profile)}</td>
-                    <td>{groupingLabels[profile.group_by]}</td>
-                    <td>{profile.enabled ? "Ativo" : "Inativo"}</td>
+                    <td className="billing-profile-configuration">{profileSummary(profile)}</td>
+                    <td className="billing-profile-grouping">{groupingLabels[profile.group_by]}</td>
+                    <td className="billing-profile-status">{profile.enabled ? "Ativo" : "Inativo"}</td>
                     <td>
-                      <div className="actions">
+                      <div className="actions billing-profile-actions">
                         <button className="button ghost" onClick={() => edit(profile)} disabled={!profile.enabled}>
                           <Pencil size={15} /> Editar
                         </button>
@@ -322,6 +333,6 @@ export default function BillingProfilesPage() {
           </div>
         )}
       </section>
-    </>
+    </div>
   );
 }

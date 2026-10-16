@@ -8,6 +8,7 @@ import {
   isSettingsTabActive,
   settingsTabsForRole,
 } from "@/lib/settings-navigation.mjs";
+import styles from "./settings-layout.module.css";
 
 export default function SettingsLayout({
   children,
@@ -46,8 +47,11 @@ export default function SettingsLayout({
   const tabs = settingsTabsForRole(role);
   const adminOnly = isAdminOnlySettingsPath(path);
   return (
-    <>
-      <nav className="settings-tabs" aria-label="Configurações">
+    <div className={styles.page}>
+      <nav
+        className={`settings-tabs ${styles.tabs}`}
+        aria-label="Configurações"
+      >
         {tabs.map((tab) => {
           const active = isSettingsTabActive(path, tab.href);
           return (
@@ -61,14 +65,16 @@ export default function SettingsLayout({
           );
         })}
       </nav>
-      {adminOnly && role !== "admin" ? (
-        <section className="security-card">
-          <h1>Acesso restrito</h1>
-          <p>Esta área está disponível apenas para administradores.</p>
-        </section>
-      ) : (
-        children
-      )}
-    </>
+      <div className={styles.content}>
+        {adminOnly && role !== "admin" ? (
+          <section className="security-card">
+            <h1>Acesso restrito</h1>
+            <p>Esta área está disponível apenas para administradores.</p>
+          </section>
+        ) : (
+          children
+        )}
+      </div>
+    </div>
   );
 }
