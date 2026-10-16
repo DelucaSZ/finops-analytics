@@ -90,7 +90,14 @@ def cloudwatch_usage_events(
 
 @router.get("/summary", response_model=CloudWatchUsageSummary)
 def cloudwatch_usage_summary(
-    group_by: Literal["operation", "account", "region", "collector", "analyzer"] = "operation",
+    group_by: Literal[
+        "operation",
+        "account",
+        "region",
+        "collector",
+        "analyzer",
+        "collection_run",
+    ] = "operation",
     date_from: datetime | None = None,
     date_to: datetime | None = None,
     cloud_account_id: int | None = None,
