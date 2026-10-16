@@ -269,7 +269,7 @@ export function BillingCostChart({
                   {hoveredPeriod.series.map((item) => (
                     <div
                       key={item.key}
-                      className={hovered.seriesKey === item.key ? styles.tooltipSeriesActive : undefined}
+                      className={hovered?.seriesKey === item.key ? styles.tooltipSeriesActive : undefined}
                     >
                       <i style={{ background: colorBySeries.get(item.key) || SERIES_COLORS[0] }} />
                       <span>{item.label}</span>
