@@ -37,6 +37,16 @@ export function formatBillingMoney(
 export function formatBillingDate(value: string, locale?: string): string;
 export function formatBillingRange(period: BillingPeriod | null, locale?: string): string;
 export function sameStringSet(left: string[], right: string[]): boolean;
+export function parseBillingAccountIds(value: string | null, availableAccountIds: number[]): number[];
+export function hasBillingAccountSelection(accountIds: number[]): boolean;
+export function areAllBillingAccountsSelected(
+  availableAccountIds: number[],
+  selectedAccountIds: number[],
+): boolean;
+export function billingAccountIdsForSelectAll(
+  checked: boolean,
+  availableAccountIds: number[],
+): number[];
 
 export function topBillingItems<T extends { amount: string | number; label: string }>(
   items: T[],
