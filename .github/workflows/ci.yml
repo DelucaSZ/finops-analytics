@@ -6,47 +6,9 @@ on:
   pull_request:
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
-  roadmap:
-    if: github.event_name == 'pull_request' && github.head_ref == 'feat/23-19-deepops-usage-cost-dashboard'
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          fetch-depth: 0
-      - name: Append Task 23.19 to cumulative roadmap
-        shell: python
-        run: |
-          from pathlib import Path
-
-          roadmap = Path("docs/implementation-roadmap.md")
-          marker = "## Etapa 23.19 — Dashboard de Usage & Costs do DeepOps"
-          current = roadmap.read_text(encoding="utf-8")
-          if marker in current:
-              raise SystemExit(0)
-
-          detailed_path = Path("docs/task-23-19-deepops-usage-cost-dashboard.md")
-          detailed = detailed_path.read_text(encoding="utf-8")
-          first_heading = "# Etapa 23.19 — Dashboard de Usage & Costs do DeepOps"
-          if not detailed.startswith(first_heading):
-              raise SystemExit("Unexpected Task 23.19 documentation heading")
-          body = detailed[len(first_heading):].lstrip()
-          section = f"\n\n{marker}\n\n{body}"
-          roadmap.write_text(current + section, encoding="utf-8")
-      - name: Commit roadmap entry
-        run: |
-          if git diff --quiet -- docs/implementation-roadmap.md; then
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add docs/implementation-roadmap.md
-          git commit -m "docs(23.19): update implementation roadmap"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
   backend:
     runs-on: ubuntu-latest
     services:
@@ -95,6 +57,7 @@ jobs:
       - run: npm ci
       - run: npm test
       - run: npm run build
+
 
   security:
     runs-on: ubuntu-latest
