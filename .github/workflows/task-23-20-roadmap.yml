@@ -1,0 +1,113 @@
+name: Task 23.20 roadmap sync
+
+on:
+  push:
+    branches:
+      - feat/23-20-product-ui-redesign
+
+permissions:
+  contents: write
+
+jobs:
+  update-roadmap:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: feat/23-20-product-ui-redesign
+      - name: Append Task 23.20 implementation notes
+        shell: bash
+        run: |
+          if grep -q "## Atividade 23.20 — Redesign global, navegação e experiência multi-cloud" docs/implementation-roadmap.md; then
+            echo "Task 23.20 already documented"
+            exit 0
+          fi
+
+          cat >> docs/implementation-roadmap.md <<'ROADMAP'
+
+
+## Atividade 23.20 — Redesign global, navegação e experiência multi-cloud
+
+**Status:** implementada na branch `feat/23-20-product-ui-redesign`; validação final pelo CI do PR.
+
+### Objetivo e auditoria visual
+
+A etapa consolida visualmente o DeepOps sem criar novos domínios e sem alterar contratos financeiros, lifecycle, pricing, coleta ou regras de oportunidade. A auditoria encontrou uma base visual predominantemente dark-only, sidebar desktop de largura fixa, branding residual AWS em autenticação/metadata, a mensagem decorativa `Ambiente protegido`, estilos de superfície hardcoded em telas mais novas e densidade divergente entre Dashboard, Opportunities, Billing, Pricing OCI e Usage & Costs.
+
+O redesign evolui os componentes e CSS já existentes, em vez de introduzir uma segunda biblioteca. `PageHeader`, botões, panels/cards, badges, tabelas, filtros, forms, modals/drawers e estados de feedback passam a convergir para tokens semânticos compartilhados e para uma escala menor de radius, spacing e tipografia.
+
+> O DeepOps passa a se apresentar visualmente como uma plataforma FinOps multi-cloud, e não como uma ferramenta exclusivamente AWS.
+
+> AWS e OCI continuam identificados sempre que o provider faz parte do contexto do dado, mas o branding global do produto permanece provider-neutral.
+
+### Branding, navegação e sidebar
+
+O shell global usa `DeepOps` e `FINOPS MULTI-CLOUD`. O login deixa de exibir `AWS FINOPS INTELLIGENCE`, o metadata da aplicação deixa de descrever o produto como exclusivo de ambientes AWS e `Ambiente protegido` é removido sem badge decorativo substituto. Menções a AWS continuam preservadas quando representam contexto factual, como Billing AWS, conta/provider ou dados originados de serviços AWS.
+
+A navegação principal permanece compacta e sem superagrupamento: Dashboard, Oportunidades, Fluxo, Billing, Coletas e Configurações. A sidebar desktop suporta estados expanded/collapsed com larguras centralizadas em tokens, transição curta, botão acessível, active state independente apenas de cor e tooltips para os itens quando collapsed. A preferência `deepops.sidebar.collapsed` é local ao navegador, persiste entre sessões e possui fallback seguro para expanded quando storage é ausente ou inválido.
+
+Em viewport mobile a navegação deixa de reutilizar o modo collapsed desktop: passa a funcionar como drawer/overlay, com botão de menu, fechamento após navegação, overlay clicável e suporte a Escape. A navegação por teclado e os labels acessíveis dos botões de ícone são preservados.
+
+### Theme system — System, Light e Dark
+
+Foi introduzida preferência explícita `system | light | dark`, persistida em `deepops.theme`. O default é `system`. A resolução de `system` usa `prefers-color-scheme` e o shell observa mudanças do sistema em runtime. Preferência inválida volta para `system`.
+
+O layout executa um bootstrap mínimo antes da hidratação para resolver o tema e o estado da sidebar antes do primeiro paint, reduzindo flash relevante de tema e layout. A preferência original `system` continua persistida; somente o tema resolvido é aplicado ao atributo `data-theme`.
+
+Configurações ganha a área **Aparência**, disponível a todos os usuários autenticados, com seletor acessível das três opções. A tela não cria dependência de backend para preferência puramente local.
+
+### Design tokens e design system
+
+A camada `ui-system.css` centraliza tokens semânticos para `background`, `foreground`, `surface`, `surface-muted`, `border`, `primary`, `muted`, `success`, `warning`, `danger`, `info`, focus, palette de charts, controls, overlay, radius e larguras da sidebar. Aliases compatíveis mantêm as telas existentes operacionais enquanto os estilos antigos são migrados gradualmente.
+
+Light e Dark possuem hierarquia própria de surfaces, borders, texto primário/secundário, feedback e controls. Cores de provider não dirigem o tema global. A palette de chart é semântica e as telas financeiras revisadas consomem tokens em vez de gradientes dark hardcoded. Uma pequena camada de compatibilidade cobre selectors legados ainda existentes sem criar um segundo sistema de tokens.
+
+`PageHeader` passa a aceitar eyebrow/description opcionais, permitindo páginas mais compactas e evitando texto obrigatório que apenas repete o título. Títulos, headers de seção, KPIs, body/captions, buttons e status badges recebem escalas mais consistentes. Cards funcionais preservam borders/surfaces; sombras e grandes vazios são reduzidos para aumentar densidade útil por viewport.
+
+### Tables, filters, forms, dialogs e feedback
+
+Tabelas usam headers e borders semânticos, row spacing mais compacto e mantêm scroll horizontal em telas pequenas quando a quantidade de colunas exige. Pricing OCI foi ajustado para tabela administrativa mais densa sem alterar currency, validity ou audit. Billing e Usage & Costs tiveram filtros/controls, KPIs, warnings/errors, charts e breakdown surfaces migrados para tokens light/dark.
+
+Inputs/selects preservam labels, focus visible e contraste em ambos os temas. O overlay de dialogs/drawers utiliza token compartilhado; Opportunity detail mantém o padrão drawer e Pricing OCI mantém modal para edição simples. Empty/loading/error states existentes são preservados e passam a herdar surfaces e semântica compartilhadas, sem introduzir framework de visual regression novo.
+
+### Páginas revisadas
+
+- **Dashboard:** branding provider-neutral, surfaces/KPIs mais densos e tokens compartilhados; o escopo multi-cloud existente e totais por currency são preservados.
+- **Opportunities / History / Detail:** tabs, filtros, tabela, status humano e presence técnica permanecem semanticamente separados; controls e drawer recebem suporte light/dark e responsivo.
+- **Fluxo:** domínio e filtros existentes são preservados; periodicidade e currencies continuam representados sem simplificação financeira.
+- **Billing:** filtros principais, profile context, KPIs, charts e breakdowns são compactados e tematizados; `Estimated` continua sendo tratado como estimativa factual da implementação existente.
+- **Settings:** navegação permanece única e compacta, com nova área Aparência; Pricing OCI, Billing Profiles e Usage & Costs permanecem áreas distintas.
+- **Pricing OCI:** form, modal, tabela, paginação e histórico usam surfaces/tokens consistentes; BRL não é convertido.
+- **Usage & Costs:** mantém distinção explícita entre estimativa operacional do DeepOps e AWS Billing, com warnings de incompletude e breakdowns existentes.
+- **Auth:** branding global deixa de ser AWS-only e passa a herdar os temas compartilhados sem reimplementar autenticação.
+
+### Acessibilidade, responsividade e performance
+
+Focus visible é preservado em light/dark. Botões de sidebar/menu possuem `aria-label`, estado expandido e relação com o elemento controlado. Itens collapsed continuam identificáveis por tooltip e label acessível. `prefers-reduced-motion` reduz animações/transições. O drawer mobile evita a sidebar collapsed de desktop em telas estreitas e as principais grids reduzem colunas progressivamente.
+
+A implementação reutiliza `lucide-react`, CSS e componentes existentes. Nenhuma biblioteca de animação, chart, icon pack ou component framework novo foi adicionada. Theme/sidebar usam estado local pequeno e listeners específicos, sem alterar server state nem provocar novo fluxo de dados de domínio.
+
+### Regressões e invariantes
+
+> Nenhuma regra de conversão cambial foi introduzida pelo redesign; BRL e USD continuam sendo tratados separadamente.
+
+> O redesign preserva a separação conceitual entre Opportunities, Fluxo, Billing e Usage & Costs.
+
+Human status e technical presence continuam campos e badges distintos. Billing não é unificado com Fluxo. Pricing OCI continua em BRL conforme a tabela vigente e não há FX. Nenhum analyzer, provider, forecast, Billing OCI, repricing, ledger rule ou novo domínio foi introduzido.
+
+### Testes e validação
+
+Foram adicionados testes unitários para normalização/resolução de `system | light | dark`, persistência da sidebar, bootstrap pré-hidratação, ausência de branding global obsoleto e contratos acessíveis de collapse/tooltips. Settings navigation cobre a nova rota Aparência e mantém áreas admin-only protegidas.
+
+O CI cumulativo continua executando backend `ruff check .`, `ruff format --check .`, `pytest -q`; frontend `npm test` e `npm run build`; além dos jobs de security, compose smoke e auto deploy tests já existentes. A validação visual/manual da etapa deve cobrir Light, Dark, System, sidebar expanded/collapsed e drawer mobile nas rotas principais antes do merge.
+
+### Limites deliberados
+
+A 23.20 não implementa GCP/Azure, FX, Billing OCI, forecast, analyzers, regras financeiras novas, repricing ou novos domínios. Também não altera lifecycle/presence para facilitar apresentação. Ajustes futuros de copy ou micro-layout podem continuar evoluindo a mesma camada de tokens sem reabrir a arquitetura visual.
+ROADMAP
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add docs/implementation-roadmap.md
+          git commit -m "docs: document Task 23.20 redesign"
+          git push origin HEAD:feat/23-20-product-ui-redesign
