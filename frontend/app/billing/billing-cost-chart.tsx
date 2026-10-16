@@ -37,6 +37,9 @@ const SERIES_COLORS = [
   "var(--border-strong)",
 ];
 
+const MAX_SERVICE_SERIES = SERIES_COLORS.length;
+const OTHER_SERIES_KEY = "__billing_other__";
+
 type HoveredBucket = {
   periodIndex: number;
   seriesKey: string | null;
@@ -58,6 +61,52 @@ function tooltipTransform(x: number, width: number) {
   return "translateX(-50%)";
 }
 
+function formatShare(amount: number, total: number) {
+  if (!Number.isFinite(amount) || !Number.isFinite(total) || Math.abs(total) < 1e-9) return "0%";
+  return new Intl.NumberFormat("pt-BR", {
+    style: "percent",
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1,
+  }).format(Math.abs(amount) / Math.abs(total));
+}
+
+function compactServiceDataset(dataset: BillingChartDataset, groupBy: BillingGroupBy) {
+  if (groupBy !== "SERVICE" || dataset.series.length <= MAX_SERVICE_SERIES) return dataset;
+
+  const visibleSeries = dataset.series.slice(0, MAX_SERVICE_SERIES - 1);
+  const visibleKeys = new Set(visibleSeries.map((item) => item.key));
+  const hiddenSeries = dataset.series.slice(MAX_SERVICE_SERIES - 1);
+  const otherTotal = hiddenSeries.reduce((sum, item) => sum + item.total, 0);
+  const series = [
+    ...visibleSeries,
+    { key: OTHER_SERIES_KEY, label: "Outros", total: otherTotal },
+  ];
+
+  const periods = dataset.periods.map((period) => {
+    const visibleItems = period.series.filter((item) => visibleKeys.has(item.key));
+    const hiddenItems = period.series.filter((item) => !visibleKeys.has(item.key));
+    const otherAmount = hiddenItems.reduce((sum, item) => sum + item.amount, 0);
+    const otherEstimated = hiddenItems.some((item) => item.estimated);
+
+    return {
+      ...period,
+      series: otherAmount === 0 && !otherEstimated
+        ? visibleItems
+        : [
+            ...visibleItems,
+            {
+              key: OTHER_SERIES_KEY,
+              label: "Outros",
+              amount: otherAmount,
+              estimated: otherEstimated,
+            },
+          ],
+    };
+  });
+
+  return { ...dataset, series, periods };
+}
+
 export function BillingCostChart({
   dataset,
   granularity,
@@ -68,7 +117,11 @@ export function BillingCostChart({
   groupBy: BillingGroupBy;
 }) {
   const [hovered, setHovered] = useState<HoveredBucket | null>(null);
-  const { currency, periods, series } = dataset;
+  const chartDataset = useMemo(
+    () => compactServiceDataset(dataset, groupBy),
+    [dataset, groupBy],
+  );
+  const { currency, periods, series } = chartDataset;
   const colorBySeries = useMemo(
     () => new Map(series.map((item, index) => [item.key, SERIES_COLORS[index % SERIES_COLORS.length]])),
     [series],
@@ -116,7 +169,7 @@ export function BillingCostChart({
       <div className={styles.chartContextGrid}>
         <div>
           <span>Custo total · {currency}</span>
-          <strong>{formatBillingMoney(dataset.total, currency)}</strong>
+          <strong>{formatBillingMoney(chartDataset.total, currency)}</strong>
         </div>
         <div>
           <span>Período</span>
@@ -130,7 +183,7 @@ export function BillingCostChart({
           <span>Agrupamento</span>
           <strong>{GROUP_BY_LABELS[groupBy]}</strong>
         </div>
-        {dataset.estimated && <span className={styles.estimatedBadge}>Inclui dados estimados</span>}
+        {chartDataset.estimated && <span className={styles.estimatedBadge}>Inclui dados estimados</span>}
       </div>
 
       {groupBy !== "NONE" && series.length > 0 && (
@@ -229,7 +282,7 @@ export function BillingCostChart({
                         className={styles.chartBar}
                         onMouseEnter={() => setHovered({ periodIndex, seriesKey: item.key })}
                       >
-                        <title>{`${formatBillingDate(period.start_date)} · ${item.label} · ${formatBillingMoney(item.amount, currency)}`}</title>
+                        <title>{`${formatBillingDate(period.start_date)} · ${item.label} · ${formatBillingMoney(item.amount, currency)} · ${formatShare(item.amount, period.total)}`}</title>
                       </rect>
                     );
                   })}
@@ -273,7 +326,7 @@ export function BillingCostChart({
                     >
                       <i style={{ background: colorBySeries.get(item.key) || SERIES_COLORS[0] }} />
                       <span>{item.label}</span>
-                      <strong>{formatBillingMoney(item.amount, currency)}</strong>
+                      <strong>{formatBillingMoney(item.amount, currency)} · {formatShare(item.amount, hoveredPeriod.total)}</strong>
                     </div>
                   ))}
                 </div>
@@ -287,7 +340,10 @@ export function BillingCostChart({
         </div>
       </div>
 
-      {dataset.estimated && (
+      {dataset.series.length > series.length && groupBy === "SERVICE" && (
+        <p className={styles.chartNote}>Serviços de menor custo foram consolidados em “Outros” para manter a leitura do gráfico.</p>
+      )}
+      {chartDataset.estimated && (
         <p className={styles.chartNote}>* Bucket marcado como estimado pelo AWS Cost Explorer.</p>
       )}
     </div>
