@@ -101,7 +101,9 @@ def _regions_overlap(left: str, right: str) -> bool:
 def _time_overlap(left: CloudWatchPricingRule, right: CloudWatchPricingRule) -> bool:
     left_start = utc(left.effective_from)
     right_start = utc(right.effective_from)
-    left_end = utc(left.effective_until) if left.effective_until else datetime.max.replace(tzinfo=UTC)
+    left_end = (
+        utc(left.effective_until) if left.effective_until else datetime.max.replace(tzinfo=UTC)
+    )
     right_end = (
         utc(right.effective_until) if right.effective_until else datetime.max.replace(tzinfo=UTC)
     )
@@ -130,7 +132,7 @@ def _validate_no_ambiguous_rules(rules: tuple[CloudWatchPricingRule, ...]) -> No
             if not _tier_overlap(left, right):
                 continue
             raise CloudWatchPricingAmbiguousError(
-                "overlapping CloudWatch pricing rules: " f"{left.id},{right.id}"
+                f"overlapping CloudWatch pricing rules: {left.id},{right.id}"
             )
 
 
@@ -258,9 +260,7 @@ class CloudWatchCostEngine:
                     0,
                 ).label("inexact_request_events"),
                 func.coalesce(
-                    func.sum(
-                        case((CloudWatchUsageEvent.success.is_(False), 1), else_=0)
-                    ),
+                    func.sum(case((CloudWatchUsageEvent.success.is_(False), 1), else_=0)),
                     0,
                 ).label("failed_events"),
             ).where(
@@ -282,7 +282,11 @@ class CloudWatchCostEngine:
                 if quantity <= 0:
                     continue
                 cost, components = calculate_tiered_cost(quantity, version_rules)
-                group_value = str(row.cost_group) if group_by is not None and row.cost_group is not None else None
+                group_value = (
+                    str(row.cost_group)
+                    if group_by is not None and row.cost_group is not None
+                    else None
+                )
                 period = _period_value(row, granularity)
                 key = (group_value, period, currency)
                 item = merged.setdefault(
@@ -347,9 +351,7 @@ class CloudWatchCostEngine:
             total["usage_quantity"] += item["usage_quantity"]
 
         used_components = [
-            component
-            for item in merged.values()
-            for component in item["components"]
+            component for item in merged.values() for component in item["components"]
         ]
         pricing_sources = sorted({component["source"] for component in used_components})
         verified_dates = [utc(component["pricing_verified_at"]) for component in used_components]

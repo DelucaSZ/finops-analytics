@@ -18,7 +18,6 @@ from app.services.cloudwatch_pricing import (
 )
 from app.services.cloudwatch_usage_query import CloudWatchUsageFilters
 
-
 VERIFIED_AT = datetime(2026, 10, 16, tzinfo=UTC)
 
 
