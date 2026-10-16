@@ -53,6 +53,8 @@ test("global shell is provider-neutral and exposes accessible persistent collaps
   assert.ok(shell.includes("Expandir navegação"));
   assert.ok(shell.includes('className="sidebar-tooltip"'));
   assert.ok(shell.includes("serializeSidebarCollapsed"));
+  assert.ok(shell.includes('aria-label={mobileOpen ? "Fechar navegação" : "Abrir navegação"}'));
+  assert.ok(shell.includes('event.key === "Escape"'));
 });
 
 test("authentication and metadata no longer present DeepOps as AWS-only", async () => {
@@ -62,4 +64,36 @@ test("authentication and metadata no longer present DeepOps as AWS-only", async 
   assert.ok(login.includes("FINOPS MULTI-CLOUD"));
   assert.ok(!layout.includes("ambientes AWS"));
   assert.ok(layout.includes("FinOps Multi-Cloud"));
+});
+
+test("semantic design tokens cover both themes, charts, focus, responsive navigation and reduced motion", async () => {
+  const css = await readFile(new URL("../app/ui-system.css", import.meta.url), "utf8");
+  for (const token of [
+    "--background:",
+    "--foreground:",
+    "--surface:",
+    "--border:",
+    "--primary:",
+    "--success:",
+    "--warning:",
+    "--danger:",
+    "--chart-1:",
+    "--sidebar-expanded-width:",
+    "--sidebar-collapsed-width:",
+  ]) assert.ok(css.includes(token), `missing token ${token}`);
+  assert.ok(css.includes('html[data-theme="dark"]'));
+  assert.ok(css.includes('html[data-sidebar="collapsed"]'));
+  assert.ok(css.includes("@media (max-width: 900px)"));
+  assert.ok(css.includes("@media (prefers-reduced-motion: reduce)"));
+  assert.ok(css.includes(".sidebar-overlay.visible"));
+});
+
+test("human lifecycle and technical presence badges remain visually distinct", async () => {
+  const badge = await readFile(new URL("../components/status-badge.tsx", import.meta.url), "utf8");
+  const compat = await readFile(new URL("../app/legacy-theme-compat.css", import.meta.url), "utf8");
+  assert.ok(badge.includes('const humanStatuses = new Set(["open", "treated", "rejected"])'));
+  assert.ok(badge.includes('const presenceStatuses = new Set(["active", "missing", "resolved_externally"])'));
+  assert.ok(badge.includes("data-status-kind={kind}"));
+  assert.ok(compat.includes(".presence-status-badge"));
+  assert.ok(compat.includes(".human-status-badge"));
 });
