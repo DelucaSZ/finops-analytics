@@ -4757,3 +4757,80 @@ A documentação detalhada da implementação e da pesquisa AWS está em `docs/t
 ### Limitações deixadas para 23.18 e 23.19
 
 A 23.17 não cria tabela de preços CloudWatch, não calcula USD/BRL, não aplica free tier, não calcula estimated operational cost e não cria dashboard. A 23.18 aplicará pricing à telemetria observada; a 23.19 consumirá esse domínio para visualização. Fluxo, Opportunities, Billing/Cost Explorer e OCI Pricing permanecem independentes.
+
+
+## Etapa 23.18 — CloudWatch Cost Engine do DeepOps
+
+**Status:** implementada na branch `feat/23-18-cloudwatch-cost-engine` e publicada no PR #72; merge na `main` depende de solicitação explícita posterior.
+
+### Objetivo e separação de domínios
+
+A Etapa 23.18 transforma o usage técnico observado pela 23.17 em custo monetário operacional estimado do próprio DeepOps. Raw usage continua sendo a fonte factual; pricing versionado é uma fonte separada; o custo é uma derivação reproduzível.
+
+> o custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo DeepOps e nas regras oficiais de pricing verificadas.
+
+> Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio DeepOps.
+
+> nenhuma conversão cambial é realizada.
+
+### AWS pricing, dimensão, unidade, vigência e source
+
+A documentação oficial foi verificada em 16/10/2026: Amazon CloudWatch Pricing, CloudWatch billing/cost optimization, GetMetricStatistics API Reference, GetMetricData e CloudWatch usage metrics. A `main` da 23.17 usa somente `GetMetricStatistics`; `GetMetricData`, `ListMetrics` e Metrics Insights não são usados pelos collectors atuais e não recebem seeds por completude.
+
+`GetMetricStatistics` pertence a `UsageType=Requests`. A regra pública corrente usada é `USD 0.01 / 1,000 API requests`, persistida como `pricing_dimension=API_REQUEST`, `unit=REQUEST`, `unit_quantity=1000`, `currency=USD`, `source=AWS_OFFICIAL_PRICING`, `pricing_verified_at`, `effective_from/effective_until` e provenance da fonte.
+
+A regra seed cobre `AWS_COMMERCIAL`; regiões China, GovCloud, ISO/ISOB e região desconhecida permanecem `UNPRICED_USAGE` até pricing oficial próprio ser cadastrado. Preço histórico não é sobrescrito: mudança futura deve encerrar a vigência anterior e criar nova versão.
+
+### Pricing model, resolver, tiers e Decimal
+
+`CloudWatchPricingRule` é um domínio separado do Pricing Catalog OCI. O modelo possui operação, dimensão, region scope, unidade/quantidade, `Numeric` de alta precisão, currency, effective dates, boundaries/scope de tier, applicability, source/reference, data de verificação e enabled.
+
+`CloudWatchPricingResolver` carrega o snapshot de rules uma vez por execução/request. Missing pricing gera erro/estado explícito e overlap aplicável gera `CloudWatchPricingAmbiguousError`; nunca existe escolha silenciosa da primeira row ou fallback para custo zero. O helper de tiers usa boundaries contínuos em `Decimal` e falha em gaps. O pricing pago corrente de `GetMetricStatistics` não possui tiers pagos a aplicar na estimativa bruta.
+
+A fórmula corrente é `request_count / 1000 × USD 0.01`, sem arredondar cada event e sem arredondamento para blocos de mil.
+
+### Gross estimate e free tier
+
+A métrica principal é `gross_estimated_cost`.
+
+> por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o DeepOps não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
+
+A API retorna `free_tier_applied=false`. EDP, private pricing, descontos empresariais, taxes, credits e negotiated rates também não são aplicados.
+
+### Retries, failures, paginação e attribution
+
+A engine usa `request_count` observado pela 23.17. Quando botocore expõe retries, `request_count=1+RetryAttempts`, portanto tentativas observadas entram na estimativa. Falhas de transporte sem contagem física completa são marcadas por `request_count_is_exact=false` e expostas como `inexact_request_events`.
+
+A documentação AWS consultada não afirma uma exclusão confiável de requests com erro; por isso requests falhos observados permanecem na estimativa bruta e `failed_events` é exposto separadamente. `GetMetricStatistics` não pagina. Operações paginadas futuras já produzem um usage event por chamada/página na instrumentação 23.17.
+
+Attribution usa somente os campos factuais da 23.17: account, region, operation, collector, analyzer e CollectionRun. Requests compartilhados não são duplicados entre analyzers.
+
+### Cost Engine, provenance, incomplete usage e performance
+
+`CloudWatchCostEngine` calcula sob demanda sobre raw usage. Pricing é carregado em batch/cache local; usage é agregado em SQL por regra/vigência/dimensão, evitando N+1 por event. Não é criada materialização de milhões de rows de custo nesta etapa.
+
+Cada componente preserva pricing rule id, usage quantity, unit price, unit quantity, pricing unit, currency, effective interval, source/reference e pricing verified date. Currencies são agregadas separadamente e nunca somadas entre si.
+
+Usage sem rule válida aparece em `unpriced_usage` com `reason=UNPRICED_USAGE`; qualquer parcela não precificada força `is_complete=false`. Um total parcial nunca é promovido silenciosamente a total completo.
+
+### API e agregações
+
+Endpoints administrativos read-only:
+
+- `GET /api/v1/deepops-costs/cloudwatch/summary`;
+- `GET /api/v1/deepops-costs/cloudwatch/timeseries?granularity=daily|monthly`;
+- `GET /api/v1/deepops-costs/cloudwatch/breakdown?group_by=account|region|operation|collector|analyzer|collection_run`.
+
+Filtros incluem período, conta interna, AWS Account ID, região, operação, collector, analyzer e CollectionRun. Toda saída monetária mantém currency explícita.
+
+### Migration, testes e documentação
+
+`0029_cloudwatch_cost_engine` parte de `0028_cloudwatch_usage_telemetry`, cria somente `cloudwatch_pricing_rules`, constraints, índice e seed determinístico da regra atual de `GetMetricStatistics`. Telemetria existente não é removida nem regravada; cálculo sob demanda dispensa backfill.
+
+Os testes focados cobrem vigência, versão futura, missing/ambiguous pricing, Decimal, unit quantity, boundaries de tiers, retries/failures, unpriced usage, region scope, breakdowns requeridos, daily/monthly, multi-currency e free tier não aplicado. As suítes cumulativas preservam regressão 23.17, Billing/Cost Explorer, Fluxo, Pricing OCI, migrations e frontend.
+
+Documentação detalhada: `docs/task-23-18-cloudwatch-cost-engine.md`.
+
+### Limitações deliberadas para 23.19
+
+A 23.18 não implementa dashboard completo em Settings, gráficos, ROI, FX, reconciliação com Cost Explorer, scraper/auto-update de pricing, pricing admin UI, savings, findings ou redesign global. A 23.19 consumirá os read models desta etapa para a experiência de Usage & Costs.
