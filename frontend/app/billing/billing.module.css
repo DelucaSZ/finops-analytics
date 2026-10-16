@@ -4,8 +4,8 @@
 
 .filtersBody {
   display: grid;
-  gap: 18px;
-  padding: 20px;
+  gap: 16px;
+  padding: 18px;
 }
 
 .primaryFilters {
@@ -34,7 +34,7 @@
   padding: 2px 7px;
   border-radius: 99px;
   color: var(--warning);
-  background: rgba(249, 189, 79, .09);
+  background: var(--warning-soft);
   font-size: .6875rem;
   font-style: normal;
   letter-spacing: .2px;
@@ -43,19 +43,19 @@
 .field select,
 .field input {
   width: 100%;
-  min-height: 44px;
+  min-height: 40px;
   padding: 0 11px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: var(--radius-md);
   color: var(--text);
-  background: rgba(255, 255, 255, .025);
+  background: var(--control-bg);
 }
 
 .customDates {
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(180px, 240px) minmax(0, 1fr);
   gap: 12px;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .validationMessage {
@@ -69,10 +69,10 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   gap: 12px 18px;
   align-items: center;
-  padding: 13px 15px;
+  padding: 12px 14px;
   border: 1px solid var(--border);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, .018);
+  border-radius: var(--radius-md);
+  background: var(--surface-muted);
 }
 
 .profileContext > div span,
@@ -101,22 +101,14 @@
   display: inline-flex;
   align-items: center;
   width: max-content;
-  min-height: 25px;
+  min-height: 24px;
   padding: 2px 8px;
   border-radius: 99px;
+  color: var(--warning);
+  background: var(--warning-soft);
   font-size: .6875rem;
   font-weight: 800;
   white-space: nowrap;
-}
-
-.overrideBadge {
-  color: var(--warning);
-  background: rgba(249, 189, 79, .09);
-}
-
-.estimatedBadge {
-  color: #ffd176;
-  background: rgba(249, 189, 79, .11);
 }
 
 .accountPicker {
@@ -137,18 +129,19 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 54px;
+  min-height: 50px;
   padding: 9px 12px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--text);
-  background: rgba(255, 255, 255, .018);
+  background: var(--surface);
   cursor: pointer;
 }
 
 .allAccounts {
   margin-bottom: 9px;
-  border-color: rgba(85, 229, 182, .18);
+  border-color: var(--primary);
+  background: var(--success-soft);
 }
 
 .allAccounts input,
@@ -227,12 +220,12 @@
 }
 
 .queryMetadata {
-  margin: 0 0 22px;
-  padding: 11px 14px;
+  margin: 0 0 20px;
+  padding: 10px 13px;
   border: 1px solid var(--border);
-  border-radius: 9px;
+  border-radius: var(--radius-md);
   color: var(--muted);
-  background: rgba(255, 255, 255, .014);
+  background: var(--surface-muted);
   font-size: .8125rem;
 }
 
@@ -244,8 +237,8 @@
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  align-items: end;
-  margin: 24px 0 12px;
+  align-items: flex-end;
+  margin: 22px 0 11px;
 }
 
 .sectionHeading h2 {
@@ -261,21 +254,21 @@
 
 .kpiGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 12px;
   margin-bottom: 18px;
 }
 
 .kpiCard {
-  min-height: 166px;
+  min-height: 142px;
   display: grid;
   align-content: start;
-  gap: 8px;
-  padding: 18px;
-  border: 1px solid rgba(85, 229, 182, .19);
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--border);
   border-radius: var(--radius);
-  background: linear-gradient(145deg, rgba(19, 27, 43, .96), rgba(12, 18, 30, .96));
-  box-shadow: var(--shadow);
+  background: var(--surface);
+  box-shadow: none;
 }
 
 .kpiHeading {
@@ -289,7 +282,7 @@
 
 .kpiCard > strong {
   margin: 2px 0 3px;
-  font-size: clamp(1.5rem, 2.7vw, 2rem);
+  font-size: clamp(1.45rem, 2.5vw, 1.85rem);
   line-height: 1.05;
   letter-spacing: -.8px;
   font-variant-numeric: tabular-nums;
@@ -333,20 +326,20 @@
   display: grid;
   place-items: center;
   padding: 24px;
-  border-radius: 10px;
+  border-radius: var(--radius-md);
   text-align: center;
   font-size: .875rem;
 }
 
 .sectionState {
   color: var(--muted);
-  background: rgba(255, 255, 255, .012);
+  background: var(--surface-muted);
 }
 
 .sectionError {
-  color: #ffb0b4;
-  border: 1px solid rgba(255, 107, 114, .18);
-  background: rgba(255, 107, 114, .06);
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  background: var(--danger-soft);
 }
 
 .chartGroup + .chartGroup {
@@ -388,7 +381,7 @@
 
 .costLine {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--chart-1);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
@@ -400,13 +393,13 @@
 }
 
 .costPoint {
-  fill: var(--surface-2);
-  stroke: var(--accent);
+  fill: var(--surface);
+  stroke: var(--chart-1);
 }
 
 .estimatedPoint {
   fill: var(--warning);
-  stroke: var(--surface-2);
+  stroke: var(--surface);
 }
 
 .estimatedMark {

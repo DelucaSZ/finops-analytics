@@ -1,0 +1,121 @@
+/* Compatibility layer for legacy global selectors that still carry dark-only literal colors. */
+
+.login-page,
+.access-page {
+  color: var(--foreground);
+  background: var(--background);
+}
+
+.login-visual {
+  border-right-color: var(--border);
+  background: var(--surface-muted);
+}
+
+.login-copy h1 {
+  letter-spacing: -.045em;
+}
+
+.login-copy p {
+  color: var(--muted);
+}
+
+.orb {
+  display: none;
+}
+
+.login-form-area {
+  background: var(--background);
+}
+
+.login-card {
+  border-color: var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.login-icon {
+  color: var(--primary);
+  background: var(--success-soft);
+}
+
+.login-card input,
+.access-page input,
+.access-page select,
+.access-page textarea,
+.security-card input {
+  color: var(--foreground);
+  border-color: var(--border);
+  background: var(--control-bg);
+}
+
+.copy-inline,
+.dashboard-health-summary > span,
+.dashboard-health-summary > a,
+.dashboard-change-stats > div {
+  background: var(--surface-muted);
+}
+
+.dashboard-bar-track {
+  background: var(--surface-subtle);
+}
+
+.dashboard-warning-note {
+  color: var(--warning);
+  border-color: var(--warning);
+  background: var(--warning-soft);
+}
+
+.data-table tbody tr:hover,
+.data-table tbody tr:focus-within,
+.opportunities-table .selected-row {
+  background: var(--surface-muted);
+}
+
+.finding-evidence {
+  background: var(--success-soft);
+  border-left-color: var(--primary);
+}
+
+.form-success {
+  color: var(--success);
+  border-color: var(--success);
+  background: var(--success-soft);
+}
+
+/* Human decisions are filled; technical presence is outlined so the concepts do not collapse visually. */
+.presence-status-badge {
+  border: 1px solid currentColor;
+  background: transparent;
+}
+
+.human-status-badge {
+  border: 1px solid transparent;
+}
+
+[data-provider="aws"],
+[data-provider="oci"],
+.provider-badge {
+  border: 1px solid var(--border);
+  color: var(--muted);
+  background: var(--surface-muted);
+}
+
+@media (max-width: 900px) {
+  .sidebar .brand-label,
+  .sidebar .nav-label {
+    display: inline;
+  }
+
+  .sidebar .product-tag {
+    display: flex;
+  }
+
+  .sidebar .sidebar-tooltip {
+    display: none !important;
+  }
+
+  .main-nav {
+    margin-top: 0;
+  }
+}

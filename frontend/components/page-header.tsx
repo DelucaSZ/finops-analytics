@@ -4,17 +4,17 @@ export function PageHeader({
   description,
   actions,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  description: string;
+  description?: string;
   actions?: React.ReactNode;
 }) {
   return (
     <header className="page-header">
-      <div>
-        <div className="eyebrow">{eyebrow}</div>
+      <div className="page-header-copy">
+        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
         <h1>{title}</h1>
-        <p>{description}</p>
+        {description && <p>{description}</p>}
       </div>
       {actions && <div className="header-actions">{actions}</div>}
     </header>
