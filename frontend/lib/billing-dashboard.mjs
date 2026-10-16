@@ -194,6 +194,36 @@ export function sameStringSet(left, right) {
   return a.every((value, index) => value === b[index]);
 }
 
+export function parseBillingAccountIds(value, availableAccountIds) {
+  if (typeof value !== "string" || !value.trim()) return [];
+  const available = new Set(availableAccountIds);
+  return Array.from(
+    new Set(
+      value
+        .split(",")
+        .map((item) => Number(item.trim()))
+        .filter((accountId) => Number.isInteger(accountId) && available.has(accountId)),
+    ),
+  ).sort((left, right) => left - right);
+}
+
+export function hasBillingAccountSelection(accountIds) {
+  return accountIds.length > 0;
+}
+
+export function areAllBillingAccountsSelected(availableAccountIds, selectedAccountIds) {
+  if (!availableAccountIds.length) return false;
+  const selected = new Set(selectedAccountIds);
+  return selected.size === availableAccountIds.length
+    && availableAccountIds.every((accountId) => selected.has(accountId));
+}
+
+export function billingAccountIdsForSelectAll(checked, availableAccountIds) {
+  return checked
+    ? Array.from(new Set(availableAccountIds)).sort((left, right) => left - right)
+    : [];
+}
+
 export function topBillingItems(items, limit = 10) {
   return [...items]
     .sort((left, right) => Number(right.amount) - Number(left.amount) || left.label.localeCompare(right.label))
