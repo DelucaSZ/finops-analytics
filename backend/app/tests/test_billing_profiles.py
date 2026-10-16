@@ -54,6 +54,7 @@ def test_finops_seed_is_idempotent_and_has_operational_defaults(db):
     assert first.name == "FinOps"
     assert first.granularity == BillingGranularity.DAILY.value
     assert first.metric == BillingMetric.AMORTIZED_COST.value
+    assert first.group_by == BillingGroupBy.SERVICE.value
     assert first.exclude_record_types == ["Credit"]
     assert first.is_default is True
     assert first.is_system is True
@@ -178,7 +179,7 @@ def test_profile_resolves_to_canonical_billing_request(db):
     assert resolved.profile_id == finops.id
     assert resolved.request.granularity == BillingGranularity.DAILY
     assert resolved.request.metric == BillingMetric.AMORTIZED_COST
-    assert resolved.request.group_by == BillingGroupBy.NONE
+    assert resolved.request.group_by == BillingGroupBy.SERVICE
     assert resolved.request.exclude_record_types == ["Credit"]
 
 
