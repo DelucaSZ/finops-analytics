@@ -22,6 +22,7 @@ from app.schemas.billing import (
     BillingGranularity,
     BillingGroupBy,
     BillingMetric,
+    BillingSeriesGroup,
     BillingSeriesPoint,
     BillingSummaryResponse,
     BillingSummaryTotal,
@@ -400,14 +401,30 @@ class AwsBillingService:
         )
 
     def timeseries(self, request: AwsBillingRequest) -> BillingTimeSeriesResponse:
-        rows = self._rows(request, group_by=BillingGroupBy.NONE)
+        rows = self._rows(request, group_by=request.group_by)
         values: dict[tuple[date, date, str], tuple[Decimal, bool]] = {}
+        grouped_values: dict[
+            tuple[date, date, str, str], tuple[Decimal, bool, _BillingRow]
+        ] = {}
         currencies: set[str] = set()
         for row in rows:
             currencies.add(row.currency)
-            key = (row.start_date, row.end_date, row.currency)
-            amount, estimated = values.get(key, (Decimal("0"), False))
-            values[key] = (amount + row.amount, estimated or row.estimated)
+            bucket_key = (row.start_date, row.end_date, row.currency)
+            amount, estimated = values.get(bucket_key, (Decimal("0"), False))
+            values[bucket_key] = (amount + row.amount, estimated or row.estimated)
+
+            if request.group_by != BillingGroupBy.NONE:
+                series_key = row.key or ""
+                aggregate_key = (*bucket_key, series_key)
+                grouped_amount, grouped_estimated, sample = grouped_values.get(
+                    aggregate_key,
+                    (Decimal("0"), False, row),
+                )
+                grouped_values[aggregate_key] = (
+                    grouped_amount + row.amount,
+                    grouped_estimated or row.estimated,
+                    sample,
+                )
 
         # Fill deterministic zero buckets only for units observed elsewhere in the
         # same response. With no AWS data there is no currency to infer safely.
@@ -422,19 +439,68 @@ class AwsBillingService:
                 )
             bucket_start = bucket_end
 
-        points = [
-            BillingSeriesPoint(
-                start_date=start,
-                end_date=end,
-                amount=amount,
-                currency=currency,
-                estimated=estimated,
+        points: list[BillingSeriesPoint] = []
+        for (start, end, currency), (amount, estimated) in sorted(values.items()):
+            groups: list[BillingSeriesGroup] = []
+            if request.group_by != BillingGroupBy.NONE:
+                for (
+                    group_start,
+                    group_end,
+                    group_currency,
+                    group_key,
+                ), (
+                    group_amount,
+                    group_estimated,
+                    sample,
+                ) in sorted(grouped_values.items()):
+                    if (
+                        group_start != start
+                        or group_end != end
+                        or group_currency != currency
+                    ):
+                        continue
+                    if request.group_by == BillingGroupBy.ACCOUNT:
+                        known = group_key == sample.aws_account_id
+                        groups.append(
+                            BillingSeriesGroup(
+                                key=group_key,
+                                label=sample.display_name if known else group_key,
+                                amount=group_amount,
+                                currency=currency,
+                                estimated=group_estimated,
+                                deepops_account_id=(
+                                    sample.deepops_account_id if known else None
+                                ),
+                                aws_account_id=group_key,
+                                display_name=sample.display_name if known else None,
+                            )
+                        )
+                    else:
+                        groups.append(
+                            BillingSeriesGroup(
+                                key=group_key,
+                                label=group_key,
+                                amount=group_amount,
+                                currency=currency,
+                                estimated=group_estimated,
+                            )
+                        )
+
+            points.append(
+                BillingSeriesPoint(
+                    start_date=start,
+                    end_date=end,
+                    amount=amount,
+                    currency=currency,
+                    estimated=estimated,
+                    groups=groups,
+                )
             )
-            for (start, end, currency), (amount, estimated) in sorted(values.items())
-        ]
+
         return BillingTimeSeriesResponse(
             metric=request.metric,
             granularity=request.granularity,
+            group_by=request.group_by,
             start_date=request.start_date,
             end_date=request.end_date,
             points=points,
