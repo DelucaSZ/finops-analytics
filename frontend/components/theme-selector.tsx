@@ -47,7 +47,13 @@ export function ThemeSelector() {
   const [preference, setPreference] = useState<ThemePreference>("system");
 
   useEffect(() => {
-    const saved = normalizeThemePreference(window.localStorage.getItem(THEME_STORAGE_KEY));
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage.getItem(THEME_STORAGE_KEY);
+    } catch {
+      stored = null;
+    }
+    const saved = normalizeThemePreference(stored);
     setPreference(saved);
     applyTheme(saved);
   }, []);
