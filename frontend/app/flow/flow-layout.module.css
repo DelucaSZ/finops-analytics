@@ -1,0 +1,505 @@
+.scope {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.scope > * {
+  min-width: 0;
+}
+
+.scope :global(.page-stack) {
+  display: grid;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  gap: 20px;
+  overflow-x: clip;
+}
+
+.scope :global(.page-stack) > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+.scope :global(.page-header) {
+  width: 100%;
+  min-width: 0;
+  margin-bottom: 0;
+  align-items: flex-start;
+}
+
+.scope :global(.page-header-copy) {
+  flex: 1 1 640px;
+  min-width: 0;
+}
+
+.scope :global(.page-header-copy p) {
+  max-width: 760px;
+}
+
+.scope :global(.header-actions) {
+  flex: 0 0 auto;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.scope :global(.header-actions .button) {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+
+.scope :global(.panel) {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Global filters. The first section in the route is the filter panel. */
+.scope :global(.page-stack) > section:first-of-type {
+  padding: 20px;
+}
+
+.scope :global(.page-stack) > section:first-of-type > div:first-child {
+  display: grid !important;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:first-of-type > div:first-child > * {
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:first-of-type > div:nth-child(2) {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 220px)) !important;
+  gap: 16px !important;
+  margin-top: 16px !important;
+}
+
+.scope :global(.dialog-field) {
+  min-width: 0;
+}
+
+.scope :global(.dialog-field select),
+.scope :global(.dialog-field input),
+.scope :global(.dialog-field textarea) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+/* Summary cards. */
+.scope :global(.page-stack) > section:nth-of-type(2) {
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) > div {
+  display: grid !important;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)) !important;
+  gap: 16px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article {
+  min-width: 0;
+  padding: 20px;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article h3 {
+  margin: 4px 0 18px;
+  line-height: 1.3;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article dl {
+  display: grid !important;
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+  gap: 0 !important;
+  margin: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article dl > div {
+  min-width: 0;
+  padding: 0 16px;
+  border-left: 1px solid var(--border);
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article dl > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) article dl > div:last-child {
+  padding-right: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) dt {
+  margin-bottom: 6px;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.35;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) dd {
+  min-width: 0;
+  margin: 0;
+  color: var(--foreground);
+  font-size: 1rem;
+  line-height: 1.35;
+  overflow-wrap: break-word;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(2) dd strong {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Temporal evolution panel. */
+.scope :global(.page-stack) > section:nth-of-type(3) {
+  padding: 20px;
+  overflow: hidden;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar) {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+  min-width: 0;
+  margin: -20px -20px 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) :global(.selection-summary) {
+  flex: 1 1 520px;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) :global(.selection-summary strong),
+.scope :global(.page-stack) > section:nth-of-type(4) :global(.selection-summary strong) {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--foreground);
+  font-size: .9375rem;
+  line-height: 1.35;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) :global(.selection-summary small),
+.scope :global(.page-stack) > section:nth-of-type(4) :global(.selection-summary small) {
+  display: block;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar) > div:last-child {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(150px, 190px)) !important;
+  gap: 12px !important;
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) > div:last-child {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto !important;
+  overscroll-behavior-inline: contain;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) svg {
+  display: block;
+  width: 100% !important;
+  max-width: 100%;
+  min-width: 560px !important;
+  height: auto;
+  margin: 0 auto;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) svg text {
+  fill: var(--muted);
+  font-size: 11px;
+}
+
+/* SVG2 geometry properties let us cap oversized bars without changing data. */
+.scope :global(.page-stack) > section:nth-of-type(3) svg rect {
+  width: 28px;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) svg g:only-of-type > rect:first-of-type {
+  x: 352px;
+  width: 24px;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(3) svg g:only-of-type > rect:nth-of-type(2) {
+  x: 384px;
+  width: 24px;
+}
+
+/* Savings distribution cards. */
+.scope :global(.page-stack) > div[style*="grid-template-columns"] {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 16px !important;
+  width: 100%;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] > section {
+  min-width: 0;
+  padding: 20px;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] h3 {
+  margin: 0 0 18px;
+  font-size: .9375rem;
+  line-height: 1.35;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] section > div {
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] section > div > div:first-child {
+  min-width: 0;
+  align-items: baseline;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] section span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.scope :global(.page-stack) > div[style*="grid-template-columns"] section strong {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Movements panel. It is the fourth section in the page route. */
+.scope :global(.page-stack) > section:nth-of-type(4) {
+  min-width: 0;
+  padding: 20px;
+  overflow: hidden;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 620px);
+  align-items: end;
+  gap: 20px;
+  min-width: 0;
+  margin: -20px -20px 18px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) > div:last-child {
+  display: grid !important;
+  grid-template-columns: minmax(120px, 150px) minmax(240px, 1fr) !important;
+  gap: 12px !important;
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) > div:last-child > * {
+  min-width: 0;
+}
+
+.scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) label:last-child {
+  width: 100%;
+}
+
+.scope :global(.data-table-wrap) {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.scope :global(.data-table) {
+  width: 100%;
+  min-width: 1050px;
+  table-layout: fixed;
+}
+
+.scope :global(.data-table th),
+.scope :global(.data-table td) {
+  min-width: 0;
+  padding: 12px 10px;
+  vertical-align: top;
+}
+
+.scope :global(.data-table th:nth-child(1)),
+.scope :global(.data-table td:nth-child(1)) { width: 7%; }
+.scope :global(.data-table th:nth-child(2)),
+.scope :global(.data-table td:nth-child(2)) { width: 7%; }
+.scope :global(.data-table th:nth-child(3)),
+.scope :global(.data-table td:nth-child(3)) { width: 18%; }
+.scope :global(.data-table th:nth-child(4)),
+.scope :global(.data-table td:nth-child(4)) { width: 6%; }
+.scope :global(.data-table th:nth-child(5)),
+.scope :global(.data-table td:nth-child(5)) { width: 18%; }
+.scope :global(.data-table th:nth-child(6)),
+.scope :global(.data-table td:nth-child(6)) { width: 9%; }
+.scope :global(.data-table th:nth-child(7)),
+.scope :global(.data-table td:nth-child(7)) { width: 10%; }
+.scope :global(.data-table th:nth-child(8)),
+.scope :global(.data-table td:nth-child(8)) { width: 9%; }
+.scope :global(.data-table th:nth-child(9)),
+.scope :global(.data-table td:nth-child(9)) { width: 8%; }
+.scope :global(.data-table th:nth-child(10)),
+.scope :global(.data-table td:nth-child(10)) { width: 8%; }
+
+.scope :global(.data-table td:nth-child(3)) {
+  white-space: normal;
+  overflow-wrap: break-word;
+  word-break: normal;
+  line-height: 1.45;
+}
+
+.scope :global(.data-table td:nth-child(5)),
+.scope :global(.data-table td:nth-child(5) small) {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.scope :global(.data-table td:nth-child(5) small) {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted-foreground);
+  font-size: .75rem;
+  line-height: 1.35;
+}
+
+.scope :global(.data-table th:nth-child(7)),
+.scope :global(.data-table td:nth-child(7)) {
+  text-align: right;
+}
+
+.scope :global(.data-table td:nth-child(7) strong),
+.scope :global(.data-table td:nth-child(7) small) {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.scope :global(.data-table td:nth-child(10) > div) {
+  display: flex !important;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px !important;
+  min-width: 0;
+}
+
+.scope :global(.data-table td:nth-child(10) .button) {
+  width: 100%;
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 8px;
+  white-space: normal;
+  line-height: 1.25;
+}
+
+.scope :global(.pagination) {
+  margin-top: 16px;
+}
+
+@media (max-width: 1100px) {
+  .scope :global(.page-stack) > section:first-of-type > div:first-child {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(2) article dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 18px 0 !important;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(2) article dl > div:nth-child(3) {
+    padding-left: 0;
+    border-left: 0;
+  }
+}
+
+@media (max-width: 900px) {
+  .scope :global(.page-header) {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .scope :global(.header-actions) {
+    width: 100%;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar),
+  .scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar) > div:last-child,
+  .scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) > div:last-child {
+    width: 100%;
+  }
+
+  .scope :global(.page-stack) > div[style*="grid-template-columns"] {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .scope :global(.page-stack) {
+    gap: 16px;
+  }
+
+  .scope :global(.page-stack) > section:first-of-type,
+  .scope :global(.page-stack) > section:nth-of-type(2) article,
+  .scope :global(.page-stack) > section:nth-of-type(3),
+  .scope :global(.page-stack) > section:nth-of-type(4),
+  .scope :global(.page-stack) > div[style*="grid-template-columns"] > section {
+    padding: 16px;
+  }
+
+  .scope :global(.page-stack) > section:first-of-type > div:first-child,
+  .scope :global(.page-stack) > section:first-of-type > div:nth-child(2),
+  .scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar) > div:last-child,
+  .scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) > div:last-child {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(2) article dl {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(2) article dl > div {
+    padding: 14px 0 0;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(2) article dl > div:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .scope :global(.page-stack) > section:nth-of-type(3) > :global(.opportunity-workspace-toolbar),
+  .scope :global(.page-stack) > section:nth-of-type(4) > :global(.opportunity-workspace-toolbar) {
+    margin: -16px -16px 16px;
+    padding: 16px;
+  }
+
+  .scope :global(.header-actions .button) {
+    width: 100%;
+  }
+
+  .scope :global(.data-table) {
+    min-width: 980px;
+  }
+}
