@@ -127,7 +127,7 @@ export default function HttpsSettingsPage() {
   }
 
   return (
-    <>
+    <div className="https-settings-page">
       <PageHeader
         eyebrow="CONFIGURAÇÕES"
         title="HTTPS e certificado"
@@ -335,6 +335,6 @@ export default function HttpsSettingsPage() {
       </section>
 
       <IdentityProof />
-    </>
+    </div>
   );
 }
