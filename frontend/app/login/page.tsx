@@ -44,9 +44,9 @@ export default function LoginPage() {
       <section className="login-visual">
         <div className="login-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
         <div className="login-copy">
-          <span className="eyebrow">AWS FINOPS INTELLIGENCE</span>
-          <h1>Encontre desperdícios.<br /><em>Decida com confiança.</em></h1>
-          <p>Visibilidade multi-account, políticas adaptáveis e recomendações baseadas em evidências.</p>
+          <span className="eyebrow">FINOPS MULTI-CLOUD</span>
+          <h1>Operação FinOps<br /><em>em um só lugar.</em></h1>
+          <p>Acompanhe oportunidades, custos, coletas e decisões com contexto de AWS e OCI.</p>
         </div>
         <div className="orb orb-one" /><div className="orb orb-two" />
       </section>
