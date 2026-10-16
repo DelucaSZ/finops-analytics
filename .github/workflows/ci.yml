@@ -22,104 +22,20 @@ jobs:
         run: |
           from pathlib import Path
 
-          path = Path("docs/implementation-roadmap.md")
+          roadmap = Path("docs/implementation-roadmap.md")
           marker = "## Etapa 23.19 — Dashboard de Usage & Costs do DeepOps"
-          current = path.read_text(encoding="utf-8")
+          current = roadmap.read_text(encoding="utf-8")
           if marker in current:
               raise SystemExit(0)
 
-          section = r'''
-
-
-## Etapa 23.19 — Dashboard de Usage & Costs do DeepOps
-
-**Status:** implementada na branch `feat/23-19-deepops-usage-cost-dashboard` e publicada no PR #73; merge na `main` depende de solicitação explícita posterior.
-
-### Objetivo e localização
-
-A Etapa 23.19 fecha o bloco de custo operacional iniciado pelas Etapas 23.17 e 23.18. A interface foi adicionada dentro de `Configurações → Uso e custos`, na rota `/settings/usage-costs`, sem nova entrada principal na sidebar e preservando o acesso administrativo existente.
-
-> o dashboard apresenta uma estimativa do custo CloudWatch gerado pelo próprio DeepOps, e não o custo total de CloudWatch da conta AWS nem a fatura final da AWS.
-
-> por padrão, o valor apresentado é a estimativa bruta calculada pela Task 23.18 e não desconta free tier compartilhado quando o DeepOps não possui visibilidade completa sobre o consumo da conta.
-
-> o frontend não reproduz fórmulas de pricing; todos os valores monetários são calculados pelo CloudWatch Cost Engine.
-
-> Billing via Cost Explorer e Usage & Costs do DeepOps são domínios independentes.
-
-> nenhuma conversão cambial é realizada.
-
-Fluxo/ledger, Opportunities, Billing/Cost Explorer e Pricing OCI permanecem independentes. A página não cria movimentação financeira, não consulta Cost Explorer e não calcula ROI global.
-
-### APIs e read models
-
-A UI consome os contratos já existentes de 23.17/23.18: `/usage/cloudwatch/summary`, `/deepops-costs/cloudwatch/summary`, `/deepops-costs/cloudwatch/timeseries` e `/deepops-costs/cloudwatch/breakdown`, além de `/cloud-accounts` e `/collections` para metadata de apresentação.
-
-A única evolução de backend desta etapa é `group_by=collection_run` no summary técnico de usage e a semântica de filtro `Compartilhado / não atribuído` traduzida server-side para `analyzer IS NULL`. Pricing e fórmulas do Cost Engine não foram duplicados. Não há endpoint que envie raw telemetry em massa para o frontend.
-
-### Summary, gross estimate e uso técnico
-
-Os KPIs iniciais são **Custo estimado do DeepOps**, **Requests CloudWatch**, **Metric queries** e **Falhas**. O KPI monetário utiliza exatamente `gross_estimated_cost` da 23.18. Requests e metric queries permanecem grandezas separadas; não existe soma em uma unidade faturável genérica.
-
-Mesmo quando pricing está ausente, usage factual continua visível. Events, requests, metric queries e métricas solicitadas vêm da telemetria da 23.17.
-
-### Free tier, pricing source, verified date e completeness
-
-`free_tier_applied` é exibido como premissa do resultado. Quando `false`, a UI explica que o DeepOps não conhece necessariamente o consumo compartilhado do free tier por outras workloads da conta.
-
-A área **Sobre esta estimativa** expõe fonte de pricing, `pricing_verified_at`, free-tier assumption, `is_complete`, unpriced usage, quantidade de vigências efetivamente aplicadas e política de currency/FX. O detalhe por operação permite consultar read-only pricing rule, usage quantity, unit price, billing unit, vigência e source retornados pelo backend somente para explicabilidade.
-
-`is_complete=false` produz warning explícito. `unpriced_usage` mostra operação, região, events, requests e motivo; um valor parcial nunca é apresentado silenciosamente como total definitivo.
-
-### Filtros e período
-
-O período default é **Este mês**, com opções Hoje, Últimos 7 dias, Mês anterior, Últimos 3 meses e Personalizado. O intervalo é convertido para `date_from/date_to` e aplicado a `occurred_at`, com limite superior exclusivo.
-
-Filtros globais: conta AWS, região, operação, collector e analyzer. Os valores válidos de operação/região/collector/analyzer vêm da telemetria do período, não de listas hardcoded. Analyzer inclui `Compartilhado / não atribuído` quando existe attribution nula. Todos os blocos reutilizam os mesmos filtros canônicos.
-
-### Timeseries, breakdowns e CollectionRun
-
-A timeseries principal mostra **Custo estimado ao longo do tempo**. Períodos de até 62 dias usam buckets diários e períodos maiores, mensais. Cada currency é plotada separadamente em SVG simples, sem biblioteca visual nova e sem cálculo monetário no browser.
-
-Há breakdown por account, operation, collector e analyzer. Accounts combinam nome amigável com AWS Account ID. Operation mostra uso factual e provenance da regra aplicada. Collector/analyzer preservam attribution factual.
-
-`analyzer=NULL` permanece um único grupo compartilhado do Cost Engine, traduzido para `Compartilhado / não atribuído`; não há rateio, duplicação ou redistribuição de custo.
-
-A tabela **Execuções recentes** combina breakdown/summary por `collection_run_id` com metadata de `/collections`, mostrando data, conta, status, requests, metric queries e custo estimado por currency. Runs `FAILED` não são tratadas como custo zero. Usage sem `collection_run_id` permanece válido e é sinalizado como não atribuído a uma execução específica.
-
-### Currency e precisão
-
-Currency é sempre devolvida pelo Cost Engine. Moedas diferentes são separadas e nunca somadas; não existe FX. A formatação monetária aumenta a precisão para custos pequenos e usa marcador `<` quando um valor não-zero ficaria abaixo da menor precisão visual, evitando apresentar custo real como zero.
-
-Conversão para número no browser é usada apenas para formatação, geometria visual e percentuais dentro da mesma currency; nunca para `usage × price`.
-
-### Erros, loading, empty state e concorrência
-
-Telemetria, Cost Engine e metadata de CollectionRun possuem loading/error independentes. Falha monetária não esconde telemetry válida; `is_complete=false` é warning e não erro de transporte. Período sem usage é empty state e nenhum backfill anterior à implantação da 23.17 é inventado.
-
-Mudanças rápidas de filtro usam `AbortController` e sequence id para impedir que resposta stale substitua a seleção atual.
-
-### Authorization, performance, migration e índices
-
-A rota é admin-only na navegação e os endpoints continuam protegidos por `require_admin` no backend. Nenhum bypass de ACL foi introduzido.
-
-Gráficos/tabelas usam agregações SQL/read models; não existe `GET all usage events`, nem query por linha para account/CollectionRun/pricing provenance. Não foi necessária migration ou índice novo; nenhuma alteração de schema foi feita nesta etapa.
-
-### Frontend, testes e validação
-
-A página foi implementada em `frontend/app/settings/usage-costs/` usando os padrões atuais de Configurações, com responsividade, labels acessíveis, warnings textuais e SVG com título acessível. Helpers dedicados centralizam período, query string, labels, currency formatting e tratamento de small values.
-
-Testes backend cobrem aggregation por CollectionRun, failed run/usage sem run e filtro shared analyzer via `IS NULL`. Testes frontend cobrem período/default, granularidade, filtros canônicos, unidades técnicas separadas, currencies, small values, labels, pricing versions, admin-only e contrato da página com os read models 23.17/23.18 e proteção contra stale responses.
-
-O CI do PR executa PostgreSQL 17, `ruff check .`, `ruff format --check .`, `pytest -q`, `npm test`, `npm run build`, security, Auto Deploy Tests e Stage 21 Compose smoke. O head definitivo do PR é a referência para os resultados finais.
-
-Documentação detalhada: `docs/task-23-19-deepops-usage-cost-dashboard.md`.
-
-### Limitações deliberadas
-
-Ficam fora da 23.19: editor completo/auto-update de CloudWatch pricing, budgets, anomaly detection, alertas, reconciliação com Cost Explorer, ROI global, FX, novo pipeline de exportação, ledger entries, Opportunities/Findings e push/realtime. O redesign global permanece reservado para a Task 23.20.
-'''
-          path.write_text(current + section, encoding="utf-8")
+          detailed_path = Path("docs/task-23-19-deepops-usage-cost-dashboard.md")
+          detailed = detailed_path.read_text(encoding="utf-8")
+          first_heading = "# Etapa 23.19 — Dashboard de Usage & Costs do DeepOps"
+          if not detailed.startswith(first_heading):
+              raise SystemExit("Unexpected Task 23.19 documentation heading")
+          body = detailed[len(first_heading):].lstrip()
+          section = f"\n\n{marker}\n\n{body}"
+          roadmap.write_text(current + section, encoding="utf-8")
       - name: Commit roadmap entry
         run: |
           if git diff --quiet -- docs/implementation-roadmap.md; then
