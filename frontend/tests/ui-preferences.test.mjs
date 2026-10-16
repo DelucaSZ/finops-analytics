@@ -43,6 +43,14 @@ test("layout bootstraps appearance before hydration and keeps preference keys st
   assert.ok(layout.includes('root.dataset.sidebar = collapsed ? "collapsed" : "expanded"'));
 });
 
+test("theme selector falls back to system when browser storage cannot be read", async () => {
+  const selector = await readFile(new URL("../components/theme-selector.tsx", import.meta.url), "utf8");
+  assert.ok(selector.includes("let stored: string | null = null"));
+  assert.ok(selector.includes("stored = window.localStorage.getItem(THEME_STORAGE_KEY)"));
+  assert.ok(selector.includes("stored = null"));
+  assert.ok(selector.includes("normalizeThemePreference(stored)"));
+});
+
 test("global shell is provider-neutral and exposes accessible persistent collapse behavior", async () => {
   const shell = await readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8");
   assert.ok(shell.includes('label: "Dashboard"'));
