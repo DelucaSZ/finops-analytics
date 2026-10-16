@@ -1,0 +1,501 @@
+.filtersPanel,
+.panel,
+.emptyState {
+  margin-bottom: 18px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.filtersPanel {
+  padding: 18px;
+}
+
+.filtersGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: .8125rem;
+  font-weight: 700;
+}
+
+.field select,
+.field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  background: rgba(255, 255, 255, .025);
+}
+
+.customDates {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 240px));
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.filterMeta {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px 20px;
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--border);
+  color: var(--muted-2);
+  font-size: .75rem;
+}
+
+.filterMeta code {
+  color: var(--muted);
+}
+
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.kpiCard {
+  min-height: 154px;
+  display: grid;
+  align-content: start;
+  gap: 9px;
+  padding: 18px;
+  border: 1px solid rgba(85, 229, 182, .18);
+  border-radius: var(--radius);
+  background: linear-gradient(145deg, rgba(19, 27, 43, .96), rgba(12, 18, 30, .96));
+  box-shadow: var(--shadow);
+}
+
+.kpiCard > span {
+  color: var(--muted);
+  font-size: .8125rem;
+  font-weight: 700;
+}
+
+.kpiCard > strong,
+.moneyStack strong,
+.unavailableValue {
+  font-size: clamp(1.35rem, 2.5vw, 1.9rem);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.moneyStack {
+  display: grid;
+  gap: 4px;
+}
+
+.kpiCard small {
+  color: var(--muted-2);
+  font-size: .75rem;
+  line-height: 1.5;
+}
+
+.unavailableValue {
+  color: var(--muted);
+}
+
+.warningBanner,
+.errorBanner,
+.warning {
+  line-height: 1.55;
+}
+
+.warningBanner,
+.errorBanner {
+  margin-bottom: 18px;
+  padding: 13px 15px;
+  border-radius: 9px;
+  font-size: .8125rem;
+}
+
+.warningBanner {
+  color: #ffd790;
+  border: 1px solid rgba(249, 189, 79, .22);
+  background: rgba(249, 189, 79, .075);
+}
+
+.errorBanner {
+  color: #ffb0b4;
+  border: 1px solid rgba(255, 107, 114, .2);
+  background: rgba(255, 107, 114, .065);
+}
+
+.warning {
+  margin: 12px 0 0;
+  color: var(--warning);
+  font-size: .8125rem;
+}
+
+.emptyState {
+  padding: 28px;
+  text-align: center;
+}
+
+.emptyState h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.emptyState p {
+  max-width: 720px;
+  margin: 0 auto;
+  color: var(--muted);
+  font-size: .875rem;
+  line-height: 1.6;
+}
+
+.panel {
+  overflow: hidden;
+}
+
+.panelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 17px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.panelHeader h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.panelHeader p {
+  margin: 5px 0 0;
+  color: var(--muted);
+  font-size: .8125rem;
+  line-height: 1.5;
+}
+
+.panelBody {
+  padding: 18px 20px 20px;
+}
+
+.warningBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 25px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  color: #ffd176;
+  background: rgba(249, 189, 79, .11);
+  font-size: .6875rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.sectionState,
+.sectionError {
+  min-height: 130px;
+  display: grid;
+  place-items: center;
+  padding: 22px;
+  border-radius: 9px;
+  text-align: center;
+  font-size: .875rem;
+}
+
+.sectionState {
+  color: var(--muted);
+  background: rgba(255, 255, 255, .012);
+}
+
+.sectionError {
+  color: #ffb0b4;
+  border: 1px solid rgba(255, 107, 114, .18);
+  background: rgba(255, 107, 114, .05);
+}
+
+.chartGroups {
+  display: grid;
+  gap: 18px;
+}
+
+.chartGroup + .chartGroup {
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.chartMeta,
+.currencyHeading {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+  color: var(--muted-2);
+  font-size: .75rem;
+}
+
+.chartMeta strong,
+.currencyHeading strong {
+  color: var(--text);
+}
+
+.chartScroll,
+.tableWrap {
+  overflow-x: auto;
+}
+
+.chart {
+  width: 100%;
+  min-width: 620px;
+  height: auto;
+}
+
+.axisLine {
+  stroke: var(--border-strong);
+  stroke-width: 1;
+  opacity: .65;
+}
+
+.costLine {
+  fill: none;
+  stroke: var(--accent);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.costPoint {
+  fill: var(--surface-2);
+  stroke: var(--accent);
+  stroke-width: 2;
+}
+
+.axisLabel {
+  fill: var(--muted-2);
+  font-size: 11px;
+}
+
+.usageGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.usageGrid > div {
+  display: grid;
+  gap: 5px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .015);
+}
+
+.usageGrid span {
+  color: var(--muted-2);
+  font-size: .75rem;
+}
+
+.usageGrid strong {
+  font-size: 1.25rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.breakdownGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.breakdownGrid .panel {
+  min-width: 0;
+}
+
+.currencyGroup + .currencyGroup {
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--border);
+}
+
+.table {
+  width: 100%;
+  min-width: 690px;
+  border-collapse: collapse;
+  font-size: .8125rem;
+}
+
+.table th,
+.table td {
+  padding: 11px 10px;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  color: var(--muted-2);
+  font-size: .6875rem;
+  letter-spacing: .03em;
+  text-transform: uppercase;
+}
+
+.table td {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.table td strong,
+.table a {
+  color: var(--text);
+}
+
+.table a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.provenance {
+  margin-top: 7px;
+  color: var(--muted-2);
+  font-size: .72rem;
+}
+
+.provenance summary {
+  width: max-content;
+  cursor: pointer;
+}
+
+.provenance > div {
+  display: grid;
+  gap: 3px;
+  margin-top: 7px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, .015);
+}
+
+.status,
+.failedStatus {
+  display: inline-flex;
+  padding: 3px 7px;
+  border-radius: 999px;
+  font-size: .6875rem;
+  font-weight: 800;
+}
+
+.status {
+  color: var(--accent);
+  background: rgba(85, 229, 182, .08);
+}
+
+.failedStatus {
+  color: #ffb0b4;
+  background: rgba(255, 107, 114, .08);
+}
+
+.note,
+.estimationBasis {
+  margin: 12px 0 0;
+  color: var(--muted-2);
+  font-size: .75rem;
+  line-height: 1.6;
+}
+
+.assumptions {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  padding: 18px 20px 4px;
+}
+
+.assumptions > div {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .014);
+}
+
+.assumptions span,
+.assumptions strong {
+  display: block;
+}
+
+.assumptions span {
+  color: var(--muted-2);
+  font-size: .6875rem;
+  font-weight: 750;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.assumptions strong {
+  margin-top: 6px;
+  font-size: .8125rem;
+  line-height: 1.45;
+}
+
+.assumptions p {
+  margin: 7px 0 0;
+  color: var(--muted);
+  font-size: .75rem;
+  line-height: 1.55;
+}
+
+.estimationBasis {
+  padding: 0 20px 18px;
+}
+
+@media (max-width: 1180px) {
+  .filtersGrid,
+  .assumptions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .kpiGrid,
+  .usageGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .breakdownGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .filtersPanel,
+  .panelBody,
+  .panelHeader {
+    padding: 15px;
+  }
+
+  .filtersGrid,
+  .customDates,
+  .kpiGrid,
+  .usageGrid,
+  .assumptions {
+    grid-template-columns: 1fr;
+  }
+
+  .panelHeader,
+  .filterMeta {
+    flex-direction: column;
+  }
+
+  .assumptions {
+    padding: 15px 15px 2px;
+  }
+
+  .estimationBasis {
+    padding: 0 15px 15px;
+  }
+}
