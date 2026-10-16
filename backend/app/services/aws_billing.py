@@ -403,9 +403,7 @@ class AwsBillingService:
     def timeseries(self, request: AwsBillingRequest) -> BillingTimeSeriesResponse:
         rows = self._rows(request, group_by=request.group_by)
         values: dict[tuple[date, date, str], tuple[Decimal, bool]] = {}
-        grouped_values: dict[
-            tuple[date, date, str, str], tuple[Decimal, bool, _BillingRow]
-        ] = {}
+        grouped_values: dict[tuple[date, date, str, str], tuple[Decimal, bool, _BillingRow]] = {}
         currencies: set[str] = set()
         for row in rows:
             currencies.add(row.currency)
@@ -453,11 +451,7 @@ class AwsBillingService:
                     group_estimated,
                     sample,
                 ) in sorted(grouped_values.items()):
-                    if (
-                        group_start != start
-                        or group_end != end
-                        or group_currency != currency
-                    ):
+                    if group_start != start or group_end != end or group_currency != currency:
                         continue
                     if request.group_by == BillingGroupBy.ACCOUNT:
                         known = group_key == sample.aws_account_id
@@ -468,9 +462,7 @@ class AwsBillingService:
                                 amount=group_amount,
                                 currency=currency,
                                 estimated=group_estimated,
-                                deepops_account_id=(
-                                    sample.deepops_account_id if known else None
-                                ),
+                                deepops_account_id=(sample.deepops_account_id if known else None),
                                 aws_account_id=group_key,
                                 display_name=sample.display_name if known else None,
                             )
