@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models.cloudwatch_usage import CloudWatchUsageEvent
 
+SHARED_ANALYZER_FILTER = "__shared__"
+
 CloudWatchUsageGroup = Literal[
     "operation",
     "account",
@@ -52,7 +54,9 @@ def _filtered(statement: Select, filters: CloudWatchUsageFilters) -> Select:
         statement = statement.where(CloudWatchUsageEvent.operation == filters.operation)
     if filters.collector is not None:
         statement = statement.where(CloudWatchUsageEvent.collector == filters.collector)
-    if filters.analyzer is not None:
+    if filters.analyzer == SHARED_ANALYZER_FILTER:
+        statement = statement.where(CloudWatchUsageEvent.analyzer.is_(None))
+    elif filters.analyzer is not None:
         statement = statement.where(CloudWatchUsageEvent.analyzer == filters.analyzer)
     if filters.collection_run_id is not None:
         statement = statement.where(
