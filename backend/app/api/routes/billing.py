@@ -169,7 +169,7 @@ def aws_billing_timeseries(
     try:
         resolved = BillingProfileService(db).resolve(payload)
         response = AwsBillingService(db).timeseries(resolved.request)
-        return _metadata(response, resolved, group_by=BillingGroupBy.NONE)
+        return _metadata(response, resolved, group_by=resolved.request.group_by)
     except (BillingServiceError, AwsBillingUpstreamError, BillingProfileError) as exc:
         _raise_billing_error(exc)
 
