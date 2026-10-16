@@ -12,9 +12,10 @@ import {
 } from "../lib/settings-navigation.mjs";
 import nextConfig from "../next.config.mjs";
 
-test("accounts and policies live inside settings for every authenticated role", () => {
+test("appearance, accounts and policies live inside settings for every authenticated role", () => {
   for (const role of ["admin", "operator", "viewer"]) {
     const hrefs = settingsTabsForRole(role).map((tab) => tab.href);
+    assert.ok(hrefs.includes("/settings/appearance"));
     assert.ok(hrefs.includes("/settings/accounts"));
     assert.ok(hrefs.includes("/settings/policies"));
     assert.ok(hrefs.includes("/settings/security"));
@@ -35,6 +36,7 @@ test("accounts and policies live inside settings for every authenticated role", 
 });
 
 test("settings active state supports nested routes without widening admin-only areas", () => {
+  assert.equal(isSettingsTabActive("/settings/appearance", "/settings/appearance"), true);
   assert.equal(isSettingsTabActive("/settings/accounts", "/settings/accounts"), true);
   assert.equal(isSettingsTabActive("/settings/accounts/123", "/settings/accounts"), true);
   assert.equal(isSettingsTabActive("/settings/policies/history", "/settings/policies"), true);
@@ -45,6 +47,7 @@ test("settings active state supports nested routes without widening admin-only a
   assert.equal(isAdminOnlySettingsPath("/settings/billing/profiles"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/usage-costs"), true);
   assert.equal(isAdminOnlySettingsPath("/settings/usage-costs/cloudwatch"), true);
+  assert.equal(isAdminOnlySettingsPath("/settings/appearance"), false);
   assert.equal(isAdminOnlySettingsPath("/settings/accounts/123"), false);
   assert.equal(isAdminOnlySettingsPath("/settings/policies"), false);
 });
@@ -69,10 +72,11 @@ test("legacy account and policy routes redirect canonically under settings", asy
   ]);
 });
 
-test("main navigation no longer duplicates accounts or policies and settings pages exist", async () => {
+test("main navigation stays compact and settings pages exist", async () => {
   const shell = await readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8");
   assert.ok(!shell.includes('href: "/accounts"'));
   assert.ok(!shell.includes('href: "/policies"'));
+  await access(new URL("../app/settings/appearance/page.tsx", import.meta.url));
   await access(new URL("../app/settings/accounts/page.tsx", import.meta.url));
   await access(new URL("../app/settings/policies/page.tsx", import.meta.url));
   await access(new URL("../app/settings/pricing/oci/page.tsx", import.meta.url));
