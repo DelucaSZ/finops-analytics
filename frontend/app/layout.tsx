@@ -3,6 +3,7 @@ import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 import "./opportunities-stage5.css";
 import "./ui-system.css";
+import "./legacy-theme-compat.css";
 
 export const metadata: Metadata = {
   title: "DeepOps | FinOps Multi-Cloud",
