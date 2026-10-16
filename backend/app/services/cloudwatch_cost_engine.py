@@ -17,7 +17,7 @@ from app.services.cloudwatch_pricing import (
     is_aws_commercial_region,
     utc,
 )
-from app.services.cloudwatch_usage_query import CloudWatchUsageFilters
+from app.services.cloudwatch_usage_query import SHARED_ANALYZER_FILTER, CloudWatchUsageFilters
 
 logger = logging.getLogger("deepops.cloudwatch_cost")
 
@@ -58,7 +58,9 @@ def _filtered(statement: Select, filters: CloudWatchUsageFilters) -> Select:
         statement = statement.where(CloudWatchUsageEvent.operation == filters.operation)
     if filters.collector is not None:
         statement = statement.where(CloudWatchUsageEvent.collector == filters.collector)
-    if filters.analyzer is not None:
+    if filters.analyzer == SHARED_ANALYZER_FILTER:
+        statement = statement.where(CloudWatchUsageEvent.analyzer.is_(None))
+    elif filters.analyzer is not None:
         statement = statement.where(CloudWatchUsageEvent.analyzer == filters.analyzer)
     if filters.collection_run_id is not None:
         statement = statement.where(
