@@ -151,7 +151,8 @@ def _version_key(rule: CloudWatchPricingRule) -> tuple:
 def _coverage_clause(rules: tuple[CloudWatchPricingRule, ...]):
     clauses = []
     for rule in rules:
-        if rule.operation not in CLOUDWATCH_PRICING_DIMENSIONS:
+        dimension = CLOUDWATCH_PRICING_DIMENSIONS.get(rule.operation)
+        if dimension is None or dimension.name != rule.pricing_dimension:
             continue
         clause = and_(
             CloudWatchUsageEvent.operation == rule.operation,
@@ -282,11 +283,14 @@ class CloudWatchCostEngine:
                 if quantity <= 0:
                     continue
                 cost, components = calculate_tiered_cost(quantity, version_rules)
-                group_value = (
-                    str(row.cost_group)
-                    if group_by is not None and row.cost_group is not None
-                    else None
-                )
+                if group_by == "analyzer" and row.cost_group is None:
+                    group_value = "Shared / Unattributed"
+                else:
+                    group_value = (
+                        str(row.cost_group)
+                        if group_by is not None and row.cost_group is not None
+                        else None
+                    )
                 period = _period_value(row, granularity)
                 key = (group_value, period, currency)
                 item = merged.setdefault(
