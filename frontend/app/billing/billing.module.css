@@ -9,6 +9,7 @@
 }
 
 .primaryFilters {
+  order: 2;
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
@@ -112,9 +113,11 @@
 }
 
 .accountPicker {
+  order: 1;
   margin: 0;
-  padding: 0;
+  padding: 0 0 16px;
   border: 0;
+  border-bottom: 1px solid var(--border);
 }
 
 .accountPicker legend {
@@ -177,6 +180,7 @@
 }
 
 .advancedFilters {
+  order: 3;
   border-top: 1px solid var(--border);
   padding-top: 14px;
 }
