@@ -98,3 +98,21 @@ test("Billing page exposes grouping and keeps the explicit account guard", async
   assert.ok(chart.includes("gridLine"));
   assert.ok(chart.includes("chartTooltip"));
 });
+
+test("service chart exposes percentages and consolidates minor services into Outros", async () => {
+  const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
+
+  assert.ok(chart.includes("MAX_SERVICE_SERIES"));
+  assert.ok(chart.includes("OTHER_SERIES_KEY"));
+  assert.ok(chart.includes("label: \"Outros\""));
+  assert.ok(chart.includes("formatShare(item.amount, hoveredPeriod.total)"));
+  assert.ok(chart.includes("Serviços de menor custo foram consolidados"));
+});
+
+test("account selector is visually ordered before Billing filters", async () => {
+  const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
+
+  assert.match(css, /\.accountPicker\s*\{[^}]*order:\s*1;/s);
+  assert.match(css, /\.primaryFilters\s*\{[^}]*order:\s*2;/s);
+  assert.match(css, /\.advancedFilters\s*\{[^}]*order:\s*3;/s);
+});
