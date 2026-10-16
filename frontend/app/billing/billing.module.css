@@ -55,7 +55,7 @@
   display: grid;
   grid-template-columns: minmax(180px, 240px) minmax(180px, 240px) minmax(0, 1fr);
   gap: 12px;
-  align-items: end;
+  align-items: flex-end;
 }
 
 .validationMessage {
@@ -237,7 +237,7 @@
   display: flex;
   justify-content: space-between;
   gap: 20px;
-  align-items: end;
+  align-items: flex-end;
   margin: 22px 0 11px;
 }
 
