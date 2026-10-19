@@ -129,13 +129,9 @@ def test_custom_certificate_validates_domain_key_and_never_returns_key():
 
     other_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
     with pytest.raises(TlsValidationError, match="não corresponde"):
-        manager.validate_custom(
-            "deepops.example.com", pem(leaf), "", private_key_pem(other_key)
-        )
+        manager.validate_custom("deepops.example.com", pem(leaf), "", private_key_pem(other_key))
     with pytest.raises(TlsValidationError, match="Subject Alternative Name"):
-        manager.validate_custom(
-            "other.example.com", pem(leaf), "", private_key_pem(leaf_key)
-        )
+        manager.validate_custom("other.example.com", pem(leaf), "", private_key_pem(leaf_key))
 
 
 def test_leaf_requires_exactly_one_certificate_and_server_auth_eku():
@@ -189,13 +185,9 @@ def test_leaf_requires_exactly_one_certificate_and_server_auth_eku():
 )
 def test_leaf_validity_errors_are_specific(not_before, not_after, message):
     manager = TlsManager(storage="/tmp/not-used")
-    leaf, leaf_key = certificate(
-        "deepops.example.com", not_before=not_before, not_after=not_after
-    )
+    leaf, leaf_key = certificate("deepops.example.com", not_before=not_before, not_after=not_after)
     with pytest.raises(TlsValidationError, match=message):
-        manager.validate_custom(
-            "deepops.example.com", pem(leaf), "", private_key_pem(leaf_key)
-        )
+        manager.validate_custom("deepops.example.com", pem(leaf), "", private_key_pem(leaf_key))
 
 
 def test_chain_is_cryptographically_validated_reordered_and_root_is_omitted():
@@ -353,9 +345,7 @@ def test_fullchain_files_are_protected_and_caddy_uses_explicit_redirect(tmp_path
     assert len(stored) == 2
     assert root.subject not in [item.subject for item in stored]
 
-    caddyfile = manager.managed_caddyfile(
-        "deepops.example.com", certificate_path, key_path
-    )
+    caddyfile = manager.managed_caddyfile("deepops.example.com", certificate_path, key_path)
     assert "http://deepops.example.com" in caddyfile
     assert "redir https://deepops.example.com{uri} 308" in caddyfile
     assert f"tls {certificate_path} {key_path}" in caddyfile

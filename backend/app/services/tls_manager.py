@@ -88,8 +88,7 @@ class TlsManager:
             return False
         suffix = pattern[2:]
         return (
-            domain.endswith("." + suffix)
-            and len(domain.split(".")) == len(suffix.split(".")) + 1
+            domain.endswith("." + suffix) and len(domain.split(".")) == len(suffix.split(".")) + 1
         )
 
     @staticmethod
@@ -121,9 +120,7 @@ class TlsManager:
         return metadata
 
     @staticmethod
-    def _load_certificates(
-        value: str, *, label: str, allow_empty: bool
-    ) -> list[x509.Certificate]:
+    def _load_certificates(value: str, *, label: str, allow_empty: bool) -> list[x509.Certificate]:
         if not value.strip():
             if allow_empty:
                 return []
@@ -342,8 +339,7 @@ class TlsManager:
             )
 
         fullchain_pem = leaf.public_bytes(serialization.Encoding.PEM).decode() + "".join(
-            certificate.public_bytes(serialization.Encoding.PEM).decode()
-            for certificate in ordered
+            certificate.public_bytes(serialization.Encoding.PEM).decode() for certificate in ordered
         )
         chain_length = 1 + len(ordered)
         certificate_metadata = self._certificate_metadata(leaf, chain_length=chain_length)
@@ -455,11 +451,7 @@ class TlsManager:
         certificate_path: str | None = None,
         key_path: str | None = None,
     ) -> str:
-        tls_line = (
-            f"\n\ttls {certificate_path} {key_path}"
-            if certificate_path and key_path
-            else ""
-        )
+        tls_line = f"\n\ttls {certificate_path} {key_path}" if certificate_path and key_path else ""
         return f"""{{
 \tpersist_config off
 \tadmin 0.0.0.0:2019 {{
@@ -573,7 +565,8 @@ https://{domain} {{{tls_line}
     @staticmethod
     def _verification_error(exc: BaseException) -> str:
         if isinstance(exc, ssl.SSLCertVerificationError):
-            return exc.verify_message or "Falha na confiança da cadeia TLS."
+            message = getattr(exc, "verify_message", None)
+            return message or "Falha na confiança da cadeia TLS."
         return "A cadeia não pôde ser validada pela trust store deste sistema."
 
     def _connect_leaf(
@@ -837,9 +830,7 @@ https://{domain} {{{tls_line}
         if not expected and local_tls.get("certificate"):
             expected = local_tls["certificate"].get("fingerprint_sha256")
 
-        dns, endpoint_validation = self._public_diagnostics(
-            domain, expected_fingerprint=expected
-        )
+        dns, endpoint_validation = self._public_diagnostics(domain, expected_fingerprint=expected)
         certificate = local_tls.get("certificate") or state.get("certificate")
         if certificate and state.get("certificate", {}).get("chain_length"):
             certificate = {
