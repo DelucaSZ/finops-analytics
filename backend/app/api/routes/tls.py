@@ -1,3 +1,4 @@
+from collections.abc import Callable
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -13,21 +14,41 @@ router = APIRouter(prefix="/tls", tags=["tls"], dependencies=[Depends(require_ad
 class TlsPayload(BaseModel):
     mode: Literal["automatic", "custom"]
     domain: str = Field(min_length=1, max_length=253)
-    certificate_chain: str = Field(default="", max_length=131_072)
+    server_certificate: str = Field(default="", max_length=65_536)
+    intermediate_chain: str = Field(default="", max_length=131_072)
     private_key: SecretStr | None = None
+    # Transitional compatibility for API clients using the pre-24.1 contract.
+    certificate_chain: str | None = Field(default=None, max_length=196_608)
 
 
-def _values(payload: TlsPayload) -> tuple[str, str]:
+def _values(payload: TlsPayload) -> tuple[str, str, str]:
+    server_certificate = payload.server_certificate
+    intermediate_chain = payload.intermediate_chain
+    legacy_chain = payload.certificate_chain or ""
+    if legacy_chain.strip():
+        if server_certificate.strip() or intermediate_chain.strip():
+            raise TlsValidationError(
+                "Use o novo contrato server_certificate/intermediate_chain ou o campo legado, "
+                "não ambos."
+            )
+        server_certificate, intermediate_chain = manager.split_legacy_chain(legacy_chain)
     return (
-        payload.certificate_chain,
+        server_certificate,
+        intermediate_chain,
         payload.private_key.get_secret_value() if payload.private_key else "",
     )
 
 
-def _call(function, payload: TlsPayload) -> dict:
-    chain, private_key = _values(payload)
+def _call(function: Callable[..., dict], payload: TlsPayload) -> dict:
     try:
-        return function(payload.mode, payload.domain, chain, private_key)
+        server_certificate, intermediate_chain, private_key = _values(payload)
+        return function(
+            payload.mode,
+            payload.domain,
+            server_certificate,
+            intermediate_chain,
+            private_key,
+        )
     except TlsValidationError as exc:
         raise HTTPException(422, str(exc)) from None
     except TlsOperationError as exc:
