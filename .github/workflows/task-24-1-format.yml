@@ -1,0 +1,54 @@
+name: Task 24.1 formatter
+
+on:
+  push:
+    branches:
+      - task/24.1-https-tls-chain-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task/24.1-https-tls-chain-diagnostics
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install 'ruff==0.17.1'
+      - name: Harden SSL verification error diagnostic
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/services/tls_manager.py")
+          content = path.read_text()
+          old = '''        if isinstance(exc, ssl.SSLCertVerificationError):
+              return exc.verify_message or "Falha na confiança da cadeia TLS."
+          '''
+          new = '''        if isinstance(exc, ssl.SSLCertVerificationError):
+              message = getattr(exc, "verify_message", None)
+              return message or "Falha na confiança da cadeia TLS."
+          '''
+          if old not in content:
+              raise SystemExit("expected SSL diagnostic block not found")
+          path.write_text(content.replace(old, new))
+          PY
+      - name: Format TLS backend files
+        run: ruff format app/services/tls_manager.py app/tests/test_tls.py
+      - name: Commit formatted files
+        working-directory: .
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/services/tls_manager.py backend/app/tests/test_tls.py
+          git diff --cached --check
+          git commit -m 'Task 24.1: format TLS backend changes'
+          git push origin HEAD:task/24.1-https-tls-chain-diagnostics
