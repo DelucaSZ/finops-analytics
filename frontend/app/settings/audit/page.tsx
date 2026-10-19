@@ -132,6 +132,8 @@ function actorLabel(item: Event): { name: string; email: string | null } {
 
 export default function AuditPage() {
   const [eventType, setEventType] = useState("all");
+  const [category, setCategory] = useState("");
+  const [userId, setUserId] = useState("");
   const [module, setModule] = useState("");
   const [action, setAction] = useState("");
   const [offset, setOffset] = useState(0);
@@ -154,6 +156,8 @@ export default function AuditPage() {
       offset: String(offset),
       event_type: eventType,
     });
+    if (category && eventType !== "administrative") query.set("category", category);
+    if (userId) query.set("user_id", userId);
     if (module.trim()) query.set("module", module.trim());
     if (action.trim()) query.set("action", action.trim());
 
@@ -174,7 +178,7 @@ export default function AuditPage() {
       active = false;
       controller.abort();
     };
-  }, [eventType, module, action, offset, refresh]);
+  }, [eventType, category, userId, module, action, offset, refresh]);
 
   return (
     <>
@@ -205,7 +209,9 @@ export default function AuditPage() {
           <select
             value={eventType}
             onChange={(event) => {
-              setEventType(event.target.value);
+              const value = event.target.value;
+              setEventType(value);
+              if (value === "administrative") setCategory("");
               setOffset(0);
             }}
           >
@@ -214,6 +220,23 @@ export default function AuditPage() {
             <option value="security">Segurança</option>
           </select>
         </label>
+        {eventType !== "administrative" && (
+          <label>
+            Categoria de segurança
+            <select
+              value={category}
+              onChange={(event) => {
+                setCategory(event.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="">Todas</option>
+              <option value="auth">Acessos e senha</option>
+              <option value="user">Administração de usuários</option>
+              <option value="mfa">Segundo fator</option>
+            </select>
+          </label>
+        )}
         <label>
           Módulo
           <input
@@ -238,6 +261,17 @@ export default function AuditPage() {
             }}
           />
         </label>
+        {userId && (
+          <button
+            className="button"
+            onClick={() => {
+              setUserId("");
+              setOffset(0);
+            }}
+          >
+            Remover filtro de usuário
+          </button>
+        )}
       </div>
 
       {error && (
@@ -294,6 +328,17 @@ export default function AuditPage() {
                         {item.entity.type}
                         {item.entity.id ? ` · ${item.entity.id}` : ""}
                       </span>
+                      {item.entity.type === "user" && item.entity.id && (
+                        <button
+                          className="button"
+                          onClick={() => {
+                            setUserId(item.entity.id || "");
+                            setOffset(0);
+                          }}
+                        >
+                          Filtrar este usuário
+                        </button>
+                      )}
                     </td>
                     <td>
                       <span>{changeSummary(item)}</span>
