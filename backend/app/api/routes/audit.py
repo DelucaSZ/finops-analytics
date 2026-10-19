@@ -108,6 +108,7 @@ def _security_filters(
 
 
 def _admin_item(item: AuditEvent) -> dict:
+    legacy_user_id = item.entity_id if item.entity_type == "user" else None
     return {
         "id": item.id,
         "event_kind": "administrative",
@@ -129,6 +130,12 @@ def _admin_item(item: AuditEvent) -> dict:
         "changes": item.changes or {},
         "metadata": item.metadata_json or {},
         "correlation_id": item.correlation_id,
+        "actor_id": item.actor_id,
+        "actor_name": item.actor_name_snapshot,
+        "actor_email": item.actor_email_snapshot,
+        "user_id": legacy_user_id,
+        "user_name": None,
+        "user_email": None,
     }
 
 
@@ -137,17 +144,19 @@ def _security_item(
     actor: User | None,
     subject: User | None,
 ) -> dict:
-    label = None
-    if subject:
-        label = f"{subject.name} · {subject.email}"
+    actor_name = actor.name if actor else None
+    actor_email = actor.email if actor else None
+    user_name = subject.name if subject else None
+    user_email = subject.email if subject else None
+    label = f"{user_name} · {user_email}" if subject else None
     return {
         "id": item.id,
         "event_kind": "security",
         "created_at": item.created_at,
         "actor": {
             "id": item.actor_id,
-            "name": actor.name if actor else None,
-            "email": actor.email if actor else None,
+            "name": actor_name,
+            "email": actor_email,
         },
         "module": _security_module(item.action),
         "action": item.action,
@@ -161,6 +170,12 @@ def _security_item(
         "changes": {},
         "metadata": {},
         "correlation_id": None,
+        "actor_id": item.actor_id,
+        "actor_name": actor_name,
+        "actor_email": actor_email,
+        "user_id": item.user_id,
+        "user_name": user_name,
+        "user_email": user_email,
     }
 
 
