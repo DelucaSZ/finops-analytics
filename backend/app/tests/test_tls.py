@@ -499,14 +499,17 @@ def test_automatic_mode_persists_after_local_probe_and_status_observes_renewal(
     assert "http://proxy" in caddyfile
     assert "auto_https off" not in caddyfile
 
-    monkeypatch.setattr(
-        manager,
-        "_probe",
-        lambda *_args, **_kwargs: local_tls("NEW"),
-    )
+    probe_fingerprints = []
+
+    def renewed_probe(*_args, **kwargs):
+        probe_fingerprints.append(kwargs.get("expected_fingerprint"))
+        return local_tls("NEW")
+
+    monkeypatch.setattr(manager, "_probe", renewed_probe)
     status = manager.status()
     assert status["certificate"]["fingerprint_sha256"] == "NEW"
     assert status["mode"] == "automatic"
+    assert probe_fingerprints == [None]
 
 
 def test_legacy_state_remains_readable(tmp_path, monkeypatch):

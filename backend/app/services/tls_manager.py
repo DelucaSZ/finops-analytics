@@ -815,10 +815,11 @@ https://{domain} {{{tls_line}
 
     def _status_from_state(self, state: dict, *, local_tls: dict | None = None) -> dict:
         domain = state["domain"]
-        expected = (state.get("certificate") or {}).get("fingerprint_sha256")
+        saved_fingerprint = (state.get("certificate") or {}).get("fingerprint_sha256")
+        probe_fingerprint = saved_fingerprint if state["mode"] == "custom" else None
         if local_tls is None:
             try:
-                local_tls = self._probe(domain, timeout=4, expected_fingerprint=expected)
+                local_tls = self._probe(domain, timeout=4, expected_fingerprint=probe_fingerprint)
             except TlsOperationError as exc:
                 local_tls = {
                     "healthy": False,
@@ -827,8 +828,8 @@ https://{domain} {{{tls_line}
                     "certificate": None,
                     "message": f"TLS local requer atenção: {exc}",
                 }
-        if not expected and local_tls.get("certificate"):
-            expected = local_tls["certificate"].get("fingerprint_sha256")
+        current_fingerprint = (local_tls.get("certificate") or {}).get("fingerprint_sha256")
+        expected = current_fingerprint or saved_fingerprint
 
         dns, endpoint_validation = self._public_diagnostics(domain, expected_fingerprint=expected)
         certificate = local_tls.get("certificate") or state.get("certificate")
