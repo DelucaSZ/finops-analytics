@@ -10,6 +10,56 @@ type CertificateInfo = {
   issuer: string;
   valid_from: string;
   valid_until: string;
+  san: string[];
+  chain_length?: number;
+};
+
+type LocalTls = {
+  healthy: boolean;
+  trusted: boolean | null;
+  trust_error: string | null;
+  certificate: CertificateInfo | null;
+  message: string;
+};
+
+type Endpoint = {
+  record_type: "A" | "AAAA";
+  address: string;
+  status: "VERIFIED" | "PARTIAL" | "MISMATCH" | "UNREACHABLE";
+  fingerprint_matches: boolean | null;
+  hostname_valid: boolean;
+  trusted: boolean | null;
+  message: string;
+};
+
+type EndpointValidation = {
+  status:
+    | "VERIFIED"
+    | "PARTIAL"
+    | "MISMATCH"
+    | "UNREACHABLE"
+    | "DNS_NOT_FOUND";
+  endpoints: Endpoint[];
+  message: string;
+};
+
+type ChainInfo = {
+  status: "VALID" | "UNANCHORED";
+  provided_intermediates: number;
+  served_intermediates: number;
+  served_chain_length: number;
+  root_omitted: boolean;
+  root_subject: string | null;
+  message: string;
+};
+
+type TrustInfo = {
+  status:
+    | "PUBLIC_TRUSTED"
+    | "PRIVATE_OR_UNTRUSTED"
+    | "UNTRUSTED_OR_INCOMPLETE"
+    | "UNANCHORED";
+  message: string;
 };
 
 type TlsStatus = {
@@ -17,8 +67,14 @@ type TlsStatus = {
   mode: "http" | "automatic" | "custom";
   domain: string | null;
   healthy: boolean;
+  local_tls: LocalTls;
+  dns: { a: string[]; aaaa: string[] };
+  endpoint_validation: EndpointValidation;
   certificate: CertificateInfo | null;
+  chain: ChainInfo | null;
+  trust: TrustInfo | null;
   applied_at: string | null;
+  last_validated_at: string | null;
   message: string;
 };
 
@@ -27,13 +83,38 @@ type ValidationResult = {
   mode: "automatic" | "custom";
   domain: string;
   certificate: CertificateInfo | null;
+  chain: ChainInfo | null;
+  trust: TrustInfo | null;
 };
+
+function endpointLabel(status: EndpointValidation["status"]) {
+  switch (status) {
+    case "VERIFIED":
+      return "Endpoint DNS validado";
+    case "MISMATCH":
+      return "Endpoint DNS divergente";
+    case "PARTIAL":
+      return "Validação DNS parcial";
+    case "UNREACHABLE":
+      return "Endpoint externo não pôde ser testado deste host";
+    default:
+      return "DNS A/AAAA não encontrado";
+  }
+}
+
+function trustLabel(trust: TrustInfo | null) {
+  if (!trust) return "Não avaliada";
+  if (trust.status === "PUBLIC_TRUSTED") return "Confiável pela trust store";
+  if (trust.status === "PRIVATE_OR_UNTRUSTED") return "CA privada/não pública";
+  return "Confiança requer atenção";
+}
 
 export default function HttpsSettingsPage() {
   const [status, setStatus] = useState<TlsStatus | null>(null);
   const [mode, setMode] = useState<"automatic" | "custom">("automatic");
   const [domain, setDomain] = useState("");
-  const [certificateChain, setCertificateChain] = useState("");
+  const [serverCertificate, setServerCertificate] = useState("");
+  const [intermediateChain, setIntermediateChain] = useState("");
   const [privateKey, setPrivateKey] = useState("");
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,7 +144,8 @@ export default function HttpsSettingsPage() {
     return {
       mode,
       domain,
-      certificate_chain: mode === "custom" ? certificateChain : "",
+      server_certificate: mode === "custom" ? serverCertificate : "",
+      intermediate_chain: mode === "custom" ? intermediateChain : "",
       private_key: mode === "custom" ? privateKey : undefined,
     };
   }
@@ -81,7 +163,7 @@ export default function HttpsSettingsPage() {
         setValidation(result);
         setMessage(
           result.mode === "custom"
-            ? "Certificado, domínio e chave privada são compatíveis."
+            ? "Certificado do servidor, cadeia intermediária e chave privada foram analisados."
             : "Domínio e configuração automática são válidos.",
         );
       } else {
@@ -91,10 +173,11 @@ export default function HttpsSettingsPage() {
         });
         setStatus(result);
         setValidation(null);
-        setCertificateChain("");
+        setServerCertificate("");
+        setIntermediateChain("");
         setPrivateKey("");
         setMessage(
-          "HTTPS aplicado e verificado. O material sensível foi removido do formulário.",
+          "TLS aplicado localmente. Consulte abaixo o diagnóstico separado de DNS, endpoint e confiança.",
         );
       }
     } catch (err) {
@@ -131,7 +214,7 @@ export default function HttpsSettingsPage() {
       <PageHeader
         eyebrow="CONFIGURAÇÕES"
         title="HTTPS e certificado"
-        description="Configure o domínio público e o TLS sem expor a chave privada pela aplicação."
+        description="Configure o domínio público e separe o estado TLS local da publicação DNS e da confiança da CA."
         actions={
           <button
             className="button"
@@ -173,9 +256,9 @@ export default function HttpsSettingsPage() {
               <p>
                 <strong>
                   {status.configured
-                    ? status.healthy
-                      ? "HTTPS válido"
-                      : "HTTPS requer atenção"
+                    ? status.local_tls.healthy
+                      ? "TLS local válido"
+                      : "TLS local requer atenção"
                     : "Somente HTTP"}
                 </strong>
               </p>
@@ -186,28 +269,76 @@ export default function HttpsSettingsPage() {
                 </p>
               )}
               {status.configured && (
-                <p>
-                  Modo:{" "}
-                  {status.mode === "automatic"
-                    ? "Automático (Caddy/ACME)"
-                    : "Certificado próprio"}
-                </p>
+                <>
+                  <p>
+                    Modo:{" "}
+                    {status.mode === "automatic"
+                      ? "Automático (Caddy/ACME)"
+                      : "Certificado próprio"}
+                  </p>
+                  <p>
+                    HTTPS local:{" "}
+                    {status.local_tls.healthy
+                      ? "Caddy apresentou o certificado esperado"
+                      : "não validado"}
+                  </p>
+                  <p>
+                    DNS público: {status.dns.a.length + status.dns.aaaa.length} endpoint(s)
+                  </p>
+                  <p>
+                    Validação do endpoint: {endpointLabel(status.endpoint_validation.status)}
+                  </p>
+                  <p>{status.endpoint_validation.message}</p>
+                  <p>Confiança: {trustLabel(status.trust)}</p>
+                  {status.trust && <p>{status.trust.message}</p>}
+                </>
               )}
               {status.applied_at && (
                 <p>Aplicado em: {formatDate(status.applied_at)}</p>
+              )}
+              {status.last_validated_at && (
+                <p>Última validação: {formatDate(status.last_validated_at)}</p>
               )}
               {status.certificate && (
                 <>
                   <p>Emissor: {status.certificate.issuer}</p>
                   <p>
-                    Válido até: {formatDate(status.certificate.valid_until)}
+                    Validade: {formatDate(status.certificate.valid_from)} até{" "}
+                    {formatDate(status.certificate.valid_until)}
                   </p>
                   <p>
-                    SHA-256:{" "}
-                    <code>{status.certificate.fingerprint_sha256}</code>
+                    SHA-256: <code>{status.certificate.fingerprint_sha256}</code>
                   </p>
+                  <p>
+                    SANs:{" "}
+                    {status.certificate.san.length > 0
+                      ? status.certificate.san.join(", ")
+                      : "—"}
+                  </p>
+                  {status.certificate.chain_length !== undefined && (
+                    <p>
+                      Certificados servidos na cadeia: {status.certificate.chain_length}
+                    </p>
+                  )}
                 </>
               )}
+              {status.chain && <p>Cadeia: {status.chain.message}</p>}
+              {status.dns.a.length > 0 && (
+                <p>
+                  A: <code>{status.dns.a.join(", ")}</code>
+                </p>
+              )}
+              {status.dns.aaaa.length > 0 && (
+                <p>
+                  AAAA: <code>{status.dns.aaaa.join(", ")}</code>
+                </p>
+              )}
+              {status.endpoint_validation.endpoints.map((endpoint) => (
+                <p key={`${endpoint.record_type}-${endpoint.address}`}>
+                  {endpoint.record_type} <code>{endpoint.address}</code> · {endpoint.status} ·{" "}
+                  {endpoint.message}
+                </p>
+              ))}
             </>
           )}
         </section>
@@ -220,13 +351,14 @@ export default function HttpsSettingsPage() {
             alcançar as portas 80/443.
           </p>
           <p>
-            No modo próprio, o DeepOps valida SAN, validade e correspondência
-            entre certificado e chave; depois confirma o handshake TLS antes de
-            manter a nova configuração.
+            No modo próprio, o DeepOps valida separadamente o certificado do
+            servidor, as CAs intermediárias e a chave privada, ordena a cadeia e
+            monta o fullchain servido pelo Caddy.
           </p>
           <p>
-            A abertura externa do host, Security Group e testes de exposição
-            continuam na etapa 6.
+            O probe local confirma o Caddy. A resolução A/AAAA e os endpoints
+            publicados são diagnosticados separadamente; indisponibilidade do IP
+            público a partir da própria EC2 não desfaz um TLS local válido.
           </p>
         </section>
       </div>
@@ -270,14 +402,14 @@ export default function HttpsSettingsPage() {
           {mode === "custom" && (
             <>
               <label>
-                Certificado + cadeia intermediária (PEM)
+                Certificado do servidor (PEM)
                 <textarea
                   rows={9}
                   autoComplete="off"
                   spellCheck={false}
-                  value={certificateChain}
+                  value={serverCertificate}
                   onChange={(event) => {
-                    setCertificateChain(event.target.value);
+                    setServerCertificate(event.target.value);
                     setValidation(null);
                   }}
                   placeholder={
@@ -286,6 +418,34 @@ export default function HttpsSettingsPage() {
                   required
                 />
               </label>
+              <p className="settings-help">
+                Cole aqui somente o certificado emitido para o domínio,
+                normalmente um único bloco BEGIN CERTIFICATE.
+              </p>
+
+              <label>
+                Cadeia intermediária / CA Bundle (PEM)
+                <textarea
+                  rows={9}
+                  autoComplete="off"
+                  spellCheck={false}
+                  value={intermediateChain}
+                  onChange={(event) => {
+                    setIntermediateChain(event.target.value);
+                    setValidation(null);
+                  }}
+                  placeholder={
+                    "-----BEGIN CERTIFICATE-----\n... CA intermediária ...\n-----END CERTIFICATE-----"
+                  }
+                />
+              </label>
+              <p className="settings-help">
+                Cole as CAs intermediárias fornecidas pela autoridade
+                certificadora. O DeepOps valida e ordena a cadeia. O Root CA
+                normalmente não deve ser enviado pelo servidor e será omitido do
+                fullchain quando identificado.
+              </p>
+
               <label>
                 Chave privada (PEM)
                 <textarea
@@ -304,18 +464,22 @@ export default function HttpsSettingsPage() {
                 />
               </label>
               <p className="settings-help">
-                A chave é usada somente para validar e gravar o arquivo
-                protegido no volume interno. Ela não é devolvida pela API e o
-                campo é limpo após uma aplicação bem-sucedida.
+                A chave privada precisa corresponder ao certificado leaf e não
+                pode estar protegida por senha. Ela nunca é devolvida pela API e
+                o campo é limpo após uma aplicação bem-sucedida.
               </p>
             </>
           )}
 
           {validation?.certificate && (
-            <p className="settings-help">
-              Certificado validado · emissor {validation.certificate.issuer} ·
-              expira em {formatDate(validation.certificate.valid_until)}
-            </p>
+            <div className="settings-help">
+              <p>
+                Certificado validado · emissor {validation.certificate.issuer} ·
+                expira em {formatDate(validation.certificate.valid_until)}
+              </p>
+              {validation.chain && <p>{validation.chain.message}</p>}
+              {validation.trust && <p>{validation.trust.message}</p>}
+            </div>
           )}
 
           <div className="security-actions">

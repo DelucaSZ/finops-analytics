@@ -43,6 +43,16 @@ test("HTTPS settings keeps controls and technical values inside the viewport", a
   assert.ok(page.includes('api<TlsStatus>("/tls")'));
   assert.ok(page.includes('api<ValidationResult>("/tls/validate"'));
   assert.ok(page.includes('api<TlsStatus>("/tls/apply"'));
+  assert.ok(page.includes("server_certificate:"));
+  assert.ok(page.includes("intermediate_chain:"));
+  assert.ok(page.includes("Certificado do servidor (PEM)"));
+  assert.ok(page.includes("Cadeia intermediária / CA Bundle (PEM)"));
+  assert.ok(page.includes("TLS local válido"));
+  assert.ok(page.includes("Validação do endpoint"));
+  assert.ok(page.includes("A:"));
+  assert.ok(page.includes("AAAA:"));
+  assert.equal(page.includes('certificate_chain:'), false);
+  assert.equal(page.includes('"HTTPS válido"'), false);
 });
 
 test("Billing Profiles uses a shared column contract and internal table scrolling", async () => {
