@@ -1,0 +1,69 @@
+name: Task 24.1 invalid signature fix
+
+on:
+  push:
+    branches:
+      - task/24.1-https-tls-chain-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  patch-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task/24.1-https-tls-chain-diagnostics
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Handle cryptographic signature mismatch
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path("app/services/tls_manager.py")
+          content = path.read_text()
+          import_old = "from cryptography import x509\n"
+          import_new = "from cryptography import x509\nfrom cryptography.exceptions import InvalidSignature\n"
+          if import_old not in content:
+              raise SystemExit("cryptography import target not found")
+          content = content.replace(import_old, import_new, 1)
+
+          old = '''        try:
+              child.verify_directly_issued_by(issuer)
+          except (TypeError, ValueError):
+              return False
+          '''
+          new = '''        try:
+              child.verify_directly_issued_by(issuer)
+          except (InvalidSignature, TypeError, ValueError):
+              return False
+          '''
+          if old not in content:
+              raise SystemExit("issuer verification block not found")
+          path.write_text(content.replace(old, new, 1))
+          PY
+      - name: Format and lint TLS files
+        run: |
+          ruff format app/services/tls_manager.py app/tests/test_tls.py
+          ruff check app/services/tls_manager.py app/tests/test_tls.py
+          ruff format --check app/services/tls_manager.py app/tests/test_tls.py
+      - name: Run dedicated TLS suite
+        run: pytest -q app/tests/test_tls.py
+      - name: Commit tested patch
+        working-directory: .
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/services/tls_manager.py
+          git diff --cached --check
+          git commit -m 'Task 24.1: handle invalid certificate signatures'
+          git push origin HEAD:task/24.1-https-tls-chain-diagnostics
