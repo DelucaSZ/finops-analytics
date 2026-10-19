@@ -292,7 +292,7 @@ def test_invalid_intermediate_ca_validity_and_signature_are_rejected():
         )
 
     imposter, _ = certificate("Test Intermediate CA", ca=True)
-    with pytest.raises(TlsValidationError, match="quebrada"):
+    with pytest.raises(TlsValidationError, match="não fecha uma cadeia única"):
         manager.validate_custom(
             "deepops.example.com",
             pem(leaf),

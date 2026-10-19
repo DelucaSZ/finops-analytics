@@ -19,6 +19,7 @@ from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
 from cryptography import x509
+from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import hashes, serialization
 from cryptography.x509.oid import ExtendedKeyUsageOID, ObjectIdentifier
 
@@ -152,7 +153,7 @@ class TlsManager:
             return False
         try:
             child.verify_directly_issued_by(issuer)
-        except (TypeError, ValueError):
+        except (InvalidSignature, TypeError, ValueError):
             return False
         return True
 
