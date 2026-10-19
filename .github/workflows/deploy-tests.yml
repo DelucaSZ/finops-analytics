@@ -54,7 +54,6 @@ jobs:
           for filename in (
               'backend/app/tests/test_migrations.py',
               'backend/app/tests/test_opportunity_migration.py',
-              '.github/workflows/stage21-compose-smoke.yml',
           ):
               path = Path(filename)
               text = path.read_text()
@@ -73,7 +72,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/services/tls_manager.py backend/app/tests/test_tls.py backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py .github/workflows/stage21-compose-smoke.yml
+          git add backend/app/services/tls_manager.py backend/app/tests/test_tls.py backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py
           git diff --cached --check
           git commit -m 'Task 24.1: fix TLS signature handling and stale migration checks'
           git push origin HEAD:task/24.1-https-tls-chain-diagnostics
