@@ -41,6 +41,14 @@ jobs:
               tls = tls.replace(old_except, new_except, 1)
           tls_path.write_text(tls)
 
+          test_path = Path('backend/app/tests/test_tls.py')
+          test_text = test_path.read_text()
+          old_test = '''    imposter, _ = certificate("Test Intermediate CA", ca=True)\n    with pytest.raises(TlsValidationError, match="quebrada"):\n'''
+          new_test = '''    imposter, _ = certificate("Test Intermediate CA", ca=True)\n    with pytest.raises(TlsValidationError, match="não fecha uma cadeia única"):\n'''
+          if old_test not in test_text:
+              raise SystemExit('TLS imposter expectation target not found')
+          test_path.write_text(test_text.replace(old_test, new_test, 1))
+
           expected_old = '0029_cloudwatch_cost_engine'
           expected_new = '0030_billing_service_default'
           for filename in (
@@ -65,7 +73,7 @@ jobs:
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/services/tls_manager.py backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py .github/workflows/stage21-compose-smoke.yml
+          git add backend/app/services/tls_manager.py backend/app/tests/test_tls.py backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py .github/workflows/stage21-compose-smoke.yml
           git diff --cached --check
           git commit -m 'Task 24.1: fix TLS signature handling and stale migration checks'
           git push origin HEAD:task/24.1-https-tls-chain-diagnostics
