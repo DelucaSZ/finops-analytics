@@ -28,54 +28,54 @@ jobs:
           manager_path = Path("backend/app/services/tls_manager.py")
           content = manager_path.read_text()
 
-          old = '        expected = (state.get("certificate") or {}).get("fingerprint_sha256")'
-          new = '''        saved_fingerprint = (state.get("certificate") or {}).get("fingerprint_sha256")
-          probe_fingerprint = saved_fingerprint if state["mode"] == "custom" else None'''
-          if old not in content:
-              raise SystemExit("saved fingerprint expression not found")
-          content = content.replace(old, new, 1)
-
-          old = '                local_tls = self._probe(domain, timeout=4, expected_fingerprint=expected)'
-          new = '                local_tls = self._probe(domain, timeout=4, expected_fingerprint=probe_fingerprint)'
-          if old not in content:
-              raise SystemExit("status probe call not found")
-          content = content.replace(old, new, 1)
-
-          old = '''        if not expected and local_tls.get("certificate"):
-              expected = local_tls["certificate"].get("fingerprint_sha256")
-          '''
-          new = '''        current_fingerprint = (local_tls.get("certificate") or {}).get(
-              "fingerprint_sha256"
-          )
-          expected = current_fingerprint or saved_fingerprint
-          '''
-          if old not in content:
-              raise SystemExit("public diagnostics fingerprint block not found")
-          manager_path.write_text(content.replace(old, new, 1))
+          replacements = [
+              (
+                  '        expected = (state.get("certificate") or {}).get("fingerprint_sha256")\n',
+                  '        saved_fingerprint = (state.get("certificate") or {}).get("fingerprint_sha256")\n'
+                  '        probe_fingerprint = saved_fingerprint if state["mode"] == "custom" else None\n',
+              ),
+              (
+                  '                local_tls = self._probe(domain, timeout=4, expected_fingerprint=expected)\n',
+                  '                local_tls = self._probe(domain, timeout=4, expected_fingerprint=probe_fingerprint)\n',
+              ),
+              (
+                  '        if not expected and local_tls.get("certificate"):\n'
+                  '            expected = local_tls["certificate"].get("fingerprint_sha256")\n',
+                  '        current_fingerprint = (local_tls.get("certificate") or {}).get(\n'
+                  '            "fingerprint_sha256"\n'
+                  '        )\n'
+                  '        expected = current_fingerprint or saved_fingerprint\n',
+              ),
+          ]
+          for old, new in replacements:
+              if old not in content:
+                  raise SystemExit(f"manager patch target not found: {old!r}")
+              content = content.replace(old, new, 1)
+          manager_path.write_text(content)
 
           test_path = Path("backend/app/tests/test_tls.py")
           tests = test_path.read_text()
-          old = '''    monkeypatch.setattr(
-              manager,
-              "_probe",
-              lambda *_args, **_kwargs: local_tls("NEW"),
+          old = (
+              '    monkeypatch.setattr(\n'
+              '        manager,\n'
+              '        "_probe",\n'
+              '        lambda *_args, **_kwargs: local_tls("NEW"),\n'
+              '    )\n'
+              '    status = manager.status()\n'
+              '    assert status["certificate"]["fingerprint_sha256"] == "NEW"\n'
+              '    assert status["mode"] == "automatic"\n'
           )
-          status = manager.status()
-          assert status["certificate"]["fingerprint_sha256"] == "NEW"
-          assert status["mode"] == "automatic"
-          '''
-          new = '''    probe_fingerprints = []
-
-          def renewed_probe(*_args, **kwargs):
-              probe_fingerprints.append(kwargs.get("expected_fingerprint"))
-              return local_tls("NEW")
-
-          monkeypatch.setattr(manager, "_probe", renewed_probe)
-          status = manager.status()
-          assert status["certificate"]["fingerprint_sha256"] == "NEW"
-          assert status["mode"] == "automatic"
-          assert probe_fingerprints == [None]
-          '''
+          new = (
+              '    probe_fingerprints = []\n\n'
+              '    def renewed_probe(*_args, **kwargs):\n'
+              '        probe_fingerprints.append(kwargs.get("expected_fingerprint"))\n'
+              '        return local_tls("NEW")\n\n'
+              '    monkeypatch.setattr(manager, "_probe", renewed_probe)\n'
+              '    status = manager.status()\n'
+              '    assert status["certificate"]["fingerprint_sha256"] == "NEW"\n'
+              '    assert status["mode"] == "automatic"\n'
+              '    assert probe_fingerprints == [None]\n'
+          )
           if old not in tests:
               raise SystemExit("automatic renewal test block not found")
           test_path.write_text(tests.replace(old, new, 1))
