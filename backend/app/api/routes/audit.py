@@ -204,9 +204,7 @@ def list_audit(
             from_=from_,
             to=to,
         )
-        total += db.scalar(
-            select(func.count()).select_from(AuditEvent).where(*admin_filters)
-        ) or 0
+        total += db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters)) or 0
         admin_rows = db.scalars(
             select(AuditEvent)
             .where(*admin_filters)
@@ -228,9 +226,10 @@ def list_audit(
             to=to,
         )
         if possible:
-            total += db.scalar(
-                select(func.count()).select_from(SecurityEvent).where(*security_filters)
-            ) or 0
+            total += (
+                db.scalar(select(func.count()).select_from(SecurityEvent).where(*security_filters))
+                or 0
+            )
             actor = aliased(User)
             subject = aliased(User)
             security_rows = db.execute(
