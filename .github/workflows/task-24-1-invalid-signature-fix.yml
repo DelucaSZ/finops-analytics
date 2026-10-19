@@ -1,4 +1,4 @@
-name: Task 24.1 invalid signature fix
+name: Task 24.1 CI repair
 
 on:
   push:
@@ -12,9 +12,6 @@ jobs:
   patch-and-test:
     if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: backend
     steps:
       - uses: actions/checkout@v4
         with:
@@ -23,47 +20,57 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install backend dependencies
+        working-directory: backend
         run: pip install -r requirements-dev.txt
-      - name: Handle cryptographic signature mismatch
+      - name: Apply Task 24.1 CI fixes
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path("app/services/tls_manager.py")
-          content = path.read_text()
+          tls_path = Path("backend/app/services/tls_manager.py")
+          tls = tls_path.read_text()
           import_old = "from cryptography import x509\n"
           import_new = "from cryptography import x509\nfrom cryptography.exceptions import InvalidSignature\n"
-          if import_old not in content:
-              raise SystemExit("cryptography import target not found")
-          content = content.replace(import_old, import_new, 1)
+          if "from cryptography.exceptions import InvalidSignature\n" not in tls:
+              if import_old not in tls:
+                  raise SystemExit("cryptography import target not found")
+              tls = tls.replace(import_old, import_new, 1)
 
-          old = '''        try:
-              child.verify_directly_issued_by(issuer)
-          except (TypeError, ValueError):
-              return False
-          '''
-          new = '''        try:
-              child.verify_directly_issued_by(issuer)
-          except (InvalidSignature, TypeError, ValueError):
-              return False
-          '''
-          if old not in content:
-              raise SystemExit("issuer verification block not found")
-          path.write_text(content.replace(old, new, 1))
+          old_except = "except (TypeError, ValueError):\n            return False"
+          new_except = "except (InvalidSignature, TypeError, ValueError):\n            return False"
+          if new_except not in tls:
+              if old_except not in tls:
+                  raise SystemExit("issuer verification block not found")
+              tls = tls.replace(old_except, new_except, 1)
+          tls_path.write_text(tls)
+
+          expected_old = "0029_cloudwatch_cost_engine"
+          expected_new = "0030_billing_service_default"
+          for filename in (
+              "backend/app/tests/test_migrations.py",
+              "backend/app/tests/test_opportunity_migration.py",
+              ".github/workflows/stage21-compose-smoke.yml",
+          ):
+              path = Path(filename)
+              text = path.read_text()
+              if expected_old not in text:
+                  raise SystemExit(f"stale migration expectation not found in {filename}")
+              path.write_text(text.replace(expected_old, expected_new))
           PY
       - name: Format and lint TLS files
+        working-directory: backend
         run: |
           ruff format app/services/tls_manager.py app/tests/test_tls.py
           ruff check app/services/tls_manager.py app/tests/test_tls.py
           ruff format --check app/services/tls_manager.py app/tests/test_tls.py
       - name: Run dedicated TLS suite
+        working-directory: backend
         run: pytest -q app/tests/test_tls.py
-      - name: Commit tested patch
-        working-directory: .
+      - name: Commit tested fixes
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend/app/services/tls_manager.py
+          git add backend/app/services/tls_manager.py backend/app/tests/test_migrations.py backend/app/tests/test_opportunity_migration.py .github/workflows/stage21-compose-smoke.yml
           git diff --cached --check
-          git commit -m 'Task 24.1: handle invalid certificate signatures'
+          git commit -m 'Task 24.1: fix TLS signature handling and stale migration checks'
           git push origin HEAD:task/24.1-https-tls-chain-diagnostics
