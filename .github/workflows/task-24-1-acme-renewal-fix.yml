@@ -1,0 +1,104 @@
+name: Task 24.1 ACME renewal fix
+
+on:
+  push:
+    branches:
+      - task/24.1-https-tls-chain-diagnostics
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task/24.1-https-tls-chain-diagnostics
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install 'ruff==0.17.1'
+      - name: Patch automatic certificate renewal handling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          manager_path = Path("backend/app/services/tls_manager.py")
+          content = manager_path.read_text()
+          old = '''        domain = state["domain"]
+          expected = (state.get("certificate") or {}).get("fingerprint_sha256")
+          if local_tls is None:
+              try:
+                  local_tls = self._probe(domain, timeout=4, expected_fingerprint=expected)
+          '''
+          new = '''        domain = state["domain"]
+          saved_fingerprint = (state.get("certificate") or {}).get("fingerprint_sha256")
+          probe_fingerprint = saved_fingerprint if state["mode"] == "custom" else None
+          if local_tls is None:
+              try:
+                  local_tls = self._probe(
+                      domain, timeout=4, expected_fingerprint=probe_fingerprint
+                  )
+          '''
+          if old not in content:
+              raise SystemExit("status probe block not found")
+          content = content.replace(old, new)
+          old = '''        if not expected and local_tls.get("certificate"):
+              expected = local_tls["certificate"].get("fingerprint_sha256")
+
+          dns, endpoint_validation = self._public_diagnostics(
+              domain, expected_fingerprint=expected
+          )
+          '''
+          new = '''        current_fingerprint = (local_tls.get("certificate") or {}).get(
+              "fingerprint_sha256"
+          )
+          expected = current_fingerprint or saved_fingerprint
+
+          dns, endpoint_validation = self._public_diagnostics(
+              domain, expected_fingerprint=expected
+          )
+          '''
+          if old not in content:
+              raise SystemExit("public diagnostics fingerprint block not found")
+          manager_path.write_text(content.replace(old, new))
+
+          test_path = Path("backend/app/tests/test_tls.py")
+          tests = test_path.read_text()
+          old = '''    monkeypatch.setattr(
+              manager,
+              "_probe",
+              lambda *_args, **_kwargs: local_tls("NEW"),
+          )
+          status = manager.status()
+          assert status["certificate"]["fingerprint_sha256"] == "NEW"
+          assert status["mode"] == "automatic"
+          '''
+          new = '''    probe_fingerprints = []
+
+          def renewed_probe(*_args, **kwargs):
+              probe_fingerprints.append(kwargs.get("expected_fingerprint"))
+              return local_tls("NEW")
+
+          monkeypatch.setattr(manager, "_probe", renewed_probe)
+          status = manager.status()
+          assert status["certificate"]["fingerprint_sha256"] == "NEW"
+          assert status["mode"] == "automatic"
+          assert probe_fingerprints == [None]
+          '''
+          if old not in tests:
+              raise SystemExit("automatic renewal test block not found")
+          test_path.write_text(tests.replace(old, new))
+          PY
+      - name: Format patched files
+        run: ruff format backend/app/services/tls_manager.py backend/app/tests/test_tls.py
+      - name: Commit patch
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend/app/services/tls_manager.py backend/app/tests/test_tls.py
+          git diff --cached --check
+          git commit -m 'Task 24.1: allow automatic TLS certificate renewal'
+          git push origin HEAD:task/24.1-https-tls-chain-diagnostics
