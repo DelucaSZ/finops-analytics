@@ -14,11 +14,28 @@ from app.models.auth import LoginSession
 from app.models.mfa import MfaCredential
 from app.models.user import User, UserRole
 from app.schemas.user import UserAdminRead, UserCreate, UserInvite, UserRead, UserUpdate
+from app.services.audit import AuditService, audit_snapshot
 from app.services.authentication import issue_token, live_sessions, revoke_sessions, token_link
 from app.services.mfa import event
 from app.services.users import lock_user_changes
 
 router = APIRouter(prefix="/users", tags=["users"], dependencies=[Depends(require_admin)])
+
+
+def _user_audit_snapshot(user: User) -> dict:
+    return audit_snapshot(
+        {
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "is_active": user.is_active,
+            "password_set": user.password_set,
+        }
+    )
+
+
+def _user_audit_label(user: User) -> str:
+    return f"{user.name} · {user.email}"
 
 
 def _lock_and_recheck_admin(db: Session, actor: User) -> None:
@@ -101,6 +118,18 @@ def create_user(
         db.rollback()
         raise HTTPException(409, "Email is already registered") from exc
     event(db, user.id, "user.created", actor.id)
+    AuditService.record(
+        db,
+        actor=actor,
+        module="users",
+        action="user.create",
+        entity_type="user",
+        entity_id=user.id,
+        entity_label=_user_audit_label(user),
+        before=None,
+        after=_user_audit_snapshot(user),
+        source="API",
+    )
     return _commit(db, user)
 
 
@@ -115,6 +144,7 @@ def update_user(
     user = db.get(User, user_id, populate_existing=True)
     if user is None:
         raise HTTPException(status_code=404, detail="User not found")
+    before = _user_audit_snapshot(user)
     changes = payload.model_dump(exclude_unset=True)
     removing_admin = changes.get("role", user.role) != UserRole.ADMIN or not changes.get(
         "is_active", user.is_active
@@ -156,6 +186,19 @@ def update_user(
         )
     for field, value in changes.items():
         setattr(user, field, value)
+    if changed_fields:
+        AuditService.record(
+            db,
+            actor=actor,
+            module="users",
+            action="user.update",
+            entity_type="user",
+            entity_id=user.id,
+            entity_label=_user_audit_label(user),
+            before=before,
+            after=_user_audit_snapshot(user),
+            source="API",
+        )
     return _commit(db, user)
 
 

@@ -3,9 +3,12 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field, SecretStr
+from sqlalchemy.orm import Session
 
 from app.core.security import require_admin, require_recent_admin
+from app.db.session import get_db
 from app.models.user import User
+from app.services.audit import AuditService, audit_snapshot
 from app.services.tls_manager import TlsOperationError, TlsValidationError, manager
 
 router = APIRouter(prefix="/tls", tags=["tls"], dependencies=[Depends(require_admin)])
@@ -55,6 +58,34 @@ def _call(function: Callable[..., dict], payload: TlsPayload) -> dict:
         raise HTTPException(503, str(exc)) from None
 
 
+def _tls_audit_snapshot(status: dict) -> dict:
+    certificate = status.get("certificate") or {}
+    local_tls = status.get("local_tls") or {}
+    local_certificate = local_tls.get("certificate") or {}
+    effective_certificate = certificate or local_certificate
+    trust = status.get("trust") or {}
+    return audit_snapshot(
+        {
+            "configured": status.get("configured"),
+            "mode": status.get("mode"),
+            "domain": status.get("domain"),
+            "healthy": status.get("healthy"),
+            "certificate": {
+                "fingerprint_sha256": effective_certificate.get("fingerprint_sha256"),
+                "issuer": effective_certificate.get("issuer"),
+                "valid_from": effective_certificate.get("valid_from"),
+                "valid_until": effective_certificate.get("valid_until"),
+                "chain_length": effective_certificate.get("chain_length"),
+            },
+            "local_tls": {
+                "healthy": local_tls.get("healthy"),
+                "trusted": local_tls.get("trusted"),
+            },
+            "trust": {"status": trust.get("status")},
+        }
+    )
+
+
 @router.get("")
 def get_tls_status() -> dict:
     return manager.status()
@@ -68,6 +99,28 @@ def validate_tls(payload: TlsPayload) -> dict:
 @router.post("/apply")
 def apply_tls(
     payload: TlsPayload,
-    _actor: User = Depends(require_recent_admin),
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_recent_admin),
 ) -> dict:
-    return _call(manager.apply, payload)
+    result = _call(manager.apply, payload)
+    after = _tls_audit_snapshot(result)
+    AuditService.record(
+        db,
+        actor=actor,
+        module="tls",
+        action="tls.apply",
+        entity_type="tls_configuration",
+        entity_id=None,
+        entity_label=after.get("domain") or payload.domain,
+        before=None,
+        after=after,
+        source="API",
+        metadata={
+            "domain": after.get("domain") or payload.domain,
+            "mode": after.get("mode") or payload.mode,
+            "certificate": after.get("certificate"),
+            "local_tls": after.get("local_tls"),
+        },
+    )
+    db.commit()
+    return result
