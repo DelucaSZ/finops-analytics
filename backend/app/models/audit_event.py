@@ -28,9 +28,7 @@ class AuditEvent(Base):
         Index("ix_audit_events_correlation_id", "correlation_id"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -53,7 +51,5 @@ class AuditEvent(Base):
     before_data: Mapped[dict[str, Any] | None] = mapped_column("before", JSON, nullable=True)
     after_data: Mapped[dict[str, Any] | None] = mapped_column("after", JSON, nullable=True)
     changes: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
-    metadata_json: Mapped[dict[str, Any] | None] = mapped_column(
-        "metadata", JSON, nullable=True
-    )
+    metadata_json: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSON, nullable=True)
     correlation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
