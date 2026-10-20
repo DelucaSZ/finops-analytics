@@ -20,6 +20,7 @@ from app.schemas.account import (
     ProviderCapabilitiesRead,
 )
 from app.schemas.scan import ScanRead
+from app.services.audit import AuditService, audit_snapshot
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.cloud_accounts import (
     StaleOciConfiguration,
@@ -59,6 +60,67 @@ def _get_account(db: Session, account_id: int):
     if account is None:
         raise HTTPException(status_code=404, detail="Cloud account not found")
     return account
+
+
+def _account_label(account) -> str:
+    return f"{account.provider.upper()} · {account.name} · {account.native_account_id}"
+
+
+def _account_snapshot(account) -> dict:
+    data = {
+        "provider": account.provider,
+        "native_account_id": account.native_account_id,
+        "name": account.name,
+        "enabled": account.enabled,
+        "schedule_enabled": account.schedule_enabled,
+        "scan_interval_hours": account.scan_interval_hours,
+        "connection_status": account.connection_status,
+    }
+    if account.provider == CloudProvider.AWS.value and account.aws_configuration is not None:
+        config = account.aws_configuration
+        data["configuration"] = {
+            "role_arn": config.role_arn,
+            "regions": list(config.regions or []),
+            "is_management_account": config.is_management_account,
+        }
+    elif account.provider == CloudProvider.OCI.value and account.oci_configuration is not None:
+        config = account.oci_configuration
+        data["configuration"] = {
+            "user_ocid": config.user_ocid,
+            "fingerprint": config.fingerprint,
+            "region": config.region,
+            "scope_regions": list(config.scope_regions or []),
+            "compartment_ocids": list(config.compartment_ocids or []),
+            "include_root_compartment": config.include_root_compartment,
+            "include_subcompartments": config.include_subcompartments,
+            "credentials_configured": config.credentials_configured,
+        }
+    return audit_snapshot(data)
+
+
+def _record_account(
+    db: Session,
+    *,
+    actor: User,
+    account,
+    action: str,
+    before: dict | None = None,
+    after: dict | None = None,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="accounts",
+        action=action,
+        entity_type="cloud_account",
+        entity_id=account.id,
+        entity_label=_account_label(account),
+        before=before,
+        after=after,
+        source="API",
+        metadata=metadata,
+    )
 
 
 def _oci_failure_status(error: OciConnectionError) -> int:
@@ -107,8 +169,7 @@ def _audit_schedule_changes(
             action=("schedule.enabled" if account.schedule_enabled else "schedule.disabled"),
             result="success",
             detail=(
-                f"previous={str(previous_enabled).lower()} "
-                f"new={str(account.schedule_enabled).lower()}"
+                f"previous={str(previous_enabled).lower()} new={str(account.schedule_enabled).lower()}"
             ),
         )
     if account.scan_interval_hours != previous_interval:
@@ -137,11 +198,7 @@ def list_accounts(db: Session = Depends(get_db)):
     return list_cloud_accounts(db)
 
 
-@router.post(
-    "",
-    response_model=CloudAccountRead,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("", response_model=CloudAccountRead, status_code=status.HTTP_201_CREATED)
 def create_account(
     payload: CloudAccountCreate,
     db: Session = Depends(get_db),
@@ -151,6 +208,13 @@ def create_account(
     try:
         account = create_cloud_account(db, payload, actor_id=actor_id)
         account_id = account.id
+        _record_account(
+            db,
+            actor=actor,
+            account=account,
+            action="account.create",
+            after=_account_snapshot(account),
+        )
         db.commit()
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
@@ -197,11 +261,7 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
     return _get_account(db, account_id)
 
 
-@router.post(
-    "/{account_id}/scans",
-    response_model=ScanRead,
-    status_code=status.HTTP_202_ACCEPTED,
-)
+@router.post("/{account_id}/scans", response_model=ScanRead, status_code=status.HTTP_202_ACCEPTED)
 def create_account_scan(
     account_id: int,
     db: Session = Depends(get_db),
@@ -218,10 +278,7 @@ def create_account_scan(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
-@router.get(
-    "/{account_id}/audit",
-    response_model=list[CloudAccountAuditRead],
-)
+@router.get("/{account_id}/audit", response_model=list[CloudAccountAuditRead])
 def get_account_audit(
     account_id: int,
     limit: int = Query(default=100, ge=1, le=200),
@@ -232,10 +289,7 @@ def get_account_audit(
     return list_cloud_account_audit(db, account_id, limit=limit)
 
 
-@router.patch(
-    "/{account_id}",
-    response_model=CloudAccountRead,
-)
+@router.patch("/{account_id}", response_model=CloudAccountRead)
 def update_account(
     account_id: int,
     payload: CloudAccountUpdate,
@@ -244,6 +298,7 @@ def update_account(
 ):
     actor_id = actor.id
     account = _get_account(db, account_id)
+    before = _account_snapshot(account)
     native_account_id = account.native_account_id
     provider = account.provider
     previous_schedule_enabled = account.schedule_enabled
@@ -257,12 +312,7 @@ def update_account(
 
     try:
         if replacing_oci_credential:
-            result = replace_oci_credentials(
-                db,
-                account,
-                payload,
-                actor_id=actor_id,
-            )
+            result = replace_oci_credentials(db, account, payload, actor_id=actor_id)
             _audit_schedule_changes(
                 db,
                 account=account,
@@ -270,6 +320,17 @@ def update_account(
                 previous_enabled=previous_schedule_enabled,
                 previous_interval=previous_scan_interval_hours,
             )
+            after = _account_snapshot(account)
+            if before != after:
+                _record_account(
+                    db,
+                    actor=actor,
+                    account=account,
+                    action="account.update",
+                    before=before,
+                    after=after,
+                    metadata={"credential_replaced": True},
+                )
             db.commit()
             refreshed = get_cloud_account(db, account_id)
             if refreshed is None:
@@ -285,6 +346,15 @@ def update_account(
             previous_enabled=previous_schedule_enabled,
             previous_interval=previous_scan_interval_hours,
         )
+        after = _account_snapshot(account)
+        if before != after:
+            action = "account.update"
+            changed = [key for key in set(before) | set(after) if before.get(key) != after.get(key)]
+            if changed == ["enabled"]:
+                action = "account.enable" if account.enabled else "account.disable"
+            elif set(changed).issubset({"schedule_enabled", "scan_interval_hours"}):
+                action = "account.schedule_update"
+            _record_account(db, actor=actor, account=account, action=action, before=before, after=after)
         db.commit()
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
@@ -294,9 +364,7 @@ def update_account(
                 actor_id=actor_id,
                 account_id=account_id,
                 native_account_id=native_account_id,
-                action="oci.credentials.replace"
-                if replacing_oci_credential
-                else "oci.account.update",
+                action="oci.credentials.replace" if replacing_oci_credential else "oci.account.update",
                 result="failure",
                 detail=exc.code,
             )
@@ -322,47 +390,47 @@ def update_account(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(
-            status_code=409,
-            detail="Account update conflicts with existing data",
-        ) from exc
+        raise HTTPException(status_code=409, detail="Account update conflicts with existing data") from exc
 
 
-@router.delete(
-    "/{account_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
+@router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_account(
     account_id: int,
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ) -> None:
-    actor_id = actor.id
     account = _get_account(db, account_id)
-    delete_cloud_account(db, account, actor_id=actor_id)
+    before = _account_snapshot(account)
+    label = _account_label(account)
+    delete_cloud_account(db, account, actor_id=actor.id)
+    AuditService.record(
+        db,
+        actor=actor,
+        module="accounts",
+        action="account.delete",
+        entity_type="cloud_account",
+        entity_id=account_id,
+        entity_label=label,
+        before=before,
+        source="API",
+    )
     db.commit()
 
 
-def _test_aws_connection(account, db: Session) -> ConnectionTestResult:
+def _test_aws_connection(account, db: Session, actor: User) -> ConnectionTestResult:
     try:
         aws_account = require_aws_configuration(account)
     except UnsupportedProviderOperation as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
+    before = _account_snapshot(account)
     tested_at = datetime.now(UTC)
     expected_account_id = account.native_account_id
     try:
         identity = get_caller_identity(assume_account_session(aws_account))
         if identity.account_id != expected_account_id:
-            raise ValueError(
-                f"Expected account {expected_account_id}, received {identity.account_id}"
-            )
-        set_connection_state(
-            account,
-            status="connected",
-            tested_at=tested_at,
-            error=None,
-        )
+            raise ValueError(f"Expected account {expected_account_id}, received {identity.account_id}")
+        set_connection_state(account, status="connected", tested_at=tested_at, error=None)
         result = ConnectionTestResult(
             ok=True,
             provider=CloudProvider.AWS.value,
@@ -373,12 +441,7 @@ def _test_aws_connection(account, db: Session) -> ConnectionTestResult:
         )
     except (BotoCoreError, ClientError, ValueError) as exc:
         error = sanitize_collection_error(exc)[:2000]
-        set_connection_state(
-            account,
-            status="error",
-            tested_at=tested_at,
-            error=error,
-        )
+        set_connection_state(account, status="error", tested_at=tested_at, error=error)
         result = ConnectionTestResult(
             ok=False,
             provider=CloudProvider.AWS.value,
@@ -386,6 +449,15 @@ def _test_aws_connection(account, db: Session) -> ConnectionTestResult:
             error_code="aws_connection_failed",
             error=error,
         )
+    _record_account(
+        db,
+        actor=actor,
+        account=account,
+        action="account.connection_test",
+        before=before,
+        after=_account_snapshot(account),
+        metadata={"provider": account.provider, "result": "success" if result.ok else "failure"},
+    )
     db.commit()
     return result
 
@@ -395,7 +467,7 @@ def _persist_oci_test_result(
     *,
     account_id: int,
     expected_revision: int,
-    actor_id: str,
+    actor: User,
     tested_at: datetime,
     error: OciConnectionError | None,
     verified_checks: tuple[str, ...],
@@ -403,15 +475,25 @@ def _persist_oci_test_result(
     account = get_cloud_account_for_update(db, account_id)
     if account is None:
         raise HTTPException(status_code=404, detail="Cloud account not found")
+    before = _account_snapshot(account)
     configuration = require_oci_configuration(account)
     if configuration.configuration_revision != expected_revision:
         add_account_audit(
             db,
             account=account,
-            actor_id=actor_id,
+            actor_id=actor.id,
             action="oci.connection.test",
             result="stale",
             detail="configuration_changed_during_test",
+        )
+        _record_account(
+            db,
+            actor=actor,
+            account=account,
+            action="account.connection_test",
+            before=before,
+            after=_account_snapshot(account),
+            metadata={"provider": account.provider, "result": "stale"},
         )
         db.commit()
         return ConnectionTestResult(
@@ -423,16 +505,11 @@ def _persist_oci_test_result(
         )
 
     if error is None:
-        set_connection_state(
-            account,
-            status="connected",
-            tested_at=tested_at,
-            error=None,
-        )
+        set_connection_state(account, status="connected", tested_at=tested_at, error=None)
         add_account_audit(
             db,
             account=account,
-            actor_id=actor_id,
+            actor_id=actor.id,
             action="oci.connection.test",
             result="success",
             detail=f"checks={len(verified_checks)}",
@@ -445,16 +522,11 @@ def _persist_oci_test_result(
             verified_checks=list(verified_checks),
         )
     else:
-        set_connection_state(
-            account,
-            status="error",
-            tested_at=tested_at,
-            error=error.safe_message[:2000],
-        )
+        set_connection_state(account, status="error", tested_at=tested_at, error=error.safe_message[:2000])
         add_account_audit(
             db,
             account=account,
-            actor_id=actor_id,
+            actor_id=actor.id,
             action="oci.connection.test",
             result="failure",
             detail=error.code,
@@ -466,15 +538,20 @@ def _persist_oci_test_result(
             error_code=error.code,
             error=error.safe_message,
         )
+    _record_account(
+        db,
+        actor=actor,
+        account=account,
+        action="account.connection_test",
+        before=before,
+        after=_account_snapshot(account),
+        metadata={"provider": account.provider, "result": "success" if result.ok else "failure"},
+    )
     db.commit()
     return result
 
 
-def _test_oci_connection(
-    account,
-    db: Session,
-    actor_id: str,
-) -> ConnectionTestResult:
+def _test_oci_connection(account, db: Session, actor: User) -> ConnectionTestResult:
     configuration = require_oci_configuration(account)
     account_id = account.id
     expected_revision = configuration.configuration_revision
@@ -488,14 +565,12 @@ def _test_oci_connection(
             db,
             account_id=account_id,
             expected_revision=expected_revision,
-            actor_id=actor_id,
+            actor=actor,
             tested_at=tested_at,
             error=exc,
             verified_checks=(),
         )
 
-    # Release the read transaction before OCI network I/O. No database lock is held
-    # while the SDK waits for the remote service.
     db.commit()
     try:
         validation = validate_connection(snapshot)
@@ -509,32 +584,28 @@ def _test_oci_connection(
         db,
         account_id=account_id,
         expected_revision=expected_revision,
-        actor_id=actor_id,
+        actor=actor,
         tested_at=datetime.now(UTC),
         error=remote_error,
         verified_checks=checks,
     )
 
 
-@router.post(
-    "/{account_id}/test-connection",
-    response_model=ConnectionTestResult,
-)
+@router.post("/{account_id}/test-connection", response_model=ConnectionTestResult)
 def test_connection(
     account_id: int,
     db: Session = Depends(get_db),
     actor: User = Depends(require_admin),
 ) -> ConnectionTestResult:
-    actor_id = actor.id
     account = _get_account(db, account_id)
     try:
         require_provider_operation(account.provider, ProviderOperation.CONNECTION_TEST)
     except UnsupportedProviderOperation as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     if account.provider == CloudProvider.AWS.value:
-        return _test_aws_connection(account, db)
+        return _test_aws_connection(account, db, actor)
     if account.provider == CloudProvider.OCI.value:
-        return _test_oci_connection(account, db, actor_id)
+        return _test_oci_connection(account, db, actor)
     raise HTTPException(
         status_code=409,
         detail=f"Provider {account.provider} does not have a connection test in this stage",
