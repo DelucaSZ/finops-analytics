@@ -85,7 +85,9 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
         before_data: dict[str, Any] | None,
         after_data: dict[str, Any] | None,
     ) -> PricingAuditEvent:
-        actor_type = PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM
+        actor_type = (
+            PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM
+        )
         event = PricingAuditEvent(
             pricing_item_id=item.id,
             provider=item.provider,
