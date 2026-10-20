@@ -135,10 +135,20 @@ def test_sanitizer_covers_cloud_tls_auth_smtp_and_application_secrets():
 
 def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
     before = audit_snapshot(
-        {"enabled": True, "scan_interval_hours": 24, "name": "Produção", "nullable": None}
+        {
+            "enabled": True,
+            "scan_interval_hours": 24,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
     after = audit_snapshot(
-        {"enabled": False, "scan_interval_hours": 12, "name": "Produção", "nullable": None}
+        {
+            "enabled": False,
+            "scan_interval_hours": 12,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
 
     changes = build_audit_changes(before, after)
@@ -291,7 +301,9 @@ def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, s
 
 def test_unified_endpoint_returns_security_and_administrative_with_filters(audit_db):
     engine, actor_id, subject_id = audit_db
-    security_id, administrative_id = _seed_unified_events(engine, actor_id, subject_id)
+    security_id, administrative_id = _seed_unified_events(
+        engine, actor_id, subject_id
+    )
 
     with TestClient(_app_for(engine, authorized=True)) as client:
         response = client.get("/api/v1/audit?event_kind=all&limit=1&offset=0")
@@ -365,7 +377,9 @@ def test_user_autocomplete_actor_snapshot_and_subject_snapshot_search(audit_db):
         assert subject_old["total"] == 1
         assert subject_old["items"][0]["entity"]["id"] == subject_id
 
-        current = client.get("/api/v1/audit/users", params={"q": "administrador atual"}).json()
+        current = client.get(
+            "/api/v1/audit/users", params={"q": "administrador atual"}
+        ).json()
         assert current == [
             {"id": actor_id, "name": "Administrador Atual", "email": "new-admin@example.com"}
         ]
