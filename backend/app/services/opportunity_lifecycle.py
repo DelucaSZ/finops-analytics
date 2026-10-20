@@ -329,9 +329,7 @@ def set_legacy_status(
     refresh_summaries_for_findings(db, [finding])
     if before != _audit_snapshot(finding):
         target = _legacy_target(status)
-        action = (
-            "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
-        )
+        action = "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
         metadata = {"reason": reason} if reason else None
         _record_lifecycle_audit(
             db,
