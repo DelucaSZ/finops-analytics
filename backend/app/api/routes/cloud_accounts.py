@@ -351,9 +351,7 @@ def update_account(
         if before != after:
             action = "account.update"
             changed = sorted(
-                key
-                for key in set(before) | set(after)
-                if before.get(key) != after.get(key)
+                key for key in set(before) | set(after) if before.get(key) != after.get(key)
             )
             if changed == ["enabled"]:
                 action = "account.enable" if account.enabled else "account.disable"
@@ -477,7 +475,10 @@ def _test_aws_connection(account, db: Session, actor: User) -> ConnectionTestRes
         action="account.connection_test",
         before=before,
         after=_account_snapshot(account),
-        metadata={"provider": account.provider, "result": "success" if result.ok else "failure"},
+        metadata={
+            "provider": account.provider,
+            "result": "success" if result.ok else "failure",
+        },
     )
     db.commit()
     return result
@@ -571,7 +572,10 @@ def _persist_oci_test_result(
         action="account.connection_test",
         before=before,
         after=_account_snapshot(account),
-        metadata={"provider": account.provider, "result": "success" if result.ok else "failure"},
+        metadata={
+            "provider": account.provider,
+            "result": "success" if result.ok else "failure",
+        },
     )
     db.commit()
     return result
