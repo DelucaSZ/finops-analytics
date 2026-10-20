@@ -169,7 +169,8 @@ def _audit_schedule_changes(
             action=("schedule.enabled" if account.schedule_enabled else "schedule.disabled"),
             result="success",
             detail=(
-                f"previous={str(previous_enabled).lower()} new={str(account.schedule_enabled).lower()}"
+                f"previous={str(previous_enabled).lower()} "
+                f"new={str(account.schedule_enabled).lower()}"
             ),
         )
     if account.scan_interval_hours != previous_interval:
@@ -349,12 +350,23 @@ def update_account(
         after = _account_snapshot(account)
         if before != after:
             action = "account.update"
-            changed = [key for key in set(before) | set(after) if before.get(key) != after.get(key)]
+            changed = sorted(
+                key
+                for key in set(before) | set(after)
+                if before.get(key) != after.get(key)
+            )
             if changed == ["enabled"]:
                 action = "account.enable" if account.enabled else "account.disable"
             elif set(changed).issubset({"schedule_enabled", "scan_interval_hours"}):
                 action = "account.schedule_update"
-            _record_account(db, actor=actor, account=account, action=action, before=before, after=after)
+            _record_account(
+                db,
+                actor=actor,
+                account=account,
+                action=action,
+                before=before,
+                after=after,
+            )
         db.commit()
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
@@ -364,7 +376,11 @@ def update_account(
                 actor_id=actor_id,
                 account_id=account_id,
                 native_account_id=native_account_id,
-                action="oci.credentials.replace" if replacing_oci_credential else "oci.account.update",
+                action=(
+                    "oci.credentials.replace"
+                    if replacing_oci_credential
+                    else "oci.account.update"
+                ),
                 result="failure",
                 detail=exc.code,
             )
@@ -390,7 +406,10 @@ def update_account(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Account update conflicts with existing data") from exc
+        raise HTTPException(
+            status_code=409,
+            detail="Account update conflicts with existing data",
+        ) from exc
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -429,7 +448,9 @@ def _test_aws_connection(account, db: Session, actor: User) -> ConnectionTestRes
     try:
         identity = get_caller_identity(assume_account_session(aws_account))
         if identity.account_id != expected_account_id:
-            raise ValueError(f"Expected account {expected_account_id}, received {identity.account_id}")
+            raise ValueError(
+                f"Expected account {expected_account_id}, received {identity.account_id}"
+            )
         set_connection_state(account, status="connected", tested_at=tested_at, error=None)
         result = ConnectionTestResult(
             ok=True,
@@ -522,7 +543,12 @@ def _persist_oci_test_result(
             verified_checks=list(verified_checks),
         )
     else:
-        set_connection_state(account, status="error", tested_at=tested_at, error=error.safe_message[:2000])
+        set_connection_state(
+            account,
+            status="error",
+            tested_at=tested_at,
+            error=error.safe_message[:2000],
+        )
         add_account_audit(
             db,
             account=account,
