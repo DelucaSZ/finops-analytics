@@ -107,7 +107,14 @@ def update_global_policy(
         config=payload.config,
     )
     after = get_effective_policy(db, rule_key)
-    _record_policy_change(db, actor=actor, rule_key=rule_key, account_id=None, before=before, after=after)
+    _record_policy_change(
+        db,
+        actor=actor,
+        rule_key=rule_key,
+        account_id=None,
+        before=before,
+        after=after,
+    )
     db.commit()
     return get_effective_policy(db, rule_key)
 
