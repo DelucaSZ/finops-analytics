@@ -26,6 +26,7 @@ def cloud_account_audit_snapshot(account: CloudAccount) -> dict:
             "include_root_compartment": oci.include_root_compartment,
             "include_subcompartments": oci.include_subcompartments,
             "credentials_configured": oci.credentials_configured,
+            "credential_revision": oci.credential_revision,
         }
     return audit_snapshot(
         {
