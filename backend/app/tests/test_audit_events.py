@@ -43,8 +43,8 @@ def audit_db(tmp_path):
             password_hash="not-used",
         )
         subject = User(
-            name="Operator",
-            email="operator@example.com",
+            name="Operator Maria",
+            email="operator.maria@example.com",
             role=UserRole.OPERATOR,
             password_hash="not-used",
         )
@@ -91,6 +91,49 @@ def test_sanitizer_is_recursive_json_safe_and_never_persists_secrets():
     assert "BEGIN PRIVATE KEY" not in serialized
 
 
+def test_sanitizer_blocks_aws_oci_tls_auth_smtp_and_application_secrets():
+    safe = sanitize_audit_payload(
+        {
+            "aws_access_key": "AKIAEXAMPLE",
+            "aws_secret_key": "secret",
+            "session_token": "token",
+            "oci_private_key": "private",
+            "passphrase": "pass",
+            "fingerprint": "AA:BB:CC",
+            "tenancy_ocid": "ocid1.tenancy.oc1..safe",
+            "tls_private_key": "key",
+            "server_certificate": "-----BEGIN CERTIFICATE-----\nCERT",
+            "password": "password",
+            "password_hash": "hash",
+            "reset_token": "reset",
+            "invitation_token": "invite",
+            "mfa_secret": "mfa",
+            "recovery_code": "recovery",
+            "smtp_password": "smtp",
+            "NUVEMIQ_SECRET_KEY": "application-secret",
+        }
+    )
+    serialized = str(safe)
+    for forbidden in (
+        "AKIAEXAMPLE",
+        "secret",
+        "token",
+        "private",
+        "pass",
+        "password",
+        "hash",
+        "reset",
+        "invite",
+        "mfa",
+        "recovery",
+        "smtp",
+        "application-secret",
+    ):
+        assert forbidden not in serialized
+    assert safe["fingerprint"] == "AA:BB:CC"
+    assert safe["tenancy_ocid"] == "ocid1.tenancy.oc1..safe"
+
+
 def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
     before = audit_snapshot(
         {"enabled": True, "scan_interval_hours": 24, "name": "Produção", "nullable": None}
@@ -98,9 +141,7 @@ def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
     after = audit_snapshot(
         {"enabled": False, "scan_interval_hours": 12, "name": "Produção", "nullable": None}
     )
-
     changes = build_audit_changes(before, after)
-
     assert list(changes) == ["enabled", "scan_interval_hours"]
     assert changes == {
         "enabled": {"from": True, "to": False},
@@ -110,12 +151,8 @@ def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
 
 def test_large_payloads_are_summarized_or_capped():
     safe = sanitize_audit_payload(
-        {
-            "policy_document": "x" * 10_000,
-            "evidence": ["e" * 100 for _ in range(1000)],
-        }
+        {"policy_document": "x" * 10_000, "evidence": ["e" * 100 for _ in range(1000)]}
     )
-
     assert safe["_truncated"] is True
     assert safe["_original_bytes"] > 16_384
     assert len(str(safe)) < 500
@@ -132,7 +169,7 @@ def test_record_uses_actor_snapshot_and_same_caller_transaction(audit_db):
             action="user.update",
             entity_type="user",
             entity_id=subject_id,
-            entity_label="Operator · operator@example.com",
+            entity_label="Operator Maria · operator.maria@example.com",
             before={"role": "viewer"},
             after={"role": "operator"},
             source="API",
@@ -143,7 +180,6 @@ def test_record_uses_actor_snapshot_and_same_caller_transaction(audit_db):
         assert item.actor_email_snapshot == "admin@example.com"
         assert item.changes == {"role": {"from": "viewer", "to": "operator"}}
         db.rollback()
-
     with Session(engine) as db:
         assert db.get(AuditEvent, event_id) is None
 
@@ -159,19 +195,17 @@ def test_commit_persists_snapshot_independent_of_current_user(audit_db):
             action="user.update",
             entity_type="user",
             entity_id=subject_id,
-            entity_label="Operator",
-            before={"name": "Operator"},
-            after={"name": "Operator Novo"},
+            entity_label="Operator Maria",
+            before={"name": "Operator Maria"},
+            after={"name": "Operator Maria Nova"},
             source="API",
         )
         db.commit()
         event_id = item.id
-
         actor.name = "Admin Renomeado"
         actor.email = "renamed@example.com"
         actor.is_active = False
         db.commit()
-
     with Session(engine) as db:
         item = db.get(AuditEvent, event_id)
         assert item.actor_name_snapshot == "Admin Original"
@@ -183,7 +217,6 @@ def test_system_event_and_correlation_id(audit_db):
     engine, _, _ = audit_db
     correlation_id = new_correlation_id()
     UUID(correlation_id)
-
     with Session(engine) as db:
         item = AuditService.record(
             db,
@@ -213,14 +246,14 @@ def _app_for(engine, *, authorized: bool) -> FastAPI:
     app.dependency_overrides[get_db] = database
     if authorized:
         app.dependency_overrides[require_admin] = lambda: SimpleNamespace(
-            id="test-admin",
-            role=UserRole.ADMIN,
+            id="test-admin", role=UserRole.ADMIN
         )
     return app
 
 
-def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, str]:
+def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, str, str]:
     now = datetime.now(UTC)
+    correlation_id = new_correlation_id()
     with Session(engine) as db:
         actor = db.get(User, actor_id)
         security = SecurityEvent(
@@ -238,72 +271,187 @@ def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, s
             action="user.update",
             entity_type="user",
             entity_id=subject_id,
-            entity_label="Operator · operator@example.com",
+            entity_label="Operator Maria · operator.maria@example.com",
             before={"is_active": True},
             after={"is_active": False},
             source="API",
+            correlation_id=correlation_id,
         )
         administrative.created_at = now
         db.commit()
-        return security.id, administrative.id
+        return security.id, administrative.id, correlation_id
 
 
-def test_unified_endpoint_returns_security_and_administrative_with_filters(audit_db):
+def test_unified_endpoint_global_order_total_and_pagination(audit_db):
     engine, actor_id, subject_id = audit_db
-    security_id, administrative_id = _seed_unified_events(engine, actor_id, subject_id)
-
+    security_id, administrative_id, _ = _seed_unified_events(engine, actor_id, subject_id)
     with TestClient(_app_for(engine, authorized=True)) as client:
-        response = client.get("/api/v1/audit?event_type=all&limit=1&offset=0")
-        assert response.status_code == 200
-        page = response.json()
+        page = client.get("/api/v1/audit", params={"event_kind": "all", "limit": 1, "offset": 0}).json()
         assert page["total"] == 2
-        assert page["limit"] == 1
-        assert page["offset"] == 0
         assert page["items"][0]["id"] == administrative_id
         assert page["items"][0]["event_kind"] == "administrative"
-
-        second = client.get("/api/v1/audit?event_type=all&limit=1&offset=1").json()
+        second = client.get("/api/v1/audit", params={"event_kind": "all", "limit": 1, "offset": 1}).json()
+        assert second["total"] == 2
         assert second["items"][0]["id"] == security_id
         assert second["items"][0]["event_kind"] == "security"
 
-        by_module = client.get(
-            "/api/v1/audit",
-            params={"event_type": "administrative", "module": "users"},
-        ).json()
-        assert by_module["total"] == 1
-        assert by_module["items"][0]["action"] == "user.update"
 
-        by_action = client.get(
-            "/api/v1/audit",
-            params={"event_type": "security", "action": "auth.login"},
-        ).json()
-        assert by_action["total"] == 1
-
-        by_actor = client.get(
-            "/api/v1/audit",
-            params={"event_type": "all", "actor_id": actor_id},
-        ).json()
-        assert by_actor["total"] == 2
-
-        by_entity = client.get(
-            "/api/v1/audit",
-            params={
-                "event_type": "all",
-                "entity_type": "user",
-                "entity_id": subject_id,
-            },
-        ).json()
-        assert by_entity["total"] == 2
-
-
-def test_security_event_still_works_and_audit_endpoint_is_admin_only(audit_db):
+def test_actor_filters_support_id_name_email_partial_case_and_historical_snapshot(audit_db):
     engine, actor_id, subject_id = audit_db
     _seed_unified_events(engine, actor_id, subject_id)
+    with Session(engine) as db:
+        actor = db.get(User, actor_id)
+        actor.name = "Admin Atual"
+        actor.email = "current@example.com"
+        db.commit()
 
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        by_id = client.get("/api/v1/audit", params={"actor_id": actor_id}).json()
+        assert by_id["total"] == 2
+
+        historical_name = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "actor_search": "admin orig"},
+        ).json()
+        assert historical_name["total"] == 1
+
+        historical_email = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "actor_search": "ADMIN@EXAMPLE.COM"},
+        ).json()
+        assert historical_email["total"] == 1
+
+        current_name = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "actor_search": "admin atual"},
+        ).json()
+        assert current_name["total"] == 1
+
+
+def test_subject_filters_are_separate_from_actor_and_search_name_email(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _seed_unified_events(engine, actor_id, subject_id)
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        by_id = client.get("/api/v1/audit", params={"subject_user_id": subject_id}).json()
+        assert by_id["total"] == 2
+        by_name = client.get(
+            "/api/v1/audit",
+            params={"subject_user_search": "maria"},
+        ).json()
+        assert by_name["total"] == 2
+        by_email = client.get(
+            "/api/v1/audit",
+            params={"subject_user_search": "OPERATOR.MARIA@EXAMPLE.COM"},
+        ).json()
+        assert by_email["total"] == 2
+        actor_is_not_subject = client.get(
+            "/api/v1/audit",
+            params={"subject_user_id": actor_id},
+        ).json()
+        assert actor_is_not_subject["total"] == 0
+
+
+def test_module_action_source_event_kind_period_correlation_and_combinations(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _, _, correlation_id = _seed_unified_events(engine, actor_id, subject_id)
+    now = datetime.now(UTC)
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        by_module = client.get("/api/v1/audit", params={"module": "users"}).json()
+        assert by_module["total"] == 1
+        by_action = client.get("/api/v1/audit", params={"action": "user.update"}).json()
+        assert by_action["total"] == 1
+        by_source = client.get("/api/v1/audit", params={"source": "API"}).json()
+        assert by_source["total"] == 2
+        system_only = client.get("/api/v1/audit", params={"source": "SYSTEM"}).json()
+        assert system_only["total"] == 0
+        security = client.get("/api/v1/audit", params={"event_kind": "security"}).json()
+        assert security["total"] == 1
+        administrative = client.get(
+            "/api/v1/audit", params={"event_kind": "administrative"}
+        ).json()
+        assert administrative["total"] == 1
+        by_correlation = client.get(
+            "/api/v1/audit", params={"correlation_id": correlation_id}
+        ).json()
+        assert by_correlation["total"] == 1
+        period = client.get(
+            "/api/v1/audit",
+            params={
+                "from": (now - timedelta(hours=1)).isoformat(),
+                "to": (now + timedelta(hours=1)).isoformat(),
+                "event_kind": "administrative",
+                "module": "users",
+                "actor_id": actor_id,
+                "subject_user_id": subject_id,
+            },
+        ).json()
+        assert period["total"] == 1
+
+
+def test_period_requires_timezone_and_valid_order(audit_db):
+    engine, _, _ = audit_db
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        naive = client.get("/api/v1/audit", params={"from": "2026-10-20T10:00:00"})
+        assert naive.status_code == 422
+        reversed_range = client.get(
+            "/api/v1/audit",
+            params={
+                "from": "2026-10-20T12:00:00+00:00",
+                "to": "2026-10-20T10:00:00+00:00",
+            },
+        )
+        assert reversed_range.status_code == 422
+
+
+def test_user_autocomplete_is_partial_case_insensitive_deterministic_and_safe(audit_db):
+    engine, _, _ = audit_db
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        response = client.get("/api/v1/audit/users", params={"q": "MAR", "limit": 20})
+        assert response.status_code == 200
+        users = response.json()
+        assert users == [
+            {
+                "id": users[0]["id"],
+                "name": "Operator Maria",
+                "email": "operator.maria@example.com",
+            }
+        ]
+        assert set(users[0]) == {"id", "name", "email"}
+
+
+def test_audit_options_expose_human_modules_and_canonical_actions(audit_db):
+    engine, _, _ = audit_db
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        response = client.get("/api/v1/audit/options")
+        assert response.status_code == 200
+        payload = response.json()
+        assert {item["value"] for item in payload["modules"]} >= {"users", "accounts", "policies"}
+        action = next(item for item in payload["actions"] if item["value"] == "account.disable")
+        assert action["label"] == "Conta cloud desabilitada"
+        assert action["module"] == "accounts"
+
+
+def test_event_kind_legacy_alias_and_conflict_are_predictable(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _seed_unified_events(engine, actor_id, subject_id)
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        legacy = client.get("/api/v1/audit", params={"event_type": "administrative"})
+        assert legacy.status_code == 200
+        assert legacy.json()["total"] == 1
+        conflict = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "security", "event_type": "administrative"},
+        )
+        assert conflict.status_code == 422
+
+
+def test_security_event_still_works_and_audit_endpoints_are_admin_only(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _seed_unified_events(engine, actor_id, subject_id)
     with Session(engine) as db:
         assert len(list(db.scalars(select(SecurityEvent)))) == 1
         assert len(list(db.scalars(select(AuditEvent)))) == 1
-
     with TestClient(_app_for(engine, authorized=False)) as client:
-        response = client.get("/api/v1/audit")
-        assert response.status_code == 401
+        assert client.get("/api/v1/audit").status_code == 401
+        assert client.get("/api/v1/audit/users", params={"q": "admin"}).status_code == 401
+        assert client.get("/api/v1/audit/options").status_code == 401
