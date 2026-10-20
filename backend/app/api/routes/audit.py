@@ -97,9 +97,7 @@ def _admin_filters(
     if correlation_id:
         filters.append(AuditEvent.correlation_id == correlation_id)
     if legacy_user_id:
-        filters.extend(
-            [AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id]
-        )
+        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id])
     if from_:
         filters.append(AuditEvent.created_at >= from_)
     if to:
@@ -126,7 +124,6 @@ def _security_filters(
 ) -> tuple[list, bool]:
     filters = []
     possible = True
-
     prefix = category or module
     if prefix:
         if prefix == "security":
@@ -135,7 +132,6 @@ def _security_filters(
             filters.append(SecurityEvent.action.like(prefix + ".%"))
         else:
             possible = False
-
     if action:
         filters.append(SecurityEvent.action == action)
     if actor_id:
@@ -197,11 +193,7 @@ def _admin_item(item: AuditEvent) -> dict:
     }
 
 
-def _security_item(
-    item: SecurityEvent,
-    actor: User | None,
-    subject: User | None,
-) -> dict:
+def _security_item(item: SecurityEvent, actor: User | None, subject: User | None) -> dict:
     actor_name = actor.name if actor else None
     actor_email = actor.email if actor else None
     user_name = subject.name if subject else None
@@ -237,16 +229,16 @@ def search_audit_users(
     limit: int = Query(default=20, ge=1, le=50),
     db: Session = Depends(get_db),
 ) -> list[User]:
-    query = select(User)
+    statement = select(User)
     if q.strip():
         text = q.strip()
-        query = query.where(
+        statement = statement.where(
             or_(
                 User.name.icontains(text, autoescape=True),
                 User.email.icontains(text, autoescape=True),
             )
         )
-    return list(query.order_by(User.name, User.email, User.id).limit(limit).scalars(db))
+    return list(db.scalars(statement.order_by(User.name, User.email, User.id).limit(limit)))
 
 
 @router.get("", response_model=AuditPage)
@@ -274,8 +266,6 @@ def list_audit(
     selected_kind = event_kind or event_type or "all"
     include_security = selected_kind in {"security", "all"}
     include_admin = selected_kind in {"administrative", "all"}
-
-    # `category` is a compatibility filter for the legacy SecurityEvent endpoint.
     if category is not None:
         include_admin = False
 
