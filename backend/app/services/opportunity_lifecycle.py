@@ -13,6 +13,7 @@ from app.services.opportunity_saving_recognition import OpportunitySavingRecogni
 OPEN = "open"
 TREATED = "treated"
 REJECTED = "rejected"
+LEGACY_REJECTION_NOTE = "Legacy status update did not provide a rejection reason."
 REJECTION_REASONS = {
     "FALSE_POSITIVE",
     "OPERATIONAL_EXCEPTION",
@@ -305,7 +306,7 @@ def _apply_legacy_status(
     rejection_note = note
     if rejection_reason is None:
         rejection_reason = "OTHER"
-        rejection_note = rejection_note or "Legacy status update did not provide a rejection reason."
+        rejection_note = rejection_note or LEGACY_REJECTION_NOTE
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
     return None
