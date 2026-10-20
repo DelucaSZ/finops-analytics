@@ -15,6 +15,7 @@ from app.models.opportunity_archive_history import (
     OpportunityArchiveReason,
 )
 from app.models.user import User
+from app.services.audit import AuditService, audit_snapshot
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
 
 
@@ -23,6 +24,21 @@ def _locked(db: Session, opportunity_id: str) -> Finding:
     if finding is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return finding
+
+
+def _archive_snapshot(finding: Finding) -> dict:
+    return audit_snapshot(
+        {
+            "archived": finding.archived_at is not None,
+            "archive_reason": finding.archive_reason,
+            "status": finding.status,
+            "presence_status": finding.presence_status,
+        }
+    )
+
+
+def _label(finding: Finding) -> str:
+    return f"{finding.title} · {finding.resource_name or finding.resource_id}"
 
 
 def _history(
@@ -50,12 +66,10 @@ def _history(
 
 
 def archive(db: Session, opportunity_id: str, actor: User) -> Finding:
-    """Archive an opportunity without changing human or technical lifecycle state."""
-
     finding = _locked(db, opportunity_id)
     if finding.archived_at is not None:
         return finding
-
+    before = _archive_snapshot(finding)
     archived_at = utcnow()
     finding.archived_at = archived_at
     finding.archived_by = actor.id
@@ -66,12 +80,21 @@ def archive(db: Session, opportunity_id: str, actor: User) -> Finding:
         action=OpportunityArchiveAction.ARCHIVE,
         reason=OpportunityArchiveReason.MANUAL,
         changed_by=actor.id,
-        context={
-            "status": finding.status,
-            "presence_status": finding.presence_status,
-        },
+        context={"status": finding.status, "presence_status": finding.presence_status},
     )
     refresh_summaries_for_findings(db, [finding])
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action="opportunity.archive",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_label(finding),
+        before=before,
+        after=_archive_snapshot(finding),
+        source="API",
+    )
     return finding
 
 
@@ -84,10 +107,9 @@ def archive_retention_locked(
     threshold_days: int,
     reference_timestamp: datetime,
 ) -> bool:
-    """Archive an already locked finding as a SYSTEM retention action."""
-
     if finding.archived_at is not None:
         return False
+    before = _archive_snapshot(finding)
     finding.archived_at = archived_at
     finding.archived_by = None
     finding.archive_reason = OpportunityArchiveReason.RETENTION_POLICY.value
@@ -106,16 +128,31 @@ def archive_retention_locked(
             "presence_status": finding.presence_status,
         },
     )
+    AuditService.record(
+        db,
+        actor=None,
+        module="opportunities",
+        action="opportunity.archive",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_label(finding),
+        before=before,
+        after=_archive_snapshot(finding),
+        source="SYSTEM",
+        metadata={
+            "policy": policy,
+            "threshold_days": threshold_days,
+            "reference_timestamp": reference_timestamp.isoformat(),
+        },
+    )
     return True
 
 
 def unarchive(db: Session, opportunity_id: str, actor: User) -> Finding:
-    """Restore an archived opportunity to operational views without lifecycle mutation."""
-
     finding = _locked(db, opportunity_id)
     if finding.archived_at is None:
         return finding
-
+    before = _archive_snapshot(finding)
     previous = {
         "archived_at": finding.archived_at.isoformat(),
         "archived_by": finding.archived_by,
@@ -135,15 +172,25 @@ def unarchive(db: Session, opportunity_id: str, actor: User) -> Finding:
         context=previous,
     )
     refresh_summaries_for_findings(db, [finding])
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action="opportunity.unarchive",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_label(finding),
+        before=before,
+        after=_archive_snapshot(finding),
+        source="API",
+    )
     return finding
 
 
 def unarchive_reappeared(db: Session, finding: Finding, run: CollectionRun) -> bool:
-    """Automatically surface an archived finding when a valid new observation reappears."""
-
     if finding.archived_at is None:
         return False
-
+    before = _archive_snapshot(finding)
     previous = {
         "archived_at": finding.archived_at.isoformat(),
         "archived_by": finding.archived_by,
@@ -163,5 +210,18 @@ def unarchive_reappeared(db: Session, finding: Finding, run: CollectionRun) -> b
         reason=OpportunityArchiveReason.REAPPEARED,
         collection_run_id=run.id,
         context=previous,
+    )
+    AuditService.record(
+        db,
+        actor=None,
+        module="opportunities",
+        action="opportunity.unarchive",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_label(finding),
+        before=before,
+        after=_archive_snapshot(finding),
+        source="SYSTEM",
+        metadata={"collection_run_id": run.id, "reason": "REAPPEARED"},
     )
     return True
