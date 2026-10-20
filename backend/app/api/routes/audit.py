@@ -97,7 +97,9 @@ def _admin_filters(
     if correlation_id:
         filters.append(AuditEvent.correlation_id == correlation_id)
     if legacy_user_id:
-        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id])
+        filters.extend(
+            [AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id]
+        )
     if from_:
         filters.append(AuditEvent.created_at >= from_)
     if to:
@@ -141,7 +143,9 @@ def _security_filters(
     if subject_user_id:
         filters.append(SecurityEvent.user_id == subject_user_id)
     if subject_user_search and subject_user_search.strip():
-        filters.append(SecurityEvent.user_id.in_(_matching_user_ids(subject_user_search.strip())))
+        filters.append(
+            SecurityEvent.user_id.in_(_matching_user_ids(subject_user_search.strip()))
+        )
     if entity_type and entity_type != "user":
         possible = False
     if entity_id:
@@ -289,7 +293,10 @@ def list_audit(
             from_=from_,
             to=to,
         )
-        total += db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters)) or 0
+        total += (
+            db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters))
+            or 0
+        )
         admin_rows = db.scalars(
             select(AuditEvent)
             .where(*admin_filters)
@@ -334,7 +341,10 @@ def list_audit(
                 for item, actor_user, subject_user in security_rows
             )
 
-    rows.sort(key=lambda item: (_timestamp(item["created_at"]), item["id"]), reverse=True)
+    rows.sort(
+        key=lambda item: (_timestamp(item["created_at"]), item["id"]),
+        reverse=True,
+    )
     return {
         "items": rows[offset : offset + limit],
         "total": total,
