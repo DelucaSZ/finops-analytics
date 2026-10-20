@@ -149,7 +149,11 @@ def create_billing_profile(
     actor: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        profile = BillingProfileService(db).create(payload, actor_user_id=actor.id, commit=False)
+        profile = BillingProfileService(db).create(
+            payload,
+            actor_user_id=actor.id,
+            commit=False,
+        )
         _record_profile(
             db,
             actor=actor,
@@ -224,8 +228,12 @@ def set_default_billing_profile(
                 before=before,
                 after=after,
                 metadata={
-                    "previous_default_profile_id": previous_default.id if previous_default else None,
-                    "previous_default_profile_name": previous_default.name if previous_default else None,
+                    "previous_default_profile_id": (
+                        previous_default.id if previous_default else None
+                    ),
+                    "previous_default_profile_name": (
+                        previous_default.name if previous_default else None
+                    ),
                 },
             )
         db.commit()
