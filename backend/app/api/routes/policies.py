@@ -5,7 +5,9 @@ from app.core.cloud import CloudProvider
 from app.core.security import require_admin, require_user
 from app.db.session import get_db
 from app.models.account import AwsAccount
+from app.models.user import User
 from app.schemas.policy import PolicyRead, PolicyUpdate
+from app.services.audit import AuditService, audit_snapshot
 from app.services.policies import (
     RULES,
     get_effective_policy,
@@ -40,16 +42,62 @@ def _validate_account(db: Session, account_id: int) -> None:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
 
 
+def _policy_snapshot(value: dict) -> dict:
+    return audit_snapshot(
+        {
+            "enabled": value.get("enabled"),
+            "config": value.get("config") or {},
+            "inherited": value.get("inherited"),
+            "override_fields": value.get("override_fields") or [],
+        }
+    )
+
+
+def _record_policy_change(
+    db: Session,
+    *,
+    actor: User,
+    rule_key: str,
+    account_id: int | None,
+    before: dict,
+    after: dict,
+    action: str = "policy.update",
+) -> None:
+    old = _policy_snapshot(before)
+    new = _policy_snapshot(after)
+    if old == new and action == "policy.update":
+        return
+    definition = RULES[rule_key]
+    scope = "global" if account_id is None else f"account:{account_id}"
+    AuditService.record(
+        db,
+        actor=actor,
+        module="policies",
+        action=action,
+        entity_type="policy",
+        entity_id=f"{scope}:{rule_key}",
+        entity_label=definition.name,
+        before=old,
+        after=new,
+        source="API",
+        metadata={"rule_key": rule_key, "scope": scope},
+    )
+
+
 @router.get("/global", response_model=list[PolicyRead])
 def global_policies(db: Session = Depends(get_db)) -> list[dict]:
     return list_effective_policies(db)
 
 
-@router.put("/global/{rule_key}", response_model=PolicyRead, dependencies=[Depends(require_admin)])
+@router.put("/global/{rule_key}", response_model=PolicyRead)
 def update_global_policy(
-    rule_key: str, payload: PolicyUpdate, db: Session = Depends(get_db)
+    rule_key: str,
+    payload: PolicyUpdate,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
 ) -> dict:
     _validate_rule(rule_key)
+    before = get_effective_policy(db, rule_key)
     upsert_policy(
         db,
         rule_key=rule_key,
@@ -58,19 +106,34 @@ def update_global_policy(
         enabled=payload.enabled,
         config=payload.config,
     )
+    after = get_effective_policy(db, rule_key)
+    _record_policy_change(db, actor=actor, rule_key=rule_key, account_id=None, before=before, after=after)
+    db.commit()
     return get_effective_policy(db, rule_key)
 
 
-@router.delete(
-    "/global/{rule_key}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin)],
-)
-def reset_global_policy(rule_key: str, db: Session = Depends(get_db)) -> None:
+@router.delete("/global/{rule_key}", status_code=status.HTTP_204_NO_CONTENT)
+def reset_global_policy(
+    rule_key: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+) -> None:
     _validate_rule(rule_key)
     row = get_policy_row(db, rule_key, "global")
     if row:
+        before = get_effective_policy(db, rule_key)
         db.delete(row)
+        db.flush()
+        after = get_effective_policy(db, rule_key)
+        _record_policy_change(
+            db,
+            actor=actor,
+            rule_key=rule_key,
+            account_id=None,
+            before=before,
+            after=after,
+            action="policy.reset",
+        )
         db.commit()
 
 
@@ -80,19 +143,17 @@ def account_policies(account_id: int, db: Session = Depends(get_db)) -> list[dic
     return list_effective_policies(db, account_id)
 
 
-@router.put(
-    "/accounts/{account_id}/{rule_key}",
-    response_model=PolicyRead,
-    dependencies=[Depends(require_admin)],
-)
+@router.put("/accounts/{account_id}/{rule_key}", response_model=PolicyRead)
 def update_account_policy(
     account_id: int,
     rule_key: str,
     payload: PolicyUpdate,
     db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
 ) -> dict:
     _validate_rule(rule_key)
     _validate_account(db, account_id)
+    before = get_effective_policy(db, rule_key, account_id)
     upsert_policy(
         db,
         rule_key=rule_key,
@@ -101,18 +162,41 @@ def update_account_policy(
         enabled=payload.enabled,
         config=payload.config,
     )
+    after = get_effective_policy(db, rule_key, account_id)
+    _record_policy_change(
+        db,
+        actor=actor,
+        rule_key=rule_key,
+        account_id=account_id,
+        before=before,
+        after=after,
+    )
+    db.commit()
     return get_effective_policy(db, rule_key, account_id)
 
 
-@router.delete(
-    "/accounts/{account_id}/{rule_key}",
-    status_code=status.HTTP_204_NO_CONTENT,
-    dependencies=[Depends(require_admin)],
-)
-def reset_account_policy(account_id: int, rule_key: str, db: Session = Depends(get_db)) -> None:
+@router.delete("/accounts/{account_id}/{rule_key}", status_code=status.HTTP_204_NO_CONTENT)
+def reset_account_policy(
+    account_id: int,
+    rule_key: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+) -> None:
     _validate_rule(rule_key)
     _validate_account(db, account_id)
     row = get_policy_row(db, rule_key, "account", account_id)
     if row:
+        before = get_effective_policy(db, rule_key, account_id)
         db.delete(row)
+        db.flush()
+        after = get_effective_policy(db, rule_key, account_id)
+        _record_policy_change(
+            db,
+            actor=actor,
+            rule_key=rule_key,
+            account_id=account_id,
+            before=before,
+            after=after,
+            action="policy.reset",
+        )
         db.commit()
