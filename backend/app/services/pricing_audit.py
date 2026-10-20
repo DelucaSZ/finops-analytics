@@ -14,6 +14,7 @@ from app.models.pricing_audit import (
     PricingAuditEvent,
 )
 from app.models.user import User
+from app.services.audit import AuditService
 from app.services.pricing_admin import (
     PricingAdminValidationError,
     PricingCatalogAdminService,
@@ -71,6 +72,16 @@ def normalize_reason(reason: str | None, *, required: bool) -> str | None:
     return cleaned
 
 
+def _generic_action(action: str) -> str:
+    if action == PricingAuditAction.CREATED:
+        return "pricing.create"
+    if action == PricingAuditAction.DEACTIVATED:
+        return "pricing.deactivate"
+    if action == PricingAuditAction.IMPORTED:
+        return "pricing.import"
+    return "pricing.update"
+
+
 class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
     """Pricing administration plus immutable audit rows in the caller's transaction."""
 
@@ -103,6 +114,26 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             after_data=after_data,
         )
         self.db.add(event)
+        AuditService.record(
+            self.db,
+            actor=actor,
+            module="pricing",
+            action=_generic_action(action),
+            entity_type="pricing_item",
+            entity_id=item.id,
+            entity_label=f"{item.provider.upper()} · {item.service} · {item.sku}",
+            before=before_data,
+            after=after_data,
+            source="API" if actor is not None else "SYSTEM",
+            metadata={
+                "provider": item.provider,
+                "service": item.service,
+                "sku": item.sku,
+                "unit": item.unit,
+                "reason": reason,
+                "pricing_audit_action": action,
+            },
+        )
         return event
 
     def create_item_audited(
@@ -135,8 +166,6 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
         effective_from: datetime | None = None,
         source: str = "MANUAL",
     ) -> PricingCatalogItem:
-        # Lock before taking the snapshot so concurrent administrators cannot produce
-        # an audit event whose before image is already stale.
         selected = self.get_item(item_id, lock=True)
         before = pricing_snapshot(selected)
         financial_change = price is not None or effective_from is not None

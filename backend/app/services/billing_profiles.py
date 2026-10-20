@@ -133,7 +133,31 @@ class BillingProfileService:
         statement = select(BillingProfile).order_by(BillingProfile.id).with_for_update()
         return list(self._db.scalars(statement))
 
-    def create(self, payload: BillingProfileCreate, *, actor_user_id: str) -> BillingProfile:
+    def _flush_mutation(
+        self,
+        profile: BillingProfile,
+        *,
+        commit: bool,
+        conflict_code: str,
+        message: str,
+    ) -> BillingProfile:
+        try:
+            self._db.flush()
+            if commit:
+                self._db.commit()
+        except IntegrityError as exc:
+            self._db.rollback()
+            raise BillingProfileError(conflict_code, message) from exc
+        self._db.refresh(profile)
+        return profile
+
+    def create(
+        self,
+        payload: BillingProfileCreate,
+        *,
+        actor_user_id: str,
+        commit: bool = True,
+    ) -> BillingProfile:
         self._ensure_unique_name(payload.name)
         if payload.is_default:
             profiles = self._lock_profiles()
@@ -153,21 +177,19 @@ class BillingProfileService:
             created_by=actor_user_id,
         )
         self._db.add(profile)
-        try:
-            self._db.commit()
-        except IntegrityError as exc:
-            self._db.rollback()
-            raise BillingProfileError(
-                "PROFILE_CONFLICT",
-                "Não foi possível criar o perfil por conflito com outra alteração.",
-            ) from exc
-        self._db.refresh(profile)
-        return profile
+        return self._flush_mutation(
+            profile,
+            commit=commit,
+            conflict_code="PROFILE_CONFLICT",
+            message="Não foi possível criar o perfil por conflito com outra alteração.",
+        )
 
     def update(
         self,
         profile_id: str,
         payload: BillingProfileUpdate,
+        *,
+        commit: bool = True,
     ) -> BillingProfile:
         profile = self.get(profile_id)
         fields = payload.model_fields_set
@@ -196,18 +218,14 @@ class BillingProfileService:
                 )
             profile.exclude_record_types = list(payload.exclude_record_types)
 
-        try:
-            self._db.commit()
-        except IntegrityError as exc:
-            self._db.rollback()
-            raise BillingProfileError(
-                "PROFILE_CONFLICT",
-                "Não foi possível atualizar o perfil por conflito com outra alteração.",
-            ) from exc
-        self._db.refresh(profile)
-        return profile
+        return self._flush_mutation(
+            profile,
+            commit=commit,
+            conflict_code="PROFILE_CONFLICT",
+            message="Não foi possível atualizar o perfil por conflito com outra alteração.",
+        )
 
-    def set_default(self, profile_id: str) -> BillingProfile:
+    def set_default(self, profile_id: str, *, commit: bool = True) -> BillingProfile:
         profiles = self._lock_profiles()
         target = next((profile for profile in profiles if profile.id == profile_id), None)
         if target is None:
@@ -218,18 +236,14 @@ class BillingProfileService:
             )
         for profile in profiles:
             profile.is_default = profile.id == target.id
-        try:
-            self._db.commit()
-        except IntegrityError as exc:
-            self._db.rollback()
-            raise BillingProfileError(
-                "DEFAULT_CONFLICT",
-                "Outro perfil foi definido como padrão simultaneamente. Tente novamente.",
-            ) from exc
-        self._db.refresh(target)
-        return target
+        return self._flush_mutation(
+            target,
+            commit=commit,
+            conflict_code="DEFAULT_CONFLICT",
+            message="Outro perfil foi definido como padrão simultaneamente. Tente novamente.",
+        )
 
-    def deactivate(self, profile_id: str) -> BillingProfile:
+    def deactivate(self, profile_id: str, *, commit: bool = True) -> BillingProfile:
         profile = self.get(profile_id)
         if profile.is_default:
             raise BillingProfileError(
@@ -243,8 +257,12 @@ class BillingProfileService:
             )
         if profile.enabled:
             profile.enabled = False
-            self._db.commit()
-            self._db.refresh(profile)
+            self._flush_mutation(
+                profile,
+                commit=commit,
+                conflict_code="PROFILE_CONFLICT",
+                message="Não foi possível desativar o perfil por conflito com outra alteração.",
+            )
         return profile
 
     def _default_profile(self) -> BillingProfile | None:

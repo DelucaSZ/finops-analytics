@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -6,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.security import require_operator, require_user
 from app.db.session import get_db
 from app.models.collection_run import CollectionRun
-from app.models.finding import OpportunityPresenceStatus
+from app.models.finding import Finding, OpportunityPresenceStatus
 from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
 from app.schemas.opportunity import (
@@ -27,6 +28,7 @@ from app.schemas.opportunity import (
     StatusHistoryPage,
 )
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
+from app.services.audit import AuditService, audit_snapshot, new_correlation_id
 from app.services.opportunity_archiving import archive, unarchive
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 from app.services.opportunity_presence_history import presence_history
@@ -46,6 +48,8 @@ router = APIRouter(
     tags=["opportunities"],
     dependencies=[Depends(require_user)],
 )
+
+_BULK_SAMPLE_LIMIT = 20
 
 
 def _ensure_collection_history_available(
@@ -105,6 +109,56 @@ def _filters(
         archived_to=archived_to,
         archive_reason=archive_reason,
     )
+
+
+def _opportunity_snapshot(finding: Finding) -> dict:
+    return audit_snapshot(
+        {
+            "status": finding.status,
+            "presence_status": finding.presence_status,
+            "needs_review": finding.needs_review,
+            "rejection_reason": finding.rejection_reason,
+            "archived": finding.archived_at is not None,
+            "archive_reason": finding.archive_reason,
+        }
+    )
+
+
+def _opportunity_label(finding: Finding) -> str:
+    subject = finding.title or finding.rule_key
+    resource = finding.resource_name or finding.resource_id
+    return f"{subject} · {resource}"
+
+
+def _record_opportunity(
+    db: Session,
+    *,
+    actor: User,
+    finding: Finding,
+    action: str,
+    before: dict,
+    metadata: dict | None = None,
+) -> None:
+    after = _opportunity_snapshot(finding)
+    if before == after and action in {"opportunity.archive", "opportunity.unarchive"}:
+        return
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action=action,
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_opportunity_label(finding),
+        before=before,
+        after=after,
+        source="API",
+        metadata=metadata,
+    )
+
+
+def _status_counts(snapshots: list[dict]) -> dict[str, int]:
+    return dict(sorted(Counter(str(item.get("status") or "unknown") for item in snapshots).items()))
 
 
 @router.get("", response_model=OpportunityPage)
@@ -248,6 +302,10 @@ def _run_bulk(
     action: str,
     reason: str | None = None,
 ) -> dict:
+    ids = list(dict.fromkeys(payload.opportunity_ids))
+    before_items = [db.get(Finding, opportunity_id) for opportunity_id in ids]
+    before_snapshots = [_opportunity_snapshot(item) for item in before_items if item is not None]
+    correlation_id = new_correlation_id()
     try:
         findings = bulk_transition(
             db,
@@ -256,6 +314,29 @@ def _run_bulk(
             action=action,
             reason=reason,
             note=payload.note,
+        )
+        after_snapshots = [_opportunity_snapshot(finding) for finding in findings]
+        sample_ids = [finding.id for finding in findings[:_BULK_SAMPLE_LIMIT]]
+        AuditService.record(
+            db,
+            actor=actor,
+            module="opportunities",
+            action=f"opportunity.bulk_{action}",
+            entity_type="opportunity_batch",
+            entity_id=correlation_id,
+            entity_label=f"{len(findings)} oportunidades",
+            before={"status_counts": _status_counts(before_snapshots)},
+            after={"status_counts": _status_counts(after_snapshots)},
+            source="API",
+            metadata={
+                "requested": len(ids),
+                "updated": len(findings),
+                "sample_ids": sample_ids,
+                "ids_truncated": len(findings) > _BULK_SAMPLE_LIMIT,
+                "reason": reason,
+                "note_present": bool((payload.note or "").strip()),
+            },
+            correlation_id=correlation_id,
         )
         db.commit()
     except Exception:
@@ -373,7 +454,14 @@ def archive_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    archive(db, opportunity_id, actor)
+    current = db.get(Finding, opportunity_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    before = _opportunity_snapshot(current)
+    finding = archive(db, opportunity_id, actor)
+    _record_opportunity(
+        db, actor=actor, finding=finding, action="opportunity.archive", before=before
+    )
     db.commit()
     item = get_opportunity(db, opportunity_id)
     if item is None:
@@ -391,7 +479,14 @@ def unarchive_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    unarchive(db, opportunity_id, actor)
+    current = db.get(Finding, opportunity_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    before = _opportunity_snapshot(current)
+    finding = unarchive(db, opportunity_id, actor)
+    _record_opportunity(
+        db, actor=actor, finding=finding, action="opportunity.unarchive", before=before
+    )
     db.commit()
     item = get_opportunity(db, opportunity_id)
     if item is None:
@@ -410,7 +505,19 @@ def treat_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    treat(db, opportunity_id, actor, payload.note)
+    current = db.get(Finding, opportunity_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    before = _opportunity_snapshot(current)
+    finding = treat(db, opportunity_id, actor, payload.note)
+    _record_opportunity(
+        db,
+        actor=actor,
+        finding=finding,
+        action="opportunity.treat",
+        before=before,
+        metadata={"note_present": bool((payload.note or "").strip())},
+    )
     db.commit()
     item = get_opportunity(db, opportunity_id)
     if item is None:
@@ -429,7 +536,22 @@ def reject_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    reject(db, opportunity_id, actor, payload.reason, payload.note)
+    current = db.get(Finding, opportunity_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    before = _opportunity_snapshot(current)
+    finding = reject(db, opportunity_id, actor, payload.reason, payload.note)
+    _record_opportunity(
+        db,
+        actor=actor,
+        finding=finding,
+        action="opportunity.reject",
+        before=before,
+        metadata={
+            "reason": payload.reason,
+            "note_present": bool((payload.note or "").strip()),
+        },
+    )
     db.commit()
     item = get_opportunity(db, opportunity_id)
     if item is None:
@@ -448,7 +570,19 @@ def reopen_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    reopen(db, opportunity_id, actor, payload.note)
+    current = db.get(Finding, opportunity_id)
+    if current is None:
+        raise HTTPException(status_code=404, detail="Opportunity not found")
+    before = _opportunity_snapshot(current)
+    finding = reopen(db, opportunity_id, actor, payload.note)
+    _record_opportunity(
+        db,
+        actor=actor,
+        finding=finding,
+        action="opportunity.reopen",
+        before=before,
+        metadata={"note_present": bool((payload.note or "").strip())},
+    )
     db.commit()
     item = get_opportunity(db, opportunity_id)
     if item is None:

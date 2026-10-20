@@ -222,6 +222,7 @@ def upsert_policy(
     account_id: int | None,
     enabled: bool | None,
     config: dict,
+    commit: bool = True,
 ) -> Policy:
     if rule_key not in RULES:
         raise KeyError(rule_key)
@@ -238,7 +239,9 @@ def upsert_policy(
     else:
         policy.enabled = enabled
         policy.config = config
-    db.commit()
+    db.flush()
+    if commit:
+        db.commit()
     db.refresh(policy)
     return policy
 

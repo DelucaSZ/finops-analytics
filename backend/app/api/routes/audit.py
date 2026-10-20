@@ -3,8 +3,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.core.security import require_admin
@@ -12,12 +12,14 @@ from app.db.session import get_db
 from app.models.audit_event import AuditEvent
 from app.models.mfa import SecurityEvent
 from app.models.user import User
-from app.schemas.audit import AuditPage
+from app.schemas.audit import AuditOptionsRead, AuditPage, AuditUserLookupRead
+from app.services.audit_catalog import audit_catalog
 
 router = APIRouter(prefix="/audit", tags=["audit"], dependencies=[Depends(require_admin)])
 
-EventType = Literal["security", "administrative", "all"]
+EventKind = Literal["security", "administrative", "all"]
 SecurityCategory = Literal["auth", "user", "mfa"]
+AuditSource = Literal["UI", "API", "SYSTEM"]
 
 
 def _timestamp(value: datetime) -> float:
@@ -26,8 +28,25 @@ def _timestamp(value: datetime) -> float:
     return value.timestamp()
 
 
+def _require_aware(value: datetime | None, field: str) -> datetime | None:
+    if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+        raise HTTPException(status_code=422, detail=f"{field} must include a timezone offset")
+    return value
+
+
 def _security_module(action: str) -> str:
-    return action.split(".", 1)[0] if "." in action else "security"
+    prefix = action.split(".", 1)[0] if "." in action else "security"
+    return "users" if prefix == "user" else "security"
+
+
+def _user_search_ids(term: str):
+    normalized = term.strip()
+    return select(User.id).where(
+        or_(
+            User.name.icontains(normalized, autoescape=True),
+            User.email.icontains(normalized, autoescape=True),
+        )
+    )
 
 
 def _admin_filters(
@@ -35,8 +54,13 @@ def _admin_filters(
     module: str | None,
     action: str | None,
     actor_id: str | None,
+    actor_search: str | None,
+    subject_user_id: str | None,
+    subject_user_search: str | None,
     entity_type: str | None,
     entity_id: str | None,
+    source: str | None,
+    correlation_id: str | None,
     legacy_user_id: str | None,
     from_: datetime | None,
     to: datetime | None,
@@ -48,17 +72,38 @@ def _admin_filters(
         filters.append(AuditEvent.action == action)
     if actor_id:
         filters.append(AuditEvent.actor_id == actor_id)
+    if actor_search and actor_search.strip():
+        term = actor_search.strip()
+        filters.append(
+            or_(
+                AuditEvent.actor_name_snapshot.icontains(term, autoescape=True),
+                AuditEvent.actor_email_snapshot.icontains(term, autoescape=True),
+                AuditEvent.actor_id.in_(_user_search_ids(term)),
+            )
+        )
+    if subject_user_id:
+        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == subject_user_id])
+    if subject_user_search and subject_user_search.strip():
+        term = subject_user_search.strip()
+        filters.extend(
+            [
+                AuditEvent.entity_type == "user",
+                or_(
+                    AuditEvent.entity_label.icontains(term, autoescape=True),
+                    AuditEvent.entity_id.in_(_user_search_ids(term)),
+                ),
+            ]
+        )
     if entity_type:
         filters.append(AuditEvent.entity_type == entity_type)
     if entity_id:
         filters.append(AuditEvent.entity_id == entity_id)
+    if source:
+        filters.append(AuditEvent.source == source)
+    if correlation_id:
+        filters.append(AuditEvent.correlation_id == correlation_id)
     if legacy_user_id:
-        filters.extend(
-            [
-                AuditEvent.entity_type == "user",
-                AuditEvent.entity_id == legacy_user_id,
-            ]
-        )
+        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id])
     if from_:
         filters.append(AuditEvent.created_at >= from_)
     if to:
@@ -72,32 +117,53 @@ def _security_filters(
     module: str | None,
     action: str | None,
     actor_id: str | None,
+    actor_search: str | None,
+    subject_user_id: str | None,
+    subject_user_search: str | None,
     entity_type: str | None,
     entity_id: str | None,
+    source: str | None,
+    correlation_id: str | None,
     legacy_user_id: str | None,
     from_: datetime | None,
     to: datetime | None,
 ) -> tuple[list, bool]:
     filters = []
     possible = True
-
-    prefix = category or module
-    if prefix:
-        if prefix == "security":
-            pass
-        elif prefix in {"auth", "user", "mfa"}:
-            filters.append(SecurityEvent.action.like(prefix + ".%"))
+    if category:
+        filters.append(SecurityEvent.action.like(category + ".%"))
+    elif module:
+        if module == "security":
+            filters.append(
+                or_(
+                    SecurityEvent.action.like("auth.%"),
+                    SecurityEvent.action.like("mfa.%"),
+                )
+            )
+        elif module == "users":
+            filters.append(SecurityEvent.action.like("user.%"))
+        elif module in {"auth", "user", "mfa"}:
+            filters.append(SecurityEvent.action.like(module + ".%"))
         else:
             possible = False
-
     if action:
         filters.append(SecurityEvent.action == action)
     if actor_id:
         filters.append(SecurityEvent.actor_id == actor_id)
+    if actor_search and actor_search.strip():
+        filters.append(SecurityEvent.actor_id.in_(_user_search_ids(actor_search.strip())))
+    if subject_user_id:
+        filters.append(SecurityEvent.user_id == subject_user_id)
+    if subject_user_search and subject_user_search.strip():
+        filters.append(SecurityEvent.user_id.in_(_user_search_ids(subject_user_search.strip())))
     if entity_type and entity_type != "user":
         possible = False
     if entity_id:
         filters.append(SecurityEvent.user_id == entity_id)
+    if source and source != "API":
+        possible = False
+    if correlation_id:
+        possible = False
     if legacy_user_id:
         filters.append(SecurityEvent.user_id == legacy_user_id)
     if from_:
@@ -129,6 +195,8 @@ def _admin_item(item: AuditEvent) -> dict:
         "reason": None,
         "changes": item.changes or {},
         "metadata": item.metadata_json or {},
+        "before": item.before_data,
+        "after": item.after_data,
         "correlation_id": item.correlation_id,
         "actor_id": item.actor_id,
         "actor_name": item.actor_name_snapshot,
@@ -139,11 +207,7 @@ def _admin_item(item: AuditEvent) -> dict:
     }
 
 
-def _security_item(
-    item: SecurityEvent,
-    actor: User | None,
-    subject: User | None,
-) -> dict:
+def _security_item(item: SecurityEvent, actor: User | None, subject: User | None) -> dict:
     actor_name = actor.name if actor else None
     actor_email = actor.email if actor else None
     user_name = subject.name if subject else None
@@ -153,22 +217,16 @@ def _security_item(
         "id": item.id,
         "event_kind": "security",
         "created_at": item.created_at,
-        "actor": {
-            "id": item.actor_id,
-            "name": actor_name,
-            "email": actor_email,
-        },
+        "actor": {"id": item.actor_id, "name": actor_name, "email": actor_email},
         "module": _security_module(item.action),
         "action": item.action,
-        "entity": {
-            "type": "user",
-            "id": item.user_id,
-            "label": label,
-        },
+        "entity": {"type": "user", "id": item.user_id, "label": label},
         "source": "API",
         "reason": item.reason or "",
         "changes": {},
         "metadata": {},
+        "before": None,
+        "after": None,
         "correlation_id": None,
         "actor_id": item.actor_id,
         "actor_name": actor_name,
@@ -179,42 +237,87 @@ def _security_item(
     }
 
 
+@router.get("/users", response_model=list[AuditUserLookupRead])
+def search_audit_users(
+    q: str = Query(min_length=1, max_length=254),
+    limit: int = Query(default=20, ge=1, le=20),
+    db: Session = Depends(get_db),
+) -> list[dict]:
+    term = q.strip()
+    if not term:
+        return []
+    users = db.scalars(
+        select(User)
+        .where(
+            or_(
+                User.name.icontains(term, autoescape=True),
+                User.email.icontains(term, autoescape=True),
+            )
+        )
+        .order_by(func.lower(User.name), func.lower(User.email), User.id)
+        .limit(limit)
+    )
+    return [{"id": user.id, "name": user.name, "email": user.email} for user in users]
+
+
+@router.get("/options", response_model=AuditOptionsRead)
+def audit_options() -> dict:
+    return audit_catalog()
+
+
 @router.get("", response_model=AuditPage)
 def list_audit(
-    event_type: EventType = "all",
+    event_kind: EventKind | None = Query(default=None),
+    event_type: EventKind | None = Query(default=None),
     category: SecurityCategory | None = None,
     user_id: str | None = Query(default=None, max_length=36),
     module: str | None = Query(default=None, max_length=80),
     action: str | None = Query(default=None, max_length=120),
     actor_id: str | None = Query(default=None, max_length=36),
+    actor_search: str | None = Query(default=None, max_length=254),
+    subject_user_id: str | None = Query(default=None, max_length=36),
+    subject_user_search: str | None = Query(default=None, max_length=254),
     entity_type: str | None = Query(default=None, max_length=120),
     entity_id: str | None = Query(default=None, max_length=255),
+    source: AuditSource | None = None,
+    correlation_id: str | None = Query(default=None, max_length=36),
     from_: datetime | None = Query(default=None, alias="from"),
     to: datetime | None = Query(default=None),
     limit: int = Query(default=50, ge=1, le=200),
     offset: int = Query(default=0, ge=0),
     db: Session = Depends(get_db),
 ) -> dict:
-    include_security = event_type in {"security", "all"}
-    include_admin = event_type in {"administrative", "all"}
+    if event_kind is not None and event_type is not None and event_kind != event_type:
+        raise HTTPException(
+            status_code=422,
+            detail="event_kind and legacy event_type cannot disagree",
+        )
+    selected_kind: EventKind = event_kind or event_type or "all"
+    from_ = _require_aware(from_, "from")
+    to = _require_aware(to, "to")
+    if from_ is not None and to is not None and from_ > to:
+        raise HTTPException(status_code=422, detail="from must be less than or equal to to")
 
-    # `category` is a compatibility filter for the legacy SecurityEvent endpoint.
-    # Supplying it narrows the request to that legacy stream rather than leaking
-    # unrelated administrative rows into old clients.
+    include_security = selected_kind in {"security", "all"}
+    include_admin = selected_kind in {"administrative", "all"}
     if category is not None:
         include_admin = False
 
     fetch_limit = offset + limit
     rows: list[dict] = []
     total = 0
-
     if include_admin:
         admin_filters = _admin_filters(
             module=module,
             action=action,
             actor_id=actor_id,
+            actor_search=actor_search,
+            subject_user_id=subject_user_id,
+            subject_user_search=subject_user_search,
             entity_type=entity_type,
             entity_id=entity_id,
+            source=source,
+            correlation_id=correlation_id,
             legacy_user_id=user_id,
             from_=from_,
             to=to,
@@ -234,8 +337,13 @@ def list_audit(
             module=module,
             action=action,
             actor_id=actor_id,
+            actor_search=actor_search,
+            subject_user_id=subject_user_id,
+            subject_user_search=subject_user_search,
             entity_type=entity_type,
             entity_id=entity_id,
+            source=source,
+            correlation_id=correlation_id,
             legacy_user_id=user_id,
             from_=from_,
             to=to,

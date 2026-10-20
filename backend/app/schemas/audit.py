@@ -28,6 +28,8 @@ class AuditEventRead(BaseModel):
     reason: str | None = None
     changes: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
+    before: dict[str, Any] | None = None
+    after: dict[str, Any] | None = None
     correlation_id: str | None = None
 
     # Compatibility fields retained for clients of the pre-24.2 SecurityEvent
@@ -45,3 +47,20 @@ class AuditPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class AuditUserLookupRead(BaseModel):
+    id: str
+    name: str
+    email: str
+
+
+class AuditOptionRead(BaseModel):
+    value: str
+    label: str
+    module: str | None = None
+
+
+class AuditOptionsRead(BaseModel):
+    modules: list[AuditOptionRead]
+    actions: list[AuditOptionRead]
