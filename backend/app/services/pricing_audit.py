@@ -14,6 +14,7 @@ from app.models.pricing_audit import (
     PricingAuditEvent,
 )
 from app.models.user import User
+from app.services.audit import AuditService
 from app.services.pricing_admin import (
     PricingAdminValidationError,
     PricingCatalogAdminService,
@@ -84,9 +85,7 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
         before_data: dict[str, Any] | None,
         after_data: dict[str, Any] | None,
     ) -> PricingAuditEvent:
-        actor_type = (
-            PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM
-        )
+        actor_type = PricingAuditActorType.USER if actor is not None else PricingAuditActorType.SYSTEM
         event = PricingAuditEvent(
             pricing_item_id=item.id,
             provider=item.provider,
@@ -103,6 +102,27 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             after_data=after_data,
         )
         self.db.add(event)
+
+        generic_action = {
+            PricingAuditAction.CREATED: "pricing.create",
+            PricingAuditAction.PRICE_CHANGED: "pricing.update",
+            PricingAuditAction.METADATA_CHANGED: "pricing.update",
+            PricingAuditAction.FUTURE_VERSION_CREATED: "pricing.override",
+            PricingAuditAction.DEACTIVATED: "pricing.deactivate",
+        }.get(action, "pricing.update")
+        AuditService.record(
+            self.db,
+            actor=actor,
+            module="pricing",
+            action=generic_action,
+            entity_type="pricing_item",
+            entity_id=item.id,
+            entity_label=f"OCI · {item.service} · {item.sku} · {item.unit}",
+            before=before_data,
+            after=after_data,
+            source="SYSTEM" if actor is None else "API",
+            metadata={"reason": reason} if reason else None,
+        )
         return event
 
     def create_item_audited(
@@ -135,8 +155,6 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
         effective_from: datetime | None = None,
         source: str = "MANUAL",
     ) -> PricingCatalogItem:
-        # Lock before taking the snapshot so concurrent administrators cannot produce
-        # an audit event whose before image is already stale.
         selected = self.get_item(item_id, lock=True)
         before = pricing_snapshot(selected)
         financial_change = price is not None or effective_from is not None
@@ -213,10 +231,9 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             PricingAuditEvent.sku == item.sku,
             PricingAuditEvent.unit == item.unit,
         )
-        total = (
-            self.db.scalar(select(func.count()).select_from(PricingAuditEvent).where(*key_filter))
-            or 0
-        )
+        total = self.db.scalar(
+            select(func.count()).select_from(PricingAuditEvent).where(*key_filter)
+        ) or 0
         events = list(
             self.db.scalars(
                 select(PricingAuditEvent)
