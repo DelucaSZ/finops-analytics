@@ -61,7 +61,9 @@ def ensure_finops_profile(db: Session) -> BillingProfile:
     if existing is not None:
         return existing
 
-    has_default = db.scalar(select(BillingProfile.id).where(BillingProfile.is_default.is_(True)))
+    has_default = db.scalar(
+        select(BillingProfile.id).where(BillingProfile.is_default.is_(True))
+    )
     profile = BillingProfile(
         id=FINOPS_SYSTEM_PROFILE_ID,
         name=FINOPS_SYSTEM_PROFILE_NAME,
@@ -114,13 +116,19 @@ class BillingProfileService:
     def get(self, profile_id: str, *, require_enabled: bool = False) -> BillingProfile:
         profile = self._db.get(BillingProfile, profile_id)
         if profile is None:
-            raise BillingProfileError("PROFILE_NOT_FOUND", "Perfil de Billing não encontrado.")
+            raise BillingProfileError(
+                "PROFILE_NOT_FOUND", "Perfil de Billing não encontrado."
+            )
         if require_enabled and not profile.enabled:
-            raise BillingProfileError("PROFILE_INACTIVE", "O perfil de Billing está inativo.")
+            raise BillingProfileError(
+                "PROFILE_INACTIVE", "O perfil de Billing está inativo."
+            )
         return profile
 
     def _ensure_unique_name(self, name: str, *, exclude_id: str | None = None) -> None:
-        statement = select(BillingProfile.id).where(func.lower(BillingProfile.name) == name.lower())
+        statement = select(BillingProfile.id).where(
+            func.lower(BillingProfile.name) == name.lower()
+        )
         if exclude_id is not None:
             statement = statement.where(BillingProfile.id != exclude_id)
         if self._db.scalar(statement) is not None:
@@ -133,7 +141,14 @@ class BillingProfileService:
         statement = select(BillingProfile).order_by(BillingProfile.id).with_for_update()
         return list(self._db.scalars(statement))
 
-    def _flush_mutation(self, profile: BillingProfile, *, commit: bool, conflict_code: str, message: str) -> BillingProfile:
+    def _flush_mutation(
+        self,
+        profile: BillingProfile,
+        *,
+        commit: bool,
+        conflict_code: str,
+        message: str,
+    ) -> BillingProfile:
         try:
             self._db.flush()
             if commit:
@@ -188,7 +203,9 @@ class BillingProfileService:
         fields = payload.model_fields_set
         if "name" in fields:
             if payload.name is None:
-                raise BillingProfileError("INVALID_PROFILE", "O nome do perfil é obrigatório.")
+                raise BillingProfileError(
+                    "INVALID_PROFILE", "O nome do perfil é obrigatório."
+                )
             self._ensure_unique_name(payload.name, exclude_id=profile.id)
             profile.name = payload.name
         if "description" in fields:
@@ -202,7 +219,9 @@ class BillingProfileService:
         for field, value in enum_fields.items():
             if field in fields:
                 if value is None:
-                    raise BillingProfileError("INVALID_PROFILE", f"{field} não pode ser nulo.")
+                    raise BillingProfileError(
+                        "INVALID_PROFILE", f"{field} não pode ser nulo."
+                    )
                 setattr(profile, field, value.value)
         if "exclude_record_types" in fields:
             if payload.exclude_record_types is None:
@@ -222,7 +241,9 @@ class BillingProfileService:
         profiles = self._lock_profiles()
         target = next((profile for profile in profiles if profile.id == profile_id), None)
         if target is None:
-            raise BillingProfileError("PROFILE_NOT_FOUND", "Perfil de Billing não encontrado.")
+            raise BillingProfileError(
+                "PROFILE_NOT_FOUND", "Perfil de Billing não encontrado."
+            )
         if not target.enabled:
             raise BillingProfileError(
                 "PROFILE_INACTIVE", "Um perfil inativo não pode ser definido como padrão."
