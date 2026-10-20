@@ -82,7 +82,9 @@ def _admin_filters(
             )
         )
     if subject_user_id:
-        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == subject_user_id])
+        filters.extend(
+            [AuditEvent.entity_type == "user", AuditEvent.entity_id == subject_user_id]
+        )
     if subject_user_search and subject_user_search.strip():
         term = subject_user_search.strip()
         filters.extend(
@@ -103,7 +105,9 @@ def _admin_filters(
     if correlation_id:
         filters.append(AuditEvent.correlation_id == correlation_id)
     if legacy_user_id:
-        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id])
+        filters.extend(
+            [AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id]
+        )
     if from_:
         filters.append(AuditEvent.created_at >= from_)
     if to:
@@ -134,7 +138,12 @@ def _security_filters(
         filters.append(SecurityEvent.action.like(category + ".%"))
     elif module:
         if module == "security":
-            filters.append(or_(SecurityEvent.action.like("auth.%"), SecurityEvent.action.like("mfa.%")))
+            filters.append(
+                or_(
+                    SecurityEvent.action.like("auth.%"),
+                    SecurityEvent.action.like("mfa.%"),
+                )
+            )
         elif module == "users":
             filters.append(SecurityEvent.action.like("user.%"))
         elif module in {"auth", "user", "mfa"}:
@@ -174,10 +183,18 @@ def _admin_item(item: AuditEvent) -> dict:
         "id": item.id,
         "event_kind": "administrative",
         "created_at": item.created_at,
-        "actor": {"id": item.actor_id, "name": item.actor_name_snapshot, "email": item.actor_email_snapshot},
+        "actor": {
+            "id": item.actor_id,
+            "name": item.actor_name_snapshot,
+            "email": item.actor_email_snapshot,
+        },
         "module": item.module,
         "action": item.action,
-        "entity": {"type": item.entity_type, "id": item.entity_id, "label": item.entity_label},
+        "entity": {
+            "type": item.entity_type,
+            "id": item.entity_id,
+            "label": item.entity_label,
+        },
         "source": item.source,
         "reason": None,
         "changes": item.changes or {},
@@ -235,7 +252,12 @@ def search_audit_users(
         return []
     users = db.scalars(
         select(User)
-        .where(or_(User.name.icontains(term, autoescape=True), User.email.icontains(term, autoescape=True)))
+        .where(
+            or_(
+                User.name.icontains(term, autoescape=True),
+                User.email.icontains(term, autoescape=True),
+            )
+        )
         .order_by(func.lower(User.name), func.lower(User.email), User.id)
         .limit(limit)
     )
@@ -270,7 +292,10 @@ def list_audit(
     db: Session = Depends(get_db),
 ) -> dict:
     if event_kind is not None and event_type is not None and event_kind != event_type:
-        raise HTTPException(status_code=422, detail="event_kind and legacy event_type cannot disagree")
+        raise HTTPException(
+            status_code=422,
+            detail="event_kind and legacy event_type cannot disagree",
+        )
     selected_kind: EventKind = event_kind or event_type or "all"
     from_ = _require_aware(from_, "from")
     to = _require_aware(to, "to")
@@ -287,28 +312,56 @@ def list_audit(
     total = 0
     if include_admin:
         admin_filters = _admin_filters(
-            module=module, action=action, actor_id=actor_id, actor_search=actor_search,
-            subject_user_id=subject_user_id, subject_user_search=subject_user_search,
-            entity_type=entity_type, entity_id=entity_id, source=source,
-            correlation_id=correlation_id, legacy_user_id=user_id, from_=from_, to=to,
+            module=module,
+            action=action,
+            actor_id=actor_id,
+            actor_search=actor_search,
+            subject_user_id=subject_user_id,
+            subject_user_search=subject_user_search,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            source=source,
+            correlation_id=correlation_id,
+            legacy_user_id=user_id,
+            from_=from_,
+            to=to,
         )
-        total += db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters)) or 0
+        total += (
+            db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters))
+            or 0
+        )
         admin_rows = db.scalars(
-            select(AuditEvent).where(*admin_filters)
-            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(fetch_limit)
+            select(AuditEvent)
+            .where(*admin_filters)
+            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
+            .limit(fetch_limit)
         )
         rows.extend(_admin_item(item) for item in admin_rows)
 
     if include_security:
         security_filters, possible = _security_filters(
-            category=category, module=module, action=action, actor_id=actor_id,
-            actor_search=actor_search, subject_user_id=subject_user_id,
-            subject_user_search=subject_user_search, entity_type=entity_type,
-            entity_id=entity_id, source=source, correlation_id=correlation_id,
-            legacy_user_id=user_id, from_=from_, to=to,
+            category=category,
+            module=module,
+            action=action,
+            actor_id=actor_id,
+            actor_search=actor_search,
+            subject_user_id=subject_user_id,
+            subject_user_search=subject_user_search,
+            entity_type=entity_type,
+            entity_id=entity_id,
+            source=source,
+            correlation_id=correlation_id,
+            legacy_user_id=user_id,
+            from_=from_,
+            to=to,
         )
         if possible:
-            total += db.scalar(select(func.count()).select_from(SecurityEvent).where(*security_filters)) or 0
+            total += (
+                db.scalar(
+                    select(func.count()).select_from(SecurityEvent).where(*security_filters)
+                )
+                or 0
+            )
             actor = aliased(User)
             subject = aliased(User)
             security_rows = db.execute(
@@ -324,5 +377,13 @@ def list_audit(
                 for item, actor_user, subject_user in security_rows
             )
 
-    rows.sort(key=lambda item: (_timestamp(item["created_at"]), item["id"]), reverse=True)
-    return {"items": rows[offset : offset + limit], "total": total, "limit": limit, "offset": offset}
+    rows.sort(
+        key=lambda item: (_timestamp(item["created_at"]), item["id"]),
+        reverse=True,
+    )
+    return {
+        "items": rows[offset : offset + limit],
+        "total": total,
+        "limit": limit,
+        "offset": offset,
+    }
