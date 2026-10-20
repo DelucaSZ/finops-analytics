@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_admin, require_user
 from app.db.session import get_db
+from app.models.billing_profile import BillingProfile
 from app.models.user import User
 from app.schemas.billing import (
     AwsBillingApiRequest,
@@ -14,6 +15,7 @@ from app.schemas.billing import (
     BillingSummaryResponse,
     BillingTimeSeriesResponse,
 )
+from app.services.audit import AuditService, audit_snapshot
 from app.services.aws_billing import AwsBillingService, BillingServiceError
 from app.services.aws_cost_explorer import AwsBillingUpstreamError
 from app.services.billing_profiles import (
@@ -76,6 +78,47 @@ def _metadata(
     )
 
 
+def _profile_snapshot(profile: BillingProfile) -> dict:
+    return audit_snapshot(
+        {
+            "name": profile.name,
+            "description": profile.description,
+            "granularity": profile.granularity,
+            "metric": profile.metric,
+            "group_by": profile.group_by,
+            "exclude_record_types": list(profile.exclude_record_types),
+            "is_default": profile.is_default,
+            "enabled": profile.enabled,
+            "is_system": profile.is_system,
+        }
+    )
+
+
+def _record_profile(
+    db: Session,
+    *,
+    actor: User,
+    profile: BillingProfile,
+    action: str,
+    before: dict | None,
+    after: dict | None,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="billing",
+        action=action,
+        entity_type="billing_profile",
+        entity_id=profile.id,
+        entity_label=profile.name,
+        before=before,
+        after=after,
+        source="API",
+        metadata=metadata,
+    )
+
+
 @router.get("/profiles", response_model=list[BillingProfileRead])
 def list_billing_profiles(
     enabled: bool | None = Query(default=None),
@@ -103,12 +146,27 @@ def get_billing_profile(
 def create_billing_profile(
     payload: BillingProfileCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(require_admin),
+    actor: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        return BillingProfileService(db).create(payload, actor_user_id=user.id)
+        profile = BillingProfileService(db).create(payload, actor_user_id=actor.id, commit=False)
+        _record_profile(
+            db,
+            actor=actor,
+            profile=profile,
+            action="billing.profile_create",
+            before=None,
+            after=_profile_snapshot(profile),
+        )
+        db.commit()
+        db.refresh(profile)
+        return profile
     except BillingProfileError as exc:
+        db.rollback()
         _raise_billing_error(exc)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.patch("/profiles/{profile_id}", response_model=BillingProfileRead)
@@ -116,36 +174,101 @@ def update_billing_profile(
     profile_id: str,
     payload: BillingProfileUpdate,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    actor: User = Depends(require_admin),
 ) -> BillingProfileRead:
+    service = BillingProfileService(db)
     try:
-        return BillingProfileService(db).update(profile_id, payload)
+        current = service.get(profile_id)
+        before = _profile_snapshot(current)
+        profile = service.update(profile_id, payload, commit=False)
+        after = _profile_snapshot(profile)
+        if before != after:
+            _record_profile(
+                db,
+                actor=actor,
+                profile=profile,
+                action="billing.profile_update",
+                before=before,
+                after=after,
+            )
+        db.commit()
+        db.refresh(profile)
+        return profile
     except BillingProfileError as exc:
+        db.rollback()
         _raise_billing_error(exc)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/profiles/{profile_id}/set-default", response_model=BillingProfileRead)
 def set_default_billing_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    actor: User = Depends(require_admin),
 ) -> BillingProfileRead:
+    service = BillingProfileService(db)
     try:
-        return BillingProfileService(db).set_default(profile_id)
+        current = service.get(profile_id)
+        before = _profile_snapshot(current)
+        previous_default = next((item for item in service.list() if item.is_default), None)
+        profile = service.set_default(profile_id, commit=False)
+        after = _profile_snapshot(profile)
+        if before != after:
+            _record_profile(
+                db,
+                actor=actor,
+                profile=profile,
+                action="billing.profile_set_default",
+                before=before,
+                after=after,
+                metadata={
+                    "previous_default_profile_id": previous_default.id if previous_default else None,
+                    "previous_default_profile_name": previous_default.name if previous_default else None,
+                },
+            )
+        db.commit()
+        db.refresh(profile)
+        return profile
     except BillingProfileError as exc:
+        db.rollback()
         _raise_billing_error(exc)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/profiles/{profile_id}/deactivate", response_model=BillingProfileRead)
 def deactivate_billing_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    actor: User = Depends(require_admin),
 ) -> BillingProfileRead:
+    service = BillingProfileService(db)
     try:
-        return BillingProfileService(db).deactivate(profile_id)
+        current = service.get(profile_id)
+        before = _profile_snapshot(current)
+        profile = service.deactivate(profile_id, commit=False)
+        after = _profile_snapshot(profile)
+        if before != after:
+            _record_profile(
+                db,
+                actor=actor,
+                profile=profile,
+                action="billing.profile_deactivate",
+                before=before,
+                after=after,
+            )
+        db.commit()
+        db.refresh(profile)
+        return profile
     except BillingProfileError as exc:
+        db.rollback()
         _raise_billing_error(exc)
+    except Exception:
+        db.rollback()
+        raise
 
 
 @router.post("/summary", response_model=BillingSummaryResponse)
