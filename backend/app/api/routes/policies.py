@@ -94,9 +94,7 @@ def _record_policy_change(
 
 def _update_action(before: dict, after: dict) -> str:
     changed = [
-        key
-        for key in ("override_exists", "enabled", "config")
-        if before.get(key) != after.get(key)
+        key for key in ("override_exists", "enabled", "config") if before.get(key) != after.get(key)
     ]
     if changed == ["enabled"]:
         return "policy.enable" if after.get("enabled") else "policy.disable"
