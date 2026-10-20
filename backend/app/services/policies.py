@@ -96,9 +96,7 @@ RULES: dict[str, RuleDefinition] = {
     "load_balancer_no_traffic": RuleDefinition(
         key="load_balancer_no_traffic",
         name="Load Balancer com tráfego ausente ou abaixo do limite",
-        description=(
-            "Avalia balanceadores cujo tráfego observado ficou dentro do limite configurado."
-        ),
+        description="Avalia balanceadores cujo tráfego observado ficou dentro do limite configurado.",
         implemented=True,
         enabled=True,
         config={
@@ -238,7 +236,8 @@ def upsert_policy(
     else:
         policy.enabled = enabled
         policy.config = config
-    db.commit()
+    # The caller owns the transaction so an AuditEvent can be persisted atomically.
+    db.flush()
     db.refresh(policy)
     return policy
 
