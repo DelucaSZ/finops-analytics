@@ -28,6 +28,12 @@ def _timestamp(value: datetime) -> float:
     return value.timestamp()
 
 
+def _require_aware(value: datetime | None, field: str) -> datetime | None:
+    if value is not None and (value.tzinfo is None or value.utcoffset() is None):
+        raise HTTPException(status_code=422, detail=f"{field} must include a timezone offset")
+    return value
+
+
 def _security_module(action: str) -> str:
     prefix = action.split(".", 1)[0] if "." in action else "security"
     return "users" if prefix == "user" else "security"
@@ -76,12 +82,7 @@ def _admin_filters(
             )
         )
     if subject_user_id:
-        filters.extend(
-            [
-                AuditEvent.entity_type == "user",
-                AuditEvent.entity_id == subject_user_id,
-            ]
-        )
+        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == subject_user_id])
     if subject_user_search and subject_user_search.strip():
         term = subject_user_search.strip()
         filters.extend(
@@ -102,12 +103,7 @@ def _admin_filters(
     if correlation_id:
         filters.append(AuditEvent.correlation_id == correlation_id)
     if legacy_user_id:
-        filters.extend(
-            [
-                AuditEvent.entity_type == "user",
-                AuditEvent.entity_id == legacy_user_id,
-            ]
-        )
+        filters.extend([AuditEvent.entity_type == "user", AuditEvent.entity_id == legacy_user_id])
     if from_:
         filters.append(AuditEvent.created_at >= from_)
     if to:
@@ -134,25 +130,17 @@ def _security_filters(
 ) -> tuple[list, bool]:
     filters = []
     possible = True
-
-    prefix = category
-    if prefix:
-        filters.append(SecurityEvent.action.like(prefix + ".%"))
+    if category:
+        filters.append(SecurityEvent.action.like(category + ".%"))
     elif module:
         if module == "security":
-            filters.append(
-                or_(
-                    SecurityEvent.action.like("auth.%"),
-                    SecurityEvent.action.like("mfa.%"),
-                )
-            )
+            filters.append(or_(SecurityEvent.action.like("auth.%"), SecurityEvent.action.like("mfa.%")))
         elif module == "users":
             filters.append(SecurityEvent.action.like("user.%"))
         elif module in {"auth", "user", "mfa"}:
             filters.append(SecurityEvent.action.like(module + ".%"))
         else:
             possible = False
-
     if action:
         filters.append(SecurityEvent.action == action)
     if actor_id:
@@ -186,18 +174,10 @@ def _admin_item(item: AuditEvent) -> dict:
         "id": item.id,
         "event_kind": "administrative",
         "created_at": item.created_at,
-        "actor": {
-            "id": item.actor_id,
-            "name": item.actor_name_snapshot,
-            "email": item.actor_email_snapshot,
-        },
+        "actor": {"id": item.actor_id, "name": item.actor_name_snapshot, "email": item.actor_email_snapshot},
         "module": item.module,
         "action": item.action,
-        "entity": {
-            "type": item.entity_type,
-            "id": item.entity_id,
-            "label": item.entity_label,
-        },
+        "entity": {"type": item.entity_type, "id": item.entity_id, "label": item.entity_label},
         "source": item.source,
         "reason": None,
         "changes": item.changes or {},
@@ -214,11 +194,7 @@ def _admin_item(item: AuditEvent) -> dict:
     }
 
 
-def _security_item(
-    item: SecurityEvent,
-    actor: User | None,
-    subject: User | None,
-) -> dict:
+def _security_item(item: SecurityEvent, actor: User | None, subject: User | None) -> dict:
     actor_name = actor.name if actor else None
     actor_email = actor.email if actor else None
     user_name = subject.name if subject else None
@@ -228,18 +204,10 @@ def _security_item(
         "id": item.id,
         "event_kind": "security",
         "created_at": item.created_at,
-        "actor": {
-            "id": item.actor_id,
-            "name": actor_name,
-            "email": actor_email,
-        },
+        "actor": {"id": item.actor_id, "name": actor_name, "email": actor_email},
         "module": _security_module(item.action),
         "action": item.action,
-        "entity": {
-            "type": "user",
-            "id": item.user_id,
-            "label": label,
-        },
+        "entity": {"type": "user", "id": item.user_id, "label": label},
         "source": "API",
         "reason": item.reason or "",
         "changes": {},
@@ -261,23 +229,17 @@ def search_audit_users(
     q: str = Query(min_length=1, max_length=254),
     limit: int = Query(default=20, ge=1, le=20),
     db: Session = Depends(get_db),
-) -> list[User]:
+) -> list[dict]:
     term = q.strip()
     if not term:
         return []
-    return list(
-        db.scalars(
-            select(User)
-            .where(
-                or_(
-                    User.name.icontains(term, autoescape=True),
-                    User.email.icontains(term, autoescape=True),
-                )
-            )
-            .order_by(func.lower(User.name), func.lower(User.email), User.id)
-            .limit(limit)
-        )
+    users = db.scalars(
+        select(User)
+        .where(or_(User.name.icontains(term, autoescape=True), User.email.icontains(term, autoescape=True)))
+        .order_by(func.lower(User.name), func.lower(User.email), User.id)
+        .limit(limit)
     )
+    return [{"id": user.id, "name": user.name, "email": user.email} for user in users]
 
 
 @router.get("/options", response_model=AuditOptionsRead)
@@ -308,71 +270,45 @@ def list_audit(
     db: Session = Depends(get_db),
 ) -> dict:
     if event_kind is not None and event_type is not None and event_kind != event_type:
-        raise HTTPException(
-            status_code=422,
-            detail="event_kind and legacy event_type cannot disagree",
-        )
+        raise HTTPException(status_code=422, detail="event_kind and legacy event_type cannot disagree")
     selected_kind: EventKind = event_kind or event_type or "all"
+    from_ = _require_aware(from_, "from")
+    to = _require_aware(to, "to")
     if from_ is not None and to is not None and from_ > to:
         raise HTTPException(status_code=422, detail="from must be less than or equal to to")
 
     include_security = selected_kind in {"security", "all"}
     include_admin = selected_kind in {"administrative", "all"}
-
     if category is not None:
         include_admin = False
 
     fetch_limit = offset + limit
     rows: list[dict] = []
     total = 0
-
     if include_admin:
         admin_filters = _admin_filters(
-            module=module,
-            action=action,
-            actor_id=actor_id,
-            actor_search=actor_search,
-            subject_user_id=subject_user_id,
-            subject_user_search=subject_user_search,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            source=source,
-            correlation_id=correlation_id,
-            legacy_user_id=user_id,
-            from_=from_,
-            to=to,
+            module=module, action=action, actor_id=actor_id, actor_search=actor_search,
+            subject_user_id=subject_user_id, subject_user_search=subject_user_search,
+            entity_type=entity_type, entity_id=entity_id, source=source,
+            correlation_id=correlation_id, legacy_user_id=user_id, from_=from_, to=to,
         )
         total += db.scalar(select(func.count()).select_from(AuditEvent).where(*admin_filters)) or 0
         admin_rows = db.scalars(
-            select(AuditEvent)
-            .where(*admin_filters)
-            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc())
-            .limit(fetch_limit)
+            select(AuditEvent).where(*admin_filters)
+            .order_by(AuditEvent.created_at.desc(), AuditEvent.id.desc()).limit(fetch_limit)
         )
         rows.extend(_admin_item(item) for item in admin_rows)
 
     if include_security:
         security_filters, possible = _security_filters(
-            category=category,
-            module=module,
-            action=action,
-            actor_id=actor_id,
-            actor_search=actor_search,
-            subject_user_id=subject_user_id,
-            subject_user_search=subject_user_search,
-            entity_type=entity_type,
-            entity_id=entity_id,
-            source=source,
-            correlation_id=correlation_id,
-            legacy_user_id=user_id,
-            from_=from_,
-            to=to,
+            category=category, module=module, action=action, actor_id=actor_id,
+            actor_search=actor_search, subject_user_id=subject_user_id,
+            subject_user_search=subject_user_search, entity_type=entity_type,
+            entity_id=entity_id, source=source, correlation_id=correlation_id,
+            legacy_user_id=user_id, from_=from_, to=to,
         )
         if possible:
-            total += (
-                db.scalar(select(func.count()).select_from(SecurityEvent).where(*security_filters))
-                or 0
-            )
+            total += db.scalar(select(func.count()).select_from(SecurityEvent).where(*security_filters)) or 0
             actor = aliased(User)
             subject = aliased(User)
             security_rows = db.execute(
@@ -388,13 +324,5 @@ def list_audit(
                 for item, actor_user, subject_user in security_rows
             )
 
-    rows.sort(
-        key=lambda item: (_timestamp(item["created_at"]), item["id"]),
-        reverse=True,
-    )
-    return {
-        "items": rows[offset : offset + limit],
-        "total": total,
-        "limit": limit,
-        "offset": offset,
-    }
+    rows.sort(key=lambda item: (_timestamp(item["created_at"]), item["id"]), reverse=True)
+    return {"items": rows[offset : offset + limit], "total": total, "limit": limit, "offset": offset}
