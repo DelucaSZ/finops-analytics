@@ -24,7 +24,9 @@ REJECTION_REASONS = {
 
 
 def _locked(db: Session, opportunity_id: str) -> Finding:
-    finding = db.scalar(select(Finding).where(Finding.id == opportunity_id).with_for_update())
+    finding = db.scalar(
+        select(Finding).where(Finding.id == opportunity_id).with_for_update()
+    )
     if finding is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return finding
@@ -225,7 +227,9 @@ def bulk_transition(
         raise HTTPException(status_code=422, detail="Unsupported opportunity action")
 
     findings = list(
-        db.scalars(select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update())
+        db.scalars(
+            select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update()
+        )
     )
     by_id = {finding.id: finding for finding in findings}
     missing = [opportunity_id for opportunity_id in ids if opportunity_id not in by_id]
@@ -301,10 +305,7 @@ def _apply_legacy_status(
     rejection_note = note
     if rejection_reason is None:
         rejection_reason = "OTHER"
-        rejection_note = (
-            rejection_note
-            or "Legacy status update did not provide a rejection reason."
-        )
+        rejection_note = rejection_note or "Legacy status update did not provide a rejection reason."
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
     return None
@@ -321,15 +322,15 @@ def set_legacy_status(
 ) -> Finding:
     finding = _locked(db, opportunity_id)
     before = _audit_snapshot(finding)
-    event = _apply_legacy_status(
-        db, finding, actor, status=status, reason=reason, note=note
-    )
+    event = _apply_legacy_status(db, finding, actor, status=status, reason=reason, note=note)
     if event is not None:
         _recognize_treatments(db, [(finding, event)], actor)
     refresh_summaries_for_findings(db, [finding])
     if before != _audit_snapshot(finding):
         target = _legacy_target(status)
-        action = "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
+        action = (
+            "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
+        )
         metadata = {"reason": reason} if reason else None
         _record_lifecycle_audit(
             db,
@@ -353,7 +354,9 @@ def bulk_set_legacy_status(
 ) -> list[Finding]:
     ids = list(dict.fromkeys(opportunity_ids))
     findings = list(
-        db.scalars(select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update())
+        db.scalars(
+            select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update()
+        )
     )
     by_id = {finding.id: finding for finding in findings}
     missing = [opportunity_id for opportunity_id in ids if opportunity_id not in by_id]
