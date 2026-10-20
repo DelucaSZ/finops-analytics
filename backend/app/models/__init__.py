@@ -4,6 +4,7 @@ from app.models.account import (
     CloudAccountAuditEvent,
     OciAccountConfiguration,
 )
+from app.models.audit_event import AuditEvent
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.billing_profile import BillingProfile
 from app.models.cloudwatch_pricing import CloudWatchPricingRule
@@ -53,6 +54,7 @@ __all__ = [
     "MfaChallenge",
     "RecoveryCode",
     "SecurityEvent",
+    "AuditEvent",
     "AccessToken",
     "AuthRateLimit",
     "LoginSession",

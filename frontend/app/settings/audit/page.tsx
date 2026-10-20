@@ -1,20 +1,41 @@
 "use client";
+
 import { useEffect, useState } from "react";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 
+type Actor = {
+  id: string | null;
+  name: string | null;
+  email: string | null;
+};
+
+type Entity = {
+  type: string;
+  id: string | null;
+  label: string | null;
+};
+
 type Event = {
   id: string;
-  action: string;
-  reason: string;
+  event_kind: "security" | "administrative";
   created_at: string;
-  actor_id: string | null;
-  actor_name: string | null;
-  actor_email: string | null;
-  user_id: string;
-  user_name: string;
-  user_email: string;
+  actor: Actor;
+  module: string;
+  action: string;
+  entity: Entity;
+  source: "UI" | "API" | "SYSTEM" | string;
+  reason: string | null;
+  changes: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+  correlation_id: string | null;
 };
+
+type Change = {
+  from: unknown;
+  to: unknown;
+};
+
 const labels: Record<string, string> = {
   "auth.login": "Login concluído",
   "auth.login_failed": "Tentativa de login recusada",
@@ -32,6 +53,8 @@ const labels: Record<string, string> = {
   "user.password_reset_issued": "Link de recuperação gerado",
   "user.sessions_revoked": "Sessões encerradas por administrador",
   "user.session_revoked": "Sessão encerrada por administrador",
+  "user.create": "Usuário criado",
+  "user.update": "Usuário alterado",
   "mfa.setup_started": "Cadastro do autenticador iniciado",
   "mfa.enabled": "Autenticador ativado ou substituído",
   "mfa.login_failed": "Segundo fator recusado",
@@ -39,10 +62,80 @@ const labels: Record<string, string> = {
   "mfa.recovery_used": "Código de recuperação utilizado",
   "mfa.recovery_regenerated": "Códigos de recuperação regenerados",
   "mfa.reset": "MFA redefinido",
+  "tls.apply": "Configuração HTTPS/TLS aplicada",
 };
+
+function fieldLabel(value: string) {
+  return value
+    .replaceAll("_", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function changeValue(value: unknown): string {
+  if (value === null || value === undefined) return "∅";
+  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "string" || typeof value === "number") {
+    const text = String(value);
+    return text.length > 120 ? `${text.slice(0, 117)}…` : text;
+  }
+  if (Array.isArray(value)) {
+    const text = value.map((item) => changeValue(item)).join(", ");
+    return text.length > 120 ? `${text.slice(0, 117)}…` : text || "[]";
+  }
+  return "[objeto resumido]";
+}
+
+function asChange(value: unknown): Change | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  if (!("from" in value) || !("to" in value)) return null;
+  return value as Change;
+}
+
+function changeEntries(item: Event): Array<[string, Change]> {
+  return Object.entries(item.changes || {}).flatMap(([field, value]) => {
+    const change = asChange(value);
+    return change ? [[field, change] as [string, Change]] : [];
+  });
+}
+
+function changeSummary(item: Event): string {
+  const entries = changeEntries(item);
+  if (!entries.length) {
+    if (item.changes?._truncated) return "Alterações resumidas por limite de tamanho";
+    return item.reason || "Sem alteração de campos";
+  }
+  const head = entries
+    .slice(0, 2)
+    .map(
+      ([field, change]) =>
+        `${fieldLabel(field)}: ${changeValue(change.from)} → ${changeValue(change.to)}`,
+    )
+    .join(" · ");
+  return entries.length > 2 ? `${head} · +${entries.length - 2}` : head;
+}
+
+function actorLabel(item: Event): { name: string; email: string | null } {
+  if (item.actor.name || item.actor.email) {
+    return {
+      name: item.actor.name || item.actor.email || "Responsável desconhecido",
+      email: item.actor.name ? item.actor.email : null,
+    };
+  }
+  if (item.event_kind === "administrative" && item.source === "SYSTEM") {
+    return { name: "SYSTEM", email: null };
+  }
+  if (item.action === "auth.login_failed") {
+    return { name: "Tentativa não autenticada", email: null };
+  }
+  return { name: "Operador do host", email: null };
+}
+
 export default function AuditPage() {
+  const [eventType, setEventType] = useState("all");
   const [category, setCategory] = useState("");
   const [userId, setUserId] = useState("");
+  const [module, setModule] = useState("");
+  const [action, setAction] = useState("");
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);
   const [data, setData] = useState<{ items: Event[]; total: number }>({
@@ -51,14 +144,23 @@ export default function AuditPage() {
   });
   const [busy, setBusy] = useState(true);
   const [error, setError] = useState("");
+
   useEffect(() => {
     let active = true;
     const controller = new AbortController();
     setBusy(true);
     setError("");
-    const query = new URLSearchParams({ limit: "50", offset: String(offset) });
-    if (category) query.set("category", category);
+
+    const query = new URLSearchParams({
+      limit: "50",
+      offset: String(offset),
+      event_type: eventType,
+    });
+    if (category && eventType !== "administrative") query.set("category", category);
     if (userId) query.set("user_id", userId);
+    if (module.trim()) query.set("module", module.trim());
+    if (action.trim()) query.set("action", action.trim());
+
     api<{ items: Event[]; total: number }>(`/audit?${query}`, {
       signal: controller.signal,
     })
@@ -71,47 +173,93 @@ export default function AuditPage() {
       .finally(() => {
         if (active) setBusy(false);
       });
+
     return () => {
       active = false;
       controller.abort();
     };
-  }, [category, userId, offset, refresh]);
+  }, [eventType, category, userId, module, action, offset, refresh]);
+
   return (
     <>
       <PageHeader
         eyebrow="CONFIGURAÇÕES"
         title="Auditoria"
-        description="Histórico de acessos, segundo fator e alterações administrativas."
+        description="Histórico de segurança e alterações administrativas persistentes."
         actions={
           <button
             className="button"
             disabled={busy}
-            onClick={() => setRefresh((n) => n + 1)}
+            onClick={() => setRefresh((value) => value + 1)}
           >
             Atualizar histórico
           </button>
         }
       />
+
       <p className="settings-help">
-        O histórico registra eventos a partir da implantação de cada recurso.
-        Não contém senhas, códigos, segredos nem links de acesso. Os nomes e
-        e-mails exibidos são os atuais do cadastro.
+        Eventos administrativos preservam o nome e o e-mail do responsável no momento
+        da ação. Senhas, tokens, chaves privadas e outros segredos não são armazenados
+        na trilha de auditoria.
       </p>
+
       <div className="settings-filters">
         <label>
-          Categoria
+          Tipo de evento
           <select
-            value={category}
-            onChange={(e) => {
-              setCategory(e.target.value);
+            value={eventType}
+            onChange={(event) => {
+              const value = event.target.value;
+              setEventType(value);
+              if (value === "administrative") setCategory("");
               setOffset(0);
             }}
           >
-            <option value="">Todas</option>
-            <option value="auth">Acessos e senha</option>
-            <option value="user">Administração de usuários</option>
-            <option value="mfa">Segundo fator</option>
+            <option value="all">Todos</option>
+            <option value="administrative">Administrativos</option>
+            <option value="security">Segurança</option>
           </select>
+        </label>
+        {eventType !== "administrative" && (
+          <label>
+            Categoria de segurança
+            <select
+              value={category}
+              onChange={(event) => {
+                setCategory(event.target.value);
+                setOffset(0);
+              }}
+            >
+              <option value="">Todas</option>
+              <option value="auth">Acessos e senha</option>
+              <option value="user">Administração de usuários</option>
+              <option value="mfa">Segundo fator</option>
+            </select>
+          </label>
+        )}
+        <label>
+          Módulo
+          <input
+            value={module}
+            maxLength={80}
+            placeholder="Ex.: users, tls, auth"
+            onChange={(event) => {
+              setModule(event.target.value);
+              setOffset(0);
+            }}
+          />
+        </label>
+        <label>
+          Ação
+          <input
+            value={action}
+            maxLength={120}
+            placeholder="Ex.: user.update"
+            onChange={(event) => {
+              setAction(event.target.value);
+              setOffset(0);
+            }}
+          />
         </label>
         {userId && (
           <button
@@ -125,69 +273,97 @@ export default function AuditPage() {
           </button>
         )}
       </div>
+
       {error && (
         <p className="form-error" role="alert">
           {error}
         </p>
       )}
+
       <div className="data-table-wrap">
-        <table className="data-table">
+        <table className="data-table" aria-label="Eventos de auditoria">
           <thead>
             <tr>
-              <th scope="col">Data e evento</th>
+              <th scope="col">Data e ação</th>
               <th scope="col">Responsável</th>
-              <th scope="col">Conta afetada</th>
-              <th scope="col">Detalhes</th>
+              <th scope="col">Módulo</th>
+              <th scope="col">Objeto afetado</th>
+              <th scope="col">Alterações</th>
             </tr>
           </thead>
           <tbody>
             {busy ? (
               <tr>
-                <td colSpan={4}>Carregando histórico…</td>
+                <td colSpan={5}>Carregando histórico…</td>
               </tr>
             ) : data.items.length === 0 ? (
               <tr>
-                <td colSpan={4}>Nenhum evento encontrado.</td>
+                <td colSpan={5}>Nenhum evento encontrado.</td>
               </tr>
             ) : (
-              data.items.map((item) => (
-                <tr key={item.id}>
-                  <td>
-                    <strong>{labels[item.action] || item.action}</strong>
-                    <span>{formatDate(item.created_at)}</span>
-                  </td>
-                  <td>
-                    {item.actor_id ? (
-                      <>
-                        <strong>{item.actor_name}</strong>
-                        <span>{item.actor_email}</span>
-                      </>
-                    ) : item.action === "auth.login_failed" ? (
-                      "Tentativa não autenticada"
-                    ) : (
-                      "Operador do host"
-                    )}
-                  </td>
-                  <td>
-                    <strong>{item.user_name}</strong>
-                    <span>{item.user_email}</span>
-                    <button
-                      className="button"
-                      onClick={() => {
-                        setUserId(item.user_id);
-                        setOffset(0);
-                      }}
-                    >
-                      Filtrar esta conta
-                    </button>
-                  </td>
-                  <td>{item.reason || "—"}</td>
-                </tr>
-              ))
+              data.items.map((item) => {
+                const actor = actorLabel(item);
+                const entries = changeEntries(item);
+                return (
+                  <tr key={`${item.event_kind}:${item.id}`}>
+                    <td>
+                      <strong>{labels[item.action] || item.action}</strong>
+                      <span>{formatDate(item.created_at)}</span>
+                    </td>
+                    <td>
+                      <strong>{actor.name}</strong>
+                      {actor.email && <span>{actor.email}</span>}
+                    </td>
+                    <td>
+                      <strong>{item.module}</strong>
+                      <span>
+                        {item.event_kind === "administrative"
+                          ? `Administrativo · ${item.source}`
+                          : "Segurança"}
+                      </span>
+                    </td>
+                    <td>
+                      <strong>{item.entity.label || item.entity.id || "—"}</strong>
+                      <span>
+                        {item.entity.type}
+                        {item.entity.id ? ` · ${item.entity.id}` : ""}
+                      </span>
+                      {item.entity.type === "user" && item.entity.id && (
+                        <button
+                          className="button"
+                          onClick={() => {
+                            setUserId(item.entity.id || "");
+                            setOffset(0);
+                          }}
+                        >
+                          Filtrar este usuário
+                        </button>
+                      )}
+                    </td>
+                    <td>
+                      <span>{changeSummary(item)}</span>
+                      {entries.length > 0 && (
+                        <details>
+                          <summary>Ver alterações</summary>
+                          <ul>
+                            {entries.map(([field, change]) => (
+                              <li key={field}>
+                                <strong>{fieldLabel(field)}</strong>:{" "}
+                                {changeValue(change.from)} → {changeValue(change.to)}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
       </div>
+
       <div className="settings-pagination">
         <button
           className="button"
