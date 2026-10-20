@@ -369,16 +369,15 @@ def update_account(
         return get_cloud_account(db, account_id)
     except OciConnectionError as exc:
         if provider == CloudProvider.OCI.value:
+            failure_action = "oci.account.update"
+            if replacing_oci_credential:
+                failure_action = "oci.credentials.replace"
             _record_failed_oci_mutation(
                 db,
                 actor_id=actor_id,
                 account_id=account_id,
                 native_account_id=native_account_id,
-                action=(
-                    "oci.credentials.replace"
-                    if replacing_oci_credential
-                    else "oci.account.update"
-                ),
+                action=failure_action,
                 result="failure",
                 detail=exc.code,
             )
