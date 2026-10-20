@@ -343,9 +343,7 @@ def update_account(
                 account_id=account_id,
                 native_account_id=native_account_id,
                 action=(
-                    "oci.credentials.replace"
-                    if replacing_oci_credential
-                    else "oci.account.update"
+                    "oci.credentials.replace" if replacing_oci_credential else "oci.account.update"
                 ),
                 result="failure",
                 detail=exc.code,
