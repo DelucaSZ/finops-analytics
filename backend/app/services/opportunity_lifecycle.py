@@ -301,7 +301,10 @@ def _apply_legacy_status(
     rejection_note = note
     if rejection_reason is None:
         rejection_reason = "OTHER"
-        rejection_note = rejection_note or "Legacy status update did not provide a rejection reason."
+        rejection_note = (
+            rejection_note
+            or "Legacy status update did not provide a rejection reason."
+        )
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
     return None
