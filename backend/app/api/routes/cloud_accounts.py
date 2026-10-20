@@ -231,7 +231,11 @@ def get_account(account_id: int, db: Session = Depends(get_db)):
     return _get_account(db, account_id)
 
 
-@router.post("/{account_id}/scans", response_model=ScanRead, status_code=status.HTTP_202_ACCEPTED)
+@router.post(
+    "/{account_id}/scans",
+    response_model=ScanRead,
+    status_code=status.HTTP_202_ACCEPTED,
+)
 def create_account_scan(
     account_id: int,
     db: Session = Depends(get_db),
@@ -338,7 +342,11 @@ def update_account(
                 actor_id=actor_id,
                 account_id=account_id,
                 native_account_id=native_account_id,
-                action="oci.credentials.replace" if replacing_oci_credential else "oci.account.update",
+                action=(
+                    "oci.credentials.replace"
+                    if replacing_oci_credential
+                    else "oci.account.update"
+                ),
                 result="failure",
                 detail=exc.code,
             )
@@ -364,7 +372,10 @@ def update_account(
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except IntegrityError as exc:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Account update conflicts with existing data") from exc
+        raise HTTPException(
+            status_code=409,
+            detail="Account update conflicts with existing data",
+        ) from exc
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -398,7 +409,9 @@ def _test_aws_connection(account, db: Session, actor: User) -> ConnectionTestRes
     try:
         identity = get_caller_identity(assume_account_session(aws_account))
         if identity.account_id != expected_account_id:
-            raise ValueError(f"Expected account {expected_account_id}, received {identity.account_id}")
+            raise ValueError(
+                f"Expected account {expected_account_id}, received {identity.account_id}"
+            )
         set_connection_state(account, status="connected", tested_at=tested_at, error=None)
         result = ConnectionTestResult(
             ok=True,
