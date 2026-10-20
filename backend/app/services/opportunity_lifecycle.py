@@ -25,9 +25,7 @@ REJECTION_REASONS = {
 
 
 def _locked(db: Session, opportunity_id: str) -> Finding:
-    finding = db.scalar(
-        select(Finding).where(Finding.id == opportunity_id).with_for_update()
-    )
+    finding = db.scalar(select(Finding).where(Finding.id == opportunity_id).with_for_update())
     if finding is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return finding
