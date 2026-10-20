@@ -166,7 +166,7 @@ def _security_item(
             "label": label,
         },
         "source": "API",
-        "reason": item.reason or None,
+        "reason": item.reason or "",
         "changes": {},
         "metadata": {},
         "correlation_id": None,
