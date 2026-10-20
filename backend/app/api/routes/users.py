@@ -133,7 +133,12 @@ def create_user(
 ) -> User:
     password_hash = hash_password(payload.password.get_secret_value())
     _lock_and_recheck_admin(db, actor)
-    user = User(name=payload.name, email=payload.email, role=payload.role, password_hash=password_hash)
+    user = User(
+        name=payload.name,
+        email=payload.email,
+        role=payload.role,
+        password_hash=password_hash,
+    )
     db.add(user)
     try:
         db.flush()
@@ -171,17 +176,26 @@ def update_user(
         admin_count = db.scalar(
             select(func.count())
             .select_from(User)
-            .where(User.role == UserRole.ADMIN, User.is_active.is_(True), User.password_set.is_(True))
+            .where(
+                User.role == UserRole.ADMIN,
+                User.is_active.is_(True),
+                User.password_set.is_(True),
+            )
         )
         if admin_count <= 1:
-            raise HTTPException(status_code=409, detail="Cannot remove the last active administrator")
+            raise HTTPException(
+                status_code=409,
+                detail="Cannot remove the last active administrator",
+            )
     if any(
         field in changes and changes[field] != getattr(user, field)
         for field in ("email", "role", "is_active")
     ):
         user.token_version += 1
         revoke_sessions(db, user.id)
-    changed_fields = sorted(field for field, value in changes.items() if value != getattr(user, field))
+    changed_fields = sorted(
+        field for field, value in changes.items() if value != getattr(user, field)
+    )
     if changed_fields:
         event(
             db,
