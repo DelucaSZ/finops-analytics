@@ -189,7 +189,10 @@ def admin_reset(
     if not actor_mfa or not actor_mfa.secret or not session.mfa_verified:
         raise HTTPException(403, "Ative o MFA na sua conta antes de recuperar outra conta.")
     if actor.id == user_id:
-        raise HTTPException(400, "Para sua conta, use Trocar autenticador ou a recuperação pelo host.")
+        raise HTTPException(
+            400,
+            "Para sua conta, use Trocar autenticador ou a recuperação pelo host.",
+        )
     user = db.get(User, user_id, populate_existing=True)
     if not user or not user.is_active or not user.password_set:
         raise HTTPException(404, "Conta ativa não encontrada.")
