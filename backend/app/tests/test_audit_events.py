@@ -136,10 +136,20 @@ def test_sanitizer_blocks_aws_oci_tls_auth_smtp_and_application_secrets():
 
 def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
     before = audit_snapshot(
-        {"enabled": True, "scan_interval_hours": 24, "name": "Produção", "nullable": None}
+        {
+            "enabled": True,
+            "scan_interval_hours": 24,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
     after = audit_snapshot(
-        {"enabled": False, "scan_interval_hours": 12, "name": "Produção", "nullable": None}
+        {
+            "enabled": False,
+            "scan_interval_hours": 12,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
     changes = build_audit_changes(before, after)
     assert list(changes) == ["enabled", "scan_interval_hours"]
@@ -151,7 +161,10 @@ def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
 
 def test_large_payloads_are_summarized_or_capped():
     safe = sanitize_audit_payload(
-        {"policy_document": "x" * 10_000, "evidence": ["e" * 100 for _ in range(1000)]}
+        {
+            "policy_document": "x" * 10_000,
+            "evidence": ["e" * 100 for _ in range(1000)],
+        }
     )
     assert safe["_truncated"] is True
     assert safe["_original_bytes"] > 16_384
@@ -284,13 +297,21 @@ def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, s
 
 def test_unified_endpoint_global_order_total_and_pagination(audit_db):
     engine, actor_id, subject_id = audit_db
-    security_id, administrative_id, _ = _seed_unified_events(engine, actor_id, subject_id)
+    security_id, administrative_id, _ = _seed_unified_events(
+        engine, actor_id, subject_id
+    )
     with TestClient(_app_for(engine, authorized=True)) as client:
-        page = client.get("/api/v1/audit", params={"event_kind": "all", "limit": 1, "offset": 0}).json()
+        page = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "all", "limit": 1, "offset": 0},
+        ).json()
         assert page["total"] == 2
         assert page["items"][0]["id"] == administrative_id
         assert page["items"][0]["event_kind"] == "administrative"
-        second = client.get("/api/v1/audit", params={"event_kind": "all", "limit": 1, "offset": 1}).json()
+        second = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "all", "limit": 1, "offset": 1},
+        ).json()
         assert second["total"] == 2
         assert second["items"][0]["id"] == security_id
         assert second["items"][0]["event_kind"] == "security"
@@ -317,7 +338,10 @@ def test_actor_filters_support_id_name_email_partial_case_and_historical_snapsho
 
         historical_email = client.get(
             "/api/v1/audit",
-            params={"event_kind": "administrative", "actor_search": "ADMIN@EXAMPLE.COM"},
+            params={
+                "event_kind": "administrative",
+                "actor_search": "ADMIN@EXAMPLE.COM",
+            },
         ).json()
         assert historical_email["total"] == 1
 
@@ -332,7 +356,9 @@ def test_subject_filters_are_separate_from_actor_and_search_name_email(audit_db)
     engine, actor_id, subject_id = audit_db
     _seed_unified_events(engine, actor_id, subject_id)
     with TestClient(_app_for(engine, authorized=True)) as client:
-        by_id = client.get("/api/v1/audit", params={"subject_user_id": subject_id}).json()
+        by_id = client.get(
+            "/api/v1/audit", params={"subject_user_id": subject_id}
+        ).json()
         assert by_id["total"] == 2
         by_name = client.get(
             "/api/v1/audit",
@@ -358,13 +384,19 @@ def test_module_action_source_event_kind_period_correlation_and_combinations(aud
     with TestClient(_app_for(engine, authorized=True)) as client:
         by_module = client.get("/api/v1/audit", params={"module": "users"}).json()
         assert by_module["total"] == 1
-        by_action = client.get("/api/v1/audit", params={"action": "user.update"}).json()
+        by_action = client.get(
+            "/api/v1/audit", params={"action": "user.update"}
+        ).json()
         assert by_action["total"] == 1
         by_source = client.get("/api/v1/audit", params={"source": "API"}).json()
         assert by_source["total"] == 2
-        system_only = client.get("/api/v1/audit", params={"source": "SYSTEM"}).json()
+        system_only = client.get(
+            "/api/v1/audit", params={"source": "SYSTEM"}
+        ).json()
         assert system_only["total"] == 0
-        security = client.get("/api/v1/audit", params={"event_kind": "security"}).json()
+        security = client.get(
+            "/api/v1/audit", params={"event_kind": "security"}
+        ).json()
         assert security["total"] == 1
         administrative = client.get(
             "/api/v1/audit", params={"event_kind": "administrative"}
@@ -391,7 +423,9 @@ def test_module_action_source_event_kind_period_correlation_and_combinations(aud
 def test_period_requires_timezone_and_valid_order(audit_db):
     engine, _, _ = audit_db
     with TestClient(_app_for(engine, authorized=True)) as client:
-        naive = client.get("/api/v1/audit", params={"from": "2026-10-20T10:00:00"})
+        naive = client.get(
+            "/api/v1/audit", params={"from": "2026-10-20T10:00:00"}
+        )
         assert naive.status_code == 422
         reversed_range = client.get(
             "/api/v1/audit",
@@ -406,7 +440,9 @@ def test_period_requires_timezone_and_valid_order(audit_db):
 def test_user_autocomplete_is_partial_case_insensitive_deterministic_and_safe(audit_db):
     engine, _, _ = audit_db
     with TestClient(_app_for(engine, authorized=True)) as client:
-        response = client.get("/api/v1/audit/users", params={"q": "MAR", "limit": 20})
+        response = client.get(
+            "/api/v1/audit/users", params={"q": "MAR", "limit": 20}
+        )
         assert response.status_code == 200
         users = response.json()
         assert users == [
@@ -425,8 +461,16 @@ def test_audit_options_expose_human_modules_and_canonical_actions(audit_db):
         response = client.get("/api/v1/audit/options")
         assert response.status_code == 200
         payload = response.json()
-        assert {item["value"] for item in payload["modules"]} >= {"users", "accounts", "policies"}
-        action = next(item for item in payload["actions"] if item["value"] == "account.disable")
+        assert {item["value"] for item in payload["modules"]} >= {
+            "users",
+            "accounts",
+            "policies",
+        }
+        action = next(
+            item
+            for item in payload["actions"]
+            if item["value"] == "account.disable"
+        )
         assert action["label"] == "Conta cloud desabilitada"
         assert action["module"] == "accounts"
 
@@ -435,7 +479,9 @@ def test_event_kind_legacy_alias_and_conflict_are_predictable(audit_db):
     engine, actor_id, subject_id = audit_db
     _seed_unified_events(engine, actor_id, subject_id)
     with TestClient(_app_for(engine, authorized=True)) as client:
-        legacy = client.get("/api/v1/audit", params={"event_type": "administrative"})
+        legacy = client.get(
+            "/api/v1/audit", params={"event_type": "administrative"}
+        )
         assert legacy.status_code == 200
         assert legacy.json()["total"] == 1
         conflict = client.get(
@@ -453,5 +499,8 @@ def test_security_event_still_works_and_audit_endpoints_are_admin_only(audit_db)
         assert len(list(db.scalars(select(AuditEvent)))) == 1
     with TestClient(_app_for(engine, authorized=False)) as client:
         assert client.get("/api/v1/audit").status_code == 401
-        assert client.get("/api/v1/audit/users", params={"q": "admin"}).status_code == 401
+        assert (
+            client.get("/api/v1/audit/users", params={"q": "admin"}).status_code
+            == 401
+        )
         assert client.get("/api/v1/audit/options").status_code == 401
