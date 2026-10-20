@@ -38,6 +38,31 @@ def _user_audit_label(user: User) -> str:
     return f"{user.name} · {user.email}"
 
 
+def _record_user_action(
+    db: Session,
+    *,
+    actor: User,
+    user: User,
+    action: str,
+    before: dict | None = None,
+    after: dict | None = None,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="users",
+        action=action,
+        entity_type="user",
+        entity_id=user.id,
+        entity_label=_user_audit_label(user),
+        before=before,
+        after=after,
+        source="API",
+        metadata=metadata,
+    )
+
+
 def _lock_and_recheck_admin(db: Session, actor: User) -> None:
     previous_version = actor.token_version
     lock_user_changes(db)
@@ -118,17 +143,12 @@ def create_user(
         db.rollback()
         raise HTTPException(409, "Email is already registered") from exc
     event(db, user.id, "user.created", actor.id)
-    AuditService.record(
+    _record_user_action(
         db,
         actor=actor,
-        module="users",
+        user=user,
         action="user.create",
-        entity_type="user",
-        entity_id=user.id,
-        entity_label=_user_audit_label(user),
-        before=None,
         after=_user_audit_snapshot(user),
-        source="API",
     )
     return _commit(db, user)
 
@@ -187,17 +207,16 @@ def update_user(
     for field, value in changes.items():
         setattr(user, field, value)
     if changed_fields:
-        AuditService.record(
+        action = "user.update"
+        if changed_fields == ["is_active"]:
+            action = "user.enable" if user.is_active else "user.disable"
+        _record_user_action(
             db,
             actor=actor,
-            module="users",
-            action="user.update",
-            entity_type="user",
-            entity_id=user.id,
-            entity_label=_user_audit_label(user),
+            user=user,
+            action=action,
             before=before,
             after=_user_audit_snapshot(user),
-            source="API",
         )
     return _commit(db, user)
 
@@ -223,6 +242,14 @@ def invite_user(
         raise HTTPException(409, "Email is already registered") from exc
     event(db, user.id, "user.invited", actor.id)
     raw, expiry = issue_token(db, user, "invite")
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.invite",
+        after=_user_audit_snapshot(user),
+        metadata={"expires_at": expiry, "delivery": "link"},
+    )
     db.commit()
     return {
         "user": UserRead.model_validate(user),
@@ -245,6 +272,13 @@ def _issue_access(user_id: str, purpose: str, db: Session, actor: User) -> dict:
         actor.id,
     )
     raw, expiry = issue_token(db, user, purpose)
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.invitation_renew" if purpose == "invite" else "user.password_reset_issue",
+        metadata={"expires_at": expiry, "purpose": purpose},
+    )
     db.commit()
     return {"url": token_link(raw, purpose), "expires_at": expiry}
 
@@ -268,10 +302,18 @@ def revoke_user_sessions(
     user_id: str, db: Session = Depends(get_db), actor: User = Depends(require_recent_admin)
 ) -> None:
     _lock_and_recheck_admin(db, actor)
-    if db.get(User, user_id) is None:
+    user = db.get(User, user_id, populate_existing=True)
+    if user is None:
         raise HTTPException(404, "User not found")
     revoke_sessions(db, user_id)
     event(db, user_id, "user.sessions_revoked", actor.id)
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.sessions_revoke",
+        metadata={"scope": "all"},
+    )
     db.commit()
 
 
@@ -304,9 +346,19 @@ def revoke_one_user_session(
     actor: User = Depends(require_recent_admin),
 ) -> None:
     _lock_and_recheck_admin(db, actor)
+    user = db.get(User, user_id, populate_existing=True)
+    if user is None:
+        raise HTTPException(404, "User not found")
     item = db.get(LoginSession, session_id, populate_existing=True)
     if item is None or item.user_id != user_id:
         raise HTTPException(404, "Sessão não encontrada")
     item.revoked_at = utcnow()
     event(db, user_id, "user.session_revoked", actor.id)
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.sessions_revoke",
+        metadata={"scope": "single", "session_id": item.id},
+    )
     db.commit()
