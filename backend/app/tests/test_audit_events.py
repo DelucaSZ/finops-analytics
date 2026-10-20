@@ -388,9 +388,7 @@ def test_module_action_source_event_kind_period_correlation_and_combinations(aud
         assert system_only["total"] == 0
         security = client.get("/api/v1/audit", params={"event_kind": "security"}).json()
         assert security["total"] == 1
-        administrative = client.get(
-            "/api/v1/audit", params={"event_kind": "administrative"}
-        ).json()
+        administrative = client.get("/api/v1/audit", params={"event_kind": "administrative"}).json()
         assert administrative["total"] == 1
         by_correlation = client.get(
             "/api/v1/audit", params={"correlation_id": correlation_id}
