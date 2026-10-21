@@ -121,8 +121,7 @@ def preview_archive(db: Session, scope: ArchiveScopeRequest) -> ArchivePreviewRe
     account_rows = _group_counts(db, active_filters, Finding.provider, Finding.account_id)
     # Keep the preview bounded. The total cardinality is returned separately.
     by_account = {
-        f"{provider}:{account_id}": int(count)
-        for provider, account_id, count in account_rows[:100]
+        f"{provider}:{account_id}": int(count) for provider, account_id, count in account_rows[:100]
     }
 
     currency_stmt = select(
