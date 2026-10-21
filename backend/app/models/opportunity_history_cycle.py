@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     event,
@@ -63,6 +64,7 @@ class OpportunityHistoryCycle(TimestampMixin, Base):
         server_default="UTC",
         nullable=False,
     )
+    policy_version: Mapped[int | None] = mapped_column(Integer, nullable=True)
     closed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
@@ -104,6 +106,26 @@ def _protect_closed_opportunity_history_cycles(
             .one_or_none()
         )
         if persisted is None or persisted.status != OpportunityHistoryCycleStatus.CLOSED.value:
+            # On the OPEN -> CLOSED flush, the history service replaces metadata_json
+            # with close statistics. Preserve the immutable policy context captured
+            # when the cycle was created.
+            status_history = state.attrs.status.history
+            if (
+                status_history.deleted
+                and status_history.deleted[0] == OpportunityHistoryCycleStatus.OPEN.value
+                and item.status == OpportunityHistoryCycleStatus.CLOSED.value
+            ):
+                metadata_history = state.attrs.metadata_json.history
+                previous = (
+                    metadata_history.deleted[0]
+                    if metadata_history.deleted and isinstance(metadata_history.deleted[0], dict)
+                    else {}
+                )
+                current = dict(item.metadata_json or {})
+                policy_context = previous.get("policy")
+                if policy_context is not None and "policy" not in current:
+                    current["policy"] = policy_context
+                    item.metadata_json = current
             continue
 
         completing_close = (

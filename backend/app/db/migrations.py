@@ -58,11 +58,17 @@ def initialize_database(engine: Engine, config: Settings = settings) -> None:
         command.upgrade(alembic_config, "head")
         with Session(bind=connection) as db:
             bootstrap_admin(db, config)
+            # The persisted policy is bootstrapped once from legacy Settings/env.
+            # Subsequent restarts never overwrite the UI-managed row.
+            from app.services.opportunity_policy import OpportunityManagementPolicyService
+
+            OpportunityManagementPolicyService.get_or_create(db, configured=config)
             db.flush()
 
 
 def wait_for_database(engine: Engine, timeout: float = 120) -> None:
     """Workers never perform DDL; the API initializes the database first."""
+
     expected = ScriptDirectory.from_config(migration_config()).get_current_head()
     deadline = time.monotonic() + timeout
     while True:

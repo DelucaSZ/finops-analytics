@@ -544,7 +544,7 @@ def test_scheduler_failure_is_checkpointed_and_retried_after_backoff(monkeypatch
         scheduler.close()
 
 
-def test_runtime_cycle_runs_retention_before_collection(monkeypatch):
+def test_runtime_cycle_runs_collection_before_retention(monkeypatch):
     calls = []
 
     class Scheduler:
@@ -557,4 +557,4 @@ def test_runtime_cycle_runs_retention_before_collection(monkeypatch):
 
     monkeypatch.setattr("app.worker_runtime.worker.process_once", process_once)
     assert process_runtime_once(Scheduler()) is False
-    assert calls == ["retention", "collection"]
+    assert calls == ["collection", "retention"]

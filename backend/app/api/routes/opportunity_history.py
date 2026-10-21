@@ -24,6 +24,7 @@ from app.services.opportunity_history import (
     list_cycles,
     list_snapshots,
 )
+from app.services.opportunity_policy import OpportunityManagementPolicyService
 
 router = APIRouter(
     prefix="/opportunity-history",
@@ -39,7 +40,12 @@ def cycles(db: Session = Depends(get_db)) -> dict:
 
 @router.get("/cycles/current", response_model=OpportunityHistoryCycleRead)
 def current_cycle(db: Session = Depends(get_db)) -> dict:
-    cycle = OpportunityHistoryCycleService.get_or_create_cycle_for(db, datetime.now(UTC))
+    policy = OpportunityManagementPolicyService.get_or_create(db)
+    cycle = OpportunityManagementPolicyService.get_or_create_cycle_for(
+        db,
+        datetime.now(UTC),
+        policy=policy,
+    )
     db.commit()
     db.refresh(cycle)
     return cycle_payload(db, cycle)
@@ -91,6 +97,8 @@ def close_cycle(
             actor=actor,
             close_reason="MANUAL",
         )
+        policy = OpportunityManagementPolicyService.get_or_create(db)
+        OpportunityManagementPolicyService.ensure_next_cycle(db, cycle, policy=policy)
         db.commit()
     except Exception:
         db.rollback()

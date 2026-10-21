@@ -22,6 +22,7 @@ from app.api.routes import (
     mfa,
     opportunities,
     opportunity_history,
+    opportunity_policy,
     policies,
     pricing,
     scans,
@@ -33,6 +34,7 @@ from app.db.migrations import initialize_database
 from app.db.session import SessionLocal, engine
 from app.services.billing_profiles import ensure_finops_profile
 from app.services.demo import seed_demo_data
+from app.services.opportunity_policy import OpportunityManagementPolicyService
 
 
 @asynccontextmanager
@@ -40,6 +42,8 @@ async def lifespan(_: FastAPI):
     initialize_database(engine)
     with SessionLocal(bind=engine) as db:
         ensure_finops_profile(db)
+        OpportunityManagementPolicyService.get_or_create(db)
+        db.commit()
         if settings.demo_mode:
             seed_demo_data(db)
     yield
@@ -83,6 +87,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/usage",
             "/api/v1/deepops-costs",
             "/api/v1/opportunity-history",
+            "/api/v1/settings/opportunity-policy",
         )
     ):
         response.headers["Cache-Control"] = "no-store"
@@ -112,6 +117,7 @@ app.include_router(collections.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")
 app.include_router(opportunity_history.router, prefix="/api/v1")
+app.include_router(opportunity_policy.router, prefix="/api/v1")
 app.include_router(finops_ledger.router, prefix="/api/v1")
 app.include_router(finops_flow.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")

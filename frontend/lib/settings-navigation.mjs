@@ -13,6 +13,7 @@ const adminSettingsTabs = [
   { href: "/settings/pricing/oci", label: "Pricing OCI" },
   { href: "/settings/billing/profiles", label: "Billing Profiles" },
   { href: "/settings/usage-costs", label: "Uso e custos" },
+  { href: "/settings/opportunities", label: "Retenção e histórico" },
 ];
 
 export const legacySettingsRedirects = [
