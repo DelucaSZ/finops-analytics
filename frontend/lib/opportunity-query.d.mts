@@ -28,6 +28,8 @@ export type OpportunityQueryState = {
   temporalPreset: OpportunityTemporalPreset;
   temporalFrom: string;
   temporalTo: string;
+  temporalFromRaw: string;
+  temporalToRaw: string;
   archivedFrom: string;
   archivedTo: string;
   archiveReason: OpportunityArchiveReason | "";
@@ -51,7 +53,7 @@ export const OPPORTUNITY_TIME_PRESETS: OpportunityTemporalPreset[];
 export const OPPORTUNITY_DISCOVERY_TYPES: OpportunityDiscoveryType[];
 export function parseOpportunitySearchParams(value: string | URLSearchParams): OpportunityQueryState;
 export function resolveOpportunityTemporalWindow(
-  state: Pick<OpportunityQueryState, "dateField" | "temporalPreset" | "temporalFrom" | "temporalTo">,
+  state: Pick<OpportunityQueryState, "dateField" | "temporalPreset" | "temporalFrom" | "temporalTo" | "temporalFromRaw" | "temporalToRaw">,
   anchorValue?: Date | string,
 ): { field: OpportunityDateField; from: string; to: string };
 export function buildOpportunityApiQuery(state: OpportunityQueryState, options?: { now?: Date }): string;
