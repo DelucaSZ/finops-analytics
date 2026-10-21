@@ -48,6 +48,12 @@ class Finding(TimestampMixin, Base):
             "last_seen_at",
         ),
         Index(
+            "ix_findings_provider_account_first_seen",
+            "provider",
+            "account_id",
+            "first_seen_at",
+        ),
+        Index(
             "ix_findings_presence_reconciliation_scope",
             "provider",
             "account_id",
@@ -62,12 +68,28 @@ class Finding(TimestampMixin, Base):
             "archived_at",
             "last_seen_at",
         ),
+        Index(
+            "ix_findings_status_archived_first_seen",
+            "status",
+            "archived_at",
+            "first_seen_at",
+        ),
     )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     fingerprint: Mapped[str] = mapped_column(String(64), unique=True, index=True, nullable=False)
     scan_id: Mapped[str | None] = mapped_column(
         ForeignKey("scans.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    first_seen_collection_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("collection_runs.id", ondelete="SET NULL"),
+        index=True,
+        nullable=True,
+    )
+    last_seen_collection_run_id: Mapped[str | None] = mapped_column(
+        ForeignKey("collection_runs.id", ondelete="SET NULL"),
         index=True,
         nullable=True,
     )
@@ -118,7 +140,9 @@ class Finding(TimestampMixin, Base):
     total_occurrence_count: Mapped[int] = mapped_column(
         Integer, default=0, server_default="0", nullable=False
     )
-    first_seen_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    first_seen_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), index=True, nullable=False
+    )
     last_seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), index=True, nullable=False
     )
