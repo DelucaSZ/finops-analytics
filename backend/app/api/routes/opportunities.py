@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.security import require_operator, require_user
+from app.core.security import require_admin, require_operator, require_user
 from app.db.session import get_db
 from app.models.collection_run import CollectionRun
 from app.models.finding import OpportunityPresenceStatus
@@ -11,10 +11,15 @@ from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
 from app.schemas.opportunity import (
     ArchiveHistoryPage,
+    ArchiveOperationResult,
+    ArchivePreviewResult,
+    ArchiveScopeRequest,
+    BulkArchiveRequest,
     BulkReject,
     BulkTransitionBase,
     BulkTransitionResult,
     ObservationPage,
+    OpportunityArchiveFilterScope,
     OpportunityArchiveState,
     OpportunityDetail,
     OpportunityOptions,
@@ -23,11 +28,19 @@ from app.schemas.opportunity import (
     OpportunitySort,
     OpportunityStats,
     OpportunityStatus,
+    PeriodCloseRequest,
+    PeriodCloseResult,
     SortOrder,
     StatusHistoryPage,
 )
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
 from app.services.opportunity_archiving import archive, unarchive
+from app.services.opportunity_bulk_archiving import (
+    archive_by_filter,
+    archive_preview,
+    bulk_archive,
+    close_period_and_archive,
+)
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 from app.services.opportunity_presence_history import presence_history
 from app.services.opportunity_query import (
@@ -104,6 +117,25 @@ def _filters(
         archived_from=archived_from,
         archived_to=archived_to,
         archive_reason=archive_reason,
+    )
+
+
+def _archive_filters(scope: OpportunityArchiveFilterScope) -> OpportunityFilters:
+    return OpportunityFilters(
+        provider=scope.provider.lower() if scope.provider else None,
+        account_id=scope.account_id,
+        region=scope.region,
+        service=scope.service,
+        resource_type=scope.resource_type,
+        status=scope.status,
+        presence_status=scope.presence_status.value if scope.presence_status else None,
+        severity=scope.severity,
+        rule=scope.rule,
+        collection_run_id=scope.collection_run_id,
+        resource_id=scope.resource_id,
+        search=scope.search,
+        current=scope.current,
+        archive_state="active",
     )
 
 
@@ -303,6 +335,90 @@ def bulk_reopen(
     return _run_bulk(payload, db, actor, action="reopen")
 
 
+@router.post(
+    "/bulk/archive",
+    response_model=ArchiveOperationResult,
+    dependencies=[Depends(require_operator)],
+)
+def bulk_archive_opportunities(
+    payload: BulkArchiveRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    try:
+        result = bulk_archive(db, payload.opportunity_ids, actor)
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.post(
+    "/archive-preview",
+    response_model=ArchivePreviewResult,
+    dependencies=[Depends(require_operator)],
+)
+def preview_archive_scope(
+    payload: ArchiveScopeRequest,
+    db: Session = Depends(get_db),
+) -> dict:
+    return archive_preview(
+        db,
+        _archive_filters(payload.filters),
+        archive_all=payload.archive_all,
+    )
+
+
+@router.post(
+    "/archive-by-filter",
+    response_model=ArchiveOperationResult,
+    dependencies=[Depends(require_operator)],
+)
+def archive_matching_opportunities(
+    payload: ArchiveScopeRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    try:
+        result = archive_by_filter(
+            db,
+            _archive_filters(payload.filters),
+            actor,
+            archive_all=payload.archive_all,
+        )
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
+
+
+@router.post(
+    "/period-close",
+    response_model=PeriodCloseResult,
+    dependencies=[Depends(require_admin)],
+)
+def close_operational_period(
+    payload: PeriodCloseRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+) -> dict:
+    try:
+        result = close_period_and_archive(
+            db,
+            cycle_id=payload.cycle_id,
+            filters=_archive_filters(payload.filters),
+            archive_all=payload.archive_all,
+            actor=actor,
+        )
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
+
+
 @router.get("/{opportunity_id}", response_model=OpportunityDetail)
 def detail(opportunity_id: str, db: Session = Depends(get_db)) -> dict:
     item = get_opportunity(db, opportunity_id)
@@ -373,8 +489,12 @@ def archive_opportunity(
     db: Session = Depends(get_db),
     actor: User = Depends(require_operator),
 ) -> dict:
-    archive(db, opportunity_id, actor)
-    db.commit()
+    try:
+        archive(db, opportunity_id, actor)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     item = get_opportunity(db, opportunity_id)
     if item is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
