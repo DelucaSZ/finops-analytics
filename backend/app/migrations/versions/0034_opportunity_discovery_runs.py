@@ -15,8 +15,20 @@ depends_on = None
 
 def upgrade() -> None:
     with op.batch_alter_table("findings") as batch_op:
-        batch_op.add_column(sa.Column("first_seen_collection_run_id", sa.String(length=36), nullable=True))
-        batch_op.add_column(sa.Column("last_seen_collection_run_id", sa.String(length=36), nullable=True))
+        batch_op.add_column(
+            sa.Column(
+                "first_seen_collection_run_id",
+                sa.String(length=36),
+                nullable=True,
+            )
+        )
+        batch_op.add_column(
+            sa.Column(
+                "last_seen_collection_run_id",
+                sa.String(length=36),
+                nullable=True,
+            )
+        )
         batch_op.create_foreign_key(
             "fk_findings_first_seen_collection_run_id",
             "collection_runs",
@@ -108,7 +120,13 @@ def downgrade() -> None:
     op.drop_index("ix_findings_first_seen_collection_run_id", table_name="findings")
 
     with op.batch_alter_table("findings") as batch_op:
-        batch_op.drop_constraint("fk_findings_last_seen_collection_run_id", type_="foreignkey")
-        batch_op.drop_constraint("fk_findings_first_seen_collection_run_id", type_="foreignkey")
+        batch_op.drop_constraint(
+            "fk_findings_last_seen_collection_run_id",
+            type_="foreignkey",
+        )
+        batch_op.drop_constraint(
+            "fk_findings_first_seen_collection_run_id",
+            type_="foreignkey",
+        )
         batch_op.drop_column("last_seen_collection_run_id")
         batch_op.drop_column("first_seen_collection_run_id")
