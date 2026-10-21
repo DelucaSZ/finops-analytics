@@ -80,7 +80,8 @@ def test_administration_is_audited_without_link_or_password(auth_env):
     assert PASSWORD not in response.text and link not in response.text
     assert not any("token" in row["reason"] for row in data["items"])
     page = http.get(
-        f"/api/v1/audit?user_id={user_id}&limit=1&offset=1", headers=headers(tokens)
+        f"/api/v1/audit?category=user&user_id={user_id}&limit=1&offset=1",
+        headers=headers(tokens),
     ).json()
     assert page["total"] == 3 and len(page["items"]) == 1
     assert page["items"][0]["id"] == data["items"][1]["id"]
