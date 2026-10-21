@@ -8,6 +8,7 @@ from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
 from app.services.audit import AuditService, audit_snapshot, new_correlation_id
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
+from app.services.opportunity_archiving import unarchive_for_reopen
 from app.services.opportunity_saving_recognition import OpportunitySavingRecognitionService
 
 OPEN = "open"
@@ -129,15 +130,21 @@ def _apply_reject(
     finding.needs_review = False
 
 
-def _apply_reopen(db: Session, finding: Finding, actor: User, note: str | None) -> None:
+def _apply_reopen(db: Session, finding: Finding, actor: User, note: str | None) -> bool:
     if finding.status not in {TREATED, REJECTED}:
         raise HTTPException(
             status_code=409,
             detail="Only treated or rejected opportunities can be reopened",
         )
+
+    reopened_archived = finding.status == REJECTED and finding.archived_at is not None
+    if reopened_archived:
+        unarchive_for_reopen(db, finding, actor)
+
     _history(db, finding, actor, to_status=OPEN, action="reopen", note=note)
     finding.status = OPEN
     finding.needs_review = False
+    return reopened_archived
 
 
 def _recognize_treatments(
@@ -197,9 +204,16 @@ def reopen(
 ) -> Finding:
     finding = _locked(db, opportunity_id)
     before = _audit_snapshot(finding)
-    _apply_reopen(db, finding, actor, note)
+    reopened_archived = _apply_reopen(db, finding, actor, note)
     refresh_summaries_for_findings(db, [finding])
-    _record_lifecycle_audit(db, finding=finding, actor=actor, action="reopen", before=before)
+    _record_lifecycle_audit(
+        db,
+        finding=finding,
+        actor=actor,
+        action="reopen",
+        before=before,
+        metadata={"reopened_archived": True} if reopened_archived else None,
+    )
     return finding
 
 
@@ -237,6 +251,7 @@ def bulk_transition(
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
     treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
+    reopened_archived_count = 0
     for finding in ordered:
         if action == "treat":
             event = _apply_treat(db, finding, actor, note)
@@ -244,7 +259,7 @@ def bulk_transition(
         elif action == "reject":
             _apply_reject(db, finding, actor, reason or "", note)
         else:
-            _apply_reopen(db, finding, actor, note)
+            reopened_archived_count += int(_apply_reopen(db, finding, actor, note))
     _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
 
@@ -258,6 +273,8 @@ def bulk_transition(
     }
     if reason:
         metadata["reason"] = reason
+    if reopened_archived_count:
+        metadata["reopened_archived"] = reopened_archived_count
     AuditService.record(
         db,
         actor=actor,
@@ -362,7 +379,12 @@ def bulk_set_legacy_status(
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
     treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
+    reopened_archived_count = 0
+    target = _legacy_target(status)
     for finding in ordered:
+        was_rejected_archived = (
+            target == OPEN and finding.status == REJECTED and finding.archived_at is not None
+        )
         event = _apply_legacy_status(
             db,
             finding,
@@ -371,13 +393,22 @@ def bulk_set_legacy_status(
             reason=reason,
             note=note,
         )
+        reopened_archived_count += int(was_rejected_archived)
         if event is not None:
             treatment_candidates.append((finding, event))
     _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
-    target = _legacy_target(status)
     action = "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
     sample_ids = [finding.id for finding in ordered[:20]]
+    metadata = {
+        "requested": len(ids),
+        "updated": len(ordered),
+        "sample_ids": sample_ids,
+        "ids_truncated": len(ordered) > len(sample_ids),
+        **({"reason": reason} if reason else {}),
+    }
+    if reopened_archived_count:
+        metadata["reopened_archived"] = reopened_archived_count
     AuditService.record(
         db,
         actor=actor,
@@ -386,13 +417,7 @@ def bulk_set_legacy_status(
         entity_type="opportunity_bulk",
         entity_label=f"{len(ordered)} oportunidades",
         source="API",
-        metadata={
-            "requested": len(ids),
-            "updated": len(ordered),
-            "sample_ids": sample_ids,
-            "ids_truncated": len(ordered) > len(sample_ids),
-            **({"reason": reason} if reason else {}),
-        },
+        metadata=metadata,
         correlation_id=new_correlation_id(),
     )
     return ordered

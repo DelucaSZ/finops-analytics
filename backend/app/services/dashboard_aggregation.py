@@ -153,9 +153,12 @@ def _comparison_metrics(db: Session, target: CollectionRun) -> dict:
         db.scalar(
             select(func.count())
             .select_from(target_observation)
+            .join(Finding, Finding.id == target_observation.opportunity_id)
             .where(
                 target_observation.collection_run_id == target.id,
                 ~baseline_exists,
+                Finding.status != _REJECTED,
+                Finding.archived_at.is_(None),
             )
         )
         or 0
@@ -324,12 +327,20 @@ def refresh_account_summary_after_lifecycle(
             collection_run_id=target.id,
         )
 
-    values = _current_metrics(db, target)
+    # Lifecycle decisions can change whether a target-only observation is operationally
+    # "new" (notably rejected suppression), so refresh comparison metrics atomically too.
+    values = _current_metrics(db, target) | _comparison_metrics(db, target)
+    summary.baseline_collection_run_id = values["baseline_collection_run_id"]
     summary.open_count = values["open_count"]
     summary.treated_count = values["treated_count"]
     summary.rejected_count = values["rejected_count"]
     summary.severity_counts = dict(values["severity_counts"])
     summary.financial = dict(values["financial"])
+    summary.new_count = values["new_count"]
+    summary.no_longer_detected_count = values["no_longer_detected_count"]
+    summary.has_baseline = values["has_baseline"]
+    summary.rules_version_changed = values["rules_version_changed"]
+    summary.rules_version_unknown = values["rules_version_unknown"]
     summary.updated_at = utcnow()
     db.flush()
     logger.info(

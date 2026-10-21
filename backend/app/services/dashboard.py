@@ -200,9 +200,12 @@ def _recent_changes(db: Session, *, provider: str | None, account_id: str | None
             select(func.count())
             .select_from(target_observation)
             .join(pairs, target_observation.collection_run_id == pairs.c.target_run_id)
+            .join(Finding, Finding.id == target_observation.opportunity_id)
             .where(
                 pairs.c.baseline_run_id.is_not(None),
                 ~baseline_exists,
+                Finding.status != "rejected",
+                Finding.archived_at.is_(None),
             )
         )
         or 0

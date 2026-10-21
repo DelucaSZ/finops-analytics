@@ -131,21 +131,37 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
     }
   }
 
-  async function unarchiveCurrent() {
+  async function restoreArchivedCurrent() {
     if (!detail?.archived || unarchiveSaving) return;
+    const isRejected = detail.status === "rejected";
     const confirmed = window.confirm(
-      "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
+      isRejected
+        ? "Esta oportunidade foi rejeitada anteriormente. Reabri-la removerá a decisão de rejeição e a devolverá ao backlog operacional. Deseja continuar?"
+        : "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
     );
     if (!confirmed) return;
     setUnarchiveSaving(true);
     setActionError("");
     try {
-      await api(`/opportunities/${detail.id}/unarchive`, { method: "POST" });
+      if (isRejected) {
+        await api(`/opportunities/${detail.id}/reopen`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+      } else {
+        await api(`/opportunities/${detail.id}/unarchive`, { method: "POST" });
+      }
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
       onClose();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+      setActionError(
+        err instanceof Error
+          ? err.message
+          : isRejected
+            ? "Não foi possível reabrir a oportunidade."
+            : "Não foi possível desarquivar a oportunidade.",
+      );
     } finally {
       setUnarchiveSaving(false);
     }
@@ -181,6 +197,11 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
                 {detail.needs_review && <span className="review-flag">Detectada novamente após tratamento</span>}
               </div>
               <p className="detail-description">{detail.description}</p>
+              {detail.status === "rejected" && detail.archived && detail.presence_status === "active" && (
+                <div className="alert" role="status">
+                  Esta oportunidade continua sendo observada tecnicamente, mas permanece suprimida pela decisão de rejeição.
+                </div>
+              )}
               <dl className="detail-grid">
                 <div><dt>Cloud</dt><dd>{providerLabel(detail.provider)}</dd></div>
                 <div><dt>Conta</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
@@ -373,8 +394,10 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
         {detail && (
           <footer className="drawer-actions">
             {detail.archived ? (
-              <button className="button primary" type="button" disabled={unarchiveSaving} onClick={() => void unarchiveCurrent()}>
-                <RotateCcw size={17} /> {unarchiveSaving ? "Desarquivando…" : "Desarquivar"}
+              <button className="button primary" type="button" disabled={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>
+                <RotateCcw size={17} /> {unarchiveSaving
+                  ? (detail.status === "rejected" ? "Reabrindo…" : "Desarquivando…")
+                  : (detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar")}
               </button>
             ) : detail.status === "open" ? (
               <>

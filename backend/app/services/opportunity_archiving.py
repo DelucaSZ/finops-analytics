@@ -18,6 +18,8 @@ from app.models.user import User
 from app.services.audit import AuditService, audit_snapshot
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
 
+REJECTED = "rejected"
+
 
 def _locked(db: Session, opportunity_id: str) -> Finding:
     finding = db.scalar(select(Finding).where(Finding.id == opportunity_id).with_for_update())
@@ -152,6 +154,13 @@ def unarchive(db: Session, opportunity_id: str, actor: User) -> Finding:
     finding = _locked(db, opportunity_id)
     if finding.archived_at is None:
         return finding
+    if finding.status == REJECTED:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Esta oportunidade está rejeitada. Reabra-a para devolvê-la ao backlog operacional."
+            ),
+        )
     before = _archive_snapshot(finding)
     previous = {
         "archived_at": finding.archived_at.isoformat(),
@@ -187,7 +196,54 @@ def unarchive(db: Session, opportunity_id: str, actor: User) -> Finding:
     return finding
 
 
+def unarchive_for_reopen(db: Session, finding: Finding, actor: User) -> bool:
+    """Unarchive a locked rejected finding as part of an explicit reopen transaction."""
+
+    if finding.archived_at is None:
+        return False
+    if finding.status != REJECTED:
+        raise RuntimeError("Reopen unarchive is only valid for rejected opportunities")
+
+    before = _archive_snapshot(finding)
+    previous = {
+        "archived_at": finding.archived_at.isoformat(),
+        "archived_by": finding.archived_by,
+        "archive_reason": finding.archive_reason,
+        "status": finding.status,
+        "presence_status": finding.presence_status,
+        "trigger": "reopen",
+    }
+    finding.archived_at = None
+    finding.archived_by = None
+    finding.archive_reason = None
+    _history(
+        db,
+        finding,
+        action=OpportunityArchiveAction.UNARCHIVE,
+        reason=OpportunityArchiveReason.MANUAL,
+        changed_by=actor.id,
+        context=previous,
+    )
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action="opportunity.unarchive",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_label(finding),
+        before=before,
+        after=_archive_snapshot(finding),
+        source="API",
+        metadata={"reason": "REOPEN"},
+    )
+    return True
+
+
 def unarchive_reappeared(db: Session, finding: Finding, run: CollectionRun) -> bool:
+    # Defense in depth: automatic collection flows can never break an explicit rejection.
+    if finding.status == REJECTED:
+        return False
     if finding.archived_at is None:
         return False
     before = _archive_snapshot(finding)

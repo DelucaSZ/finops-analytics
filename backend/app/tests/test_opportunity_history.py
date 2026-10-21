@@ -189,7 +189,7 @@ def test_history_filters_archived_period(client):
     assert body["items"][0]["id"] == "oci-2"
 
 
-def test_archived_detail_archive_history_and_manual_unarchive_are_auditable(client):
+def test_rejected_archived_detail_requires_reopen_and_is_auditable(client):
     http, _ = client
     detail = http.get("/opportunities/oci-2")
     assert detail.status_code == 200
@@ -200,11 +200,15 @@ def test_archived_detail_archive_history_and_manual_unarchive_are_auditable(clie
     assert archive_history["items"][0]["reason"] == "RETENTION_POLICY"
     assert archive_history["items"][0]["context"]["threshold_days"] == 60
 
-    response = http.post("/opportunities/oci-2/unarchive")
+    blocked = http.post("/opportunities/oci-2/unarchive")
+    assert blocked.status_code == 409
+    assert "Reabra-a" in blocked.json()["detail"]
+
+    response = http.post("/opportunities/oci-2/reopen", json={})
     assert response.status_code == 200
     body = response.json()
     assert body["archived"] is False
-    assert body["status"] == "rejected"
+    assert body["status"] == "open"
     assert body["presence_status"] == "active"
 
     historical = http.get("/opportunities?archive_state=archived&page_size=100").json()
@@ -213,6 +217,7 @@ def test_archived_detail_archive_history_and_manual_unarchive_are_auditable(clie
     audit = http.get("/opportunities/oci-2/archive-history").json()
     assert [item["action"] for item in audit["items"]] == ["UNARCHIVE", "ARCHIVE"]
     assert audit["items"][0]["reason"] == "MANUAL"
+    assert audit["items"][0]["context"]["trigger"] == "reopen"
 
 
 def test_history_options_use_archived_scope(client):

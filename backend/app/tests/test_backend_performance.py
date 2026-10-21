@@ -56,7 +56,9 @@ def test_read_contracts_and_bounded_loading(migration_engine):  # noqa: F811
             assert summary["opportunities"]["treated"] == 18
             assert summary["opportunities"]["rejected"] == 18
             assert summary["financial"]["totals"][0]["amount"] == 184
-            assert summary["recent_changes"]["new"] == 6
+            # Two of the six target-only observations are rejected and therefore suppressed
+            # from the operational "new opportunities" metric.
+            assert summary["recent_changes"]["new"] == 4
             assert summary["recent_changes"]["no_longer_detected"] == 6
 
             baseline = db.get(CollectionRun, "run-0-98")

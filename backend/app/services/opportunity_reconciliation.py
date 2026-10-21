@@ -27,6 +27,7 @@ from app.services.opportunity_archiving import unarchive_reappeared
 from app.services.policies import list_effective_policies
 
 ALL_REGIONS_SCOPE = "*"
+REJECTED = "rejected"
 logger = logging.getLogger("deepops.opportunity_reconciliation")
 
 
@@ -304,7 +305,7 @@ def reactivate_presence_from_observation(
     finding: Finding,
     run: CollectionRun,
 ) -> bool:
-    """Reactivate current presence and surface archived findings on a valid observation."""
+    """Reactivate technical presence without overriding a rejected human decision."""
 
     run_started_at = _normalized_utc(run.started_at)
     if finding.presence_reconciled_at is not None:
@@ -337,6 +338,13 @@ def reactivate_presence_from_observation(
     finding.resolved_externally_at = None
     finding.presence_reconciled_run_id = run.id
     finding.presence_reconciled_at = run.started_at
+
+    # Rejection is a persistent human decision. Re-observation is allowed to refresh
+    # technical presence, but it must not surface the opportunity operationally again.
+    if finding.status == REJECTED:
+        finding.needs_review = False
+        return True
+
     unarchive_reappeared(db, finding, run)
     return True
 
