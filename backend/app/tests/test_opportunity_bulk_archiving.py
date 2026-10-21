@@ -1,3 +1,4 @@
+import hashlib
 from datetime import UTC, datetime
 from decimal import Decimal
 
@@ -61,7 +62,7 @@ def _finding(
 ) -> Finding:
     finding = Finding(
         id=opportunity_id,
-        fingerprint=(opportunity_id[-1] * 64)[:64],
+        fingerprint=hashlib.sha256(opportunity_id.encode()).hexdigest(),
         provider=provider,
         account_id=account_id,
         rule_key=rule_key,
