@@ -272,12 +272,7 @@ def bulk_archive(db: Session, opportunity_ids: list[str], actor: User) -> dict:
     if len(ids) > 500:
         raise HTTPException(status_code=422, detail="Bulk archive supports at most 500 IDs")
 
-    statement = (
-        select(Finding)
-        .where(Finding.id.in_(ids))
-        .order_by(Finding.id)
-        .with_for_update()
-    )
+    statement = select(Finding).where(Finding.id.in_(ids)).order_by(Finding.id).with_for_update()
     findings = list(db.scalars(statement))
     found = {finding.id for finding in findings}
     missing = [opportunity_id for opportunity_id in ids if opportunity_id not in found]
