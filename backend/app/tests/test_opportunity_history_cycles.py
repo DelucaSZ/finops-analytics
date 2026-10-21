@@ -479,6 +479,7 @@ def test_caller_rollback_keeps_cycle_open_when_close_fails(db, monkeypatch):
     )
     cycle = OpportunityHistoryCycleService.get_or_create_cycle_for(db, run.started_at)
     cycle_id = cycle.id
+    db.commit()
 
     def fail_audit(*_args, **_kwargs):
         raise RuntimeError("simulated audit failure")
