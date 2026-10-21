@@ -358,7 +358,7 @@ def test_reappearance_reuses_fingerprint_and_preserves_human_decision(
             assert finding.presence_status == OpportunityPresenceStatus.ACTIVE.value
             assert finding.needs_review is expected_review
             assert finding.first_seen_at == original_first_seen
-            assert finding.last_seen_at == reappeared_at
+            assert finding.last_seen_at.replace(tzinfo=UTC) == reappeared_at
             assert finding.total_occurrence_count == 2
 
             if expected_archived:
