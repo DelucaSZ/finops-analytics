@@ -455,21 +455,38 @@ function OpportunitiesContent() {
     }
   }
 
-  async function unarchiveRow(finding: HistoricalFinding) {
+  async function restoreHistoryRow(finding: HistoricalFinding) {
     if (!finding.archived || unarchiveSavingId) return;
+    const isRejected = finding.status === "rejected";
     const confirmed = window.confirm(
-      "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
+      isRejected
+        ? "Esta oportunidade foi rejeitada anteriormente. Reabri-la removerá a decisão de rejeição e a devolverá ao backlog operacional. Deseja continuar?"
+        : "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
     );
     if (!confirmed) return;
     setUnarchiveSavingId(finding.id);
     setMessage("");
     try {
-      await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
-      setMessage("Oportunidade desarquivada com sucesso.");
+      if (isRejected) {
+        await api(`/opportunities/${finding.id}/reopen`, {
+          method: "POST",
+          body: JSON.stringify({}),
+        });
+        setMessage("Oportunidade reaberta e devolvida ao backlog operacional.");
+      } else {
+        await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
+        setMessage("Oportunidade desarquivada com sucesso.");
+      }
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+      setMessage(
+        err instanceof Error
+          ? err.message
+          : isRejected
+            ? "Não foi possível reabrir a oportunidade."
+            : "Não foi possível desarquivar a oportunidade.",
+      );
     } finally {
       setUnarchiveSavingId("");
     }
@@ -849,8 +866,10 @@ function OpportunitiesContent() {
                       <div className="row-actions stage-five-actions">
                         <button type="button" onClick={() => openDetail(finding.id)}>Abrir detalhe</button>
                         {isHistory ? (
-                          <button type="button" disabled={unarchiveSavingId === finding.id} onClick={() => void unarchiveRow(finding)}>
-                            {unarchiveSavingId === finding.id ? "Desarquivando…" : "Desarquivar"}
+                          <button type="button" disabled={unarchiveSavingId === finding.id} onClick={() => void restoreHistoryRow(finding)}>
+                            {unarchiveSavingId === finding.id
+                              ? (finding.status === "rejected" ? "Reabrindo…" : "Desarquivando…")
+                              : (finding.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar")}
                           </button>
                         ) : finding.status === "open" ? (
                           <>
