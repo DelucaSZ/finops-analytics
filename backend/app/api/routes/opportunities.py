@@ -37,7 +37,11 @@ from app.schemas.opportunity_archiving import (
 )
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
 from app.services.opportunity_archiving import archive, unarchive
-from app.services.opportunity_bulk_archiving import archive_by_filter, archive_by_ids, preview_archive
+from app.services.opportunity_bulk_archiving import (
+    archive_by_filter,
+    archive_by_ids,
+    preview_archive,
+)
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
 from app.services.opportunity_period_close import close_period_operationally, preview_period_close
 from app.services.opportunity_presence_history import presence_history
