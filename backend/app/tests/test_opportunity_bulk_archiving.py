@@ -119,22 +119,19 @@ def test_bulk_archive_deduplicates_preserves_lifecycle_and_correlates_history(db
     assert all(item.archived_at is not None for item in items)
     assert len({item.archived_at for item in items}) == 1
 
-    history = list(
-        db.scalars(
-            select(OpportunityArchiveHistory).order_by(OpportunityArchiveHistory.id)
-        )
+    history_statement = select(OpportunityArchiveHistory).order_by(
+        OpportunityArchiveHistory.id
     )
+    history = list(db.scalars(history_statement))
     assert len(history) == 3
-    assert {item.context["correlation_id"] for item in history} == {
-        result["correlation_id"]
-    }
+    expected_correlations = {result["correlation_id"]}
+    assert {item.context["correlation_id"] for item in history} == expected_correlations
     assert {item.context["operation"] for item in history} == {"bulk"}
 
-    events = list(
-        db.scalars(
-            select(AuditEvent).where(AuditEvent.action == "opportunity.bulk_archive")
-        )
+    event_statement = select(AuditEvent).where(
+        AuditEvent.action == "opportunity.bulk_archive"
     )
+    events = list(db.scalars(event_statement))
     assert len(events) == 1
     assert events[0].correlation_id == result["correlation_id"]
 
@@ -251,11 +248,10 @@ def test_period_close_snapshots_before_archive_and_keeps_snapshot_immutable(db):
     assert result["cycle_closed"] is True
     assert result["snapshots_created"] == 1
     assert result["archived"] == 1
-    snapshot = db.scalar(
-        select(OpportunityHistorySnapshot).where(
-            OpportunityHistorySnapshot.cycle_id == cycle.id
-        )
+    snapshot_statement = select(OpportunityHistorySnapshot).where(
+        OpportunityHistorySnapshot.cycle_id == cycle.id
     )
+    snapshot = db.scalar(snapshot_statement)
     assert snapshot is not None
     assert snapshot.status == "treated"
     assert snapshot.archived is False
