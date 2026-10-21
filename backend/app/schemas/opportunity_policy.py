@@ -29,7 +29,7 @@ class OpportunityPolicyFields(BaseModel):
     enabled: bool = True
 
     @model_validator(mode="after")
-    def validate_cycle(self) -> "OpportunityPolicyFields":
+    def validate_cycle(self) -> OpportunityPolicyFields:
         try:
             ZoneInfo(self.cycle_timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
