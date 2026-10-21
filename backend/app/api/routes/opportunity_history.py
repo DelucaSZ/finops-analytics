@@ -1,10 +1,12 @@
 from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.security import require_admin, require_user
 from app.db.session import get_db
+from app.models.opportunity_observation import OpportunityObservation
 from app.models.user import User
 from app.schemas.opportunity_history import (
     OpportunityHistoryCyclePage,
@@ -41,6 +43,30 @@ def current_cycle(db: Session = Depends(get_db)) -> dict:
     db.commit()
     db.refresh(cycle)
     return cycle_payload(db, cycle)
+
+
+@router.get("/cycles/{cycle_id}/close-preview")
+def close_cycle_preview(
+    cycle_id: str,
+    db: Session = Depends(get_db),
+    _: User = Depends(require_admin),
+) -> dict:
+    cycle = get_cycle(db, cycle_id)
+    snapshots_to_create = int(
+        db.scalar(
+            select(func.count(func.distinct(OpportunityObservation.opportunity_id))).where(
+                OpportunityObservation.observed_at >= cycle.period_start,
+                OpportunityObservation.observed_at < cycle.period_end,
+            )
+        )
+        or 0
+    )
+    return {
+        "cycle_id": cycle.id,
+        "label": cycle.label,
+        "snapshots_to_create": snapshots_to_create,
+        "coverage": OpportunityHistoryCycleService.collection_coverage(db, cycle),
+    }
 
 
 @router.get("/cycles/{cycle_id}", response_model=OpportunityHistoryCycleRead)
