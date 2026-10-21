@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
+import { Archive, BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { OpportunityArchiveHistory } from "@/components/opportunity-archive-history";
 import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
@@ -51,9 +51,10 @@ type Props = {
   opportunityId: string;
   onClose: () => void;
   onAction: (action: OpportunityDecisionAction, id: string) => void;
+  onArchive: (id: string) => void;
 };
 
-export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
+export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive }: Props) {
   const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
   const [actionError, setActionError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -403,9 +404,13 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
               <>
                 <button className="button ghost" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
                 <button className="button primary" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
+                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}><Archive size={17} /> Arquivar</button>
               </>
             ) : (
-              <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>
+              <>
+                <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>
+                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}><Archive size={17} /> Arquivar</button>
+              </>
             )}
           </footer>
         )}
