@@ -12,7 +12,6 @@ from sqlalchemy import (
     UniqueConstraint,
     event,
     inspect,
-    select,
 )
 from sqlalchemy.orm import Mapped, Session, mapped_column
 
@@ -93,16 +92,18 @@ def _protect_closed_opportunity_history_cycles(
         if not state.persistent or not session.is_modified(item, include_collections=False):
             continue
 
-        persisted_status = (
-            session.connection()
-            .execute(
-                select(OpportunityHistoryCycle.__table__.c.status).where(
-                    OpportunityHistoryCycle.__table__.c.id == item.id
-                )
+        status_history = state.attrs.status.history
+        closing_now = (
+            item.status == OpportunityHistoryCycleStatus.CLOSED.value
+            and status_history.has_changes()
+            and status_history.added
+            and status_history.added[-1] == OpportunityHistoryCycleStatus.CLOSED.value
+            and (
+                not status_history.deleted
+                or status_history.deleted[-1] == OpportunityHistoryCycleStatus.OPEN.value
             )
-            .scalar_one_or_none()
         )
-        if persisted_status == OpportunityHistoryCycleStatus.CLOSED.value:
+        if item.status == OpportunityHistoryCycleStatus.CLOSED.value and not closing_now:
             raise ValueError("Closed opportunity history cycles are immutable")
 
     for item in tuple(session.deleted):
