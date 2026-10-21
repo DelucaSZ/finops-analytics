@@ -51,9 +51,10 @@ type Props = {
   opportunityId: string;
   onClose: () => void;
   onAction: (action: OpportunityDecisionAction, id: string) => void;
+  onArchive: (id: string) => void;
 };
 
-export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
+export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive }: Props) {
   const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
   const [actionError, setActionError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -402,10 +403,14 @@ export function OpportunityDetail({ opportunityId, onClose, onAction }: Props) {
             ) : detail.status === "open" ? (
               <>
                 <button className="button ghost" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
+                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}>Arquivar</button>
                 <button className="button primary" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
               </>
             ) : (
-              <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>
+              <>
+                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}>Arquivar</button>
+                <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>
+              </>
             )}
           </footer>
         )}

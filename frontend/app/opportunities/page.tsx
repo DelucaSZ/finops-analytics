@@ -22,6 +22,7 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import { OpportunityArchiveDialog } from "@/components/opportunity-archive-dialog";
 import { OpportunityDecisionDialog } from "@/components/opportunity-decision-dialog";
 import type { OpportunityDecisionAction } from "@/components/opportunity-decision-dialog";
 import { OpportunityDetail } from "@/components/opportunity-detail";
@@ -84,6 +85,12 @@ type HistoricalFinding = Finding & {
   archived_at: string | null;
   archived_by: string | null;
   archive_reason: string | null;
+};
+
+type ArchiveDialogState = {
+  mode: "individual" | "selected" | "filter" | "period";
+  opportunityId?: string;
+  opportunityIds?: string[];
 };
 
 function pageWindow(page: number, totalPages: number) {
@@ -233,6 +240,7 @@ function OpportunitiesContent() {
   const [regionInput, setRegionInput] = useState(state.region);
   const [accountInput, setAccountInput] = useState(state.accountId);
   const [unarchiveSavingId, setUnarchiveSavingId] = useState("");
+  const [archiveDialog, setArchiveDialog] = useState<ArchiveDialogState | null>(null);
   const [decision, setDecision] = useState<{
     action: OpportunityDecisionAction;
     ids: string[];
@@ -341,6 +349,26 @@ function OpportunitiesContent() {
     isHistory && state.archivedTo ? `Arquivada até: ${state.archivedTo}` : "",
     isHistory && state.archiveReason ? `Arquivamento: ${archiveReasonLabels[state.archiveReason]}` : "",
   ].filter(Boolean);
+  const archiveFilters = isHistory ? {} : {
+    ...(hasFilters && state.status ? { status: state.status } : {}),
+    ...(state.provider ? { provider: state.provider } : {}),
+    ...(state.accountId ? { account_id: state.accountId } : {}),
+    ...(state.region ? { region: state.region } : {}),
+    ...(state.service ? { service: state.service } : {}),
+    ...(state.resourceType ? { resource_type: state.resourceType } : {}),
+    ...(state.severity ? { severity: state.severity } : {}),
+    ...(state.rule ? { rule: state.rule } : {}),
+    ...(state.collectionRunId ? { collection_run_id: state.collectionRunId } : {}),
+    ...(state.resourceId ? { resource_id: state.resourceId } : {}),
+    ...(state.search ? { search: state.search } : {}),
+    ...(state.current ? { current: true } : {}),
+  };
+  const archiveFilterLabels = hasFilters
+    ? [
+        state.status ? `Status: ${state.status === "open" ? "Aberta" : state.status === "treated" ? "Tratada" : "Rejeitada"}` : "",
+        ...activeFilters,
+      ].filter(Boolean)
+    : [];
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -453,6 +481,16 @@ function OpportunitiesContent() {
     } finally {
       setDecisionSaving(false);
     }
+  }
+
+  function archiveSucceeded(feedback: string) {
+    setMessage(feedback);
+    setSelectedIds(new Set());
+    setArchiveDialog(null);
+    if (state.opportunityId) closeDetail();
+    invalidateApiQueries(queryKeys.opportunities.all);
+    invalidateApiQueries(queryKeys.dashboard.all);
+    invalidateApiQueries(["opportunity-history"]);
   }
 
   async function restoreHistoryRow(finding: HistoricalFinding) {
@@ -755,8 +793,18 @@ function OpportunitiesContent() {
                   <button className="button primary" type="button" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>Rejeitar</button>
                 </>
               ) : (
-                <button className="button primary" type="button" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</button>
+                <button className="button ghost" type="button" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</button>
               )}
+              <button className="button primary" type="button" onClick={() => setArchiveDialog({ mode: "selected", opportunityIds: selected.map((item) => item.id) })}>Arquivar selecionadas</button>
+            </div>
+          )}
+
+          {!isHistory && selected.length === 0 && total > 0 && (
+            <div className="bulk-actions opportunity-bulk-actions" aria-label="Arquivamento do escopo">
+              <button className="button ghost" type="button" onClick={() => setArchiveDialog({ mode: "filter" })}>
+                {hasFilters ? "Arquivar todas deste filtro" : "Arquivar todo o backlog"}
+              </button>
+              <button className="button ghost" type="button" onClick={() => setArchiveDialog({ mode: "period" })}>Fechar período</button>
             </div>
           )}
 
@@ -875,9 +923,13 @@ function OpportunitiesContent() {
                           <>
                             <button type="button" onClick={() => openDecision("treat", [finding.id], false)}>Tratar</button>
                             <button type="button" onClick={() => openDecision("reject", [finding.id], false)}>Rejeitar</button>
+                            <button type="button" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>Arquivar</button>
                           </>
                         ) : (
-                          <button type="button" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</button>
+                          <>
+                            <button type="button" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</button>
+                            <button type="button" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>Arquivar</button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -935,6 +987,7 @@ function OpportunitiesContent() {
           opportunityId={state.opportunityId}
           onClose={closeDetail}
           onAction={(action, id) => openDecision(action, [id], false)}
+          onArchive={(id) => setArchiveDialog({ mode: "individual", opportunityId: id })}
         />
       )}
 
@@ -946,6 +999,18 @@ function OpportunitiesContent() {
           error={decisionError}
           onClose={() => { if (!decisionSaving) { setDecision(null); setDecisionError(""); } }}
           onSubmit={submitDecision}
+        />
+      )}
+
+      {archiveDialog && (
+        <OpportunityArchiveDialog
+          mode={archiveDialog.mode}
+          opportunityId={archiveDialog.opportunityId}
+          opportunityIds={archiveDialog.opportunityIds}
+          filters={archiveFilters}
+          filterLabels={archiveFilterLabels}
+          onClose={() => setArchiveDialog(null)}
+          onSuccess={archiveSucceeded}
         />
       )}
     </>
