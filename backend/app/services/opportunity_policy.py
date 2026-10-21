@@ -43,9 +43,8 @@ def _utc(value: datetime) -> datetime:
 def _setting_explicit(configured: Settings, field_name: str, env_name: str) -> bool:
     # model_fields_set includes values loaded from environment and .env sources.
     # os.environ is kept as defense in depth for custom Settings source behavior.
-    return (
-        field_name in configured.model_fields_set
-        or (env_name in os.environ and os.environ[env_name].strip() != "")
+    return field_name in configured.model_fields_set or (
+        env_name in os.environ and os.environ[env_name].strip() != ""
     )
 
 
@@ -362,9 +361,7 @@ class OpportunityManagementPolicyService:
             if local_start.month == 12:
                 next_boundary = datetime(local_start.year + 1, 1, 1, tzinfo=tz)
             else:
-                next_boundary = datetime(
-                    local_start.year, local_start.month + 1, 1, tzinfo=tz
-                )
+                next_boundary = datetime(local_start.year, local_start.month + 1, 1, tzinfo=tz)
             if next_boundary <= local_start:
                 if next_boundary.month == 12:
                     next_boundary = datetime(next_boundary.year + 1, 1, 1, tzinfo=tz)
@@ -376,10 +373,7 @@ class OpportunityManagementPolicyService:
             label = f"{local_start.month:02d}/{local_start.year}"
         else:
             end = (local_start + timedelta(days=active_policy.cycle_length_days)).astimezone(UTC)
-            label = (
-                f"{local_start.date().isoformat()} · "
-                f"{active_policy.cycle_length_days} dias"
-            )
+            label = f"{local_start.date().isoformat()} · {active_policy.cycle_length_days} dias"
 
         cycle = OpportunityHistoryCycleService.create_cycle(
             db,
@@ -478,8 +472,7 @@ class OpportunityManagementPolicyService:
         overdue = int(
             db.scalar(
                 select(func.count(OpportunityHistoryCycle.id)).where(
-                    OpportunityHistoryCycle.status
-                    == OpportunityHistoryCycleStatus.OPEN.value,
+                    OpportunityHistoryCycle.status == OpportunityHistoryCycleStatus.OPEN.value,
                     OpportunityHistoryCycle.period_end <= current,
                 )
             )
@@ -564,8 +557,7 @@ class OpportunityManagementPolicyService:
             db.scalars(
                 select(OpportunityHistoryCycle)
                 .where(
-                    OpportunityHistoryCycle.status
-                    == OpportunityHistoryCycleStatus.OPEN.value,
+                    OpportunityHistoryCycle.status == OpportunityHistoryCycleStatus.OPEN.value,
                     OpportunityHistoryCycle.period_end <= current,
                 )
                 .order_by(OpportunityHistoryCycle.period_end)

@@ -258,11 +258,14 @@ class OpportunityAutomationScheduler:
             state = OpportunityManagementPolicyService.get_maintenance_state(db)
             # Serialize workers through the singleton row. SQLite ignores FOR UPDATE,
             # but production PostgreSQL provides the intended multi-worker lock.
-            state = db.scalar(
-                select(OpportunityMaintenanceState)
-                .where(OpportunityMaintenanceState.id == 1)
-                .with_for_update()
-            ) or state
+            state = (
+                db.scalar(
+                    select(OpportunityMaintenanceState)
+                    .where(OpportunityMaintenanceState.id == 1)
+                    .with_for_update()
+                )
+                or state
+            )
             previous = getattr(state, field)
             if previous is not None and current < self._utc(previous) + cadence:
                 db.rollback()

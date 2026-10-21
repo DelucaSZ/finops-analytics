@@ -109,9 +109,7 @@ def _preview_payload(**changes) -> OpportunityPolicyPreviewRequest:
     return OpportunityPolicyPreviewRequest(**values)
 
 
-def test_bootstrap_defaults_are_product_defaults_not_legacy_class_defaults(
-    db_engine, monkeypatch
-):
+def test_bootstrap_defaults_are_product_defaults_not_legacy_class_defaults(db_engine, monkeypatch):
     for name in (
         "OPPORTUNITY_RETENTION_ENABLED",
         "OPPORTUNITY_RETENTION_TREATED_ENABLED",
@@ -299,7 +297,10 @@ def test_policy_change_does_not_rewrite_current_cycle_boundaries(db_engine):
             policy=policy,
         )
         assert same.id == cycle.id
-        assert (same.period_start, same.period_end) == original
+        assert (
+            same.period_start.replace(tzinfo=UTC),
+            same.period_end.replace(tzinfo=UTC),
+        ) == original
 
 
 def test_auto_close_defers_running_and_failed_does_not_block(db_engine):
@@ -351,9 +352,7 @@ def test_preview_is_read_only_and_reports_open_eligibility(db_engine):
         OpportunityManagementPolicyService.get_or_create(db)
         db.add(_finding("preview-open", last_seen_at=NOW - timedelta(days=40)))
         db.commit()
-        before_policies = db.scalar(
-            select(func.count()).select_from(OpportunityManagementPolicy)
-        )
+        before_policies = db.scalar(select(func.count()).select_from(OpportunityManagementPolicy))
         preview = OpportunityManagementPolicyService.preview(
             db,
             _preview_payload(open_archive_enabled=True, open_archive_days=30),

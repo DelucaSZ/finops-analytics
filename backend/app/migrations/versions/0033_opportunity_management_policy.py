@@ -1,13 +1,13 @@
 """persistent opportunity management policy and automation state
 
-Revision ID: 0033_opportunity_management_policy
+Revision ID: 0033_opportunity_policy
 Revises: 0032_opportunity_history_cycles
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "0033_opportunity_management_policy"
+revision = "0033_opportunity_policy"
 down_revision = "0032_opportunity_history_cycles"
 branch_labels = None
 depends_on = None
@@ -55,13 +55,9 @@ def upgrade() -> None:
         sa.Column(
             "resolved_external_archive_days", sa.Integer(), server_default="30", nullable=False
         ),
-        sa.Column(
-            "open_archive_enabled", sa.Boolean(), server_default=sa.false(), nullable=False
-        ),
+        sa.Column("open_archive_enabled", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.Column("open_archive_days", sa.Integer(), server_default="30", nullable=False),
-        sa.Column(
-            "observation_retention_days", sa.Integer(), server_default="400", nullable=False
-        ),
+        sa.Column("observation_retention_days", sa.Integer(), server_default="400", nullable=False),
         sa.Column("enabled", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.Column("version", sa.Integer(), server_default="1", nullable=False),
         sa.Column("updated_by", sa.String(length=36), nullable=True),

@@ -63,9 +63,7 @@ class OpportunityManagementPolicy(TimestampMixin, Base):
         CheckConstraint("version >= 1", name="ck_opportunity_management_policies_version"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     scope: Mapped[str] = mapped_column(
         String(32), nullable=False, default="GLOBAL", server_default="GLOBAL"
     )
@@ -115,9 +113,7 @@ class OpportunityManagementPolicy(TimestampMixin, Base):
     enabled: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=True, server_default="true"
     )
-    version: Mapped[int] = mapped_column(
-        Integer, nullable=False, default=1, server_default="1"
-    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     updated_by: Mapped[str | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

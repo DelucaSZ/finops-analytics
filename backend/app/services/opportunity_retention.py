@@ -241,9 +241,7 @@ class OpportunityRetentionService:
         return {
             "treated_eligible": by_key.get("treated_retention", 0),
             "rejected_eligible": by_key.get("rejected_retention", 0),
-            "resolved_externally_eligible": by_key.get(
-                "resolved_external_retention", 0
-            ),
+            "resolved_externally_eligible": by_key.get("resolved_external_retention", 0),
             "open_eligible": by_key.get("open_retention", 0),
         }
 
