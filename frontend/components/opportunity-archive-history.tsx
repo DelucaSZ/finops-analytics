@@ -32,6 +32,12 @@ const reasonLabels: Record<string, string> = {
   REAPPEARED: "Reaparecimento automático",
 };
 
+const operationLabels: Record<string, string> = {
+  bulk: "Arquivamento em massa por seleção",
+  filter: "Arquivamento por filtro",
+  period_close: "Fechamento operacional do período",
+};
+
 function eventDescription(item: ArchiveHistoryEntry) {
   if (item.action === "UNARCHIVE" && item.reason === "REAPPEARED") {
     return "Desarquivada automaticamente porque a condição voltou a ser observada.";
@@ -74,22 +80,28 @@ export function OpportunityArchiveHistory({ opportunityId }: { opportunityId: st
         <p className="muted-copy">Carregando histórico de arquivamento…</p>
       ) : history?.items.length ? (
         <div className="decision-history">
-          {history.items.map((item) => (
-            <article key={item.id}>
-              <div className="decision-marker" />
-              <div>
-                <strong>{formatDate(item.occurred_at)} · {item.changed_by_name || "Sistema"}</strong>
-                <p>{item.action === "ARCHIVE" ? "Arquivada" : "Desarquivada"}</p>
-                <span>Motivo: {reasonLabels[item.reason] || item.reason}</span>
-                <span>{eventDescription(item)}</span>
-                {item.collection_run_id && (
-                  <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>
-                    Abrir coleta {item.collection_run_id.slice(0, 8)}
-                  </Link>
-                )}
-              </div>
-            </article>
-          ))}
+          {history.items.map((item) => {
+            const operation = typeof item.context.operation === "string" ? item.context.operation : "";
+            const correlation = typeof item.context.correlation_id === "string" ? item.context.correlation_id : "";
+            return (
+              <article key={item.id}>
+                <div className="decision-marker" />
+                <div>
+                  <strong>{formatDate(item.occurred_at)} · {item.changed_by_name || "Sistema"}</strong>
+                  <p>{item.action === "ARCHIVE" ? "Arquivada" : "Desarquivada"}</p>
+                  <span>Motivo: {reasonLabels[item.reason] || item.reason}</span>
+                  <span>{eventDescription(item)}</span>
+                  {operation && <span>Operação: {operationLabels[operation] || operation}</span>}
+                  {correlation && <span>Correlação: <code>{correlation.slice(0, 12)}</code></span>}
+                  {item.collection_run_id && (
+                    <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>
+                      Abrir coleta {item.collection_run_id.slice(0, 8)}
+                    </Link>
+                  )}
+                </div>
+              </article>
+            );
+          })}
         </div>
       ) : (
         <p className="muted-copy">Nenhum evento de arquivamento registrado.</p>
