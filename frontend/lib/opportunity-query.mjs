@@ -73,7 +73,7 @@ export function parseOpportunitySearchParams(value) {
     resourceId: params.get("resource_id") || "",
     search: params.get("search") || "",
     dateField,
-    temporalPreset: OPPORTUNITY_TIME_PRESETS.includes(requestedPreset)
+    temporalPreset: requestedPreset && OPPORTUNITY_TIME_PRESETS.includes(requestedPreset)
       ? requestedPreset
       : (temporalFromRaw || temporalToRaw ? "custom" : ""),
     temporalFrom: inputDate(temporalFromRaw),
