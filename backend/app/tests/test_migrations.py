@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0033_opportunity_policy"
+            == "0034_opportunity_discovery_runs"
         )
         assert (
             compare_metadata(
