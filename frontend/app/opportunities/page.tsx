@@ -22,6 +22,10 @@ import {
   WalletCards,
   X,
 } from "lucide-react";
+import {
+  OpportunityArchiveDialog,
+  type ArchiveOperationResult,
+} from "@/components/opportunity-archive-dialog";
 import { OpportunityDecisionDialog } from "@/components/opportunity-decision-dialog";
 import type { OpportunityDecisionAction } from "@/components/opportunity-decision-dialog";
 import { OpportunityDetail } from "@/components/opportunity-detail";
@@ -29,6 +33,11 @@ import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { api, formatDate } from "@/lib/api";
 import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import {
+  archiveResultMessage,
+  buildArchiveScope,
+} from "@/lib/opportunity-archive.mjs";
+import type { ArchiveScope } from "@/lib/opportunity-archive.mjs";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import {
   invalidateApiQueries,
@@ -84,6 +93,11 @@ type HistoricalFinding = Finding & {
   archived_at: string | null;
   archived_by: string | null;
   archive_reason: string | null;
+};
+
+type ArchiveDialogState = {
+  scope: ArchiveScope;
+  filterLabels: string[];
 };
 
 function pageWindow(page: number, totalPages: number) {
@@ -233,6 +247,8 @@ function OpportunitiesContent() {
   const [regionInput, setRegionInput] = useState(state.region);
   const [accountInput, setAccountInput] = useState(state.accountId);
   const [unarchiveSavingId, setUnarchiveSavingId] = useState("");
+  const [archiveSaving, setArchiveSaving] = useState(false);
+  const [archiveDialog, setArchiveDialog] = useState<ArchiveDialogState | null>(null);
   const [decision, setDecision] = useState<{
     action: OpportunityDecisionAction;
     ids: string[];
@@ -341,12 +357,21 @@ function OpportunitiesContent() {
     isHistory && state.archivedTo ? `Arquivada até: ${state.archivedTo}` : "",
     isHistory && state.archiveReason ? `Arquivamento: ${archiveReasonLabels[state.archiveReason]}` : "",
   ].filter(Boolean);
+  const archiveFilterLabels = [
+    !isHistory ? `Status: ${state.status === "open" ? "Aberta" : state.status === "treated" ? "Tratada" : "Rejeitada"}` : "",
+    ...activeFilters,
+  ].filter(Boolean);
 
   useEffect(() => {
     if (selectAllRef.current) {
       selectAllRef.current.indeterminate = selected.length > 0 && !allSelected;
     }
   }, [allSelected, selected.length]);
+
+  function invalidateOperationalViews() {
+    invalidateApiQueries(queryKeys.opportunities.all);
+    invalidateApiQueries(queryKeys.dashboard.all);
+  }
 
   function changeStatus(status: "open" | "treated" | "rejected") {
     setSelectedIds(new Set());
@@ -446,13 +471,81 @@ function OpportunitiesContent() {
       setSelectedIds(new Set());
       setDecision(null);
       if (!decision.bulk && state.opportunityId) closeDetail();
-      invalidateApiQueries(queryKeys.opportunities.all);
-      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateOperationalViews();
     } catch (err) {
       setDecisionError(err instanceof Error ? err.message : rejectionFallback);
     } finally {
       setDecisionSaving(false);
     }
+  }
+
+  async function archiveOne(id: string, closeAfter = false) {
+    if (isHistory || archiveSaving) return;
+    const confirmed = window.confirm(
+      "Arquivar esta oportunidade? Ela será removida do backlog operacional, mas seu status e histórico serão preservados.",
+    );
+    if (!confirmed) return;
+    setArchiveSaving(true);
+    setMessage("");
+    try {
+      await api(`/opportunities/${id}/archive`, { method: "POST" });
+      setMessage("1 oportunidade foi arquivada.");
+      setSelectedIds((current) => {
+        const next = new Set(current);
+        next.delete(id);
+        return next;
+      });
+      if (closeAfter) closeDetail();
+      invalidateOperationalViews();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Não foi possível arquivar a oportunidade.");
+    } finally {
+      setArchiveSaving(false);
+    }
+  }
+
+  async function archiveSelected() {
+    if (isHistory || archiveSaving || selected.length === 0) return;
+    const confirmed = window.confirm(`Arquivar ${selected.length} oportunidades selecionadas? O status e o histórico serão preservados.`);
+    if (!confirmed) return;
+    setArchiveSaving(true);
+    setMessage("");
+    try {
+      const result = await api<ArchiveOperationResult>("/opportunities/bulk/archive", {
+        method: "POST",
+        body: JSON.stringify({ opportunity_ids: selected.map((item) => item.id) }),
+      });
+      setMessage(archiveResultMessage(result));
+      setSelectedIds(new Set());
+      invalidateOperationalViews();
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Não foi possível arquivar as oportunidades selecionadas.");
+    } finally {
+      setArchiveSaving(false);
+    }
+  }
+
+  function openFilteredArchive() {
+    if (isHistory || total === 0) return;
+    setArchiveDialog({
+      scope: buildArchiveScope(state),
+      filterLabels: archiveFilterLabels,
+    });
+  }
+
+  function openArchiveAll() {
+    if (isHistory) return;
+    setArchiveDialog({
+      scope: buildArchiveScope(state, { archiveAll: true }),
+      filterLabels: [],
+    });
+  }
+
+  function completeFilteredArchive(result: ArchiveOperationResult) {
+    setMessage(archiveResultMessage(result));
+    setSelectedIds(new Set());
+    setArchiveDialog(null);
+    invalidateOperationalViews();
   }
 
   async function restoreHistoryRow(finding: HistoricalFinding) {
@@ -477,8 +570,7 @@ function OpportunitiesContent() {
         await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
         setMessage("Oportunidade desarquivada com sucesso.");
       }
-      invalidateApiQueries(queryKeys.opportunities.all);
-      invalidateApiQueries(queryKeys.dashboard.all);
+      invalidateOperationalViews();
     } catch (err) {
       setMessage(
         err instanceof Error
@@ -757,6 +849,18 @@ function OpportunitiesContent() {
               ) : (
                 <button className="button primary" type="button" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</button>
               )}
+              <button className="button ghost" type="button" disabled={archiveSaving} onClick={() => void archiveSelected()}>
+                {archiveSaving ? "Arquivando…" : "Arquivar selecionadas"}
+              </button>
+            </div>
+          )}
+
+          {!isHistory && selected.length === 0 && (
+            <div className="bulk-actions opportunity-bulk-actions" aria-label="Arquivamento por escopo">
+              <button className="button ghost" type="button" disabled={loading || total === 0} onClick={openFilteredArchive}>Arquivar todas deste filtro</button>
+              {!hasFilters && (
+                <button className="button ghost" type="button" disabled={loading || (stats.open + stats.treated + stats.rejected) === 0} onClick={openArchiveAll}>Arquivar todo o backlog</button>
+              )}
             </div>
           )}
 
@@ -875,9 +979,13 @@ function OpportunitiesContent() {
                           <>
                             <button type="button" onClick={() => openDecision("treat", [finding.id], false)}>Tratar</button>
                             <button type="button" onClick={() => openDecision("reject", [finding.id], false)}>Rejeitar</button>
+                            <button type="button" disabled={archiveSaving} onClick={() => void archiveOne(finding.id)}>Arquivar</button>
                           </>
                         ) : (
-                          <button type="button" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</button>
+                          <>
+                            <button type="button" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</button>
+                            <button type="button" disabled={archiveSaving} onClick={() => void archiveOne(finding.id)}>Arquivar</button>
+                          </>
                         )}
                       </div>
                     </td>
@@ -935,6 +1043,7 @@ function OpportunitiesContent() {
           opportunityId={state.opportunityId}
           onClose={closeDetail}
           onAction={(action, id) => openDecision(action, [id], false)}
+          onArchive={(id) => archiveOne(id, true)}
         />
       )}
 
@@ -946,6 +1055,15 @@ function OpportunitiesContent() {
           error={decisionError}
           onClose={() => { if (!decisionSaving) { setDecision(null); setDecisionError(""); } }}
           onSubmit={submitDecision}
+        />
+      )}
+
+      {archiveDialog && (
+        <OpportunityArchiveDialog
+          scope={archiveDialog.scope}
+          filterLabels={archiveDialog.filterLabels}
+          onClose={() => setArchiveDialog(null)}
+          onSuccess={completeFilteredArchive}
         />
       )}
     </>

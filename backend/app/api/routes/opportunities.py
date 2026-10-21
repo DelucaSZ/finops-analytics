@@ -3,7 +3,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.security import require_operator, require_user
+from app.core.security import require_admin, require_operator, require_user
 from app.db.session import get_db
 from app.models.collection_run import CollectionRun
 from app.models.finding import OpportunityPresenceStatus
@@ -26,9 +26,24 @@ from app.schemas.opportunity import (
     SortOrder,
     StatusHistoryPage,
 )
+from app.schemas.opportunity_archiving import (
+    ArchiveOperationResponse,
+    ArchivePreviewResponse,
+    ArchiveScopeRequest,
+    BulkArchiveRequest,
+    PeriodClosePreviewResponse,
+    PeriodCloseRequest,
+    PeriodCloseResponse,
+)
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
 from app.services.opportunity_archiving import archive, unarchive
+from app.services.opportunity_bulk_archiving import (
+    archive_by_filter,
+    archive_by_ids,
+    preview_archive,
+)
 from app.services.opportunity_lifecycle import bulk_transition, reject, reopen, treat
+from app.services.opportunity_period_close import close_period_operationally, preview_period_close
 from app.services.opportunity_presence_history import presence_history
 from app.services.opportunity_query import (
     OpportunityFilters,
@@ -301,6 +316,91 @@ def bulk_reopen(
     actor: User = Depends(require_operator),
 ) -> dict:
     return _run_bulk(payload, db, actor, action="reopen")
+
+
+@router.post(
+    "/bulk/archive",
+    response_model=ArchiveOperationResponse,
+    dependencies=[Depends(require_operator)],
+)
+def bulk_archive(
+    payload: BulkArchiveRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    try:
+        result = archive_by_ids(db, payload.opportunity_ids, actor)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return result.payload()
+
+
+@router.post(
+    "/archive-preview",
+    response_model=ArchivePreviewResponse,
+    dependencies=[Depends(require_operator)],
+)
+def archive_preview(
+    payload: ArchiveScopeRequest,
+    db: Session = Depends(get_db),
+) -> ArchivePreviewResponse:
+    _ensure_collection_history_available(db, payload.filters.collection_run_id)
+    return preview_archive(db, payload)
+
+
+@router.post(
+    "/archive-by-filter",
+    response_model=ArchiveOperationResponse,
+    dependencies=[Depends(require_operator)],
+)
+def filtered_archive(
+    payload: ArchiveScopeRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
+    _ensure_collection_history_available(db, payload.filters.collection_run_id)
+    try:
+        result = archive_by_filter(db, payload, actor)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return result.payload()
+
+
+@router.post(
+    "/period-close/preview",
+    response_model=PeriodClosePreviewResponse,
+    dependencies=[Depends(require_admin)],
+)
+def period_close_preview(
+    payload: PeriodCloseRequest,
+    db: Session = Depends(get_db),
+) -> PeriodClosePreviewResponse:
+    _ensure_collection_history_available(db, payload.filters.collection_run_id)
+    return preview_period_close(db, payload)
+
+
+@router.post(
+    "/period-close",
+    response_model=PeriodCloseResponse,
+    dependencies=[Depends(require_admin)],
+)
+def period_close(
+    payload: PeriodCloseRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_admin),
+) -> dict:
+    _ensure_collection_history_available(db, payload.filters.collection_run_id)
+    try:
+        result = close_period_operationally(db, payload, actor)
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return result
 
 
 @router.get("/{opportunity_id}", response_model=OpportunityDetail)

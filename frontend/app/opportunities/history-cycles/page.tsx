@@ -2,16 +2,19 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { History, LockKeyhole, RefreshCw } from "lucide-react";
+import { History, LockKeyhole, RefreshCw, X } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { periodCloseResultMessage } from "@/lib/opportunity-archive.mjs";
 import {
   buildHistorySnapshotQuery,
   chooseHistoryCycle,
   cycleStateLabel,
   historyMoneyRows,
 } from "@/lib/opportunity-history.mjs";
+import { queryKeys } from "@/lib/query-keys.mjs";
+import { invalidateApiQueries } from "@/lib/server-state";
 import styles from "./page.module.css";
 
 type MoneyTotal = { currency: string; amount: string | number };
@@ -87,6 +90,45 @@ type SnapshotPage = {
   page_size: number;
   total_pages: number;
 };
+type PeriodClosePreview = {
+  cycle_id: string;
+  label: string;
+  period_start: string;
+  period_end: string;
+  cycle_status: string;
+  snapshots_to_create: number;
+  collection_runs: number;
+  failed_collection_runs: number;
+  running_collection_runs: number;
+  archive: {
+    matched: number;
+    to_archive: number;
+    already_archived: number;
+    by_status: Record<string, number>;
+    by_provider: Record<string, number>;
+    account_count: number;
+    currencies: Array<{
+      currency: string;
+      current_monthly_cost: string | number;
+      estimated_monthly_savings: string | number;
+    }>;
+    filter_hash: string;
+    generated_at: string;
+    archive_all: boolean;
+  };
+};
+type PeriodCloseResult = {
+  cycle_closed: boolean;
+  cycle_id: string;
+  snapshots_created: number;
+  collection_runs: number;
+  failed_collection_runs: number;
+  matched: number;
+  archived: number;
+  already_archived: number;
+  failed: number;
+  correlation_id: string;
+};
 
 function statusLabel(status: string) {
   if (status === "treated") return "Tratada";
@@ -112,6 +154,8 @@ export default function OpportunityHistoryCyclesPage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
   const [closing, setClosing] = useState(false);
+  const [closePreview, setClosePreview] = useState<PeriodClosePreview | null>(null);
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   const cycle = useMemo(() => cycles.find((item) => item.id === cycleId) ?? null, [cycles, cycleId]);
@@ -179,15 +223,53 @@ export default function OpportunityHistoryCyclesPage() {
     }
   }
 
-  async function closeSelectedCycle() {
+  function periodClosePayload() {
+    const filters: Record<string, string> = {};
+    if (provider) filters.provider = provider;
+    if (status) filters.status = status;
+    if (severity) filters.severity = severity;
+    if (search.trim()) filters.search = search.trim();
+    return {
+      cycle_id: cycle?.id || "",
+      filters,
+      archive_all: Object.keys(filters).length === 0,
+    };
+  }
+
+  async function previewSelectedCycleClose() {
     if (!cycle || cycle.status !== "OPEN") return;
     setClosing(true);
     setError("");
+    setMessage("");
     try {
-      await api(`/opportunity-history/cycles/${cycle.id}/close`, { method: "POST" });
+      const preview = await api<PeriodClosePreview>("/opportunities/period-close/preview", {
+        method: "POST",
+        body: JSON.stringify(periodClosePayload()),
+      });
+      setClosePreview(preview);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : "Não foi possível preparar o fechamento operacional.");
+    } finally {
+      setClosing(false);
+    }
+  }
+
+  async function confirmSelectedCycleClose() {
+    if (!cycle || !closePreview || closing || closePreview.running_collection_runs > 0) return;
+    setClosing(true);
+    setError("");
+    try {
+      const result = await api<PeriodCloseResult>("/opportunities/period-close", {
+        method: "POST",
+        body: JSON.stringify(periodClosePayload()),
+      });
+      setClosePreview(null);
+      setMessage(periodCloseResultMessage(result, cycle.label));
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.dashboard.all);
       await loadCycles(cycle.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível fechar o ciclo.");
+      setError(reason instanceof Error ? reason.message : "Não foi possível fechar o período operacional.");
     } finally {
       setClosing(false);
     }
@@ -212,6 +294,7 @@ export default function OpportunityHistoryCyclesPage() {
         <Link href="/opportunities">Backlog operacional</Link>
       </div>
 
+      {message && <div className="alert success" role="status">{message}</div>}
       {error && <div className={styles.error} role="alert">{error}</div>}
 
       <div className={styles.controls}>
@@ -277,9 +360,14 @@ export default function OpportunityHistoryCyclesPage() {
           </span>
           {cycle.status === "OPEN" && (
             <div style={{ marginTop: 12 }}>
-              <button className="button" type="button" disabled={closing || cycle.coverage.running > 0} onClick={closeSelectedCycle}>
-                <LockKeyhole size={16} /> {closing ? "Fechando…" : "Fechar ciclo"}
+              <button className="button" type="button" disabled={closing} onClick={previewSelectedCycleClose}>
+                <LockKeyhole size={16} /> {closing ? "Preparando…" : "Fechar período"}
               </button>
+              {cycle.coverage.running > 0 && (
+                <span className={styles.secondary} style={{ marginLeft: 12 }}>
+                  {cycle.coverage.running} coleta(s) em andamento impedirão o fechamento.
+                </span>
+              )}
             </div>
           )}
         </div>
@@ -400,6 +488,49 @@ export default function OpportunityHistoryCyclesPage() {
             <p><Link href={`/opportunities?resource_id=${encodeURIComponent(selected.resource_id)}`}>Ver oportunidade atual</Link> <span className={styles.secondary}>— o estado atual é independente deste snapshot.</span></p>
           )}
         </article>
+      )}
+
+      {closePreview && cycle && (
+        <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => {
+          if (event.target === event.currentTarget && !closing) setClosePreview(null);
+        }}>
+          <section className="decision-dialog" role="dialog" aria-modal="true" aria-labelledby="period-close-title">
+            <div className="dialog-heading">
+              <div>
+                <span className="eyebrow">FECHAMENTO OPERACIONAL</span>
+                <h2 id="period-close-title">Fechar período {closePreview.label}</h2>
+                <p>O snapshot histórico e o arquivamento operacional são operações diferentes, executadas na mesma transação.</p>
+              </div>
+              <button className="icon-button" type="button" aria-label="Fechar" disabled={closing} onClick={() => setClosePreview(null)}><X size={18} /></button>
+            </div>
+            <dl className={styles.detailGrid}>
+              <div><dt>Snapshots a gerar</dt><dd>{closePreview.snapshots_to_create.toLocaleString("pt-BR")}</dd></div>
+              <div><dt>Itens operacionais a arquivar</dt><dd>{closePreview.archive.to_archive.toLocaleString("pt-BR")}</dd></div>
+              <div><dt>Já arquivados no mesmo escopo</dt><dd>{closePreview.archive.already_archived.toLocaleString("pt-BR")}</dd></div>
+              <div><dt>Coletas no período</dt><dd>{closePreview.collection_runs}</dd></div>
+              <div><dt>Coletas com falha</dt><dd>{closePreview.failed_collection_runs}</dd></div>
+              <div><dt>Coletas em andamento</dt><dd>{closePreview.running_collection_runs}</dd></div>
+              <div><dt>Escopo operacional</dt><dd>{closePreview.archive.archive_all ? "Todo o backlog ativo" : [provider && `Cloud ${providerLabel(provider)}`, status && `Status ${statusLabel(status)}`, severity && `Severidade ${severity}`, search.trim() && `Busca “${search.trim()}”`].filter(Boolean).join(" · ")}</dd></div>
+              <div><dt>Moedas</dt><dd>{closePreview.archive.currencies.map((item) => item.currency).join(" / ") || "—"}</dd></div>
+            </dl>
+            {closePreview.failed_collection_runs > 0 && (
+              <div className="alert" role="status">
+                {closePreview.failed_collection_runs} coleta(s) falharam neste período. O histórico refletirá apenas dados efetivamente observados.
+              </div>
+            )}
+            {closePreview.running_collection_runs > 0 && (
+              <div className="alert error" role="alert">
+                Não é possível fechar este período enquanto existem {closePreview.running_collection_runs} coleta(s) em andamento.
+              </div>
+            )}
+            <div className="dialog-actions">
+              <button className="button ghost" type="button" disabled={closing} onClick={() => setClosePreview(null)}>Cancelar</button>
+              <button className="button primary" type="button" disabled={closing || closePreview.running_collection_runs > 0} onClick={() => void confirmSelectedCycleClose()}>
+                {closing ? "Fechando…" : `Fechar período e arquivar ${closePreview.archive.to_archive.toLocaleString("pt-BR")}`}
+              </button>
+            </div>
+          </section>
+        </div>
       )}
     </section>
   );
