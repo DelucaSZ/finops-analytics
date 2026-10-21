@@ -93,12 +93,16 @@ def _protect_closed_opportunity_history_cycles(
         if not state.persistent or not session.is_modified(item, include_collections=False):
             continue
 
-        persisted = session.connection().execute(
-            select(
-                OpportunityHistoryCycle.__table__.c.status,
-                OpportunityHistoryCycle.__table__.c.close_reason,
-            ).where(OpportunityHistoryCycle.__table__.c.id == item.id)
-        ).one_or_none()
+        persisted = (
+            session.connection()
+            .execute(
+                select(
+                    OpportunityHistoryCycle.__table__.c.status,
+                    OpportunityHistoryCycle.__table__.c.close_reason,
+                ).where(OpportunityHistoryCycle.__table__.c.id == item.id)
+            )
+            .one_or_none()
+        )
         if persisted is None or persisted.status != OpportunityHistoryCycleStatus.CLOSED.value:
             continue
 
