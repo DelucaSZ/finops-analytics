@@ -12,24 +12,29 @@ from app import worker
 from app.core.config import settings
 from app.db.migrations import wait_for_database
 from app.db.session import SessionLocal, engine
+from app.models.opportunity_management_policy import OpportunityMaintenanceState
 from app.models.opportunity_retention_run import (
     OpportunityRetentionRun,
     OpportunityRetentionRunStatus,
 )
+from app.services.opportunity_policy import OpportunityManagementPolicyService
 from app.services.opportunity_retention import (
     OpportunityRetentionResult,
     OpportunityRetentionService,
 )
+from app.services.retention import cleanup_observations, retention_cutoff
 
 logger = logging.getLogger("deepops.worker_runtime")
 
 LOCK_NAMESPACE = 2305
 LOCK_RECHECK = timedelta(minutes=5)
 FAILURE_RETRY = timedelta(hours=1)
+CYCLE_CLOSE_CADENCE = timedelta(minutes=15)
+OBSERVATION_CLEANUP_CADENCE = timedelta(days=1)
 
 
 class DailyOpportunityRetentionScheduler:
-    """Run retention once per UTC day across workers and restarts."""
+    """Run retention once per UTC day and again when the persisted policy version changes."""
 
     def __init__(
         self,
@@ -45,7 +50,6 @@ class DailyOpportunityRetentionScheduler:
         self.lock_namespace = lock_namespace
         self._lock_connection = None
         self._held_period: date | None = None
-        self._completed_period: date | None = None
         self._next_lock_check_at: datetime | None = None
 
     @staticmethod
@@ -54,7 +58,8 @@ class DailyOpportunityRetentionScheduler:
 
     def _run_policy(self) -> OpportunityRetentionResult:
         with SessionLocal() as db:
-            return OpportunityRetentionService.from_settings().run(db)
+            policy = OpportunityManagementPolicyService.get_or_create(db)
+            return OpportunityRetentionService.from_management_policy(policy).run(db)
 
     def _release_lock(self) -> None:
         if self._lock_connection is None:
@@ -106,12 +111,19 @@ class DailyOpportunityRetentionScheduler:
 
     def _prepare_period(self, period: date, current: datetime) -> str:
         with self.session_factory() as db:
+            policy = OpportunityManagementPolicyService.get_or_create(db)
+            current_version = policy.version
             run = db.scalar(
                 select(OpportunityRetentionRun)
                 .where(OpportunityRetentionRun.period_date == period)
                 .with_for_update()
             )
-            if run is not None and run.status == OpportunityRetentionRunStatus.SUCCESS.value:
+            if (
+                run is not None
+                and run.status == OpportunityRetentionRunStatus.SUCCESS.value
+                and isinstance(run.result, dict)
+                and run.result.get("policy_version") == current_version
+            ):
                 return "completed"
             if (
                 run is not None
@@ -150,10 +162,16 @@ class DailyOpportunityRetentionScheduler:
             )
             if run is None:
                 raise RuntimeError("Opportunity retention checkpoint disappeared")
+            policy = OpportunityManagementPolicyService.get_or_create(db)
+            if result.policy_version is None:
+                result.policy_version = policy.version
             run.status = OpportunityRetentionRunStatus.SUCCESS.value
             run.finished_at = current
             run.result = result.as_dict()
             run.error_detail = None
+            state = OpportunityManagementPolicyService.get_maintenance_state(db)
+            state.last_retention_run_at = current
+            state.last_retention_result = result.as_dict()
             db.commit()
 
     def _mark_failed(self, period: date, current: datetime) -> None:
@@ -172,14 +190,8 @@ class DailyOpportunityRetentionScheduler:
             db.commit()
 
     def tick(self, *, now: datetime | None = None) -> OpportunityRetentionResult | None:
-        if not settings.opportunity_retention_enabled:
-            self._release_lock()
-            return None
-
         current = self._utc(now or datetime.now(UTC))
         period = current.date()
-        if self._completed_period == period:
-            return None
         if self._next_lock_check_at is not None and current < self._next_lock_check_at:
             return None
 
@@ -189,18 +201,19 @@ class DailyOpportunityRetentionScheduler:
                 return None
             preparation = self._prepare_period(period, current)
             if preparation == "completed":
-                self._completed_period = period
+                self._next_lock_check_at = current + LOCK_RECHECK
                 return None
             if preparation == "backoff":
                 self._next_lock_check_at = current + LOCK_RECHECK
                 return None
             result = self.runner()
             self._mark_success(period, current, result)
-            self._completed_period = period
-            self._next_lock_check_at = None
+            self._next_lock_check_at = current + LOCK_RECHECK
             logger.info(
-                "event=opportunity_retention_daily_completed period=%s archived=%s evaluated=%s",
+                "event=opportunity_retention_daily_completed period=%s "
+                "policy_version=%s archived=%s evaluated=%s",
                 period.isoformat(),
+                result.policy_version,
                 result.archived_total,
                 result.evaluated,
             )
@@ -220,18 +233,131 @@ class DailyOpportunityRetentionScheduler:
             self._release_lock()
 
 
-def process_runtime_once(scheduler: DailyOpportunityRetentionScheduler) -> bool:
+class OpportunityAutomationScheduler:
+    """Persistent cadence for cycle auto-close and observation cleanup."""
+
+    def __init__(
+        self,
+        *,
+        session_factory: sessionmaker[Session] | None = None,
+    ) -> None:
+        self.session_factory = session_factory or SessionLocal
+
+    @staticmethod
+    def _utc(value: datetime) -> datetime:
+        return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+    def _claim_due(
+        self,
+        *,
+        field: str,
+        cadence: timedelta,
+        current: datetime,
+    ) -> bool:
+        with self.session_factory() as db:
+            state = OpportunityManagementPolicyService.get_maintenance_state(db)
+            # Serialize workers through the singleton row. SQLite ignores FOR UPDATE,
+            # but production PostgreSQL provides the intended multi-worker lock.
+            state = db.scalar(
+                select(OpportunityMaintenanceState)
+                .where(OpportunityMaintenanceState.id == 1)
+                .with_for_update()
+            ) or state
+            previous = getattr(state, field)
+            if previous is not None and current < self._utc(previous) + cadence:
+                db.rollback()
+                return False
+            setattr(state, field, current)
+            db.commit()
+            return True
+
+    def _store_result(self, field: str, result: dict) -> None:
+        with self.session_factory() as db:
+            state = OpportunityManagementPolicyService.get_maintenance_state(db)
+            setattr(state, field, result)
+            db.commit()
+
+    def _cycle_close(self, current: datetime) -> None:
+        if not self._claim_due(
+            field="last_cycle_close_check_at",
+            cadence=CYCLE_CLOSE_CADENCE,
+            current=current,
+        ):
+            return
+        try:
+            with self.session_factory() as db:
+                policy = OpportunityManagementPolicyService.get_or_create(db)
+                result = OpportunityManagementPolicyService.auto_close_due_cycles(
+                    db,
+                    policy=policy,
+                    now=current,
+                )
+                db.commit()
+            self._store_result("last_cycle_close_result", result)
+        except Exception:
+            logger.exception("event=opportunity_cycle_auto_close_failed")
+
+    def _cleanup(self, current: datetime) -> None:
+        if not self._claim_due(
+            field="last_observation_cleanup_at",
+            cadence=OBSERVATION_CLEANUP_CADENCE,
+            current=current,
+        ):
+            return
+        try:
+            with self.session_factory() as db:
+                policy = OpportunityManagementPolicyService.get_or_create(db)
+                if not policy.enabled:
+                    result = {
+                        "policy_version": policy.version,
+                        "deleted_observations": 0,
+                        "disabled": True,
+                    }
+                else:
+                    cleanup = cleanup_observations(
+                        db,
+                        cutoff=retention_cutoff(
+                            days=policy.observation_retention_days,
+                            now=current,
+                        ),
+                        batch_size=settings.retention_batch_size,
+                        max_rows=settings.retention_max_rows_per_run,
+                    )
+                    result = {
+                        "policy_version": policy.version,
+                        **cleanup.as_dict(),
+                    }
+            self._store_result("last_observation_cleanup_result", result)
+        except Exception:
+            logger.exception("event=opportunity_observation_cleanup_failed")
+
+    def tick(self, *, now: datetime | None = None) -> None:
+        current = self._utc(now or datetime.now(UTC))
+        self._cycle_close(current)
+        self._cleanup(current)
+
+
+def process_runtime_once(
+    scheduler: DailyOpportunityRetentionScheduler,
+    automation_scheduler: OpportunityAutomationScheduler | None = None,
+) -> bool:
+    # Collection/reconciliation work runs first so cycle close never races ahead
+    # of a completed scan that still needs to persist its observations.
+    worked = worker.process_once()
     scheduler.tick()
-    return worker.process_once()
+    if automation_scheduler is not None:
+        automation_scheduler.tick()
+    return worked
 
 
 def main() -> None:
     wait_for_database(engine)
     scheduler = DailyOpportunityRetentionScheduler(engine)
+    automation_scheduler = OpportunityAutomationScheduler()
     logger.info("NuvemIQ worker started")
     try:
         while True:
-            worked = process_runtime_once(scheduler)
+            worked = process_runtime_once(scheduler, automation_scheduler)
             if not worked:
                 time.sleep(settings.worker_poll_seconds)
     finally:

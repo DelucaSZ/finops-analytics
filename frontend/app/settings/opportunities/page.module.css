@@ -1,0 +1,234 @@
+.statusGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.statusGrid :global(.panel) {
+  display: flex;
+  padding: 18px;
+  min-width: 0;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.statusGrid strong {
+  font-size: 1.05rem;
+}
+
+.statusGrid small,
+.muted {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.kicker {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.section {
+  margin-bottom: 16px;
+  padding: 20px;
+}
+
+.section h2,
+.section h3,
+.section p {
+  margin-top: 0;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.sectionHeader p {
+  color: var(--muted);
+  margin-bottom: 0;
+  max-width: 760px;
+}
+
+.formGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: 8px;
+}
+
+.formGrid label > span {
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.formGrid input,
+.formGrid select,
+.afterDays input {
+  width: 100%;
+}
+
+.infoBox {
+  margin-top: 16px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-2);
+  padding: 12px 14px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.retentionTable {
+  display: grid;
+  gap: 0;
+  margin-top: 18px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.retentionRow {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto minmax(210px, auto);
+  align-items: center;
+  gap: 18px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.retentionRow:last-child {
+  border-bottom: 0;
+}
+
+.retentionRow > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.retentionRow small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.afterDays {
+  display: grid;
+  grid-template-columns: auto 86px auto;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+}
+
+.inlineInput {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.warning {
+  margin-bottom: 16px;
+  color: #ffd176;
+  border: 1px solid rgba(249, 189, 79, 0.2);
+  background: rgba(249, 189, 79, 0.07);
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.preview {
+  margin-top: 20px;
+  border-top: 1px solid var(--border);
+  padding-top: 18px;
+}
+
+.previewGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.metric {
+  display: grid;
+  gap: 5px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+}
+
+.metric strong {
+  font-size: 1.15rem;
+}
+
+.metric span,
+.previewWarning {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.4;
+}
+
+.previewWarning {
+  margin: 12px 0 0;
+}
+
+.maintenanceGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.maintenanceGrid span {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.maintenanceGrid strong {
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .statusGrid,
+  .previewGrid,
+  .maintenanceGrid,
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .retentionRow {
+    grid-template-columns: 1fr auto;
+  }
+
+  .afterDays {
+    grid-column: 1 / -1;
+    justify-content: start;
+  }
+}
+
+@media (max-width: 560px) {
+  .sectionHeader {
+    align-items: center;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .actions :global(.button) {
+    justify-content: center;
+    width: 100%;
+  }
+}

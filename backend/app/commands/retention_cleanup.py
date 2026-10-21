@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import app.models  # noqa: F401
 from app.core.config import settings
 from app.db.session import SessionLocal
+from app.services.opportunity_policy import OpportunityManagementPolicyService
 from app.services.retention import (
     cleanup_observations,
     retention_cutoff,
@@ -40,7 +41,7 @@ def main() -> None:
     parser.add_argument(
         "--before",
         type=_parse_before,
-        help="Override the configured cutoff with an explicit UTC/offset ISO-8601 datetime.",
+        help="Override the persisted policy cutoff with an explicit UTC/offset ISO-8601 datetime.",
     )
     parser.add_argument(
         "--batch-size",
@@ -63,18 +64,25 @@ def main() -> None:
         parser.error("--batch-size must be greater than zero")
     if args.max_rows < 0:
         parser.error("--max-rows must be zero or greater")
-    if args.execute and not settings.retention_enabled:
-        parser.error("Retention cleanup is disabled by NUVEMIQ_RETENTION_ENABLED")
 
-    cutoff = args.before or retention_cutoff(days=settings.opportunity_observation_retention_days)
     with SessionLocal() as db:
+        policy = OpportunityManagementPolicyService.get_or_create(db)
+        cutoff = args.before or retention_cutoff(days=policy.observation_retention_days)
         preview = retention_preview(
             db,
             cutoff=cutoff,
             provider=args.provider,
             account_id=args.account_id,
         )
-        print(_json({"mode": "dry-run", **preview.as_dict()}))
+        print(
+            _json(
+                {
+                    "mode": "dry-run",
+                    "policy_version": policy.version,
+                    **preview.as_dict(),
+                }
+            )
+        )
         if not args.execute:
             return
 
@@ -86,7 +94,15 @@ def main() -> None:
             provider=args.provider,
             account_id=args.account_id,
         )
-        print(_json({"mode": "execute", **result.as_dict()}))
+        print(
+            _json(
+                {
+                    "mode": "execute",
+                    "policy_version": policy.version,
+                    **result.as_dict(),
+                }
+            )
+        )
 
 
 if __name__ == "__main__":

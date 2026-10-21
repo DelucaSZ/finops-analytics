@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime, timedelta
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from sqlalchemy import and_, exists, func, or_, select
 from sqlalchemy.orm import Session
@@ -14,15 +14,20 @@ from app.models.opportunity_archive_history import (
     OpportunityArchiveAction,
     OpportunityArchiveHistory,
 )
+from app.services.audit import AuditService, new_correlation_id
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
 from app.services.opportunity_archiving import archive_retention_locked
+
+if TYPE_CHECKING:
+    from app.models.opportunity_management_policy import OpportunityManagementPolicy
 
 logger = logging.getLogger("deepops.opportunity_retention")
 
 PolicyKey = Literal[
-    "treated_retention",
     "rejected_retention",
+    "treated_retention",
     "resolved_external_retention",
+    "open_retention",
 ]
 
 
@@ -40,12 +45,14 @@ class OpportunityRetentionResult:
     archived_treated: int = 0
     archived_rejected: int = 0
     archived_resolved_externally: int = 0
+    archived_open: int = 0
     skipped_needs_review: int = 0
     skipped_active_after_treatment: int = 0
     batches: int = 0
     errors: int = 0
+    policy_version: int | None = None
 
-    def as_dict(self) -> dict[str, int]:
+    def as_dict(self) -> dict[str, int | None]:
         return asdict(self)
 
 
@@ -62,29 +69,38 @@ class OpportunityRetentionService:
         treated_days: int,
         rejected_days: int,
         resolved_externally_days: int,
+        open_days: int = 30,
         treated_enabled: bool = True,
         rejected_enabled: bool = True,
         resolved_externally_enabled: bool = True,
+        open_enabled: bool = False,
         batch_size: int = 500,
+        policy_version: int | None = None,
     ) -> None:
         for name, value in (
             ("treated_days", treated_days),
             ("rejected_days", rejected_days),
             ("resolved_externally_days", resolved_externally_days),
+            ("open_days", open_days),
             ("batch_size", batch_size),
         ):
             if value < 1:
                 raise ValueError(f"{name} must be greater than or equal to 1")
+        # Human lifecycle takes precedence over technical presence. Rejected and
+        # treated are mutually exclusive, but the explicit order keeps archive
+        # reasons deterministic when a technical state is also eligible.
         self.policies = (
-            RetentionPolicy("treated_retention", treated_days, treated_enabled),
             RetentionPolicy("rejected_retention", rejected_days, rejected_enabled),
+            RetentionPolicy("treated_retention", treated_days, treated_enabled),
             RetentionPolicy(
                 "resolved_external_retention",
                 resolved_externally_days,
                 resolved_externally_enabled,
             ),
+            RetentionPolicy("open_retention", open_days, open_enabled),
         )
         self.batch_size = batch_size
+        self.policy_version = policy_version
 
     @classmethod
     def from_settings(cls, configured: Settings = settings) -> OpportunityRetentionService:
@@ -98,6 +114,27 @@ class OpportunityRetentionService:
                 configured.opportunity_retention_resolved_externally_enabled
             ),
             batch_size=configured.opportunity_retention_batch_size,
+        )
+
+    @classmethod
+    def from_management_policy(
+        cls,
+        policy: OpportunityManagementPolicy,
+        *,
+        batch_size: int | None = None,
+    ) -> OpportunityRetentionService:
+        enabled = bool(policy.enabled)
+        return cls(
+            treated_days=policy.treated_archive_days,
+            rejected_days=policy.rejected_archive_days,
+            resolved_externally_days=policy.resolved_external_archive_days,
+            open_days=policy.open_archive_days,
+            treated_enabled=enabled and policy.treated_archive_enabled,
+            rejected_enabled=enabled and policy.rejected_archive_enabled,
+            resolved_externally_enabled=enabled and policy.resolved_external_archive_enabled,
+            open_enabled=enabled and policy.open_archive_enabled,
+            batch_size=batch_size or settings.opportunity_retention_batch_size,
+            policy_version=policy.version,
         )
 
     @staticmethod
@@ -118,6 +155,12 @@ class OpportunityRetentionService:
                 Finding.rejected_at.is_not(None),
                 Finding.rejected_at <= cutoff,
             )
+        if policy.key == "open_retention":
+            return and_(
+                Finding.status == "open",
+                Finding.last_seen_at.is_not(None),
+                Finding.last_seen_at <= cutoff,
+            )
         return and_(
             Finding.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value,
             Finding.resolved_externally_at.is_not(None),
@@ -132,6 +175,8 @@ class OpportunityRetentionService:
         if policy.key == "rejected_retention":
             assert finding.rejected_at is not None
             return _utc(finding.rejected_at)
+        if policy.key == "open_retention":
+            return _utc(finding.last_seen_at)
         assert finding.resolved_externally_at is not None
         return _utc(finding.resolved_externally_at)
 
@@ -172,6 +217,35 @@ class OpportunityRetentionService:
             if policy.enabled
         ]
         return or_(*predicates) if predicates else False
+
+    def preview_counts(
+        self,
+        db: Session,
+        *,
+        now: datetime | None = None,
+    ) -> dict[str, int]:
+        current = _utc(now or datetime.now(UTC))
+        by_key: dict[str, int] = {}
+        for policy in self.policies:
+            count = 0
+            if policy.enabled:
+                count = int(
+                    db.scalar(
+                        select(func.count(Finding.id)).where(
+                            self._eligible(policy, self._cutoff(policy, current))
+                        )
+                    )
+                    or 0
+                )
+            by_key[policy.key] = count
+        return {
+            "treated_eligible": by_key.get("treated_retention", 0),
+            "rejected_eligible": by_key.get("rejected_retention", 0),
+            "resolved_externally_eligible": by_key.get(
+                "resolved_external_retention", 0
+            ),
+            "open_eligible": by_key.get("open_retention", 0),
+        }
 
     def _collect_preflight_counters(
         self,
@@ -238,6 +312,7 @@ class OpportunityRetentionService:
             if not findings:
                 return
 
+            archived_findings: list[Finding] = []
             for finding in findings:
                 archived = archive_retention_locked(
                     db,
@@ -246,24 +321,30 @@ class OpportunityRetentionService:
                     policy=policy.key,
                     threshold_days=policy.threshold_days,
                     reference_timestamp=self._reference_timestamp(policy, finding),
+                    policy_version=self.policy_version,
+                    record_audit=False,
                 )
                 if not archived:
                     continue
+                archived_findings.append(finding)
                 result.archived_total += 1
                 if policy.key == "treated_retention":
                     result.archived_treated += 1
                 elif policy.key == "rejected_retention":
                     result.archived_rejected += 1
-                else:
+                elif policy.key == "resolved_external_retention":
                     result.archived_resolved_externally += 1
+                else:
+                    result.archived_open += 1
 
-            refresh_summaries_for_findings(db, findings)
+            if archived_findings:
+                refresh_summaries_for_findings(db, archived_findings)
             db.commit()
             result.batches += 1
 
     def run(self, db: Session, *, now: datetime | None = None) -> OpportunityRetentionResult:
         run_at = _utc(now or datetime.now(UTC))
-        result = OpportunityRetentionResult()
+        result = OpportunityRetentionResult(policy_version=self.policy_version)
         self._collect_preflight_counters(db, now=run_at, result=result)
         try:
             for policy in self.policies:
@@ -275,15 +356,30 @@ class OpportunityRetentionService:
             logger.exception("event=opportunity_retention_batch_failed")
             raise
 
+        if result.archived_total:
+            AuditService.record(
+                db,
+                actor=None,
+                module="opportunities",
+                action="opportunity_retention.run",
+                entity_type="opportunity_retention_run",
+                source="SYSTEM",
+                metadata=result.as_dict(),
+                correlation_id=new_correlation_id(),
+            )
+            db.commit()
+
         logger.info(
-            "event=opportunity_retention_run evaluated=%s archived=%s treated=%s rejected=%s "
-            "resolved_externally=%s skipped_needs_review=%s "
-            "skipped_active_after_treatment=%s batches=%s errors=%s",
+            "event=opportunity_retention_run policy_version=%s evaluated=%s archived=%s "
+            "treated=%s rejected=%s resolved_externally=%s open=%s "
+            "skipped_needs_review=%s skipped_active_after_treatment=%s batches=%s errors=%s",
+            self.policy_version,
             result.evaluated,
             result.archived_total,
             result.archived_treated,
             result.archived_rejected,
             result.archived_resolved_externally,
+            result.archived_open,
             result.skipped_needs_review,
             result.skipped_active_after_treatment,
             result.batches,

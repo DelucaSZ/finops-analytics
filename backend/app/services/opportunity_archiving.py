@@ -108,6 +108,8 @@ def archive_retention_locked(
     policy: str,
     threshold_days: int,
     reference_timestamp: datetime,
+    policy_version: int | None = None,
+    record_audit: bool = True,
 ) -> bool:
     if finding.archived_at is not None:
         return False
@@ -115,38 +117,43 @@ def archive_retention_locked(
     finding.archived_at = archived_at
     finding.archived_by = None
     finding.archive_reason = OpportunityArchiveReason.RETENTION_POLICY.value
+    context = {
+        "actor": "SYSTEM",
+        "policy": policy,
+        "policy_key": policy,
+        "policy_version": policy_version,
+        "threshold_days": threshold_days,
+        "reference_timestamp": reference_timestamp.isoformat(),
+        "status": finding.status,
+        "presence_status": finding.presence_status,
+    }
     _history(
         db,
         finding,
         action=OpportunityArchiveAction.ARCHIVE,
         reason=OpportunityArchiveReason.RETENTION_POLICY,
         occurred_at=archived_at,
-        context={
-            "actor": "SYSTEM",
-            "policy": policy,
-            "threshold_days": threshold_days,
-            "reference_timestamp": reference_timestamp.isoformat(),
-            "status": finding.status,
-            "presence_status": finding.presence_status,
-        },
+        context=context,
     )
-    AuditService.record(
-        db,
-        actor=None,
-        module="opportunities",
-        action="opportunity.archive",
-        entity_type="opportunity",
-        entity_id=finding.id,
-        entity_label=_label(finding),
-        before=before,
-        after=_archive_snapshot(finding),
-        source="SYSTEM",
-        metadata={
-            "policy": policy,
-            "threshold_days": threshold_days,
-            "reference_timestamp": reference_timestamp.isoformat(),
-        },
-    )
+    if record_audit:
+        AuditService.record(
+            db,
+            actor=None,
+            module="opportunities",
+            action="opportunity.archive",
+            entity_type="opportunity",
+            entity_id=finding.id,
+            entity_label=_label(finding),
+            before=before,
+            after=_archive_snapshot(finding),
+            source="SYSTEM",
+            metadata={
+                "policy": policy,
+                "policy_version": policy_version,
+                "threshold_days": threshold_days,
+                "reference_timestamp": reference_timestamp.isoformat(),
+            },
+        )
     return True
 
 
