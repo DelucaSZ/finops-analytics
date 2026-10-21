@@ -18,6 +18,8 @@ from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding, OpportunityPresenceStatus
 from app.models.opportunity_archive_history import OpportunityArchiveHistory
 from app.models.opportunity_observation import OpportunityObservation
+from app.models.opportunity_presence_history import OpportunityPresenceHistory
+from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.scan import Scan
 from app.models.user import User
 from app.services.authentication import COOKIE, csrf_token, new_session
@@ -73,6 +75,12 @@ def client():
                 _finding(opportunity_id="oci-2", provider="oci", status="rejected"),
             ]
         )
+        db.flush()
+        rejected = db.get(Finding, "oci-2")
+        rejected.rejected_at = START
+        rejected.rejected_by = admin.id
+        rejected.rejection_reason = "RESOURCE_REQUIRED"
+        rejected.rejection_note = "required for contingency"
         db.commit()
         _, token = new_session(db, admin)
         db.commit()
@@ -139,26 +147,21 @@ def test_manual_archive_is_auditable_provider_neutral_and_hidden_by_default(clie
         assert oci_finding.status == "rejected" and oci_finding.presence_status == "active"
 
 
-def test_archive_and_unarchive_are_idempotent_and_preserve_lifecycles(client):
+def test_open_archive_and_unarchive_remain_idempotent(client):
     http, engine, _ = client
 
-    assert http.post("/opportunities/oci-2/archive").status_code == 200
-    assert http.post("/opportunities/oci-2/archive").status_code == 200
-    response = http.post("/opportunities/oci-2/unarchive")
+    assert http.post("/opportunities/aws-1/archive").status_code == 200
+    assert http.post("/opportunities/aws-1/archive").status_code == 200
+    response = http.post("/opportunities/aws-1/unarchive")
     assert response.status_code == 200
-    body = response.json()
-    assert body["archived"] is False
-    assert body["archived_at"] is None
-    assert body["archive_reason"] is None
-    assert body["status"] == "rejected"
-    assert body["presence_status"] == "active"
-    assert http.post("/opportunities/oci-2/unarchive").status_code == 200
+    assert response.json()["archived"] is False
+    assert http.post("/opportunities/aws-1/unarchive").status_code == 200
 
     with Session(engine) as db:
         history = list(
             db.scalars(
                 select(OpportunityArchiveHistory)
-                .where(OpportunityArchiveHistory.opportunity_id == "oci-2")
+                .where(OpportunityArchiveHistory.opportunity_id == "aws-1")
                 .order_by(OpportunityArchiveHistory.occurred_at)
             )
         )
@@ -166,6 +169,65 @@ def test_archive_and_unarchive_are_idempotent_and_preserve_lifecycles(client):
             ("ARCHIVE", "MANUAL"),
             ("UNARCHIVE", "MANUAL"),
         ]
+
+
+def test_rejected_direct_unarchive_is_blocked_and_reopen_is_atomic(client):
+    http, engine, _ = client
+
+    archived = http.post("/opportunities/oci-2/archive")
+    assert archived.status_code == 200
+    rejected_at = archived.json()["rejected_at"]
+    rejected_by = archived.json()["rejected_by"]
+
+    blocked = http.post("/opportunities/oci-2/unarchive")
+    assert blocked.status_code == 409
+    assert "Reabra-a" in blocked.json()["detail"]
+
+    still_archived = http.get("/opportunities/oci-2").json()
+    assert still_archived["status"] == "rejected"
+    assert still_archived["archived"] is True
+
+    reopened = http.post(
+        "/opportunities/oci-2/reopen",
+        json={"note": "explicitly return to backlog"},
+    )
+    assert reopened.status_code == 200
+    body = reopened.json()
+    assert body["status"] == "open"
+    assert body["archived"] is False
+    assert body["archived_at"] is None
+    assert body["archive_reason"] is None
+    assert body["needs_review"] is False
+    assert body["rejected_at"] == rejected_at
+    assert body["rejected_by"] == rejected_by
+    assert body["rejection_reason"] == "RESOURCE_REQUIRED"
+    assert body["rejection_note"] == "required for contingency"
+
+    with Session(engine) as db:
+        archive_history = list(
+            db.scalars(
+                select(OpportunityArchiveHistory)
+                .where(OpportunityArchiveHistory.opportunity_id == "oci-2")
+                .order_by(OpportunityArchiveHistory.occurred_at)
+            )
+        )
+        assert [(item.action, item.reason) for item in archive_history] == [
+            ("ARCHIVE", "MANUAL"),
+            ("UNARCHIVE", "MANUAL"),
+        ]
+        assert archive_history[-1].context["trigger"] == "reopen"
+
+        status_history = list(
+            db.scalars(
+                select(OpportunityStatusHistory)
+                .where(OpportunityStatusHistory.opportunity_id == "oci-2")
+                .order_by(OpportunityStatusHistory.changed_at)
+            )
+        )
+        assert len(status_history) == 1
+        assert status_history[0].from_status == "rejected"
+        assert status_history[0].to_status == "open"
+        assert status_history[0].action == "reopen"
 
 
 def test_archive_mutation_requires_authentication(client):
@@ -214,13 +276,14 @@ def _run(db: Session, account: AwsAccount, started_at: datetime) -> tuple[Scan, 
 
 
 @pytest.mark.parametrize(
-    ("human_status", "expected_review"),
-    [("treated", True), ("rejected", False)],
+    ("human_status", "expected_review", "expected_archived"),
+    [("treated", True, False), ("rejected", False, True)],
 )
-def test_reappearance_reuses_fingerprint_unarchives_and_preserves_human_status(
+def test_reappearance_reuses_fingerprint_and_preserves_human_decision(
     tmp_path,
     human_status,
     expected_review,
+    expected_archived,
 ):
     engine = create_engine(f"sqlite:///{tmp_path / f'archive-{human_status}.db'}")
     Base.metadata.create_all(engine)
@@ -262,11 +325,18 @@ def test_reappearance_reuses_fingerprint_unarchives_and_preserves_human_status(
                 finding.rejected_at = first_seen + timedelta(hours=1)
                 finding.rejected_by = actor.id
                 finding.rejection_reason = "RESOURCE_REQUIRED"
+                finding.rejection_note = "keep this resource"
             finding.presence_status = OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
             finding.resolved_externally_at = first_seen + timedelta(days=1)
             archive(db, finding.id, actor)
             original_id = finding.id
             original_fingerprint = finding.fingerprint
+            original_first_seen = finding.first_seen_at
+            original_rejected_at = finding.rejected_at
+            original_rejected_by = finding.rejected_by
+            original_rejection_reason = finding.rejection_reason
+            original_rejection_note = finding.rejection_note
+            original_archived_at = finding.archived_at
             db.commit()
 
             second_scan, second_run = _run(db, account, reappeared_at)
@@ -286,22 +356,52 @@ def test_reappearance_reuses_fingerprint_unarchives_and_preserves_human_status(
             assert finding.fingerprint == original_fingerprint
             assert finding.status == human_status
             assert finding.presence_status == OpportunityPresenceStatus.ACTIVE.value
-            assert finding.archived_at is None
-            assert finding.archived_by is None
-            assert finding.archive_reason is None
             assert finding.needs_review is expected_review
+            assert finding.first_seen_at == original_first_seen
+            assert finding.last_seen_at == reappeared_at
+            assert finding.total_occurrence_count == 2
 
-            history = list(
+            if expected_archived:
+                assert finding.archived_at == original_archived_at
+                assert finding.archive_reason == "MANUAL"
+                assert finding.rejected_at == original_rejected_at
+                assert finding.rejected_by == original_rejected_by
+                assert finding.rejection_reason == original_rejection_reason
+                assert finding.rejection_note == original_rejection_note
+            else:
+                assert finding.archived_at is None
+                assert finding.archived_by is None
+                assert finding.archive_reason is None
+
+            archive_history = list(
                 db.scalars(
                     select(OpportunityArchiveHistory)
                     .where(OpportunityArchiveHistory.opportunity_id == original_id)
                     .order_by(OpportunityArchiveHistory.occurred_at)
                 )
             )
-            assert [(event.action, event.reason) for event in history] == [
-                ("ARCHIVE", "MANUAL"),
-                ("UNARCHIVE", "REAPPEARED"),
-            ]
-            assert history[-1].collection_run_id == second_run.id
+            expected_archive_history = [("ARCHIVE", "MANUAL")]
+            if human_status == "treated":
+                expected_archive_history.append(("UNARCHIVE", "REAPPEARED"))
+            assert [(event.action, event.reason) for event in archive_history] == expected_archive_history
+            if human_status == "treated":
+                assert archive_history[-1].collection_run_id == second_run.id
+
+            presence_history = list(
+                db.scalars(
+                    select(OpportunityPresenceHistory).where(
+                        OpportunityPresenceHistory.opportunity_id == original_id
+                    )
+                )
+            )
+            assert len(presence_history) == 1
+            assert presence_history[0].from_status == "resolved_externally"
+            assert presence_history[0].to_status == "active"
+
+            assert db.scalar(
+                select(func.count())
+                .select_from(OpportunityStatusHistory)
+                .where(OpportunityStatusHistory.opportunity_id == original_id)
+            ) == 0
     finally:
         engine.dispose()

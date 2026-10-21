@@ -16,6 +16,7 @@ from app.models.collection_scope_execution import (
 )
 from app.models.finding import Finding, OpportunityPresenceStatus
 from app.models.opportunity_observation import OpportunityObservation
+from app.services import opportunity_reconciliation
 from app.services.opportunity_reconciliation import (
     persist_collection_scope_executions,
     reactivate_presence_from_observation,
@@ -252,6 +253,35 @@ def test_reappearance_resets_missing_sequence_without_human_status_change(engine
         assert finding.missing_count == 0
         assert finding.missing_since_at is None
         assert finding.resolved_externally_at is None
+
+
+def test_rejected_archived_reappearance_never_calls_auto_unarchive(engine, monkeypatch):
+    with Session(engine) as db:
+        finding = _finding(
+            db,
+            "rejected-archived",
+            status="rejected",
+            presence_status=OpportunityPresenceStatus.MISSING.value,
+        )
+        archived_at = START + timedelta(minutes=15)
+        finding.archived_at = archived_at
+        finding.archive_reason = "MANUAL"
+        finding.needs_review = True
+        run = _run(db, "rejected-archived", START + timedelta(hours=1))
+
+        def fail_if_called(*_args, **_kwargs):
+            raise AssertionError("rejected observations must not invoke auto-unarchive")
+
+        monkeypatch.setattr(opportunity_reconciliation, "unarchive_reappeared", fail_if_called)
+
+        changed = reactivate_presence_from_observation(finding, run)
+
+        assert changed is True
+        assert finding.status == "rejected"
+        assert finding.presence_status == OpportunityPresenceStatus.ACTIVE.value
+        assert finding.archived_at == archived_at
+        assert finding.archive_reason == "MANUAL"
+        assert finding.needs_review is False
 
 
 def test_resolved_externally_reappearance_returns_active_without_reopening_treated(engine):
