@@ -292,9 +292,7 @@ def test_same_opportunity_can_exist_in_multiple_cycles_without_rewriting_previou
 
     snapshots = list(
         db.scalars(
-            select(OpportunityHistorySnapshot).order_by(
-                OpportunityHistorySnapshot.captured_at
-            )
+            select(OpportunityHistorySnapshot).order_by(OpportunityHistorySnapshot.captured_at)
         )
     )
     assert len(snapshots) == 2
@@ -320,9 +318,7 @@ def test_close_is_idempotent_and_audited_once(db):
 
     assert db.scalar(select(func.count(OpportunityHistorySnapshot.id))) == 1
     audit_count = db.scalar(
-        select(func.count(AuditEvent.id)).where(
-            AuditEvent.action == "opportunity_cycle.close"
-        )
+        select(func.count(AuditEvent.id)).where(AuditEvent.action == "opportunity_cycle.close")
     )
     assert audit_count == 1
 
@@ -463,9 +459,7 @@ def test_system_close_allows_null_closed_by(db):
 
     assert cycle.closed_by is None
     assert cycle.close_reason == "SYSTEM"
-    audit = db.scalar(
-        select(AuditEvent).where(AuditEvent.action == "opportunity_cycle.close")
-    )
+    audit = db.scalar(select(AuditEvent).where(AuditEvent.action == "opportunity_cycle.close"))
     assert audit is not None
     assert audit.actor_id is None
     assert audit.source == "SYSTEM"
