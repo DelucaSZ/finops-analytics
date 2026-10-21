@@ -20,6 +20,7 @@ from app.models.opportunity_history_cycle import (
     OpportunityHistoryCycle,
     OpportunityHistoryCycleStatus,
 )
+from app.models.opportunity_observation import OpportunityObservation
 from app.models.user import User
 from app.services.audit import AuditService, new_correlation_id, sanitize_audit_payload
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
@@ -123,6 +124,41 @@ def archive_preview(
         "by_account": _group_counts(db, active, Finding.account_id),
         "savings": _savings(db, active),
         "filter_hash": _filter_hash(filters),
+    }
+
+
+def period_close_preview(
+    db: Session,
+    *,
+    cycle_id: str,
+    filters: OpportunityFilters,
+    archive_all: bool,
+) -> dict:
+    _validate_scope(filters, archive_all=archive_all)
+    cycle = db.get(OpportunityHistoryCycle, cycle_id)
+    if cycle is None:
+        raise HTTPException(status_code=404, detail="Opportunity history cycle not found")
+    if cycle.status == OpportunityHistoryCycleStatus.CLOSED.value:
+        raise HTTPException(status_code=409, detail="Este período já está fechado.")
+
+    coverage = OpportunityHistoryCycleService.collection_coverage(db, cycle)
+    snapshots_to_create = int(
+        db.scalar(
+            select(func.count(func.distinct(OpportunityObservation.opportunity_id))).where(
+                OpportunityObservation.observed_at >= cycle.period_start,
+                OpportunityObservation.observed_at < cycle.period_end,
+            )
+        )
+        or 0
+    )
+    return {
+        "cycle_id": cycle.id,
+        "cycle_label": cycle.label,
+        "snapshots_to_create": snapshots_to_create,
+        "collection_runs": int(coverage["total"]),
+        "failed_collection_runs": int(coverage["failed"]),
+        "running_collection_runs": int(coverage["running"]),
+        "archive": archive_preview(db, filters, archive_all=archive_all),
     }
 
 
@@ -330,7 +366,7 @@ def archive_by_filter(
         actor=actor,
         action=audit_action,
         requested=len(active_ids),
-        matched=len(active_ids),
+        matched=len(active_ids) + already_archived,
         archived=len(updated_ids),
         already_archived=already_archived,
         correlation_id=correlation_id,
@@ -340,7 +376,7 @@ def archive_by_filter(
     )
     return {
         "requested": len(active_ids),
-        "matched": len(active_ids),
+        "matched": len(active_ids) + already_archived,
         "archived": len(updated_ids),
         "already_archived": already_archived,
         "failed": 0,
