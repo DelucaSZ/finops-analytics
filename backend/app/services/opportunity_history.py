@@ -49,10 +49,7 @@ def _safe_json(payload: Any, *, max_bytes: int = 16_384) -> dict[str, Any]:
 
 
 def _money_rows(rows) -> list[dict[str, Any]]:
-    return [
-        {"currency": currency, "amount": amount or Decimal("0")}
-        for currency, amount in rows
-    ]
+    return [{"currency": currency, "amount": amount or Decimal("0")} for currency, amount in rows]
 
 
 class OpportunityHistoryCycleService:
@@ -497,9 +494,7 @@ def cycle_payload(db: Session, cycle: OpportunityHistoryCycle) -> dict[str, Any]
 def list_cycles(db: Session) -> dict[str, Any]:
     cycles = list(
         db.scalars(
-            select(OpportunityHistoryCycle).order_by(
-                OpportunityHistoryCycle.period_start.desc()
-            )
+            select(OpportunityHistoryCycle).order_by(OpportunityHistoryCycle.period_start.desc())
         )
     )
     return {"items": [cycle_payload(db, cycle) for cycle in cycles], "total": len(cycles)}
