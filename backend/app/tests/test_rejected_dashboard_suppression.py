@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from app.models.finding import Finding
 from app.services.dashboard import _recent_changes
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
-from app.tests.test_dashboard import dashboard  # noqa: F401
+from app.tests.test_dashboard import client, dashboard  # noqa: F401
 
 
 def test_rejected_target_only_observation_is_not_operationally_new(dashboard):  # noqa: F811
