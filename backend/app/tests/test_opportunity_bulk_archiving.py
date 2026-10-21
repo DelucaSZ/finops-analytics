@@ -119,18 +119,14 @@ def test_bulk_archive_deduplicates_preserves_lifecycle_and_correlates_history(db
     assert all(item.archived_at is not None for item in items)
     assert len({item.archived_at for item in items}) == 1
 
-    history_statement = select(OpportunityArchiveHistory).order_by(
-        OpportunityArchiveHistory.id
-    )
+    history_statement = select(OpportunityArchiveHistory).order_by(OpportunityArchiveHistory.id)
     history = list(db.scalars(history_statement))
     assert len(history) == 3
     expected_correlations = {result["correlation_id"]}
     assert {item.context["correlation_id"] for item in history} == expected_correlations
     assert {item.context["operation"] for item in history} == {"bulk"}
 
-    event_statement = select(AuditEvent).where(
-        AuditEvent.action == "opportunity.bulk_archive"
-    )
+    event_statement = select(AuditEvent).where(AuditEvent.action == "opportunity.bulk_archive")
     events = list(db.scalars(event_statement))
     assert len(events) == 1
     assert events[0].correlation_id == result["correlation_id"]
