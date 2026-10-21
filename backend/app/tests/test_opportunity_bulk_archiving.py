@@ -257,7 +257,13 @@ def test_empty_filter_requires_explicit_archive_all_confirmation(client):
     assert confirmed.status_code == 200
     assert confirmed.json()["archived"] == 4
     with Session(engine) as db:
-        assert int(db.scalar(select(func.count(Finding.id)).where(Finding.archived_at.is_(None))) or 0) == 0
+        active_count = int(
+            db.scalar(
+                select(func.count(Finding.id)).where(Finding.archived_at.is_(None))
+            )
+            or 0
+        )
+        assert active_count == 0
 
 
 def _add_cycle_data(engine, *, running: bool = False) -> str:
