@@ -38,6 +38,31 @@ def _user_audit_label(user: User) -> str:
     return f"{user.name} · {user.email}"
 
 
+def _record_user_action(
+    db: Session,
+    *,
+    actor: User,
+    user: User,
+    action: str,
+    before: dict | None = None,
+    after: dict | None = None,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="users",
+        action=action,
+        entity_type="user",
+        entity_id=user.id,
+        entity_label=_user_audit_label(user),
+        before=before,
+        after=after,
+        source="API",
+        metadata=metadata,
+    )
+
+
 def _lock_and_recheck_admin(db: Session, actor: User) -> None:
     previous_version = actor.token_version
     lock_user_changes(db)
@@ -109,7 +134,10 @@ def create_user(
     password_hash = hash_password(payload.password.get_secret_value())
     _lock_and_recheck_admin(db, actor)
     user = User(
-        name=payload.name, email=payload.email, role=payload.role, password_hash=password_hash
+        name=payload.name,
+        email=payload.email,
+        role=payload.role,
+        password_hash=password_hash,
     )
     db.add(user)
     try:
@@ -118,17 +146,12 @@ def create_user(
         db.rollback()
         raise HTTPException(409, "Email is already registered") from exc
     event(db, user.id, "user.created", actor.id)
-    AuditService.record(
+    _record_user_action(
         db,
         actor=actor,
-        module="users",
+        user=user,
         action="user.create",
-        entity_type="user",
-        entity_id=user.id,
-        entity_label=_user_audit_label(user),
-        before=None,
         after=_user_audit_snapshot(user),
-        source="API",
     )
     return _commit(db, user)
 
@@ -154,12 +177,15 @@ def update_user(
             select(func.count())
             .select_from(User)
             .where(
-                User.role == UserRole.ADMIN, User.is_active.is_(True), User.password_set.is_(True)
+                User.role == UserRole.ADMIN,
+                User.is_active.is_(True),
+                User.password_set.is_(True),
             )
         )
         if admin_count <= 1:
             raise HTTPException(
-                status_code=409, detail="Cannot remove the last active administrator"
+                status_code=409,
+                detail="Cannot remove the last active administrator",
             )
     if any(
         field in changes and changes[field] != getattr(user, field)
@@ -187,24 +213,25 @@ def update_user(
     for field, value in changes.items():
         setattr(user, field, value)
     if changed_fields:
-        AuditService.record(
+        audit_action = "user.update"
+        if changed_fields == ["is_active"]:
+            audit_action = "user.enable" if user.is_active else "user.disable"
+        _record_user_action(
             db,
             actor=actor,
-            module="users",
-            action="user.update",
-            entity_type="user",
-            entity_id=user.id,
-            entity_label=_user_audit_label(user),
+            user=user,
+            action=audit_action,
             before=before,
             after=_user_audit_snapshot(user),
-            source="API",
         )
     return _commit(db, user)
 
 
 @router.post("/invitations", status_code=201)
 def invite_user(
-    payload: UserInvite, db: Session = Depends(get_db), actor: User = Depends(require_recent_admin)
+    payload: UserInvite,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_recent_admin),
 ) -> dict:
     password_hash = hash_password(secrets.token_urlsafe(48))
     _lock_and_recheck_admin(db, actor)
@@ -223,6 +250,13 @@ def invite_user(
         raise HTTPException(409, "Email is already registered") from exc
     event(db, user.id, "user.invited", actor.id)
     raw, expiry = issue_token(db, user, "invite")
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.invite",
+        after=_user_audit_snapshot(user),
+    )
     db.commit()
     return {
         "user": UserRead.model_validate(user),
@@ -245,33 +279,48 @@ def _issue_access(user_id: str, purpose: str, db: Session, actor: User) -> dict:
         actor.id,
     )
     raw, expiry = issue_token(db, user, purpose)
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.invitation_renew" if purpose == "invite" else "user.password_reset_issue",
+        metadata={"expires_at": expiry, "purpose": purpose},
+    )
     db.commit()
     return {"url": token_link(raw, purpose), "expires_at": expiry}
 
 
 @router.post("/{user_id}/invitation")
 def renew_invitation(
-    user_id: str, db: Session = Depends(get_db), actor: User = Depends(require_recent_admin)
+    user_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_recent_admin),
 ) -> dict:
     return _issue_access(user_id, "invite", db, actor)
 
 
 @router.post("/{user_id}/password-reset")
 def generate_password_reset(
-    user_id: str, db: Session = Depends(get_db), actor: User = Depends(require_recent_admin)
+    user_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_recent_admin),
 ) -> dict:
     return _issue_access(user_id, "reset", db, actor)
 
 
 @router.delete("/{user_id}/sessions", status_code=204)
 def revoke_user_sessions(
-    user_id: str, db: Session = Depends(get_db), actor: User = Depends(require_recent_admin)
+    user_id: str,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_recent_admin),
 ) -> None:
     _lock_and_recheck_admin(db, actor)
-    if db.get(User, user_id) is None:
+    user = db.get(User, user_id)
+    if user is None:
         raise HTTPException(404, "User not found")
     revoke_sessions(db, user_id)
     event(db, user_id, "user.sessions_revoked", actor.id)
+    _record_user_action(db, actor=actor, user=user, action="user.sessions_revoke")
     db.commit()
 
 
@@ -307,6 +356,16 @@ def revoke_one_user_session(
     item = db.get(LoginSession, session_id, populate_existing=True)
     if item is None or item.user_id != user_id:
         raise HTTPException(404, "Sessão não encontrada")
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(404, "User not found")
     item.revoked_at = utcnow()
     event(db, user_id, "user.session_revoked", actor.id)
+    _record_user_action(
+        db,
+        actor=actor,
+        user=user,
+        action="user.sessions_revoke",
+        metadata={"scope": "single_session", "session_id": session_id},
+    )
     db.commit()

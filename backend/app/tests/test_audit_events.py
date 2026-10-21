@@ -91,12 +91,64 @@ def test_sanitizer_is_recursive_json_safe_and_never_persists_secrets():
     assert "BEGIN PRIVATE KEY" not in serialized
 
 
+def test_sanitizer_covers_cloud_tls_auth_smtp_and_application_secrets():
+    payload = {
+        "access_key_id": "AKIAEXAMPLE",
+        "secret_access_key": "aws-secret",
+        "session_token": "aws-session",
+        "private_key_pem": "-----BEGIN PRIVATE KEY-----\noci\n-----END PRIVATE KEY-----",
+        "passphrase": "oci-pass",
+        "fingerprint": "AA:BB:CC",
+        "tenancy_ocid": "ocid1.tenancy.oc1..example",
+        "certificate_pem": "-----BEGIN CERTIFICATE-----\n" + ("A" * 3000),
+        "password_hash": "hash",
+        "reset_token": "reset",
+        "invitation_token": "invite",
+        "mfa_secret": "otp-secret",
+        "recovery_code": "recovery",
+        "smtp_password": "smtp-secret",
+        "NUVEMIQ_SECRET_KEY": "application-secret",
+    }
+
+    safe = sanitize_audit_payload(payload)
+    serialized = str(safe)
+
+    assert safe["fingerprint"] == "AA:BB:CC"
+    assert safe["tenancy_ocid"] == "ocid1.tenancy.oc1..example"
+    assert safe["certificate_pem"]["_omitted"] == "certificate_pem"
+    for secret in (
+        "AKIAEXAMPLE",
+        "aws-secret",
+        "aws-session",
+        "oci-pass",
+        "hash",
+        "reset",
+        "invite",
+        "otp-secret",
+        "recovery",
+        "smtp-secret",
+        "application-secret",
+        "BEGIN PRIVATE KEY",
+    ):
+        assert secret not in serialized
+
+
 def test_diff_is_first_level_deterministic_and_omits_unchanged_fields():
     before = audit_snapshot(
-        {"enabled": True, "scan_interval_hours": 24, "name": "Produção", "nullable": None}
+        {
+            "enabled": True,
+            "scan_interval_hours": 24,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
     after = audit_snapshot(
-        {"enabled": False, "scan_interval_hours": 12, "name": "Produção", "nullable": None}
+        {
+            "enabled": False,
+            "scan_interval_hours": 12,
+            "name": "Produção",
+            "nullable": None,
+        }
     )
 
     changes = build_audit_changes(before, after)
@@ -159,7 +211,7 @@ def test_commit_persists_snapshot_independent_of_current_user(audit_db):
             action="user.update",
             entity_type="user",
             entity_id=subject_id,
-            entity_label="Operator",
+            entity_label="Operator · operator@example.com",
             before={"name": "Operator"},
             after={"name": "Operator Novo"},
             source="API",
@@ -169,7 +221,6 @@ def test_commit_persists_snapshot_independent_of_current_user(audit_db):
 
         actor.name = "Admin Renomeado"
         actor.email = "renamed@example.com"
-        actor.is_active = False
         db.commit()
 
     with Session(engine) as db:
@@ -250,10 +301,12 @@ def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, s
 
 def test_unified_endpoint_returns_security_and_administrative_with_filters(audit_db):
     engine, actor_id, subject_id = audit_db
-    security_id, administrative_id = _seed_unified_events(engine, actor_id, subject_id)
+    security_id, administrative_id = _seed_unified_events(
+        engine, actor_id, subject_id
+    )
 
     with TestClient(_app_for(engine, authorized=True)) as client:
-        response = client.get("/api/v1/audit?event_type=all&limit=1&offset=0")
+        response = client.get("/api/v1/audit?event_kind=all&limit=1&offset=0")
         assert response.status_code == 200
         page = response.json()
         assert page["total"] == 2
@@ -261,39 +314,156 @@ def test_unified_endpoint_returns_security_and_administrative_with_filters(audit
         assert page["offset"] == 0
         assert page["items"][0]["id"] == administrative_id
         assert page["items"][0]["event_kind"] == "administrative"
+        assert page["items"][0]["before"] == {"is_active": True}
+        assert page["items"][0]["after"] == {"is_active": False}
 
-        second = client.get("/api/v1/audit?event_type=all&limit=1&offset=1").json()
+        second = client.get("/api/v1/audit?event_kind=all&limit=1&offset=1").json()
         assert second["items"][0]["id"] == security_id
         assert second["items"][0]["event_kind"] == "security"
 
         by_module = client.get(
             "/api/v1/audit",
-            params={"event_type": "administrative", "module": "users"},
+            params={"event_kind": "administrative", "module": "users"},
         ).json()
         assert by_module["total"] == 1
         assert by_module["items"][0]["action"] == "user.update"
 
         by_action = client.get(
             "/api/v1/audit",
-            params={"event_type": "security", "action": "auth.login"},
+            params={"event_kind": "security", "action": "auth.login"},
         ).json()
         assert by_action["total"] == 1
 
         by_actor = client.get(
             "/api/v1/audit",
-            params={"event_type": "all", "actor_id": actor_id},
+            params={"event_kind": "all", "actor_id": actor_id},
         ).json()
         assert by_actor["total"] == 2
 
-        by_entity = client.get(
+        by_subject = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "all", "subject_user_id": subject_id},
+        ).json()
+        assert by_subject["total"] == 2
+        assert by_subject["items"][0]["actor"]["id"] == actor_id
+        assert by_subject["items"][0]["entity"]["id"] == subject_id
+
+
+def test_user_autocomplete_actor_snapshot_and_subject_snapshot_search(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _seed_unified_events(engine, actor_id, subject_id)
+
+    with Session(engine) as db:
+        actor = db.get(User, actor_id)
+        subject = db.get(User, subject_id)
+        actor.name = "Administrador Atual"
+        actor.email = "new-admin@example.com"
+        subject.name = "Operador Atual"
+        subject.email = "new-operator@example.com"
+        db.commit()
+
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        actor_old = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "actor_search": "ADMIN@EXAMPLE"},
+        ).json()
+        assert actor_old["total"] == 1
+        assert actor_old["items"][0]["actor"]["email"] == "admin@example.com"
+
+        subject_old = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "subject_user_search": "operator@example"},
+        ).json()
+        assert subject_old["total"] == 1
+        assert subject_old["items"][0]["entity"]["id"] == subject_id
+
+        current = client.get(
+            "/api/v1/audit/users", params={"q": "administrador atual"}
+        ).json()
+        assert current == [
+            {"id": actor_id, "name": "Administrador Atual", "email": "new-admin@example.com"}
+        ]
+
+
+def test_source_period_correlation_and_combined_filters(audit_db):
+    engine, actor_id, subject_id = audit_db
+    now = datetime.now(UTC)
+    correlation_id = new_correlation_id()
+    with Session(engine) as db:
+        actor = db.get(User, actor_id)
+        older = AuditService.record(
+            db,
+            actor=actor,
+            module="users",
+            action="user.update",
+            entity_type="user",
+            entity_id=subject_id,
+            entity_label="Operator · operator@example.com",
+            before={"role": "viewer"},
+            after={"role": "operator"},
+            source="API",
+        )
+        older.created_at = now - timedelta(days=5)
+        current = AuditService.record(
+            db,
+            actor=actor,
+            module="users",
+            action="user.sessions_revoke",
+            entity_type="user",
+            entity_id=subject_id,
+            entity_label="Operator · operator@example.com",
+            source="API",
+            correlation_id=correlation_id,
+        )
+        current.created_at = now
+        AuditService.record(
+            db,
+            actor=None,
+            module="opportunities",
+            action="opportunity.archive",
+            entity_type="opportunity",
+            entity_id="opp-1",
+            source="SYSTEM",
+        )
+        db.commit()
+
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        recent = client.get(
             "/api/v1/audit",
             params={
-                "event_type": "all",
-                "entity_type": "user",
-                "entity_id": subject_id,
+                "event_kind": "administrative",
+                "module": "users",
+                "actor_search": "admin",
+                "subject_user_id": subject_id,
+                "source": "API",
+                "from": (now - timedelta(days=1)).isoformat(),
+                "to": (now + timedelta(minutes=1)).isoformat(),
             },
         ).json()
-        assert by_entity["total"] == 2
+        assert recent["total"] == 1
+        assert recent["items"][0]["action"] == "user.sessions_revoke"
+
+        correlated = client.get(
+            "/api/v1/audit", params={"correlation_id": correlation_id}
+        ).json()
+        assert correlated["total"] == 1
+        assert correlated["items"][0]["correlation_id"] == correlation_id
+
+        system = client.get(
+            "/api/v1/audit",
+            params={"event_kind": "administrative", "source": "SYSTEM"},
+        ).json()
+        assert system["total"] == 1
+        assert system["items"][0]["actor"]["name"] == "SYSTEM"
+
+
+def test_legacy_event_type_filter_remains_compatible(audit_db):
+    engine, actor_id, subject_id = audit_db
+    _seed_unified_events(engine, actor_id, subject_id)
+    with TestClient(_app_for(engine, authorized=True)) as client:
+        result = client.get("/api/v1/audit", params={"event_type": "security"}).json()
+        assert result["total"] == 1
+        assert result["items"][0]["event_kind"] == "security"
 
 
 def test_security_event_still_works_and_audit_endpoint_is_admin_only(audit_db):
@@ -307,3 +477,5 @@ def test_security_event_still_works_and_audit_endpoint_is_admin_only(audit_db):
     with TestClient(_app_for(engine, authorized=False)) as client:
         response = client.get("/api/v1/audit")
         assert response.status_code == 401
+        users = client.get("/api/v1/audit/users?q=admin")
+        assert users.status_code == 401

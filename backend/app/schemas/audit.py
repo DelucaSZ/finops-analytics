@@ -26,6 +26,8 @@ class AuditEventRead(BaseModel):
     entity: AuditEntityRead
     source: str
     reason: str | None = None
+    before: dict[str, Any] = Field(default_factory=dict)
+    after: dict[str, Any] = Field(default_factory=dict)
     changes: dict[str, Any] = Field(default_factory=dict)
     metadata: dict[str, Any] = Field(default_factory=dict)
     correlation_id: str | None = None
@@ -45,3 +47,9 @@ class AuditPage(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class AuditUserOption(BaseModel):
+    id: str
+    name: str
+    email: str

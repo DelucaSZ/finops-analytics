@@ -16,6 +16,7 @@ from app.models.user import User
 from app.schemas.auth import MfaCode, MfaLogin, MfaReset, PasswordProof
 from app.schemas.user import UserRead
 from app.services import mfa
+from app.services.audit import AuditService, audit_snapshot
 from app.services.authentication import (
     aware,
     browser_request,
@@ -146,7 +147,6 @@ def confirm(
     item.last_step = step
     item.reset_required = False
     codes = mfa.recovery_codes(db, user.id)
-    # Cancel all sessions, links and outstanding challenges, then rotate this browser.
     user.token_version += 1
     revoke_sessions(db, user.id)
     fresh, raw = new_session(db, user, request.headers.get("user-agent", ""))
@@ -185,18 +185,31 @@ def admin_reset(
     db: Session = Depends(get_db),
 ) -> None:
     proof(db, request, actor, session, payload)
-    # A password-only admin must not be able to defeat another user's MFA.
     actor_mfa = mfa.credential(db, actor.id)
     if not actor_mfa or not actor_mfa.secret or not session.mfa_verified:
         raise HTTPException(403, "Ative o MFA na sua conta antes de recuperar outra conta.")
     if actor.id == user_id:
         raise HTTPException(
-            400, "Para sua conta, use Trocar autenticador ou a recuperação pelo host."
+            400,
+            "Para sua conta, use Trocar autenticador ou a recuperação pelo host.",
         )
     user = db.get(User, user_id, populate_existing=True)
     if not user or not user.is_active or not user.password_set:
         raise HTTPException(404, "Conta ativa não encontrada.")
     mfa.reset_mfa(db, user, actor.id, payload.reason.strip())
+    AuditService.record(
+        db,
+        actor=actor,
+        module="users",
+        action="user.mfa_reset",
+        entity_type="user",
+        entity_id=user.id,
+        entity_label=f"{user.name} · {user.email}",
+        before=audit_snapshot({"mfa_enabled": True, "mfa_reset_required": False}),
+        after=audit_snapshot({"mfa_enabled": False, "mfa_reset_required": True}),
+        source="API",
+        metadata={"reason": payload.reason.strip()},
+    )
     db.commit()
 
 

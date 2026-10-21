@@ -7,6 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models.billing_profile import BillingProfile
+from app.models.user import User
 from app.schemas.billing import (
     AwsBillingApiRequest,
     AwsBillingRequest,
@@ -17,6 +18,7 @@ from app.schemas.billing import (
     BillingProfileUpdate,
     ResolvedBillingOptions,
 )
+from app.services.audit import AuditService, audit_snapshot
 
 FINOPS_SYSTEM_PROFILE_ID = "00000000-0000-0000-0000-000000023015"
 FINOPS_SYSTEM_PROFILE_NAME = "FinOps"
@@ -48,9 +50,48 @@ class ResolvedBillingRequest:
         )
 
 
-def ensure_finops_profile(db: Session) -> BillingProfile:
-    """Create the system FinOps profile once without overwriting existing customization."""
+def _profile_snapshot(profile: BillingProfile) -> dict:
+    return audit_snapshot(
+        {
+            "name": profile.name,
+            "description": profile.description,
+            "granularity": profile.granularity,
+            "metric": profile.metric,
+            "group_by": profile.group_by,
+            "exclude_record_types": list(profile.exclude_record_types or []),
+            "is_default": profile.is_default,
+            "enabled": profile.enabled,
+            "is_system": profile.is_system,
+        }
+    )
 
+
+def _record_profile_audit(
+    db: Session,
+    *,
+    actor: User | None,
+    profile: BillingProfile,
+    action: str,
+    before: dict | None = None,
+    after: dict | None = None,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="billing",
+        action=action,
+        entity_type="billing_profile",
+        entity_id=profile.id,
+        entity_label=profile.name,
+        before=before,
+        after=after,
+        source="API" if actor is not None else "SYSTEM",
+        metadata=metadata,
+    )
+
+
+def ensure_finops_profile(db: Session) -> BillingProfile:
     existing = db.get(BillingProfile, FINOPS_SYSTEM_PROFILE_ID)
     if existing is None:
         existing = db.scalar(
@@ -125,15 +166,20 @@ class BillingProfileService:
             statement = statement.where(BillingProfile.id != exclude_id)
         if self._db.scalar(statement) is not None:
             raise BillingProfileError(
-                "PROFILE_NAME_CONFLICT",
-                "Já existe um perfil de Billing com esse nome.",
+                "PROFILE_NAME_CONFLICT", "Já existe um perfil de Billing com esse nome."
             )
 
     def _lock_profiles(self) -> list[BillingProfile]:
         statement = select(BillingProfile).order_by(BillingProfile.id).with_for_update()
         return list(self._db.scalars(statement))
 
-    def create(self, payload: BillingProfileCreate, *, actor_user_id: str) -> BillingProfile:
+    def create(
+        self,
+        payload: BillingProfileCreate,
+        *,
+        actor_user_id: str,
+        actor: User | None = None,
+    ) -> BillingProfile:
         self._ensure_unique_name(payload.name)
         if payload.is_default:
             profiles = self._lock_profiles()
@@ -153,6 +199,14 @@ class BillingProfileService:
             created_by=actor_user_id,
         )
         self._db.add(profile)
+        self._db.flush()
+        _record_profile_audit(
+            self._db,
+            actor=actor,
+            profile=profile,
+            action="billing.profile_create",
+            after=_profile_snapshot(profile),
+        )
         try:
             self._db.commit()
         except IntegrityError as exc:
@@ -168,8 +222,11 @@ class BillingProfileService:
         self,
         profile_id: str,
         payload: BillingProfileUpdate,
+        *,
+        actor: User | None = None,
     ) -> BillingProfile:
         profile = self.get(profile_id)
+        before = _profile_snapshot(profile)
         fields = payload.model_fields_set
         if "name" in fields:
             if payload.name is None:
@@ -192,10 +249,21 @@ class BillingProfileService:
         if "exclude_record_types" in fields:
             if payload.exclude_record_types is None:
                 raise BillingProfileError(
-                    "INVALID_PROFILE", "exclude_record_types não pode ser nulo."
+                    "INVALID_PROFILE",
+                    "exclude_record_types não pode ser nulo.",
                 )
             profile.exclude_record_types = list(payload.exclude_record_types)
 
+        after = _profile_snapshot(profile)
+        if before != after:
+            _record_profile_audit(
+                self._db,
+                actor=actor,
+                profile=profile,
+                action="billing.profile_update",
+                before=before,
+                after=after,
+            )
         try:
             self._db.commit()
         except IntegrityError as exc:
@@ -207,7 +275,7 @@ class BillingProfileService:
         self._db.refresh(profile)
         return profile
 
-    def set_default(self, profile_id: str) -> BillingProfile:
+    def set_default(self, profile_id: str, *, actor: User | None = None) -> BillingProfile:
         profiles = self._lock_profiles()
         target = next((profile for profile in profiles if profile.id == profile_id), None)
         if target is None:
@@ -216,8 +284,21 @@ class BillingProfileService:
             raise BillingProfileError(
                 "PROFILE_INACTIVE", "Um perfil inativo não pode ser definido como padrão."
             )
+        before = _profile_snapshot(target)
+        previous_default = next((profile.id for profile in profiles if profile.is_default), None)
         for profile in profiles:
             profile.is_default = profile.id == target.id
+        after = _profile_snapshot(target)
+        if before != after or previous_default != target.id:
+            _record_profile_audit(
+                self._db,
+                actor=actor,
+                profile=target,
+                action="billing.profile_update",
+                before=before,
+                after=after,
+                metadata={"operation": "set_default", "previous_default_id": previous_default},
+            )
         try:
             self._db.commit()
         except IntegrityError as exc:
@@ -229,7 +310,7 @@ class BillingProfileService:
         self._db.refresh(target)
         return target
 
-    def deactivate(self, profile_id: str) -> BillingProfile:
+    def deactivate(self, profile_id: str, *, actor: User | None = None) -> BillingProfile:
         profile = self.get(profile_id)
         if profile.is_default:
             raise BillingProfileError(
@@ -242,7 +323,17 @@ class BillingProfileService:
                 "O perfil de sistema FinOps deve permanecer disponível como fallback.",
             )
         if profile.enabled:
+            before = _profile_snapshot(profile)
             profile.enabled = False
+            _record_profile_audit(
+                self._db,
+                actor=actor,
+                profile=profile,
+                action="billing.profile_update",
+                before=before,
+                after=_profile_snapshot(profile),
+                metadata={"operation": "deactivate"},
+            )
             self._db.commit()
             self._db.refresh(profile)
         return profile
@@ -250,8 +341,7 @@ class BillingProfileService:
     def _default_profile(self) -> BillingProfile | None:
         profile = self._db.scalar(
             select(BillingProfile).where(
-                BillingProfile.is_default.is_(True),
-                BillingProfile.enabled.is_(True),
+                BillingProfile.is_default.is_(True), BillingProfile.enabled.is_(True)
             )
         )
         if profile is not None:

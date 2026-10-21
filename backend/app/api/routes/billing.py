@@ -95,18 +95,14 @@ def get_billing_profile(
         _raise_billing_error(exc)
 
 
-@router.post(
-    "/profiles",
-    response_model=BillingProfileRead,
-    status_code=status.HTTP_201_CREATED,
-)
+@router.post("/profiles", response_model=BillingProfileRead, status_code=status.HTTP_201_CREATED)
 def create_billing_profile(
     payload: BillingProfileCreate,
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        return BillingProfileService(db).create(payload, actor_user_id=user.id)
+        return BillingProfileService(db).create(payload, actor_user_id=user.id, actor=user)
     except BillingProfileError as exc:
         _raise_billing_error(exc)
 
@@ -116,10 +112,10 @@ def update_billing_profile(
     profile_id: str,
     payload: BillingProfileUpdate,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    user: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        return BillingProfileService(db).update(profile_id, payload)
+        return BillingProfileService(db).update(profile_id, payload, actor=user)
     except BillingProfileError as exc:
         _raise_billing_error(exc)
 
@@ -128,10 +124,10 @@ def update_billing_profile(
 def set_default_billing_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    user: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        return BillingProfileService(db).set_default(profile_id)
+        return BillingProfileService(db).set_default(profile_id, actor=user)
     except BillingProfileError as exc:
         _raise_billing_error(exc)
 
@@ -140,10 +136,10 @@ def set_default_billing_profile(
 def deactivate_billing_profile(
     profile_id: str,
     db: Session = Depends(get_db),
-    _user: User = Depends(require_admin),
+    user: User = Depends(require_admin),
 ) -> BillingProfileRead:
     try:
-        return BillingProfileService(db).deactivate(profile_id)
+        return BillingProfileService(db).deactivate(profile_id, actor=user)
     except BillingProfileError as exc:
         _raise_billing_error(exc)
 

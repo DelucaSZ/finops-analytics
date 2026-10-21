@@ -6,12 +6,14 @@ from app.db.base import utcnow
 from app.models.finding import Finding
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.user import User
+from app.services.audit import AuditService, audit_snapshot, new_correlation_id
 from app.services.dashboard_aggregation import refresh_summaries_for_findings
 from app.services.opportunity_saving_recognition import OpportunitySavingRecognitionService
 
 OPEN = "open"
 TREATED = "treated"
 REJECTED = "rejected"
+LEGACY_REJECTION_NOTE = "Legacy status update did not provide a rejection reason."
 REJECTION_REASONS = {
     "FALSE_POSITIVE",
     "OPERATIONAL_EXCEPTION",
@@ -27,6 +29,45 @@ def _locked(db: Session, opportunity_id: str) -> Finding:
     if finding is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return finding
+
+
+def _audit_snapshot(finding: Finding) -> dict:
+    return audit_snapshot(
+        {
+            "status": finding.status,
+            "rejection_reason": finding.rejection_reason,
+            "needs_review": finding.needs_review,
+        }
+    )
+
+
+def _audit_label(finding: Finding) -> str:
+    resource = finding.resource_name or finding.resource_id
+    return f"{finding.title} · {resource}"
+
+
+def _record_lifecycle_audit(
+    db: Session,
+    *,
+    finding: Finding,
+    actor: User,
+    action: str,
+    before: dict,
+    metadata: dict | None = None,
+) -> None:
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action=f"opportunity.{action}",
+        entity_type="opportunity",
+        entity_id=finding.id,
+        entity_label=_audit_label(finding),
+        before=before,
+        after=_audit_snapshot(finding),
+        source="API",
+        metadata=metadata,
+    )
 
 
 def _history(
@@ -79,15 +120,7 @@ def _apply_reject(
 ) -> None:
     if finding.status != OPEN:
         raise HTTPException(status_code=409, detail="Only open opportunities can be rejected")
-    _history(
-        db,
-        finding,
-        actor,
-        to_status=REJECTED,
-        action="reject",
-        reason=reason,
-        note=note,
-    )
+    _history(db, finding, actor, to_status=REJECTED, action="reject", reason=reason, note=note)
     finding.status = REJECTED
     finding.rejected_at = utcnow()
     finding.rejected_by = actor.id
@@ -114,8 +147,6 @@ def _recognize_treatments(
 ) -> None:
     if not candidates:
         return
-    # Allocate stable history IDs and persist the lifecycle snapshot before the ledger
-    # service validates the treatment event. The route owns the outer transaction.
     db.flush()
     OpportunitySavingRecognitionService(db).recognize_many(candidates, actor)
 
@@ -127,9 +158,11 @@ def treat(
     note: str | None = None,
 ) -> Finding:
     finding = _locked(db, opportunity_id)
+    before = _audit_snapshot(finding)
     event = _apply_treat(db, finding, actor, note)
     _recognize_treatments(db, [(finding, event)], actor)
     refresh_summaries_for_findings(db, [finding])
+    _record_lifecycle_audit(db, finding=finding, actor=actor, action="treat", before=before)
     return finding
 
 
@@ -142,8 +175,17 @@ def reject(
 ) -> Finding:
     _validate_rejection(reason, note)
     finding = _locked(db, opportunity_id)
+    before = _audit_snapshot(finding)
     _apply_reject(db, finding, actor, reason, note)
     refresh_summaries_for_findings(db, [finding])
+    _record_lifecycle_audit(
+        db,
+        finding=finding,
+        actor=actor,
+        action="reject",
+        before=before,
+        metadata={"reason": reason},
+    )
     return finding
 
 
@@ -154,8 +196,10 @@ def reopen(
     note: str | None = None,
 ) -> Finding:
     finding = _locked(db, opportunity_id)
+    before = _audit_snapshot(finding)
     _apply_reopen(db, finding, actor, note)
     refresh_summaries_for_findings(db, [finding])
+    _record_lifecycle_audit(db, finding=finding, actor=actor, action="reopen", before=before)
     return finding
 
 
@@ -189,10 +233,7 @@ def bulk_transition(
     by_id = {finding.id: finding for finding in findings}
     missing = [opportunity_id for opportunity_id in ids if opportunity_id not in by_id]
     if missing:
-        raise HTTPException(
-            status_code=404,
-            detail="Uma ou mais oportunidades não existem.",
-        )
+        raise HTTPException(status_code=404, detail="Uma ou mais oportunidades não existem.")
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
     treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
@@ -206,6 +247,28 @@ def bulk_transition(
             _apply_reopen(db, finding, actor, note)
     _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
+
+    correlation_id = new_correlation_id()
+    sample_ids = [finding.id for finding in ordered[:20]]
+    metadata = {
+        "requested": len(ids),
+        "updated": len(ordered),
+        "sample_ids": sample_ids,
+        "ids_truncated": len(ordered) > len(sample_ids),
+    }
+    if reason:
+        metadata["reason"] = reason
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action=f"opportunity.bulk_{action}",
+        entity_type="opportunity_bulk",
+        entity_label=f"{len(ordered)} oportunidades",
+        source="API",
+        metadata=metadata,
+        correlation_id=correlation_id,
+    )
     return ordered
 
 
@@ -241,9 +304,7 @@ def _apply_legacy_status(
     rejection_note = note
     if rejection_reason is None:
         rejection_reason = "OTHER"
-        rejection_note = (
-            rejection_note or "Legacy status update did not provide a rejection reason."
-        )
+        rejection_note = rejection_note or LEGACY_REJECTION_NOTE
     _validate_rejection(rejection_reason, rejection_note)
     _apply_reject(db, finding, actor, rejection_reason, rejection_note)
     return None
@@ -259,17 +320,23 @@ def set_legacy_status(
     note: str | None = None,
 ) -> Finding:
     finding = _locked(db, opportunity_id)
-    event = _apply_legacy_status(
-        db,
-        finding,
-        actor,
-        status=status,
-        reason=reason,
-        note=note,
-    )
+    before = _audit_snapshot(finding)
+    event = _apply_legacy_status(db, finding, actor, status=status, reason=reason, note=note)
     if event is not None:
         _recognize_treatments(db, [(finding, event)], actor)
     refresh_summaries_for_findings(db, [finding])
+    if before != _audit_snapshot(finding):
+        target = _legacy_target(status)
+        action = "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
+        metadata = {"reason": reason} if reason else None
+        _record_lifecycle_audit(
+            db,
+            finding=finding,
+            actor=actor,
+            action=action,
+            before=before,
+            metadata=metadata,
+        )
     return finding
 
 
@@ -291,10 +358,7 @@ def bulk_set_legacy_status(
     by_id = {finding.id: finding for finding in findings}
     missing = [opportunity_id for opportunity_id in ids if opportunity_id not in by_id]
     if missing:
-        raise HTTPException(
-            status_code=404,
-            detail="Uma ou mais oportunidades não existem.",
-        )
+        raise HTTPException(status_code=404, detail="Uma ou mais oportunidades não existem.")
 
     ordered = [by_id[opportunity_id] for opportunity_id in ids]
     treatment_candidates: list[tuple[Finding, OpportunityStatusHistory]] = []
@@ -311,4 +375,24 @@ def bulk_set_legacy_status(
             treatment_candidates.append((finding, event))
     _recognize_treatments(db, treatment_candidates, actor)
     refresh_summaries_for_findings(db, ordered)
+    target = _legacy_target(status)
+    action = "reopen" if target == OPEN else "treat" if target == TREATED else "reject"
+    sample_ids = [finding.id for finding in ordered[:20]]
+    AuditService.record(
+        db,
+        actor=actor,
+        module="opportunities",
+        action=f"opportunity.bulk_{action}",
+        entity_type="opportunity_bulk",
+        entity_label=f"{len(ordered)} oportunidades",
+        source="API",
+        metadata={
+            "requested": len(ids),
+            "updated": len(ordered),
+            "sample_ids": sample_ids,
+            "ids_truncated": len(ordered) > len(sample_ids),
+            **({"reason": reason} if reason else {}),
+        },
+        correlation_id=new_correlation_id(),
+    )
     return ordered

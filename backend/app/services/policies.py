@@ -238,7 +238,8 @@ def upsert_policy(
     else:
         policy.enabled = enabled
         policy.config = config
-    db.commit()
+    # The caller owns the transaction so an AuditEvent can be persisted atomically.
+    db.flush()
     db.refresh(policy)
     return policy
 
