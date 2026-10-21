@@ -20,14 +20,14 @@ def upgrade() -> None:
                 "first_seen_collection_run_id",
                 sa.String(length=36),
                 nullable=True,
-            )
+            ),
         )
         batch_op.add_column(
             sa.Column(
                 "last_seen_collection_run_id",
                 sa.String(length=36),
                 nullable=True,
-            )
+            ),
         )
         batch_op.create_foreign_key(
             "fk_findings_first_seen_collection_run_id",
@@ -62,8 +62,8 @@ def upgrade() -> None:
                   FROM opportunity_observations AS oo
                   WHERE oo.opportunity_id = findings.id
               )
-            """
-        )
+            """,
+        ),
     )
     op.execute(
         sa.text(
@@ -83,8 +83,8 @@ def upgrade() -> None:
                   FROM opportunity_observations AS oo
                   WHERE oo.opportunity_id = findings.id
               )
-            """
-        )
+            """,
+        ),
     )
 
     op.create_index(
