@@ -119,12 +119,22 @@ def test_bulk_archive_deduplicates_preserves_lifecycle_and_correlates_history(db
     assert all(item.archived_at is not None for item in items)
     assert len({item.archived_at for item in items}) == 1
 
-    history = list(db.scalars(select(OpportunityArchiveHistory).order_by(OpportunityArchiveHistory.id)))
+    history = list(
+        db.scalars(
+            select(OpportunityArchiveHistory).order_by(OpportunityArchiveHistory.id)
+        )
+    )
     assert len(history) == 3
-    assert {item.context["correlation_id"] for item in history} == {result["correlation_id"]}
+    assert {item.context["correlation_id"] for item in history} == {
+        result["correlation_id"]
+    }
     assert {item.context["operation"] for item in history} == {"bulk"}
 
-    events = list(db.scalars(select(AuditEvent).where(AuditEvent.action == "opportunity.bulk_archive")))
+    events = list(
+        db.scalars(
+            select(AuditEvent).where(AuditEvent.action == "opportunity.bulk_archive")
+        )
+    )
     assert len(events) == 1
     assert events[0].correlation_id == result["correlation_id"]
 
@@ -150,7 +160,13 @@ def test_archive_preview_and_execution_share_server_side_filters(db):
     actor = _actor(db)
     target = _finding(db, "aws-open-high", severity="high")
     _finding(db, "aws-treated-high", status="treated", severity="high")
-    _finding(db, "oci-open-high", provider="oci", account_id="tenancy-1", severity="high")
+    _finding(
+        db,
+        "oci-open-high",
+        provider="oci",
+        account_id="tenancy-1",
+        severity="high",
+    )
     archived = _finding(db, "aws-open-archived", severity="high")
     archived.archived_at = NOW
     archived.archive_reason = "MANUAL"
@@ -235,7 +251,11 @@ def test_period_close_snapshots_before_archive_and_keeps_snapshot_immutable(db):
     assert result["cycle_closed"] is True
     assert result["snapshots_created"] == 1
     assert result["archived"] == 1
-    snapshot = db.scalar(select(OpportunityHistorySnapshot).where(OpportunityHistorySnapshot.cycle_id == cycle.id))
+    snapshot = db.scalar(
+        select(OpportunityHistorySnapshot).where(
+            OpportunityHistorySnapshot.cycle_id == cycle.id
+        )
+    )
     assert snapshot is not None
     assert snapshot.status == "treated"
     assert snapshot.archived is False
