@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CloudCog,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -30,7 +31,8 @@ import {
 
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/opportunities", label: "Oportunidades", icon: ScanSearch },
+  { href: "/opportunities", label: "Oportunidades", icon: ScanSearch, exact: true },
+  { href: "/opportunities/history-cycles", label: "Histórico", icon: History },
   { href: "/flow", label: "Fluxo", icon: WalletCards },
   { href: "/billing", label: "Billing", icon: ReceiptText },
   { href: "/collections", label: "Coletas", icon: Activity },
@@ -195,7 +197,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <nav className="main-nav" aria-label="Navegação principal">
           {nav.map((item) => {
             const Icon = item.icon;
-            const active = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+            const active = item.href === "/"
+              ? pathname === "/"
+              : item.exact
+                ? pathname === item.href
+                : pathname.startsWith(item.href);
             return (
               <Link
                 className={active ? "nav-item active" : "nav-item"}
