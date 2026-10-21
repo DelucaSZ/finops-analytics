@@ -16,7 +16,10 @@ from app.models.audit_event import AuditEvent
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import Finding
 from app.models.opportunity_archive_history import OpportunityArchiveHistory
-from app.models.opportunity_history_cycle import OpportunityHistoryCycle, OpportunityHistoryCycleStatus
+from app.models.opportunity_history_cycle import (
+    OpportunityHistoryCycle,
+    OpportunityHistoryCycleStatus,
+)
 from app.models.opportunity_history_snapshot import OpportunityHistorySnapshot
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.user import User
@@ -347,7 +350,9 @@ def test_period_close_previews_failures_then_snapshots_and_archives_atomically(c
         cycle = db.get(OpportunityHistoryCycle, cycle_id)
         assert cycle.status == OpportunityHistoryCycleStatus.CLOSED.value
         snapshot = db.scalar(
-            select(OpportunityHistorySnapshot).where(OpportunityHistorySnapshot.cycle_id == cycle_id)
+            select(OpportunityHistorySnapshot).where(
+                OpportunityHistorySnapshot.cycle_id == cycle_id
+            )
         )
         assert snapshot is not None
         assert snapshot.opportunity_id == "aws-open-1"
@@ -386,9 +391,19 @@ def test_period_close_is_blocked_by_running_collections_without_mutation(client)
     response = http.post("/opportunities/period-close", json=payload)
     assert response.status_code == 409
     with Session(engine) as db:
-        assert db.get(OpportunityHistoryCycle, cycle_id).status == OpportunityHistoryCycleStatus.OPEN.value
-        assert int(db.scalar(select(func.count(OpportunityHistorySnapshot.id))) or 0) == 0
-        assert int(db.scalar(select(func.count(Finding.id)).where(Finding.archived_at.is_not(None))) or 0) == 0
+        cycle = db.get(OpportunityHistoryCycle, cycle_id)
+        assert cycle.status == OpportunityHistoryCycleStatus.OPEN.value
+        snapshot_count = int(
+            db.scalar(select(func.count(OpportunityHistorySnapshot.id))) or 0
+        )
+        archived_count = int(
+            db.scalar(
+                select(func.count(Finding.id)).where(Finding.archived_at.is_not(None))
+            )
+            or 0
+        )
+        assert snapshot_count == 0
+        assert archived_count == 0
 
 
 def test_bulk_archive_requires_authentication(client):
