@@ -383,7 +383,9 @@ def test_reappearance_reuses_fingerprint_and_preserves_human_decision(
             expected_archive_history = [("ARCHIVE", "MANUAL")]
             if human_status == "treated":
                 expected_archive_history.append(("UNARCHIVE", "REAPPEARED"))
-            assert [(event.action, event.reason) for event in archive_history] == expected_archive_history
+            assert [
+                (event.action, event.reason) for event in archive_history
+            ] == expected_archive_history
             if human_status == "treated":
                 assert archive_history[-1].collection_run_id == second_run.id
 
