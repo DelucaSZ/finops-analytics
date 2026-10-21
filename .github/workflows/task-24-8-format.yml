@@ -1,0 +1,35 @@
+name: Task 24.8 formatter
+
+on:
+  push:
+    branches:
+      - task-24.8-opportunity-discovery-filters
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task-24.8-opportunity-discovery-filters
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install Ruff
+        run: pip install ruff==0.12.7
+      - name: Format migration
+        run: ruff format backend/app/migrations/versions/0034_opportunity_discovery_runs.py
+      - name: Commit canonical formatting
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/migrations/versions/0034_opportunity_discovery_runs.py
+          git commit -m "Apply Ruff formatting to Task 24.8 migration"
+          git push origin HEAD:task-24.8-opportunity-discovery-filters
