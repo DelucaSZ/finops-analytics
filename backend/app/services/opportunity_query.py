@@ -30,8 +30,13 @@ class OpportunityFilters:
     severity: str | None = None
     rule: str | None = None
     collection_run_id: str | None = None
+    first_seen_collection_run_id: str | None = None
     resource_id: str | None = None
     search: str | None = None
+    first_seen_from: datetime | None = None
+    first_seen_to: datetime | None = None
+    last_seen_from: datetime | None = None
+    last_seen_to: datetime | None = None
     current: bool = False
     archive_state: str = "active"
     archived_from: datetime | None = None
@@ -96,6 +101,14 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
         statement = statement.where(Finding.rule_key == filters.rule)
     if filters.resource_id:
         statement = statement.where(Finding.resource_id == filters.resource_id)
+    if filters.first_seen_from:
+        statement = statement.where(Finding.first_seen_at >= filters.first_seen_from)
+    if filters.first_seen_to:
+        statement = statement.where(Finding.first_seen_at < filters.first_seen_to)
+    if filters.last_seen_from:
+        statement = statement.where(Finding.last_seen_at >= filters.last_seen_from)
+    if filters.last_seen_to:
+        statement = statement.where(Finding.last_seen_at < filters.last_seen_to)
     if filters.archived_from:
         statement = statement.where(Finding.archived_at >= filters.archived_from)
     if filters.archived_to:
@@ -112,6 +125,10 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
             .exists()
         )
         statement = statement.where(observed_in_run)
+    if filters.first_seen_collection_run_id:
+        statement = statement.where(
+            Finding.first_seen_collection_run_id == filters.first_seen_collection_run_id
+        )
     if filters.current:
         latest_success_run = (
             select(CollectionRun.id)
@@ -206,6 +223,8 @@ def serialize_list_item(
         "presence_reconciled_at": finding.presence_reconciled_at,
         "first_seen_at": finding.first_seen_at,
         "last_seen_at": finding.last_seen_at,
+        "first_seen_collection_run_id": finding.first_seen_collection_run_id,
+        "last_seen_collection_run_id": finding.last_seen_collection_run_id,
         "total_occurrence_count": finding.total_occurrence_count,
         "needs_review": finding.needs_review,
         "archived": finding.archived_at is not None,
