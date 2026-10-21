@@ -114,10 +114,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_index("ix_findings_status_archived_first_seen", table_name="findings")
-    op.drop_index("ix_findings_provider_account_first_seen", table_name="findings")
-    op.drop_index("ix_findings_last_seen_collection_run_id", table_name="findings")
-    op.drop_index("ix_findings_first_seen_collection_run_id", table_name="findings")
+    op.drop_index(
+        "ix_findings_status_archived_first_seen",
+        table_name="findings",
+    )
+    op.drop_index(
+        "ix_findings_provider_account_first_seen",
+        table_name="findings",
+    )
+    op.drop_index(
+        "ix_findings_last_seen_collection_run_id",
+        table_name="findings",
+    )
+    op.drop_index(
+        "ix_findings_first_seen_collection_run_id",
+        table_name="findings",
+    )
 
     with op.batch_alter_table("findings") as batch_op:
         batch_op.drop_constraint(
