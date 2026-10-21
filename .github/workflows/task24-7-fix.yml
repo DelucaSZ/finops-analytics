@@ -1,0 +1,50 @@
+name: Task 24.7 formatter fix
+
+on:
+  push:
+    branches:
+      - task-24.7-opportunity-management-policy
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    if: github.event.head_commit.message != 'chore: remove temporary task 24.7 fixer'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: task-24.7-opportunity-management-policy
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fix migration revision and format backend
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('backend/app/migrations/versions/0033_opportunity_management_policy.py')
+          text = path.read_text()
+          text = text.replace('Revision ID: 0033_opportunity_management_policy', 'Revision ID: 0033_opportunity_policy')
+          text = text.replace('revision = "0033_opportunity_management_policy"', 'revision = "0033_opportunity_policy"')
+          path.write_text(text)
+          PY
+          pip install -r backend/requirements-dev.txt
+          cd backend
+          ruff format .
+          ruff check .
+          pytest -q
+      - name: Commit generated fixes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add backend
+          git commit -m 'fix: validate task 24.7 migration and formatting'
+          git push origin HEAD:task-24.7-opportunity-management-policy
