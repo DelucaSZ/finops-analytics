@@ -29,6 +29,11 @@ from app.models.opportunity_archive_history import (
     OpportunityArchiveHistory,
     OpportunityArchiveReason,
 )
+from app.models.opportunity_history_cycle import (
+    OpportunityHistoryCycle,
+    OpportunityHistoryCycleStatus,
+)
+from app.models.opportunity_history_snapshot import OpportunityHistorySnapshot
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.opportunity_presence_history import (
     OpportunityPresenceHistory,
@@ -79,6 +84,9 @@ __all__ = [
     "OpportunityArchiveAction",
     "OpportunityArchiveHistory",
     "OpportunityArchiveReason",
+    "OpportunityHistoryCycle",
+    "OpportunityHistoryCycleStatus",
+    "OpportunityHistorySnapshot",
     "OpportunityObservation",
     "OpportunityPresenceHistory",
     "OpportunityPresenceReason",
