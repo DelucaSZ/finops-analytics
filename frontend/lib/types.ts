@@ -117,6 +117,8 @@ export type Finding = {
   presence_reconciled_at: string | null;
   first_seen_at: string;
   last_seen_at: string;
+  first_seen_collection_run_id: string | null;
+  last_seen_collection_run_id: string | null;
   total_occurrence_count: number;
   needs_review: boolean;
 };
