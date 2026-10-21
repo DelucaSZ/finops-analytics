@@ -156,6 +156,8 @@ After mutations the frontend invalidates opportunity and dashboard query state s
 
 The current architecture expects period scopes in the low thousands. Filter archiving therefore remains synchronous and transactional, capped at 20,000 active Findings per operation. Explicit-ID bulk is capped at 500 IDs.
 
+For filter operations the server resolves only the matching IDs first, then locks and mutates Findings in deterministic batches of 500. Each batch is flushed but never committed independently. Dashboard summary scopes are deduplicated and refreshed only after all batches have been applied. This bounds ORM object materialization while preserving one all-or-nothing transaction and one aggregate audit event.
+
 This preserves atomicity without introducing a partial-success background job merely for Task 24.6. If production scale later requires tens or hundreds of thousands of rows in one operation, the next design should introduce a durable job entity with explicit status/retry/compensation semantics instead of adding hidden per-batch commits.
 
 ## Monthly example
