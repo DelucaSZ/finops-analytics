@@ -362,7 +362,7 @@ def test_reappearance_reuses_fingerprint_and_preserves_human_decision(
             assert finding.total_occurrence_count == 2
 
             if expected_archived:
-                assert finding.archived_at == original_archived_at
+                assert finding.archived_at.replace(tzinfo=UTC) == original_archived_at
                 assert finding.archive_reason == "MANUAL"
                 assert finding.rejected_at == original_rejected_at
                 assert finding.rejected_by == original_rejected_by
