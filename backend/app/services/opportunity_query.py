@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from math import ceil
 
-from sqlalchemy import String, and_, case, cast, func, or_, select
+from sqlalchemy import String, and_, case, cast, false, func, or_, select
 from sqlalchemy.orm import Session, defer, load_only
 
 from app.core.cloud import CloudProvider
@@ -31,6 +31,9 @@ class OpportunityFilters:
     rule: str | None = None
     collection_run_id: str | None = None
     first_seen_collection_run_id: str | None = None
+    discovery_type: str | None = None
+    baseline_collection_run_id: str | None = None
+    comparison_available: bool = True
     resource_id: str | None = None
     search: str | None = None
     first_seen_from: datetime | None = None
@@ -59,6 +62,47 @@ def _apply_archive_state(statement, archive_state: str):
     if archive_state == "all":
         return statement
     raise ValueError("Unsupported archive_state")
+
+
+def _observed_in_run(run_id: str):
+    return (
+        select(OpportunityObservation.id)
+        .where(
+            OpportunityObservation.opportunity_id == Finding.id,
+            OpportunityObservation.collection_run_id == run_id,
+        )
+        .correlate(Finding)
+        .exists()
+    )
+
+
+def _apply_discovery_filter(statement, filters: OpportunityFilters):
+    discovery_type = filters.discovery_type
+    if not discovery_type:
+        return statement
+    target_id = filters.collection_run_id
+    if not target_id:
+        return statement.where(false())
+
+    if discovery_type == "observed":
+        return statement
+    if discovery_type == "first_seen":
+        return statement.where(Finding.first_seen_collection_run_id == target_id)
+
+    if not filters.comparison_available or not filters.baseline_collection_run_id:
+        return statement.where(false())
+    baseline_observed = _observed_in_run(filters.baseline_collection_run_id)
+    if discovery_type == "continued":
+        return statement.where(baseline_observed)
+    if discovery_type == "new_vs_previous":
+        return statement.where(~baseline_observed)
+    if discovery_type == "reappeared":
+        return statement.where(
+            ~baseline_observed,
+            Finding.first_seen_collection_run_id.is_not(None),
+            Finding.first_seen_collection_run_id != target_id,
+        )
+    raise ValueError("Unsupported discovery_type")
 
 
 def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bool = True):
@@ -116,19 +160,12 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
     if filters.archive_reason:
         statement = statement.where(Finding.archive_reason == filters.archive_reason)
     if filters.collection_run_id:
-        observed_in_run = (
-            select(OpportunityObservation.id)
-            .where(
-                OpportunityObservation.opportunity_id == Finding.id,
-                OpportunityObservation.collection_run_id == filters.collection_run_id,
-            )
-            .exists()
-        )
-        statement = statement.where(observed_in_run)
+        statement = statement.where(_observed_in_run(filters.collection_run_id))
     if filters.first_seen_collection_run_id:
         statement = statement.where(
             Finding.first_seen_collection_run_id == filters.first_seen_collection_run_id
         )
+    statement = _apply_discovery_filter(statement, filters)
     if filters.current:
         latest_success_run = (
             select(CollectionRun.id)
@@ -142,15 +179,7 @@ def _apply_filters(statement, filters: OpportunityFilters, *, include_status: bo
             .correlate(Finding)
             .scalar_subquery()
         )
-        observed_in_current_run = (
-            select(OpportunityObservation.id)
-            .where(
-                OpportunityObservation.opportunity_id == Finding.id,
-                OpportunityObservation.collection_run_id == latest_success_run,
-            )
-            .exists()
-        )
-        statement = statement.where(observed_in_current_run)
+        statement = statement.where(_observed_in_run(latest_success_run))
     if filters.search:
         pattern = f"%{filters.search.strip()}%"
         statement = statement.where(
