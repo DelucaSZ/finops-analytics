@@ -24,7 +24,10 @@ from app.schemas.opportunity_archiving import (
     OpportunityArchiveFilters,
 )
 from app.services.audit import AuditService, new_correlation_id
-from app.services.dashboard_aggregation import refresh_summaries_for_findings
+from app.services.dashboard_aggregation import (
+    refresh_account_summary_after_lifecycle,
+    refresh_summaries_for_findings,
+)
 from app.services.opportunity_archiving import _history
 from app.services.opportunity_query import OpportunityFilters, _apply_filters
 
@@ -32,6 +35,7 @@ from app.services.opportunity_query import OpportunityFilters, _apply_filters
 # mutation synchronous preserves one DB transaction. Larger scopes must be refined
 # until a durable background-job abstraction is introduced deliberately.
 MAX_SYNC_ARCHIVE_MATCHES = 20_000
+ARCHIVE_BATCH_SIZE = 500
 ARCHIVE_ID_SAMPLE_SIZE = 20
 
 
@@ -298,6 +302,59 @@ def archive_by_ids(db: Session, opportunity_ids: list[str], actor: User) -> Arch
     )
 
 
+def _archive_resolved_ids_in_batches(
+    db: Session,
+    target_ids: list[str],
+    *,
+    actor: User,
+    operation: str,
+    correlation_id: str,
+    operation_at: datetime,
+    filter_hash: str,
+    cycle_id: str | None,
+) -> tuple[int, list[str]]:
+    archived = 0
+    sample_ids: list[str] = []
+    summary_scopes: set[tuple[str, str]] = set()
+
+    for offset in range(0, len(target_ids), ARCHIVE_BATCH_SIZE):
+        batch_ids = target_ids[offset : offset + ARCHIVE_BATCH_SIZE]
+        findings = list(
+            db.scalars(
+                select(Finding)
+                .where(Finding.id.in_(batch_ids))
+                .order_by(Finding.id)
+                .with_for_update()
+            )
+        )
+        updated = _archive_locked_many(
+            db,
+            findings,
+            actor=actor,
+            operation=operation,
+            correlation_id=correlation_id,
+            operation_at=operation_at,
+            filter_hash=filter_hash,
+            cycle_id=cycle_id,
+        )
+        archived += len(updated)
+        summary_scopes.update((finding.provider, finding.account_id) for finding in updated)
+        remaining_sample_slots = ARCHIVE_ID_SAMPLE_SIZE - len(sample_ids)
+        if remaining_sample_slots > 0:
+            sample_ids.extend(finding.id for finding in updated[:remaining_sample_slots])
+        # Flush each batch without committing. This bounds pending ORM state while the
+        # route still owns one all-or-nothing transaction for the complete operation.
+        db.flush()
+
+    for provider, account_id in sorted(summary_scopes):
+        refresh_account_summary_after_lifecycle(
+            db,
+            provider=provider,
+            account_id=account_id,
+        )
+    return archived, sample_ids
+
+
 def archive_by_filter(
     db: Session,
     scope: ArchiveScopeRequest,
@@ -312,7 +369,6 @@ def archive_by_filter(
     active_filters = _query_filters(scope.filters, archive_state="active")
     archived_filters = replace(active_filters, archive_state="archived")
     active_count = _count(db, active_filters)
-    already_archived = _count(db, archived_filters)
     if active_count > MAX_SYNC_ARCHIVE_MATCHES:
         raise HTTPException(
             status_code=409,
@@ -322,14 +378,25 @@ def archive_by_filter(
             ),
         )
 
-    stmt = _apply_filters(select(Finding), active_filters).order_by(Finding.id).with_for_update()
-    findings = list(db.scalars(stmt))
+    target_ids = list(
+        db.scalars(_apply_filters(select(Finding.id), active_filters).order_by(Finding.id))
+    )
+    if len(target_ids) > MAX_SYNC_ARCHIVE_MATCHES:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                f"O escopo contém {len(target_ids)} oportunidades ativas e excede o limite "
+                f"síncrono de {MAX_SYNC_ARCHIVE_MATCHES}. Refine os filtros antes de arquivar."
+            ),
+        )
+
+    already_archived_before = _count(db, archived_filters)
     correlation = correlation_id or new_correlation_id()
     operation_at = utcnow()
     digest = _filter_hash(scope.filters, scope.archive_all)
-    updated = _archive_locked_many(
+    archived, sample_ids = _archive_resolved_ids_in_batches(
         db,
-        findings,
+        target_ids,
         actor=actor,
         operation=operation,
         correlation_id=correlation,
@@ -337,9 +404,11 @@ def archive_by_filter(
         filter_hash=digest,
         cycle_id=cycle_id,
     )
-    refresh_summaries_for_findings(db, updated)
+    # A concurrent archive can win after scope resolution but before our row lock. Treat
+    # those rows as idempotent/already archived instead of reporting a silent mismatch.
+    concurrently_archived = max(0, len(target_ids) - archived)
+    already_archived = already_archived_before + concurrently_archived
 
-    sample_ids = [finding.id for finding in updated[:ARCHIVE_ID_SAMPLE_SIZE]]
     if emit_audit:
         _record_bulk_audit(
             db,
@@ -347,8 +416,8 @@ def archive_by_filter(
             action="opportunity.archive_by_filter",
             operation=operation,
             correlation_id=correlation,
-            requested=active_count,
-            archived=len(updated),
+            requested=len(target_ids),
+            archived=archived,
             already_archived=already_archived,
             sample_ids=sample_ids,
             filter_hash=digest,
@@ -356,13 +425,13 @@ def archive_by_filter(
             cycle_id=cycle_id,
         )
     return ArchiveOperationResult(
-        requested=active_count,
-        matched=active_count + already_archived,
-        archived=len(updated),
+        requested=len(target_ids),
+        matched=len(target_ids) + already_archived_before,
+        archived=archived,
         already_archived=already_archived,
         correlation_id=correlation,
         sample_ids=sample_ids,
-        ids_truncated=len(updated) > len(sample_ids),
+        ids_truncated=archived > len(sample_ids),
         filter_hash=digest,
         cycle_id=cycle_id,
     )
