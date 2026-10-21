@@ -400,10 +400,13 @@ def test_reappearance_reuses_fingerprint_and_preserves_human_decision(
             assert presence_history[0].from_status == "resolved_externally"
             assert presence_history[0].to_status == "active"
 
-            assert db.scalar(
-                select(func.count())
-                .select_from(OpportunityStatusHistory)
-                .where(OpportunityStatusHistory.opportunity_id == original_id)
-            ) == 0
+            assert (
+                db.scalar(
+                    select(func.count())
+                    .select_from(OpportunityStatusHistory)
+                    .where(OpportunityStatusHistory.opportunity_id == original_id)
+                )
+                == 0
+            )
     finally:
         engine.dispose()
