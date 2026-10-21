@@ -52,8 +52,8 @@ export function parseOpportunitySearchParams(value) {
   const requestedDateField = params.get("date_field") || "first_seen";
   const dateField = OPPORTUNITY_DATE_FIELDS.includes(requestedDateField) ? requestedDateField : "first_seen";
   const requestedPreset = params.get("identified_preset") || "";
-  const temporalFrom = selectedTemporalValue(params, dateField, "from");
-  const temporalTo = selectedTemporalValue(params, dateField, "to");
+  const temporalFromRaw = selectedTemporalValue(params, dateField, "from");
+  const temporalToRaw = selectedTemporalValue(params, dateField, "to");
   const requestedDiscoveryType = params.get("discovery_type") || "";
 
   return {
@@ -75,9 +75,11 @@ export function parseOpportunitySearchParams(value) {
     dateField,
     temporalPreset: OPPORTUNITY_TIME_PRESETS.includes(requestedPreset)
       ? requestedPreset
-      : (temporalFrom || temporalTo ? "custom" : ""),
-    temporalFrom: inputDate(temporalFrom),
-    temporalTo: inputDate(temporalTo),
+      : (temporalFromRaw || temporalToRaw ? "custom" : ""),
+    temporalFrom: inputDate(temporalFromRaw),
+    temporalTo: inputDate(temporalToRaw),
+    temporalFromRaw,
+    temporalToRaw,
     archivedFrom: params.get("archived_from") || "",
     archivedTo: params.get("archived_to") || "",
     archiveReason: OPPORTUNITY_ARCHIVE_REASONS.includes(requestedArchiveReason) ? requestedArchiveReason : "",
@@ -121,10 +123,12 @@ export function resolveOpportunityTemporalWindow(state, anchorValue = new Date()
 
   if (!preset) return { field, from: "", to: "" };
   if (preset === "custom") {
+    const fromSource = state.temporalFromRaw || state.temporalFrom;
+    const toSource = state.temporalToRaw || state.temporalTo;
     return {
       field,
-      from: dateOnlyBoundary(state.temporalFrom),
-      to: dateOnlyBoundary(state.temporalTo, true),
+      from: dateOnlyBoundary(fromSource),
+      to: dateOnlyBoundary(toSource, true),
     };
   }
 
