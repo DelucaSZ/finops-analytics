@@ -93,11 +93,15 @@ def _protect_closed_opportunity_history_cycles(
         if not state.persistent or not session.is_modified(item, include_collections=False):
             continue
 
-        persisted_status = session.connection().execute(
-            select(OpportunityHistoryCycle.__table__.c.status).where(
-                OpportunityHistoryCycle.__table__.c.id == item.id
+        persisted_status = (
+            session.connection()
+            .execute(
+                select(OpportunityHistoryCycle.__table__.c.status).where(
+                    OpportunityHistoryCycle.__table__.c.id == item.id
+                )
             )
-        ).scalar_one_or_none()
+            .scalar_one_or_none()
+        )
         if persisted_status == OpportunityHistoryCycleStatus.CLOSED.value:
             raise ValueError("Closed opportunity history cycles are immutable")
 
