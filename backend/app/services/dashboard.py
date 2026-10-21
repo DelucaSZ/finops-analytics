@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, func, select
 from sqlalchemy.orm import Session, aliased
 
 from app.models.account import CloudAccount
@@ -13,6 +13,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.models.scan import Scan
 from app.services.dashboard_aggregation import rebuild_account_summary
+from app.services.opportunity_run_comparison import opportunity_run_changes
 from app.services.provider_capabilities import ProviderOperation, providers_supporting
 
 logger = logging.getLogger("deepops.dashboard")
@@ -112,139 +113,47 @@ def _account_name_join(current):
     )
 
 
-def _recent_pairs(*, provider: str | None, account_id: str | None):
-    ranked = _ranked_runs(
-        provider=provider,
-        account_id=account_id,
-        successful_only=True,
-        name="dashboard_comparison_ranked",
-    )
-    target = ranked.alias("dashboard_target_run")
-    baseline = ranked.alias("dashboard_baseline_run")
-    return (
-        select(
-            target.c.provider.label("provider"),
-            target.c.account_id.label("account_id"),
-            target.c.run_id.label("target_run_id"),
-            target.c.started_at.label("target_started_at"),
-            target.c.analyzer_version.label("target_rules_version"),
-            baseline.c.run_id.label("baseline_run_id"),
-            baseline.c.started_at.label("baseline_started_at"),
-            baseline.c.analyzer_version.label("baseline_rules_version"),
-        )
-        .select_from(target)
-        .outerjoin(
-            baseline,
-            and_(
-                baseline.c.provider == target.c.provider,
-                baseline.c.account_id == target.c.account_id,
-                baseline.c.run_rank == 2,
-            ),
-        )
-        .where(target.c.run_rank == 1)
-        .cte("dashboard_recent_pairs")
-    )
-
-
 def _recent_changes(db: Session, *, provider: str | None, account_id: str | None) -> dict:
-    pairs = _recent_pairs(provider=provider, account_id=account_id)
-    metadata = db.execute(
-        select(
-            func.count().label("total_scopes"),
-            func.count(case((pairs.c.baseline_run_id.is_not(None), 1))).label("comparable_scopes"),
-            func.count(case((pairs.c.baseline_run_id.is_(None), 1))).label(
-                "scopes_without_baseline"
-            ),
-            func.count(
-                case(
-                    (
-                        and_(
-                            pairs.c.baseline_run_id.is_not(None),
-                            pairs.c.baseline_rules_version.is_not(None),
-                            pairs.c.target_rules_version.is_not(None),
-                            pairs.c.baseline_rules_version != pairs.c.target_rules_version,
-                        ),
-                        1,
-                    )
-                )
-            ).label("rules_version_changed_scopes"),
-            func.count(
-                case(
-                    (
-                        and_(
-                            pairs.c.baseline_run_id.is_not(None),
-                            or_(
-                                pairs.c.baseline_rules_version.is_(None),
-                                pairs.c.target_rules_version.is_(None),
-                            ),
-                        ),
-                        1,
-                    )
-                )
-            ).label("rules_version_unknown_scopes"),
-        ).select_from(pairs)
-    ).one()
-
-    target_observation = aliased(OpportunityObservation, name="dashboard_target_observation")
-    baseline_probe = aliased(OpportunityObservation, name="dashboard_baseline_probe")
-    baseline_exists = (
-        select(baseline_probe.id)
-        .where(
-            baseline_probe.collection_run_id == pairs.c.baseline_run_id,
-            baseline_probe.opportunity_id == target_observation.opportunity_id,
+    latest_valid = _latest_success_runs(provider=provider, account_id=account_id)
+    targets = list(
+        db.scalars(
+            select(CollectionRun)
+            .join(latest_valid, CollectionRun.id == latest_valid.c.run_id)
+            .order_by(CollectionRun.provider, CollectionRun.account_id)
         )
-        .exists()
-    )
-    new_count = (
-        db.scalar(
-            select(func.count())
-            .select_from(target_observation)
-            .join(pairs, target_observation.collection_run_id == pairs.c.target_run_id)
-            .join(Finding, Finding.id == target_observation.opportunity_id)
-            .where(
-                pairs.c.baseline_run_id.is_not(None),
-                ~baseline_exists,
-                Finding.status != "rejected",
-                Finding.archived_at.is_(None),
-            )
-        )
-        or 0
     )
 
-    baseline_observation = aliased(OpportunityObservation, name="dashboard_baseline_observation")
-    target_probe = aliased(OpportunityObservation, name="dashboard_target_probe")
-    target_exists = (
-        select(target_probe.id)
-        .where(
-            target_probe.collection_run_id == pairs.c.target_run_id,
-            target_probe.opportunity_id == baseline_observation.opportunity_id,
+    new_count = 0
+    no_longer_detected = 0
+    comparable_scopes = 0
+    scopes_without_baseline = 0
+    rules_version_changed_scopes = 0
+    rules_version_unknown_scopes = 0
+
+    for target in targets:
+        changes = opportunity_run_changes(db, target)
+        summary = changes["summary"]
+        new_count += int(summary["operational_new_vs_previous"])
+        no_longer_detected += int(summary["no_longer_detected"])
+        comparable_scopes += int(bool(changes["comparable"]))
+        scopes_without_baseline += int(changes["baseline_run_id"] is None)
+        rules_version_changed_scopes += int(changes["rules_version_changed"] is True)
+        rules_version_unknown_scopes += int(
+            changes["baseline_run_id"] is not None
+            and changes["rules_version_changed"] is None
         )
-        .exists()
-    )
-    no_longer_detected = (
-        db.scalar(
-            select(func.count())
-            .select_from(baseline_observation)
-            .join(pairs, baseline_observation.collection_run_id == pairs.c.baseline_run_id)
-            .where(
-                pairs.c.baseline_run_id.is_not(None),
-                ~target_exists,
-            )
-        )
-        or 0
-    )
 
     return {
-        "new": int(new_count),
-        "no_longer_detected": int(no_longer_detected),
+        "new": new_count,
+        "no_longer_detected": no_longer_detected,
         # Etapa 8 classifica CHANGED por diff semântico de evidence. Consolidar isso aqui
         # exigiria carregar snapshots/evidence de todas as contas; não aproximamos a métrica.
         "changed": None,
         "changed_available": False,
-        "comparable_scopes": int(metadata.comparable_scopes or 0),
-        "scopes_without_baseline": int(metadata.scopes_without_baseline or 0),
-        "rules_version_changed_scopes": int(metadata.rules_version_changed_scopes or 0),
-        "rules_version_unknown_scopes": int(metadata.rules_version_unknown_scopes or 0),
+        "comparable_scopes": comparable_scopes,
+        "scopes_without_baseline": scopes_without_baseline,
+        "rules_version_changed_scopes": rules_version_changed_scopes,
+        "rules_version_unknown_scopes": rules_version_unknown_scopes,
     }
 
 
