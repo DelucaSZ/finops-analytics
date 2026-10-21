@@ -301,9 +301,7 @@ def _seed_unified_events(engine, actor_id: str, subject_id: str) -> tuple[str, s
 
 def test_unified_endpoint_returns_security_and_administrative_with_filters(audit_db):
     engine, actor_id, subject_id = audit_db
-    security_id, administrative_id = _seed_unified_events(
-        engine, actor_id, subject_id
-    )
+    security_id, administrative_id = _seed_unified_events(engine, actor_id, subject_id)
 
     with TestClient(_app_for(engine, authorized=True)) as client:
         response = client.get("/api/v1/audit?event_kind=all&limit=1&offset=0")
@@ -377,9 +375,7 @@ def test_user_autocomplete_actor_snapshot_and_subject_snapshot_search(audit_db):
         assert subject_old["total"] == 1
         assert subject_old["items"][0]["entity"]["id"] == subject_id
 
-        current = client.get(
-            "/api/v1/audit/users", params={"q": "administrador atual"}
-        ).json()
+        current = client.get("/api/v1/audit/users", params={"q": "administrador atual"}).json()
         assert current == [
             {"id": actor_id, "name": "Administrador Atual", "email": "new-admin@example.com"}
         ]
@@ -443,9 +439,7 @@ def test_source_period_correlation_and_combined_filters(audit_db):
         assert recent["total"] == 1
         assert recent["items"][0]["action"] == "user.sessions_revoke"
 
-        correlated = client.get(
-            "/api/v1/audit", params={"correlation_id": correlation_id}
-        ).json()
+        correlated = client.get("/api/v1/audit", params={"correlation_id": correlation_id}).json()
         assert correlated["total"] == 1
         assert correlated["items"][0]["correlation_id"] == correlation_id
 
