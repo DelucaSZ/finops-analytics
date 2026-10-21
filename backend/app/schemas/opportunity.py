@@ -247,3 +247,71 @@ class BulkTransitionResult(BaseModel):
     failed: int = 0
     updated_ids: list[str]
     errors: list[dict] = Field(default_factory=list)
+
+
+class BulkArchiveRequest(BaseModel):
+    opportunity_ids: list[str] = Field(min_length=1, max_length=500)
+
+
+class OpportunityArchiveFilterScope(BaseModel):
+    provider: str | None = Field(default=None, max_length=16)
+    account_id: str | None = Field(default=None, max_length=255)
+    region: str | None = Field(default=None, max_length=120)
+    service: str | None = Field(default=None, max_length=120)
+    resource_type: str | None = Field(default=None, max_length=120)
+    status: OpportunityStatus | None = None
+    presence_status: OpportunityPresenceStatus | None = None
+    severity: OpportunitySeverity | None = None
+    rule: str | None = Field(default=None, max_length=80)
+    collection_run_id: str | None = Field(default=None, max_length=36)
+    resource_id: str | None = Field(default=None, max_length=255)
+    search: str | None = Field(default=None, max_length=200)
+    current: bool = False
+
+    def has_filters(self) -> bool:
+        data = self.model_dump()
+        return any(value not in (None, "", False) for value in data.values())
+
+
+class ArchiveScopeRequest(BaseModel):
+    filters: OpportunityArchiveFilterScope = Field(default_factory=OpportunityArchiveFilterScope)
+    archive_all: bool = False
+
+
+class ArchiveMoneyTotal(BaseModel):
+    currency: str
+    amount: Decimal
+
+
+class ArchivePreviewResult(BaseModel):
+    matched: int
+    to_archive: int
+    already_archived: int
+    by_status: dict[str, int] = Field(default_factory=dict)
+    by_provider: dict[str, int] = Field(default_factory=dict)
+    by_account: dict[str, int] = Field(default_factory=dict)
+    savings: list[ArchiveMoneyTotal] = Field(default_factory=list)
+    filter_hash: str
+
+
+class ArchiveOperationResult(BaseModel):
+    requested: int
+    matched: int
+    archived: int
+    already_archived: int
+    failed: int = 0
+    correlation_id: str
+    sample_ids: list[str] = Field(default_factory=list)
+    ids_truncated: bool = False
+    cycle_id: str | None = None
+
+
+class PeriodCloseRequest(ArchiveScopeRequest):
+    cycle_id: str = Field(min_length=1, max_length=36)
+
+
+class PeriodCloseResult(ArchiveOperationResult):
+    cycle_closed: bool
+    snapshots_created: int
+    collection_runs: int
+    failed_collection_runs: int
