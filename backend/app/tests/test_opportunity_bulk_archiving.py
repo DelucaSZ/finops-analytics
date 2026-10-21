@@ -261,10 +261,7 @@ def test_empty_filter_requires_explicit_archive_all_confirmation(client):
     assert confirmed.json()["archived"] == 4
     with Session(engine) as db:
         active_count = int(
-            db.scalar(
-                select(func.count(Finding.id)).where(Finding.archived_at.is_(None))
-            )
-            or 0
+            db.scalar(select(func.count(Finding.id)).where(Finding.archived_at.is_(None))) or 0
         )
         assert active_count == 0
 
@@ -393,14 +390,9 @@ def test_period_close_is_blocked_by_running_collections_without_mutation(client)
     with Session(engine) as db:
         cycle = db.get(OpportunityHistoryCycle, cycle_id)
         assert cycle.status == OpportunityHistoryCycleStatus.OPEN.value
-        snapshot_count = int(
-            db.scalar(select(func.count(OpportunityHistorySnapshot.id))) or 0
-        )
+        snapshot_count = int(db.scalar(select(func.count(OpportunityHistorySnapshot.id))) or 0)
         archived_count = int(
-            db.scalar(
-                select(func.count(Finding.id)).where(Finding.archived_at.is_not(None))
-            )
-            or 0
+            db.scalar(select(func.count(Finding.id)).where(Finding.archived_at.is_not(None))) or 0
         )
         assert snapshot_count == 0
         assert archived_count == 0
