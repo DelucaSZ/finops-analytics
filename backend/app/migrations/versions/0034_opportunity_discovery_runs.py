@@ -87,7 +87,6 @@ def upgrade() -> None:
         ["last_seen_collection_run_id"],
         unique=False,
     )
-    op.create_index("ix_findings_first_seen_at", "findings", ["first_seen_at"], unique=False)
     op.create_index(
         "ix_findings_provider_account_first_seen",
         "findings",
@@ -105,7 +104,6 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.drop_index("ix_findings_status_archived_first_seen", table_name="findings")
     op.drop_index("ix_findings_provider_account_first_seen", table_name="findings")
-    op.drop_index("ix_findings_first_seen_at", table_name="findings")
     op.drop_index("ix_findings_last_seen_collection_run_id", table_name="findings")
     op.drop_index("ix_findings_first_seen_collection_run_id", table_name="findings")
 
