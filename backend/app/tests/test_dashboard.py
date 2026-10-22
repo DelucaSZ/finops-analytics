@@ -88,8 +88,7 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
     # Current observations: A=run-a2, B=run-b1, OCI has no observations.
     opportunities = body["opportunities"]
     assert {
-        key: opportunities[key]
-        for key in ("open", "treated", "rejected", "new_since_previous")
+        key: opportunities[key] for key in ("open", "treated", "rejected", "new_since_previous")
     } == {
         "open": 2,
         "treated": 3,
@@ -200,8 +199,7 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
     assert account["scope"]["valid_scope_count"] == 1
     opportunities = account["opportunities"]
     assert {
-        key: opportunities[key]
-        for key in ("open", "treated", "rejected", "new_since_previous")
+        key: opportunities[key] for key in ("open", "treated", "rejected", "new_since_previous")
     } == {
         "open": 1,
         "treated": 2,
