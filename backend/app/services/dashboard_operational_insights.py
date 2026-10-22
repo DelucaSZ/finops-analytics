@@ -5,7 +5,6 @@ from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.services import collection_errors
 
-
 ERROR_SUMMARY_MAX_LENGTH = 240
 TERMINAL_COLLECTION_STATUSES = (
     CollectionRunStatus.SUCCESS,
