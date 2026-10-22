@@ -52,6 +52,34 @@ def test_executive_dashboard_preserves_currencies_in_every_financial_breakdown(
     assert {item["currency"] for item in body["top_opportunities"]} == {"BRL", "USD"}
 
 
+def test_critical_severity_is_reported_as_first_class_executive_severity(
+    dashboard,  # noqa: F811
+):
+    http, engine = dashboard
+
+    with Session(engine) as db:
+        observation = db.scalar(
+            select(OpportunityObservation).where(
+                OpportunityObservation.opportunity_id == "opp-000",
+                OpportunityObservation.collection_run_id == "run-a2",
+            )
+        )
+        assert observation is not None
+        observation.severity = "critical"
+        db.commit()
+
+    body = http.get("/dashboard/summary").json()
+    assert body["severity"] == {
+        "critical": 1,
+        "high": 0,
+        "medium": 1,
+        "low": 0,
+        "other": 0,
+    }
+    critical = next(item for item in body["top_opportunities"] if item["id"] == "opp-000")
+    assert critical["severity"] == "critical"
+
+
 def test_archived_open_opportunity_is_excluded_from_current_executive_sections(
     dashboard,  # noqa: F811
 ):
