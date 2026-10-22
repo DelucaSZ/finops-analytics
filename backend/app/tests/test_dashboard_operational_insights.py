@@ -7,7 +7,7 @@ from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun
 from app.services.dashboard_operational_insights import collection_failure_insights
 from app.tests.test_dashboard import dashboard  # noqa: F401
-from app.tests.test_opportunities_api import START
+from app.tests.test_opportunities_api import START, client  # noqa: F401
 
 
 def _run(
