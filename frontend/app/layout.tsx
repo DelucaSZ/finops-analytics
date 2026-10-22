@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AppShell } from "@/components/app-shell";
+import { OpportunityComparisonContext } from "@/components/opportunity-comparison-context";
 import "./globals.css";
 import "./opportunities-stage5.css";
 import "./ui-system.css";
@@ -39,7 +41,12 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
       </head>
       <body>
-        <AppShell>{children}</AppShell>
+        <AppShell>
+          <Suspense fallback={null}>
+            <OpportunityComparisonContext />
+          </Suspense>
+          {children}
+        </AppShell>
       </body>
     </html>
   );
