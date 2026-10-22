@@ -72,28 +72,54 @@ def _provider_distribution(db: Session, current) -> list[dict[str, object]]:
 
 
 def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict[str, object]]:
-    account_join = (current.c.provider == CloudAccount.provider) & (
-        current.c.account_id == CloudAccount.native_account_id
+    open_count = func.count(func.distinct(Finding.id))
+    top_accounts = (
+        select(
+            current.c.provider.label("provider"),
+            current.c.account_id.label("account_id"),
+            open_count.label("open"),
+        )
+        .select_from(current)
+        .join(Finding, Finding.id == current.c.opportunity_id)
+        .where(Finding.status == "open")
+        .group_by(current.c.provider, current.c.account_id)
+        .order_by(open_count.desc(), current.c.provider, current.c.account_id)
+        .limit(limit)
+        .cte("dashboard_top_accounts")
+    )
+    account_join = (top_accounts.c.provider == CloudAccount.provider) & (
+        top_accounts.c.account_id == CloudAccount.native_account_id
+    )
+    current_join = (current.c.provider == top_accounts.c.provider) & (
+        current.c.account_id == top_accounts.c.account_id
     )
     rows = db.execute(
         select(
-            current.c.provider,
-            current.c.account_id,
+            top_accounts.c.provider,
+            top_accounts.c.account_id,
             CloudAccount.name.label("account_name"),
+            top_accounts.c.open,
             current.c.currency,
-            func.count(func.distinct(Finding.id)).label("open"),
             func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
                 "amount"
             ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
+        .join(top_accounts, current_join)
         .outerjoin(CloudAccount, account_join)
         .where(Finding.status == "open")
         .group_by(
-            current.c.provider,
-            current.c.account_id,
+            top_accounts.c.provider,
+            top_accounts.c.account_id,
             CloudAccount.name,
+            top_accounts.c.open,
+            current.c.currency,
+        )
+        .order_by(
+            top_accounts.c.open.desc(),
+            top_accounts.c.provider,
+            top_accounts.c.account_id,
             current.c.currency,
         )
     ).all()
@@ -107,17 +133,12 @@ def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict
                 "provider": row.provider,
                 "account_id": row.account_id,
                 "account_name": row.account_name,
-                "open": 0,
+                "open": int(row.open or 0),
                 "savings": {},
             },
         )
-        item["open"] += int(row.open or 0)
         _append_money(item["savings"], row.currency, row.amount)
 
-    ranked = sorted(
-        grouped.values(),
-        key=lambda value: (-value["open"], value["provider"], value["account_id"]),
-    )[:limit]
     return [
         {
             **{key: value for key, value in item.items() if key != "savings"},
@@ -125,7 +146,7 @@ def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict
             "currency": None,
             "savings": _money_rows(item["savings"]),
         }
-        for item in ranked
+        for item in grouped.values()
     ]
 
 
@@ -137,36 +158,61 @@ def _dimension_distribution(
     key_name: str,
     limit: int = 5,
 ) -> list[dict[str, object]]:
-    rows = db.execute(
+    open_count = func.count(func.distinct(Finding.id))
+    top_dimensions = (
         select(
             dimension.label("dimension_key"),
+            open_count.label("open"),
+        )
+        .select_from(current)
+        .join(Finding, Finding.id == current.c.opportunity_id)
+        .where(Finding.status == "open")
+        .group_by(dimension)
+        .order_by(open_count.desc(), dimension)
+        .limit(limit)
+        .cte(f"dashboard_top_{key_name}")
+    )
+    rows = db.execute(
+        select(
+            top_dimensions.c.dimension_key,
+            top_dimensions.c.open,
             current.c.currency,
-            func.count(func.distinct(Finding.id)).label("open"),
             func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
                 "amount"
             ),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
+        .join(top_dimensions, dimension == top_dimensions.c.dimension_key)
         .where(Finding.status == "open")
-        .group_by(dimension, current.c.currency)
+        .group_by(
+            top_dimensions.c.dimension_key,
+            top_dimensions.c.open,
+            current.c.currency,
+        )
+        .order_by(
+            top_dimensions.c.open.desc(),
+            top_dimensions.c.dimension_key,
+            current.c.currency,
+        )
     ).all()
 
     grouped: dict[str, dict[str, object]] = {}
     for row in rows:
         value = str(row.dimension_key or "unknown")
-        item = grouped.setdefault(value, {key_name: value, "open": 0, "savings": {}})
-        item["open"] += int(row.open or 0)
+        item = grouped.setdefault(
+            value,
+            {key_name: value, "open": int(row.open or 0), "savings": {}},
+        )
         _append_money(item["savings"], row.currency, row.amount)
 
-    ranked = sorted(grouped.values(), key=lambda value: (-value["open"], value[key_name]))[:limit]
     return [
         {
             key_name: item[key_name],
             "open": item["open"],
             "savings": _money_rows(item["savings"]),
         }
-        for item in ranked
+        for item in grouped.values()
     ]
 
 
