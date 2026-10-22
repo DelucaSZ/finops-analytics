@@ -108,7 +108,8 @@ def test_newer_running_run_keeps_last_failed_terminal_visible(dashboard):
         )
         db.commit()
 
-    item = http.get("/dashboard/operational-insights").json()["collection_failures"]["items"][0]
+    response = http.get("/dashboard/operational-insights").json()
+    item = response["collection_failures"]["items"][0]
     assert item["collection_run_id"] == "run-a3-failed"
     assert item["newer_run"]["id"] == "run-a4-running"
     assert item["newer_run"]["status"] == "RUNNING"
@@ -138,19 +139,22 @@ def test_provider_and_account_scope_do_not_mix_clouds(dashboard):
         )
         db.commit()
 
-    global_items = http.get("/dashboard/operational-insights").json()["collection_failures"]["items"]
+    global_response = http.get("/dashboard/operational-insights").json()
+    global_items = global_response["collection_failures"]["items"]
     assert {(item["provider"], item["account_id"]) for item in global_items} == {
         ("aws", "111111111111"),
         ("oci", "ocid1.tenancy.dashboard"),
     }
 
-    aws = http.get("/dashboard/operational-insights?provider=aws").json()["collection_failures"]
+    aws_response = http.get("/dashboard/operational-insights?provider=aws").json()
+    aws = aws_response["collection_failures"]
     assert aws["count"] == 1
     assert {item["provider"] for item in aws["items"]} == {"aws"}
 
-    oci = http.get(
+    oci_response = http.get(
         "/dashboard/operational-insights?provider=oci&account_id=ocid1.tenancy.dashboard"
-    ).json()["collection_failures"]
+    ).json()
+    oci = oci_response["collection_failures"]
     assert oci["count"] == 1
     assert oci["items"][0]["provider"] == "oci"
     assert oci["items"][0]["account_id"] == "ocid1.tenancy.dashboard"
@@ -166,9 +170,8 @@ def test_error_summary_is_allowlisted_and_does_not_echo_credentials(dashboard):
         )
         db.commit()
 
-    summary = http.get("/dashboard/operational-insights").json()["collection_failures"]["items"][0][
-        "error_summary"
-    ]
+    response = http.get("/dashboard/operational-insights").json()
+    summary = response["collection_failures"]["items"][0]["error_summary"]
     assert summary == "Falha durante a coleta. Verifique a conexão e as permissões da conta."
     assert "Bearer" not in summary
     assert "hunter2" not in summary
@@ -202,7 +205,8 @@ def test_failures_are_ordered_newest_first_and_response_is_bounded(dashboard):
         )
         db.commit()
 
-    body = http.get("/dashboard/operational-insights?max_items=1").json()["collection_failures"]
+    response = http.get("/dashboard/operational-insights?max_items=1").json()
+    body = response["collection_failures"]
     assert body["count"] == 2
     assert body["truncated"] is True
     assert len(body["items"]) == 1
