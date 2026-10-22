@@ -20,14 +20,22 @@ from app.services.opportunity_run_comparison import (
 )
 
 
-def _comparison_base(statement, filters: OpportunityFilters, contexts: tuple[OpportunityRunContext, ...], discovery_type: DiscoveryType):
+def _comparison_base(
+    statement,
+    filters: OpportunityFilters,
+    contexts: tuple[OpportunityRunContext, ...],
+    discovery_type: DiscoveryType,
+):
     condition = comparison_condition(contexts, discovery_type)
     if condition is None:
         return statement.where(False)
-    # The Dashboard KPI is operational: rejected and archived findings are suppressed.
-    # Archive semantics still flow through OpportunityFilters; the explicit rejected
-    # predicate keeps stats/list membership identical to the KPI universe.
-    statement = statement.where(condition, Finding.status != "rejected")
+    # comparison_context represents the operational KPI universe. Later filters can
+    # narrow this set, but they must never broaden it back to rejected/archived rows.
+    statement = statement.where(
+        condition,
+        Finding.status != "rejected",
+        Finding.archived_at.is_(None),
+    )
     return _apply_filters(statement, filters)
 
 
@@ -90,7 +98,11 @@ def dashboard_comparison_stats(
     condition = comparison_condition(contexts, discovery_type)
     if condition is None:
         return {"open": 0, "treated": 0, "rejected": 0}
-    statement = statement.where(condition, Finding.status != "rejected")
+    statement = statement.where(
+        condition,
+        Finding.status != "rejected",
+        Finding.archived_at.is_(None),
+    )
     statement = _apply_filters(statement, filters, include_status=False)
     counts = {status: int(count) for status, count in db.execute(statement).all()}
     return {
