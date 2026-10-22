@@ -10,7 +10,7 @@ def test_rejected_target_only_observation_is_not_operationally_new(dashboard):  
     http, engine = dashboard
 
     before = http.get("/dashboard/summary?provider=aws&account_id=111111111111").json()
-    assert before["opportunities"]["new_since_previous"] == 1
+    assert before["opportunities"]["new_since_previous"]["count"] == 1
 
     with Session(engine) as db:
         finding = db.get(Finding, "opp-010")
@@ -21,7 +21,7 @@ def test_rejected_target_only_observation_is_not_operationally_new(dashboard):  
         db.commit()
 
     after = http.get("/dashboard/summary?provider=aws&account_id=111111111111").json()
-    assert after["opportunities"]["new_since_previous"] == 0
+    assert after["opportunities"]["new_since_previous"]["count"] == 0
     assert after["recent_changes"]["new"] == 0
 
     with Session(engine) as db:
