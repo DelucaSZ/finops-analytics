@@ -8,6 +8,7 @@ export type OpportunityArchiveReason = "MANUAL" | "RETENTION_POLICY";
 export type OpportunityDateField = "first_seen" | "last_seen";
 export type OpportunityTemporalPreset = "" | "today" | "last_24h" | "last_7d" | "last_30d" | "custom";
 export type OpportunityDiscoveryType = "" | "observed" | "first_seen" | "new_vs_previous" | "reappeared" | "continued";
+export type DashboardComparisonKind = "new_vs_previous" | "first_seen" | "reappeared";
 export type OpportunityQueryState = {
   view: OpportunityView;
   status: OpportunityStatus | "";
@@ -22,6 +23,8 @@ export type OpportunityQueryState = {
   collectionRunId: string;
   firstSeenCollectionRunId: string;
   discoveryType: OpportunityDiscoveryType;
+  comparisonContext: string;
+  comparisonKind: DashboardComparisonKind;
   resourceId: string;
   search: string;
   dateField: OpportunityDateField;
@@ -51,6 +54,7 @@ export const OPPORTUNITY_ARCHIVE_REASONS: OpportunityArchiveReason[];
 export const OPPORTUNITY_DATE_FIELDS: OpportunityDateField[];
 export const OPPORTUNITY_TIME_PRESETS: OpportunityTemporalPreset[];
 export const OPPORTUNITY_DISCOVERY_TYPES: OpportunityDiscoveryType[];
+export const DASHBOARD_COMPARISON_KINDS: DashboardComparisonKind[];
 export function parseOpportunitySearchParams(value: string | URLSearchParams): OpportunityQueryState;
 export function resolveOpportunityTemporalWindow(
   state: Pick<OpportunityQueryState, "dateField" | "temporalPreset" | "temporalFrom" | "temporalTo" | "temporalFromRaw" | "temporalToRaw">,
