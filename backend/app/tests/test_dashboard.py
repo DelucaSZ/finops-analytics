@@ -100,9 +100,7 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
         "other": 0,
     }
     assert body["financial"]["totals"] == [{"currency": "USD", "amount": "33.00"}]
-    assert body["data_updated_at"] == (START + timedelta(days=3)).isoformat().replace(
-        "+00:00", "Z"
-    )
+    assert body["data_updated_at"] == (START + timedelta(days=3)).isoformat().replace("+00:00", "Z")
 
     assert body["by_provider"] == [
         {
@@ -264,9 +262,7 @@ def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dash
     assert after_treat["opportunities"]["open"] == 1
     assert after_treat["opportunities"]["treated"] == 4
     assert after_treat["financial"]["totals"] == [{"currency": "USD", "amount": "13.00"}]
-    assert after_treat["by_service"][0]["savings"] == [
-        {"currency": "USD", "amount": "13.00"}
-    ]
+    assert after_treat["by_service"][0]["savings"] == [{"currency": "USD", "amount": "13.00"}]
 
     reopened = http.post(
         "/opportunities/opp-000/reopen",
