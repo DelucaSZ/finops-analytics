@@ -457,10 +457,7 @@ def resolve_comparison_context(
                 "CONTEXT_UNAVAILABLE",
                 "O contexto contém uma coleta não comparável.",
             )
-        if (
-            target.provider != baseline.provider
-            or target.account_id != baseline.account_id
-        ):
+        if target.provider != baseline.provider or target.account_id != baseline.account_id:
             raise ComparisonContextError(
                 "INVALID_CONTEXT",
                 "Target e baseline pertencem a escopos diferentes.",
@@ -506,9 +503,7 @@ def dashboard_comparison_snapshot(
         partial_coverage = partial_coverage or context.partial_coverage
         if context.comparable and context.baseline is not None:
             contexts.append(context)
-            rules_version_unknown = (
-                rules_version_unknown or context.rules_version_changed is None
-            )
+            rules_version_unknown = rules_version_unknown or context.rules_version_changed is None
         elif context.reason == "NO_BASELINE":
             accounts_without_baseline += 1
 
