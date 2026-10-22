@@ -48,7 +48,11 @@ def _run(
         account_id=account_id,
         scope={"regions": ["sa-east-1"]},
         started_at=started_at,
-        finished_at=started_at + timedelta(minutes=2) if status != CollectionRunStatus.RUNNING else None,
+        finished_at=(
+            started_at + timedelta(minutes=2)
+            if status != CollectionRunStatus.RUNNING
+            else None
+        ),
         status=status,
         analyzer_version="v1",
     )
