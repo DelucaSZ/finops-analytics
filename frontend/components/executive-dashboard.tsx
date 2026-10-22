@@ -32,11 +32,29 @@ import { useApiQuery } from "@/lib/server-state";
 import type { CollectionOptions, DashboardSummary } from "@/lib/types";
 
 type MoneyTotal = { currency: string; amount: string };
+type DashboardNewSincePrevious = {
+  count: number;
+  first_seen_count: number;
+  reappeared_count: number;
+  comparable_accounts: number;
+  accounts_without_baseline: number;
+  unavailable_accounts: number;
+  rules_version_changed: boolean;
+  partial_coverage_accounts: number;
+  comparison_context: string;
+  generated_at: string;
+};
 type ExecutiveDashboardSummary = Omit<
   DashboardSummary,
-  "severity" | "by_provider" | "by_account" | "top_opportunities"
+  "opportunities" | "severity" | "by_provider" | "by_account" | "top_opportunities"
 > & {
   data_updated_at: string | null;
+  opportunities: {
+    open: number;
+    treated: number;
+    rejected: number;
+    new_since_previous: DashboardNewSincePrevious;
+  };
   severity: {
     critical: number;
     high: number;
@@ -174,6 +192,25 @@ export function ExecutiveDashboard() {
 
   const totals = summary?.financial.totals || [];
   const hasBacklog = Boolean(summary?.opportunities.open);
+  const newSincePrevious = summary?.opportunities.new_since_previous;
+  const newSincePreviousHref = newSincePrevious?.comparison_context
+    ? opportunityHref({
+        status: "all",
+        current: null,
+        discovery_type: "new_vs_previous",
+        comparison_kind: "new_vs_previous",
+        comparison_context: newSincePrevious.comparison_context,
+      })
+    : undefined;
+  const newSincePreviousDetail = newSincePrevious
+    ? `${newSincePrevious.first_seen_count} primeira identificação · ${newSincePrevious.reappeared_count} reapareceram · comparação disponível para ${newSincePrevious.comparable_accounts} conta(s)${newSincePrevious.accounts_without_baseline ? ` · ${newSincePrevious.accounts_without_baseline} sem baseline` : ""}`
+    : "Oportunidades presentes na última coleta comparável e ausentes na coleta anterior correspondente";
+  const recent24hHref = opportunityHref({
+    status: "all",
+    current: null,
+    date_field: "first_seen",
+    identified_preset: "last_24h",
+  });
 
   return (
     <>
@@ -328,9 +365,10 @@ export function ExecutiveDashboard() {
             <KpiCard
               loading={summaryLoading}
               icon={<Sparkles size={20} />}
-              label="Novas vs coleta anterior"
-              value={summary?.opportunities.new_since_previous ?? 0}
-              detail="Indicador comparativo; navegação será refinada na 24.12"
+              label="Novas desde a coleta anterior"
+              value={newSincePrevious?.count ?? 0}
+              detail={newSincePreviousDetail}
+              href={newSincePreviousHref}
             />
             <KpiCard
               loading={summaryLoading}
@@ -349,6 +387,9 @@ export function ExecutiveDashboard() {
               href={opportunityHref({ status: "rejected" })}
             />
           </section>
+          <p className="dashboard-note">
+            <Link href={recent24hHref}>Ver identificadas nas últimas 24h <ArrowRight size={14} /></Link>
+          </p>
 
           {!summaryLoading && summary && !hasBacklog ? (
             <section className="panel dashboard-empty-state">

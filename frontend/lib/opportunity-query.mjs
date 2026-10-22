@@ -24,6 +24,7 @@ export const OPPORTUNITY_DISCOVERY_TYPES = [
   "reappeared",
   "continued",
 ];
+export const DASHBOARD_COMPARISON_KINDS = ["new_vs_previous", "first_seen", "reappeared"];
 
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value || "", 10);
@@ -42,7 +43,11 @@ function inputDate(value) {
 export function parseOpportunitySearchParams(value) {
   const params = value instanceof URLSearchParams ? value : new URLSearchParams(value || "");
   const view = params.get("view") === "history" ? "history" : "operational";
-  const requestedStatus = params.get("status") || (view === "history" ? "" : "open");
+  const comparisonContext = params.get("comparison_context") || "";
+  const statusParam = params.get("status");
+  const requestedStatus = statusParam === "all"
+    ? ""
+    : statusParam || (view === "history" || comparisonContext ? "" : "open");
   const requestedPresence = params.get("presence_status") || "";
   const requestedSeverity = params.get("severity") || "";
   const requestedSort = params.get("sort") || (view === "history" ? "archived_at" : "last_seen_at");
@@ -55,10 +60,11 @@ export function parseOpportunitySearchParams(value) {
   const temporalFromRaw = selectedTemporalValue(params, dateField, "from");
   const temporalToRaw = selectedTemporalValue(params, dateField, "to");
   const requestedDiscoveryType = params.get("discovery_type") || "";
+  const requestedComparisonKind = params.get("comparison_kind") || "new_vs_previous";
 
   return {
     view,
-    status: OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : (view === "history" ? "" : "open"),
+    status: OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : "",
     presenceStatus: OPPORTUNITY_PRESENCE_STATUSES.includes(requestedPresence) ? requestedPresence : "",
     provider: params.get("provider") || "",
     accountId: params.get("account_id") || "",
@@ -70,6 +76,10 @@ export function parseOpportunitySearchParams(value) {
     collectionRunId: params.get("collection_run_id") || "",
     firstSeenCollectionRunId: params.get("first_seen_collection_run_id") || "",
     discoveryType: OPPORTUNITY_DISCOVERY_TYPES.includes(requestedDiscoveryType) ? requestedDiscoveryType : "",
+    comparisonContext,
+    comparisonKind: DASHBOARD_COMPARISON_KINDS.includes(requestedComparisonKind)
+      ? requestedComparisonKind
+      : "new_vs_previous",
     resourceId: params.get("resource_id") || "",
     search: params.get("search") || "",
     dateField,
@@ -169,7 +179,13 @@ function addSharedFilters(params, state, options = {}) {
   addFilter(params, "rule", state.rule);
   addFilter(params, "collection_run_id", state.collectionRunId);
   addFilter(params, "first_seen_collection_run_id", state.firstSeenCollectionRunId);
-  addFilter(params, "discovery_type", state.collectionRunId ? state.discoveryType : "");
+  addFilter(
+    params,
+    "discovery_type",
+    state.collectionRunId || state.comparisonContext ? state.discoveryType : "",
+  );
+  addFilter(params, "comparison_context", state.comparisonContext);
+  if (state.comparisonContext) addFilter(params, "comparison_kind", state.comparisonKind);
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
   addTemporalFilters(params, state, options);
@@ -216,6 +232,14 @@ export function patchOpportunityUrl(current, patch, options = {}) {
     }
   }
 
+  if (Object.prototype.hasOwnProperty.call(patch, "discovery_type") && !patch.discovery_type) {
+    params.delete("comparison_context");
+    params.delete("comparison_kind");
+  }
+  if (patch.collection_run_id) {
+    params.delete("comparison_context");
+    params.delete("comparison_kind");
+  }
   if (resetPage && !("page" in patch)) params.set("page", "1");
   return params;
 }
