@@ -19,17 +19,23 @@ jobs:
         with:
           python-version: "3.12"
       - name: Install Ruff
-        run: pip install ruff==0.12.7
-      - name: Format migration
-        run: ruff format backend/app/migrations/versions/0034_opportunity_discovery_runs.py
-      - name: Commit canonical formatting
+        run: pip install ruff==0.17.1
+      - name: Format Task 24.8 backend files
+        run: |
+          ruff format \
+            backend/app/services/dashboard.py \
+            backend/app/services/opportunity_run_comparison.py \
+            backend/app/tests/test_opportunity_discovery.py \
+            backend/app/migrations/versions/0034_opportunity_discovery_runs.py
+      - name: Commit canonical formatting and remove helper workflow
         shell: bash
         run: |
-          if git diff --quiet; then
-            exit 0
-          fi
+          git rm .github/workflows/task-24-8-format.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add backend/app/migrations/versions/0034_opportunity_discovery_runs.py
-          git commit -m "Apply Ruff formatting to Task 24.8 migration"
+          git add backend/app/services/dashboard.py \
+                  backend/app/services/opportunity_run_comparison.py \
+                  backend/app/tests/test_opportunity_discovery.py \
+                  backend/app/migrations/versions/0034_opportunity_discovery_runs.py
+          git commit -m "Finalize Task 24.8 formatting"
           git push origin HEAD:task-24.8-opportunity-discovery-filters
