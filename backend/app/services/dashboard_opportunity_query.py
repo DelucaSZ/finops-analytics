@@ -74,9 +74,7 @@ def list_dashboard_comparison_opportunities(
     order_expression = _order_expression(sort)
     ordering = order_expression.desc() if order == "desc" else order_expression.asc()
     rows = db.execute(
-        base.order_by(ordering, Finding.id.asc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        base.order_by(ordering, Finding.id.asc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
     return {
         "items": [

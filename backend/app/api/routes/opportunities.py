@@ -287,7 +287,9 @@ def list_opportunity_page(
     rule: str | None = None,
     collection_run_id: str | None = Query(default=None, max_length=36),
     first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
-    discovery_type: str | None = Query(default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"),
+    discovery_type: str | None = Query(
+        default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"
+    ),
     comparison_context: str | None = Query(default=None, max_length=8192),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
@@ -308,15 +310,72 @@ def list_opportunity_page(
 ) -> dict:
     if comparison_context:
         if collection_run_id or first_seen_collection_run_id:
-            raise HTTPException(status_code=422, detail="comparison_context cannot be combined with run filters")
+            raise HTTPException(
+                status_code=422, detail="comparison_context cannot be combined with run filters"
+            )
         contexts = _frozen_context(db, comparison_context, discovery_type)
-        filters = _comparison_filters(provider, account_id, region, service, resource_type, opportunity_status, presence_status.value if presence_status else None, severity, rule, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, archive_state, archived_from, archived_to, archive_reason)
-        return list_dashboard_comparison_opportunities(db, filters, contexts, discovery_type=discovery_type, page=page, page_size=page_size, sort=sort, order=order)
+        filters = _comparison_filters(
+            provider,
+            account_id,
+            region,
+            service,
+            resource_type,
+            opportunity_status,
+            presence_status.value if presence_status else None,
+            severity,
+            rule,
+            resource_id,
+            search,
+            first_seen_from,
+            first_seen_to,
+            last_seen_from,
+            last_seen_to,
+            archive_state,
+            archived_from,
+            archived_to,
+            archive_reason,
+        )
+        return list_dashboard_comparison_opportunities(
+            db,
+            filters,
+            contexts,
+            discovery_type=discovery_type,
+            page=page,
+            page_size=page_size,
+            sort=sort,
+            order=order,
+        )
 
     target = _ensure_collection_history_available(db, collection_run_id)
     _ensure_collection_exists(db, first_seen_collection_run_id)
     baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
-    filters = _filters(provider, account_id, region, service, resource_type, opportunity_status, presence_status.value if presence_status else None, severity, rule, collection_run_id, first_seen_collection_run_id, discovery_type, baseline_id, comparison_available, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, current, archive_state, archived_from, archived_to, archive_reason)
+    filters = _filters(
+        provider,
+        account_id,
+        region,
+        service,
+        resource_type,
+        opportunity_status,
+        presence_status.value if presence_status else None,
+        severity,
+        rule,
+        collection_run_id,
+        first_seen_collection_run_id,
+        discovery_type,
+        baseline_id,
+        comparison_available,
+        resource_id,
+        search,
+        first_seen_from,
+        first_seen_to,
+        last_seen_from,
+        last_seen_to,
+        current,
+        archive_state,
+        archived_from,
+        archived_to,
+        archive_reason,
+    )
     return list_opportunities(db, filters, page=page, page_size=page_size, sort=sort, order=order)
 
 
@@ -332,7 +391,9 @@ def stats(
     rule: str | None = None,
     collection_run_id: str | None = Query(default=None, max_length=36),
     first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
-    discovery_type: str | None = Query(default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"),
+    discovery_type: str | None = Query(
+        default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"
+    ),
     comparison_context: str | None = Query(default=None, max_length=8192),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
@@ -349,15 +410,63 @@ def stats(
 ) -> dict[str, int]:
     if comparison_context:
         if collection_run_id or first_seen_collection_run_id:
-            raise HTTPException(status_code=422, detail="comparison_context cannot be combined with run filters")
+            raise HTTPException(
+                status_code=422, detail="comparison_context cannot be combined with run filters"
+            )
         contexts = _frozen_context(db, comparison_context, discovery_type)
-        filters = _comparison_filters(provider, account_id, region, service, resource_type, None, presence_status.value if presence_status else None, severity, rule, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, archive_state, archived_from, archived_to, archive_reason)
+        filters = _comparison_filters(
+            provider,
+            account_id,
+            region,
+            service,
+            resource_type,
+            None,
+            presence_status.value if presence_status else None,
+            severity,
+            rule,
+            resource_id,
+            search,
+            first_seen_from,
+            first_seen_to,
+            last_seen_from,
+            last_seen_to,
+            archive_state,
+            archived_from,
+            archived_to,
+            archive_reason,
+        )
         return dashboard_comparison_stats(db, filters, contexts, discovery_type=discovery_type)
 
     target = _ensure_collection_history_available(db, collection_run_id)
     _ensure_collection_exists(db, first_seen_collection_run_id)
     baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
-    filters = _filters(provider, account_id, region, service, resource_type, None, presence_status.value if presence_status else None, severity, rule, collection_run_id, first_seen_collection_run_id, discovery_type, baseline_id, comparison_available, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, current, archive_state, archived_from, archived_to, archive_reason)
+    filters = _filters(
+        provider,
+        account_id,
+        region,
+        service,
+        resource_type,
+        None,
+        presence_status.value if presence_status else None,
+        severity,
+        rule,
+        collection_run_id,
+        first_seen_collection_run_id,
+        discovery_type,
+        baseline_id,
+        comparison_available,
+        resource_id,
+        search,
+        first_seen_from,
+        first_seen_to,
+        last_seen_from,
+        last_seen_to,
+        current,
+        archive_state,
+        archived_from,
+        archived_to,
+        archive_reason,
+    )
     return opportunity_stats(db, filters)
 
 
@@ -370,16 +479,33 @@ def options(
     limit: int = Query(default=200, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> dict:
-    return opportunity_options(db, provider=provider, account_id=account_id, search=search, archive_state=archive_state, limit=limit)
+    return opportunity_options(
+        db,
+        provider=provider,
+        account_id=account_id,
+        search=search,
+        archive_state=archive_state,
+        limit=limit,
+    )
 
 
 def _bulk_result(requested: int, updated_ids: list[str]) -> dict:
-    return {"requested": requested, "updated": len(updated_ids), "failed": 0, "updated_ids": updated_ids, "errors": []}
+    return {
+        "requested": requested,
+        "updated": len(updated_ids),
+        "failed": 0,
+        "updated_ids": updated_ids,
+        "errors": [],
+    }
 
 
-def _run_bulk(payload: BulkTransitionBase, db: Session, actor: User, *, action: str, reason: str | None = None) -> dict:
+def _run_bulk(
+    payload: BulkTransitionBase, db: Session, actor: User, *, action: str, reason: str | None = None
+) -> dict:
     try:
-        findings = bulk_transition(db, payload.opportunity_ids, actor, action=action, reason=reason, note=payload.note)
+        findings = bulk_transition(
+            db, payload.opportunity_ids, actor, action=action, reason=reason, note=payload.note
+        )
         db.commit()
     except Exception:
         db.rollback()
@@ -387,23 +513,45 @@ def _run_bulk(payload: BulkTransitionBase, db: Session, actor: User, *, action: 
     return _bulk_result(len(findings), [finding.id for finding in findings])
 
 
-@router.post("/bulk/treat", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)])
-def bulk_treat(payload: BulkTransitionBase, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/bulk/treat", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)]
+)
+def bulk_treat(
+    payload: BulkTransitionBase,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     return _run_bulk(payload, db, actor, action="treat")
 
 
-@router.post("/bulk/reject", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)])
-def bulk_reject(payload: BulkReject, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/bulk/reject", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)]
+)
+def bulk_reject(
+    payload: BulkReject, db: Session = Depends(get_db), actor: User = Depends(require_operator)
+) -> dict:
     return _run_bulk(payload, db, actor, action="reject", reason=payload.reason)
 
 
-@router.post("/bulk/reopen", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)])
-def bulk_reopen(payload: BulkTransitionBase, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/bulk/reopen", response_model=BulkTransitionResult, dependencies=[Depends(require_operator)]
+)
+def bulk_reopen(
+    payload: BulkTransitionBase,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     return _run_bulk(payload, db, actor, action="reopen")
 
 
-@router.post("/bulk/archive", response_model=ArchiveOperationResult, dependencies=[Depends(require_operator)])
-def bulk_archive_opportunities(payload: BulkArchiveRequest, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/bulk/archive", response_model=ArchiveOperationResult, dependencies=[Depends(require_operator)]
+)
+def bulk_archive_opportunities(
+    payload: BulkArchiveRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     try:
         result = bulk_archive(db, payload.opportunity_ids, actor)
         db.commit()
@@ -413,15 +561,29 @@ def bulk_archive_opportunities(payload: BulkArchiveRequest, db: Session = Depend
         raise
 
 
-@router.post("/archive-preview", response_model=ArchivePreviewResult, dependencies=[Depends(require_operator)])
+@router.post(
+    "/archive-preview",
+    response_model=ArchivePreviewResult,
+    dependencies=[Depends(require_operator)],
+)
 def preview_archive_scope(payload: ArchiveScopeRequest, db: Session = Depends(get_db)) -> dict:
     return archive_preview(db, _archive_filters(payload.filters), archive_all=payload.archive_all)
 
 
-@router.post("/archive-by-filter", response_model=ArchiveOperationResult, dependencies=[Depends(require_operator)])
-def archive_matching_opportunities(payload: ArchiveScopeRequest, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/archive-by-filter",
+    response_model=ArchiveOperationResult,
+    dependencies=[Depends(require_operator)],
+)
+def archive_matching_opportunities(
+    payload: ArchiveScopeRequest,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     try:
-        result = archive_by_filter(db, _archive_filters(payload.filters), actor, archive_all=payload.archive_all)
+        result = archive_by_filter(
+            db, _archive_filters(payload.filters), actor, archive_all=payload.archive_all
+        )
         db.commit()
         return result
     except Exception:
@@ -429,10 +591,20 @@ def archive_matching_opportunities(payload: ArchiveScopeRequest, db: Session = D
         raise
 
 
-@router.post("/period-close", response_model=PeriodCloseResult, dependencies=[Depends(require_admin)])
-def close_operational_period(payload: PeriodCloseRequest, db: Session = Depends(get_db), actor: User = Depends(require_admin)) -> dict:
+@router.post(
+    "/period-close", response_model=PeriodCloseResult, dependencies=[Depends(require_admin)]
+)
+def close_operational_period(
+    payload: PeriodCloseRequest, db: Session = Depends(get_db), actor: User = Depends(require_admin)
+) -> dict:
     try:
-        result = close_period_and_archive(db, cycle_id=payload.cycle_id, filters=_archive_filters(payload.filters), archive_all=payload.archive_all, actor=actor)
+        result = close_period_and_archive(
+            db,
+            cycle_id=payload.cycle_id,
+            filters=_archive_filters(payload.filters),
+            archive_all=payload.archive_all,
+            actor=actor,
+        )
         db.commit()
         return result
     except Exception:
@@ -449,7 +621,12 @@ def detail(opportunity_id: str, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/{opportunity_id}/history", response_model=ObservationPage)
-def history(opportunity_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
+def history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
     result = observation_history(db, opportunity_id, page=page, page_size=page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
@@ -457,7 +634,12 @@ def history(opportunity_id: str, page: int = Query(default=1, ge=1), page_size: 
 
 
 @router.get("/{opportunity_id}/status-history", response_model=StatusHistoryPage)
-def decision_history(opportunity_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
+def decision_history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
     result = status_history(db, opportunity_id, page=page, page_size=page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
@@ -465,7 +647,12 @@ def decision_history(opportunity_id: str, page: int = Query(default=1, ge=1), pa
 
 
 @router.get("/{opportunity_id}/presence-history", response_model=PresenceHistoryPage)
-def technical_presence_history(opportunity_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
+def technical_presence_history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
     result = presence_history(db, opportunity_id, page=page, page_size=page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
@@ -473,15 +660,26 @@ def technical_presence_history(opportunity_id: str, page: int = Query(default=1,
 
 
 @router.get("/{opportunity_id}/archive-history", response_model=ArchiveHistoryPage)
-def operational_archive_history(opportunity_id: str, page: int = Query(default=1, ge=1), page_size: int = Query(default=50, ge=1, le=200), db: Session = Depends(get_db)) -> dict:
+def operational_archive_history(
+    opportunity_id: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=50, ge=1, le=200),
+    db: Session = Depends(get_db),
+) -> dict:
     result = archive_history(db, opportunity_id, page=page, page_size=page_size)
     if result is None:
         raise HTTPException(status_code=404, detail="Opportunity not found")
     return result
 
 
-@router.post("/{opportunity_id}/archive", response_model=OpportunityDetail, dependencies=[Depends(require_operator)])
-def archive_opportunity(opportunity_id: str, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/{opportunity_id}/archive",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def archive_opportunity(
+    opportunity_id: str, db: Session = Depends(get_db), actor: User = Depends(require_operator)
+) -> dict:
     try:
         archive(db, opportunity_id, actor)
         db.commit()
@@ -494,8 +692,14 @@ def archive_opportunity(opportunity_id: str, db: Session = Depends(get_db), acto
     return item
 
 
-@router.post("/{opportunity_id}/unarchive", response_model=OpportunityDetail, dependencies=[Depends(require_operator)])
-def unarchive_opportunity(opportunity_id: str, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/{opportunity_id}/unarchive",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def unarchive_opportunity(
+    opportunity_id: str, db: Session = Depends(get_db), actor: User = Depends(require_operator)
+) -> dict:
     unarchive(db, opportunity_id, actor)
     db.commit()
     item = get_opportunity(db, opportunity_id)
@@ -504,8 +708,17 @@ def unarchive_opportunity(opportunity_id: str, db: Session = Depends(get_db), ac
     return item
 
 
-@router.post("/{opportunity_id}/treat", response_model=OpportunityDetail, dependencies=[Depends(require_operator)])
-def treat_opportunity(opportunity_id: str, payload: OpportunityNote, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/{opportunity_id}/treat",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def treat_opportunity(
+    opportunity_id: str,
+    payload: OpportunityNote,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     treat(db, opportunity_id, actor, payload.note)
     db.commit()
     item = get_opportunity(db, opportunity_id)
@@ -514,8 +727,17 @@ def treat_opportunity(opportunity_id: str, payload: OpportunityNote, db: Session
     return item
 
 
-@router.post("/{opportunity_id}/reject", response_model=OpportunityDetail, dependencies=[Depends(require_operator)])
-def reject_opportunity(opportunity_id: str, payload: OpportunityReject, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/{opportunity_id}/reject",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def reject_opportunity(
+    opportunity_id: str,
+    payload: OpportunityReject,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     reject(db, opportunity_id, actor, payload.reason, payload.note)
     db.commit()
     item = get_opportunity(db, opportunity_id)
@@ -524,8 +746,17 @@ def reject_opportunity(opportunity_id: str, payload: OpportunityReject, db: Sess
     return item
 
 
-@router.post("/{opportunity_id}/reopen", response_model=OpportunityDetail, dependencies=[Depends(require_operator)])
-def reopen_opportunity(opportunity_id: str, payload: OpportunityNote, db: Session = Depends(get_db), actor: User = Depends(require_operator)) -> dict:
+@router.post(
+    "/{opportunity_id}/reopen",
+    response_model=OpportunityDetail,
+    dependencies=[Depends(require_operator)],
+)
+def reopen_opportunity(
+    opportunity_id: str,
+    payload: OpportunityNote,
+    db: Session = Depends(get_db),
+    actor: User = Depends(require_operator),
+) -> dict:
     reopen(db, opportunity_id, actor, payload.note)
     db.commit()
     item = get_opportunity(db, opportunity_id)

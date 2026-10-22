@@ -359,7 +359,9 @@ def decode_comparison_context(token: str) -> tuple[tuple[str, str], ...]:
         raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
     body, signature = token.split(".", 1)
     if not hmac.compare_digest(signature, _sign_context(body)):
-        raise ComparisonContextError("INVALID_CONTEXT", "Assinatura do contexto de comparação inválida.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT", "Assinatura do contexto de comparação inválida."
+        )
     try:
         payload = json.loads(zlib.decompress(_b64decode(body)).decode("utf-8"))
     except (ValueError, TypeError, json.JSONDecodeError, zlib.error, binascii.Error) as exc:
@@ -404,24 +406,43 @@ def resolve_comparison_context(
         for run in db.scalars(select(CollectionRun).where(CollectionRun.id.in_(run_ids)))
     }
     if len(runs) != len(run_ids):
-        raise ComparisonContextError("INVALID_CONTEXT", "Uma ou mais coletas do contexto não existem.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT", "Uma ou mais coletas do contexto não existem."
+        )
 
     contexts: list[OpportunityRunContext] = []
     for target_id, baseline_id in pairs:
         target = runs[target_id]
         baseline = runs[baseline_id]
-        if target.status != CollectionRunStatus.SUCCESS or baseline.status != CollectionRunStatus.SUCCESS:
-            raise ComparisonContextError("CONTEXT_UNAVAILABLE", "O contexto contém uma coleta não comparável.")
+        if (
+            target.status != CollectionRunStatus.SUCCESS
+            or baseline.status != CollectionRunStatus.SUCCESS
+        ):
+            raise ComparisonContextError(
+                "CONTEXT_UNAVAILABLE", "O contexto contém uma coleta não comparável."
+            )
         if target.provider != baseline.provider or target.account_id != baseline.account_id:
-            raise ComparisonContextError("INVALID_CONTEXT", "Target e baseline pertencem a escopos diferentes.")
+            raise ComparisonContextError(
+                "INVALID_CONTEXT", "Target e baseline pertencem a escopos diferentes."
+            )
         if provider and target.provider != provider.lower():
-            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence ao provider informado.")
+            raise ComparisonContextError(
+                "SCOPE_MISMATCH", "O contexto não pertence ao provider informado."
+            )
         if account_id and target.account_id != account_id:
-            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence à conta informada.")
-        if not target.detailed_observations_available or not baseline.detailed_observations_available:
+            raise ComparisonContextError(
+                "SCOPE_MISMATCH", "O contexto não pertence à conta informada."
+            )
+        if (
+            not target.detailed_observations_available
+            or not baseline.detailed_observations_available
+        ):
             raise ComparisonContextError(
                 "CONTEXT_EXPIRED",
-                "Os detalhes desta comparação não estão mais disponíveis devido à política de retenção.",
+                (
+                    "Os detalhes desta comparação não estão mais disponíveis "
+                    "devido à política de retenção."
+                ),
             )
         contexts.append(_context_with_baseline(db, target, baseline))
     return tuple(contexts)
@@ -452,7 +473,9 @@ def dashboard_comparison_snapshot(
         contexts=frozen_contexts,
         comparable_accounts=len(frozen_contexts),
         accounts_without_baseline=accounts_without_baseline,
-        rules_version_changed=any(context.rules_version_changed is True for context in frozen_contexts),
+        rules_version_changed=any(
+            context.rules_version_changed is True for context in frozen_contexts
+        ),
         rules_version_unknown=rules_version_unknown,
         partial_coverage=partial_coverage,
         comparison_context=_encode_contexts(frozen_contexts),
