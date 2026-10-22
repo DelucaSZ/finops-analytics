@@ -22,6 +22,8 @@ import { formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import {
   buildDashboardApiQuery,
+  buildDashboardNewOpportunitiesHref,
+  buildDashboardRecentOpportunitiesHref,
   parseDashboardSearchParams,
   patchDashboardUrl,
   scopedDashboardHref,
@@ -32,11 +34,25 @@ import { useApiQuery } from "@/lib/server-state";
 import type { CollectionOptions, DashboardSummary } from "@/lib/types";
 
 type MoneyTotal = { currency: string; amount: string };
+type NewSincePreviousDetails = {
+  count: number;
+  first_seen_count: number;
+  reappeared_count: number;
+  comparable_accounts: number;
+  accounts_without_baseline: number;
+  rules_version_changed: boolean;
+  rules_version_unknown: boolean;
+  partial_coverage: boolean;
+  comparison_context: string | null;
+};
 type ExecutiveDashboardSummary = Omit<
   DashboardSummary,
-  "severity" | "by_provider" | "by_account" | "top_opportunities"
+  "opportunities" | "severity" | "by_provider" | "by_account" | "top_opportunities"
 > & {
   data_updated_at: string | null;
+  opportunities: DashboardSummary["opportunities"] & {
+    new_since_previous_details?: NewSincePreviousDetails | null;
+  };
   severity: {
     critical: number;
     high: number;
@@ -174,6 +190,26 @@ export function ExecutiveDashboard() {
 
   const totals = summary?.financial.totals || [];
   const hasBacklog = Boolean(summary?.opportunities.open);
+  const newDetails = summary?.opportunities.new_since_previous_details ?? null;
+  const newHref = buildDashboardNewOpportunitiesHref(
+    state,
+    newDetails?.comparison_context,
+    "new_vs_previous",
+  );
+  const firstSeenHref = buildDashboardNewOpportunitiesHref(
+    state,
+    newDetails?.comparison_context,
+    "first_seen",
+  );
+  const reappearedHref = buildDashboardNewOpportunitiesHref(
+    state,
+    newDetails?.comparison_context,
+    "reappeared",
+  );
+  const recentHref = buildDashboardRecentOpportunitiesHref(state);
+  const newDetail = newDetails
+    ? `${newDetails.first_seen_count} primeira identificação · ${newDetails.reappeared_count} reapareceram`
+    : "Oportunidades presentes na última coleta comparável e ausentes na anterior";
 
   return (
     <>
@@ -330,7 +366,9 @@ export function ExecutiveDashboard() {
               icon={<Sparkles size={20} />}
               label="Novas vs coleta anterior"
               value={summary?.opportunities.new_since_previous ?? 0}
-              detail="Indicador comparativo; navegação será refinada na 24.12"
+              detail={newDetail}
+              href={newHref || undefined}
+              title="Oportunidades presentes na última coleta comparável de cada conta e ausentes na coleta anterior correspondente."
             />
             <KpiCard
               loading={summaryLoading}
@@ -349,6 +387,22 @@ export function ExecutiveDashboard() {
               href={opportunityHref({ status: "rejected" })}
             />
           </section>
+
+          {!summaryLoading && newDetails ? (
+            <p className="dashboard-note">
+              {newDetails.comparable_accounts} conta(s) comparável(is)
+              {newDetails.accounts_without_baseline
+                ? ` · ${newDetails.accounts_without_baseline} sem baseline`
+                : ""}
+              {firstSeenHref ? (
+                <> · <Link href={firstSeenHref}>{newDetails.first_seen_count} primeira identificação</Link></>
+              ) : null}
+              {reappearedHref ? (
+                <> · <Link href={reappearedHref}>{newDetails.reappeared_count} reapareceram</Link></>
+              ) : null}
+              <> · <Link href={recentHref}>Ver identificadas nas últimas 24h</Link></>
+            </p>
+          ) : null}
 
           {!summaryLoading && summary && !hasBacklog ? (
             <section className="panel dashboard-empty-state">
@@ -496,6 +550,7 @@ function KpiCard({
   value,
   detail,
   href,
+  title,
   featured = false,
 }: {
   loading: boolean;
@@ -504,6 +559,7 @@ function KpiCard({
   value: React.ReactNode;
   detail: string;
   href?: string;
+  title?: string;
   featured?: boolean;
 }) {
   const content = (
@@ -520,11 +576,12 @@ function KpiCard({
     </>
   );
   if (!href) {
-    return <article className={`metric-card${featured ? " featured" : ""}`}>{content}</article>;
+    return <article title={title} className={`metric-card${featured ? " featured" : ""}`}>{content}</article>;
   }
   return (
     <Link
       href={href}
+      title={title}
       className={`metric-card dashboard-kpi-link${featured ? " featured" : ""}`}
       aria-label={`${label}. Abrir oportunidades filtradas.`}
     >
