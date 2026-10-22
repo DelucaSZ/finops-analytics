@@ -27,8 +27,9 @@ jobs:
       - run: pip install -r requirements-dev.txt
       - name: Apply Ruff formatter and safe fixes
         run: |
-          ruff check . --fix
           ruff format .
+          ruff check . --fix
+          ruff check .
       - name: Commit formatting changes
         run: |
           cd ..
