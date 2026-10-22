@@ -45,7 +45,7 @@ export function buildDashboardNewOpportunitiesHref(
   return scopedDashboardHref("/opportunities", state, {
     discovery_type: discoveryType,
     comparison_context: comparisonContext,
-    status: discoveryType === "new_vs_previous" ? "" : undefined,
+    status: "all",
   });
 }
 
