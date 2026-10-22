@@ -73,6 +73,19 @@ async def validation_error(_: Request, exc: RequestValidationError) -> JSONRespo
 
 
 @app.middleware("http")
+async def dashboard_comparison_deep_links(request: Request, call_next):
+    """Keep the public URL on /opportunities while using the frozen comparison query."""
+    if "comparison_context" in request.query_params:
+        if request.url.path == "/api/v1/opportunities":
+            request.scope["path"] = "/api/v1/dashboard/comparison-opportunities"
+            request.scope["raw_path"] = b"/api/v1/dashboard/comparison-opportunities"
+        elif request.url.path == "/api/v1/opportunities/stats":
+            request.scope["path"] = "/api/v1/dashboard/comparison-opportunities/stats"
+            request.scope["raw_path"] = b"/api/v1/dashboard/comparison-opportunities/stats"
+    return await call_next(request)
+
+
+@app.middleware("http")
 async def sensitive_response_headers(request: Request, call_next):
     response = await call_next(request)
     if request.url.path.startswith(
