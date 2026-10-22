@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from collections import defaultdict
 from decimal import Decimal
 from typing import Any
 
@@ -27,7 +26,11 @@ def _money_rows(values: dict[str, Decimal]) -> list[dict[str, Any]]:
     ]
 
 
-def _append_money(target: dict[str, Decimal], currency: str | None, amount: Decimal | None) -> None:
+def _append_money(
+    target: dict[str, Decimal],
+    currency: str | None,
+    amount: Decimal | None,
+) -> None:
     if not currency:
         return
     target[currency] = target.get(currency, Decimal("0")) + Decimal(str(amount or 0))
@@ -66,14 +69,16 @@ def _provider_distribution(db: Session, current) -> list[dict[str, Any]]:
             "currency": None,
             "savings": _money_rows(item["savings"]),
         }
-        for item in sorted(grouped.values(), key=lambda value: (-value["open"], value["provider"]))
+        for item in sorted(
+            grouped.values(),
+            key=lambda value: (-value["open"], value["provider"]),
+        )
     ]
 
 
 def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict[str, Any]]:
-    account_join = (
-        (current.c.provider == CloudAccount.provider)
-        & (current.c.account_id == CloudAccount.native_account_id)
+    account_join = (current.c.provider == CloudAccount.provider) & (
+        current.c.account_id == CloudAccount.native_account_id
     )
     rows = db.execute(
         select(
@@ -198,9 +203,8 @@ def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[st
         ],
         else_=0,
     )
-    account_join = (
-        (current.c.provider == CloudAccount.provider)
-        & (current.c.account_id == CloudAccount.native_account_id)
+    account_join = (current.c.provider == CloudAccount.provider) & (
+        current.c.account_id == CloudAccount.native_account_id
     )
     ranked = (
         select(
@@ -268,12 +272,7 @@ def executive_dashboard_summary(
     provider: str | None = None,
     account_id: str | None = None,
 ) -> dict[str, Any]:
-    """Return the business-facing Dashboard summary without collection-health coupling.
-
-    The canonical lifecycle/financial totals continue to come from dashboard_summary. The
-    additional executive aggregations use the same latest-success/current-observation basis,
-    so archived observations and non-current collection history do not leak into the home.
-    """
+    """Return the business-facing summary without collection-health coupling."""
 
     payload = dashboard_summary(db, provider=provider, account_id=account_id)
     latest_valid, current = _current_observations(provider=provider, account_id=account_id)
