@@ -45,20 +45,26 @@ test("drill-down preserves scope and adds operational filters", () => {
   assert.equal(url.searchParams.get("severity"), "high");
 });
 
-test("home uses aggregated dashboard APIs and no longer rebuilds metrics from accounts", async () => {
+test("home uses the executive summary and does not depend on collection health", async () => {
   const { readFile } = await import("node:fs/promises");
   const page = await readFile(
     new URL("../app/page.tsx", import.meta.url),
     "utf8",
   );
+  const dashboard = await readFile(
+    new URL("../components/executive-dashboard.tsx", import.meta.url),
+    "utf8",
+  );
+  const source = `${page}\n${dashboard}`;
 
-  assert.match(page, /\/dashboard\/summary/);
-  assert.match(page, /\/dashboard\/collection-health/);
-  assert.match(page, /\/collections\/options/);
-  assert.match(page, /current: "true"/);
-  assert.match(page, /Última execução x última coleta válida/);
-  assert.match(page, /Sem SUCCESS/);
-  assert.doesNotMatch(page, /api<AwsAccount\[]>/);
-  assert.doesNotMatch(page, /Cobertura inicial/);
-  assert.doesNotMatch(page, />9\/9</);
+  assert.match(source, /\/dashboard\/summary/);
+  assert.match(source, /\/collections\/options/);
+  assert.match(source, /current: "true"/);
+  assert.match(source, /DashboardOperationalInsights/);
+  assert.doesNotMatch(source, /\/dashboard\/collection-health/);
+  assert.doesNotMatch(source, /Última execução x última coleta válida/);
+  assert.doesNotMatch(source, /Sem SUCCESS/);
+  assert.doesNotMatch(source, /api<AwsAccount\[]>/);
+  assert.doesNotMatch(source, /Cobertura inicial/);
+  assert.doesNotMatch(source, />9\/9</);
 });
