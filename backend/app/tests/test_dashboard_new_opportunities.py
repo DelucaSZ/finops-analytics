@@ -217,6 +217,65 @@ def test_dashboard_count_and_destination_use_the_exact_same_operational_set(engi
         assert stats == {"open": 2, "treated": 0, "rejected": 0}
 
 
+def test_multi_account_aggregates_each_pair_and_skips_account_without_baseline(engine):
+    with Session(engine) as db:
+        runs = {
+            "a1": _run("multi-a1", "333333333333", 0),
+            "a2": _run("multi-a2", "333333333333", 1),
+            "b1": _run("multi-b1", "444444444444", 0),
+            "b2": _run("multi-b2", "444444444444", 2),
+            "c1": _run("multi-c1", "555555555555", 2),
+        }
+        db.add_all(runs.values())
+        db.flush()
+        findings = [
+            _finding(
+                "multi-a-new",
+                account_id="333333333333",
+                first_run="multi-a2",
+                last_run="multi-a2",
+            ),
+            _finding(
+                "multi-b-new",
+                account_id="444444444444",
+                first_run="multi-b2",
+                last_run="multi-b2",
+            ),
+            _finding(
+                "multi-c-first-run",
+                account_id="555555555555",
+                first_run="multi-c1",
+                last_run="multi-c1",
+            ),
+        ]
+        db.add_all(findings)
+        db.flush()
+        _observe(db, "multi-a-new", runs["a2"])
+        _observe(db, "multi-b-new", runs["b2"])
+        _observe(db, "multi-c-first-run", runs["c1"])
+        db.commit()
+
+        summary = dashboard_new_since_previous(db)
+        assert summary["count"] == 2
+        assert summary["first_seen_count"] == 2
+        assert summary["reappeared_count"] == 0
+        assert summary["comparable_accounts"] == 2
+        assert summary["accounts_without_baseline"] == 1
+
+        page = list_dashboard_new_opportunities(
+            db,
+            comparison_context=summary["comparison_context"],
+            comparison_kind="new_vs_previous",
+            filters=_filters(),
+            page=1,
+            page_size=50,
+            sort="last_seen_at",
+            order="desc",
+        )
+        assert page["total"] == 2
+        assert {item["id"] for item in page["items"]} == {"multi-a-new", "multi-b-new"}
+
+
 def test_breakdown_and_additional_filters_stay_inside_the_frozen_set(engine):
     with Session(engine) as db:
         _seed(db)
