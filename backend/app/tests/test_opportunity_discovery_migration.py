@@ -186,7 +186,8 @@ def test_0034_backfill_is_deterministic_and_does_not_invent_run_markers(migratio
                     "run-started-third",
                     BASE + timedelta(days=1),
                 ),
-                # Equal observation timestamps use CollectionRun.started_at as deterministic tie-break.
+                # Equal observation timestamps use CollectionRun.started_at
+                # as the deterministic tie-break.
                 _observation(
                     "obs-same-later-run",
                     "same-timestamp",
