@@ -61,7 +61,7 @@ def test_archived_open_opportunity_is_excluded_from_current_executive_sections(
         finding = db.get(Finding, "opp-000")
         assert finding is not None
         finding.archived_at = START + timedelta(days=4)
-        finding.archive_reason = "PERIOD_CLOSED"
+        finding.archive_reason = "MANUAL"
         rebuild_account_summary(
             db,
             provider="aws",
