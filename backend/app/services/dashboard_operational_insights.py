@@ -1,9 +1,9 @@
-from sqlalchemy import and_, func, select
+import sqlalchemy as sa
 from sqlalchemy.orm import Session
 
 from app.models.account import CloudAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
-from app.services.collection_errors import GENERIC_ERROR, sanitize_collection_error
+from app.services import collection_errors
 
 
 ERROR_SUMMARY_MAX_LENGTH = 240
@@ -28,7 +28,7 @@ def _ranked_runs(
     terminal_only: bool,
     name: str,
 ):
-    statement = select(
+    statement = sa.select(
         CollectionRun.id.label("run_id"),
         CollectionRun.provider.label("provider"),
         CollectionRun.account_id.label("account_id"),
@@ -36,7 +36,7 @@ def _ranked_runs(
         CollectionRun.finished_at.label("finished_at"),
         CollectionRun.status.label("status"),
         CollectionRun.error_detail.label("error_detail"),
-        func.row_number()
+        sa.func.row_number()
         .over(
             partition_by=(CollectionRun.provider, CollectionRun.account_id),
             # Match the collection/dashboard convention: the most recently started
@@ -52,11 +52,11 @@ def _ranked_runs(
 
 
 def _latest(ranked, *, name: str):
-    return select(ranked).where(ranked.c.run_rank == 1).cte(name)
+    return sa.select(ranked).where(ranked.c.run_rank == 1).cte(name)
 
 
 def _error_summary(value: object | None) -> str:
-    summary = sanitize_collection_error(value) or GENERIC_ERROR
+    summary = collection_errors.sanitize_collection_error(value) or collection_errors.GENERIC_ERROR
     return summary[:ERROR_SUMMARY_MAX_LENGTH]
 
 
@@ -93,17 +93,17 @@ def collection_failure_insights(
         name="dashboard_insight_latest_terminal",
     )
 
-    identity_join = and_(
+    identity_join = sa.and_(
         latest_terminal.c.provider == latest_run.c.provider,
         latest_terminal.c.account_id == latest_run.c.account_id,
     )
-    account_join = and_(
+    account_join = sa.and_(
         latest_terminal.c.provider == CloudAccount.provider,
         latest_terminal.c.account_id == CloudAccount.native_account_id,
     )
 
     rows = db.execute(
-        select(
+        sa.select(
             latest_terminal.c.provider,
             latest_terminal.c.account_id,
             CloudAccount.name.label("account_name"),
@@ -115,7 +115,7 @@ def collection_failure_insights(
             latest_run.c.run_id.label("latest_run_id"),
             latest_run.c.started_at.label("latest_run_started_at"),
             latest_run.c.status.label("latest_run_status"),
-            func.count().over().label("failure_count"),
+            sa.func.count().over().label("failure_count"),
         )
         .select_from(latest_terminal)
         .join(latest_run, identity_join)
