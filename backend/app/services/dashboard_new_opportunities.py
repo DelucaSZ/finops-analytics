@@ -96,8 +96,7 @@ def _encode_context(
     raw = json.dumps(document, separators=(",", ":"), sort_keys=True).encode("utf-8")
     compressed = zlib.compress(raw, level=9)
     token = (
-        f"{_CONTEXT_VERSION}.{_b64encode(compressed)}."
-        f"{_b64encode(_context_signature(compressed))}"
+        f"{_CONTEXT_VERSION}.{_b64encode(compressed)}.{_b64encode(_context_signature(compressed))}"
     )
     if len(token) > _MAX_CONTEXT_LENGTH:
         raise DashboardComparisonContextError(
@@ -374,8 +373,7 @@ def dashboard_new_since_previous(
     )
     without_baseline = sum(context.reason == "NO_BASELINE" for context in contexts)
     unavailable = sum(
-        not context.comparable and context.reason not in {"NO_BASELINE"}
-        for context in contexts
+        not context.comparable and context.reason not in {"NO_BASELINE"} for context in contexts
     )
     token = _encode_context(
         pairs=pairs,
@@ -442,9 +440,7 @@ def list_dashboard_new_opportunities(
     order_expression = _order_expression(sort)
     ordering = order_expression.desc() if order == "desc" else order_expression.asc()
     rows = db.execute(
-        base.order_by(ordering, Finding.id.asc())
-        .offset((page - 1) * page_size)
-        .limit(page_size)
+        base.order_by(ordering, Finding.id.asc()).offset((page - 1) * page_size).limit(page_size)
     ).all()
     return {
         "items": [
