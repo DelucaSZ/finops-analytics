@@ -86,12 +86,19 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
     assert body["scope"]["valid_scope_count"] == 3
     assert body["scope"]["has_current_data"] is True
     # Current observations: A=run-a2, B=run-b1, OCI has no observations.
-    assert body["opportunities"] == {
+    opportunities = body["opportunities"]
+    assert {
+        key: opportunities[key]
+        for key in ("open", "treated", "rejected", "new_since_previous")
+    } == {
         "open": 2,
         "treated": 3,
         "rejected": 1,
         "new_since_previous": 1,
     }
+    assert opportunities["new_since_previous_details"]["count"] == 1
+    assert opportunities["new_since_previous_details"]["comparable_accounts"] == 1
+    assert opportunities["new_since_previous_details"]["comparison_context"]
     assert body["severity"] == {
         "critical": 0,
         "high": 1,
@@ -191,12 +198,19 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
 
     account = http.get("/dashboard/summary?provider=aws&account_id=111111111111").json()
     assert account["scope"]["valid_scope_count"] == 1
-    assert account["opportunities"] == {
+    opportunities = account["opportunities"]
+    assert {
+        key: opportunities[key]
+        for key in ("open", "treated", "rejected", "new_since_previous")
+    } == {
         "open": 1,
         "treated": 2,
         "rejected": 1,
         "new_since_previous": 1,
     }
+    assert opportunities["new_since_previous_details"]["count"] == 1
+    assert opportunities["new_since_previous_details"]["accounts_without_baseline"] == 0
+    assert opportunities["new_since_previous_details"]["comparison_context"]
     assert {row["account_id"] for row in account["by_account"]} == {"111111111111"}
     assert {row["account_id"] for row in account["top_opportunities"]} == {"111111111111"}
 
