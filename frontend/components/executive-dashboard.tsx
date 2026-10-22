@@ -200,8 +200,6 @@ export function ExecutiveDashboard() {
         }
       />
 
-      <DashboardOperationalInsights />
-
       <section className="panel dashboard-scope-panel" aria-label="Escopo global">
         <div className="dashboard-scope-copy">
           <span className="eyebrow">ESCOPO ATUAL</span>
@@ -273,6 +271,8 @@ export function ExecutiveDashboard() {
           )}
         </div>
       </section>
+
+      <DashboardOperationalInsights />
 
       {optionsError && (
         <div className="alert error" role="alert">
