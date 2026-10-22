@@ -47,9 +47,15 @@ def _comparison_filters(
     last_seen_to: datetime | None,
 ) -> OpportunityFilters:
     if first_seen_from and first_seen_to and first_seen_from >= first_seen_to:
-        raise HTTPException(status_code=422, detail="first_seen_from must be earlier than first_seen_to")
+        raise HTTPException(
+            status_code=422,
+            detail="first_seen_from must be earlier than first_seen_to",
+        )
     if last_seen_from and last_seen_to and last_seen_from >= last_seen_to:
-        raise HTTPException(status_code=422, detail="last_seen_from must be earlier than last_seen_to")
+        raise HTTPException(
+            status_code=422,
+            detail="last_seen_from must be earlier than last_seen_to",
+        )
     return OpportunityFilters(
         provider=provider.lower() if provider else None,
         account_id=account_id,
