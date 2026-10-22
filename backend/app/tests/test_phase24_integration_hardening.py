@@ -6,9 +6,7 @@ from app.tests.test_opportunities_api import client  # noqa: F401
 
 
 def _comparison_details(http) -> dict:
-    response = http.get(
-        "/dashboard/summary?provider=aws&account_id=111111111111"
-    )
+    response = http.get("/dashboard/summary?provider=aws&account_id=111111111111")
     assert response.status_code == 200
     details = response.json()["opportunities"]["new_since_previous_details"]
     assert details is not None
