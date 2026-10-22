@@ -110,6 +110,34 @@ class DashboardSummary(BaseModel):
     data_updated_at: datetime | None = None
 
 
+class DashboardNewerCollectionRun(BaseModel):
+    id: str
+    status: str
+    started_at: datetime
+
+
+class DashboardCollectionFailureInsight(BaseModel):
+    provider: str
+    account_id: str
+    account_name: str | None = None
+    collection_run_id: str
+    started_at: datetime
+    finished_at: datetime | None = None
+    status: str
+    error_summary: str
+    newer_run: DashboardNewerCollectionRun | None = None
+
+
+class DashboardCollectionFailures(BaseModel):
+    count: int
+    items: list[DashboardCollectionFailureInsight] = Field(default_factory=list)
+    truncated: bool = False
+
+
+class DashboardOperationalInsights(BaseModel):
+    collection_failures: DashboardCollectionFailures
+
+
 class DashboardCollectionExecution(BaseModel):
     id: str
     status: str

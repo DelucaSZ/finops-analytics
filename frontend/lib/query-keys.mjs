@@ -6,6 +6,7 @@ const normalize = (value) => {
 
 export const cachePolicy = {
   operational: { staleTime: 45_000, gcTime: 5 * 60_000 },
+  insight: { staleTime: 15_000, gcTime: 2 * 60_000 },
   detail: { staleTime: 2 * 60_000, gcTime: 10 * 60_000 },
   metadata: { staleTime: 5 * 60_000, gcTime: 30 * 60_000 },
   comparison: { staleTime: 2 * 60_000, gcTime: 15 * 60_000 },
@@ -22,6 +23,11 @@ export const queryKeys = {
     health: (provider, accountId) => [
       "dashboard",
       "health",
+      { provider: normalize(provider), account_id: normalize(accountId) },
+    ],
+    operationalInsights: (provider, accountId) => [
+      "dashboard",
+      "operational-insights",
       { provider: normalize(provider), account_id: normalize(accountId) },
     ],
   },

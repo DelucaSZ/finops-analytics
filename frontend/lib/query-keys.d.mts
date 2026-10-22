@@ -2,6 +2,7 @@ export type QueryKey = readonly unknown[];
 
 export const cachePolicy: {
   operational: { staleTime: number; gcTime: number };
+  insight: { staleTime: number; gcTime: number };
   detail: { staleTime: number; gcTime: number };
   metadata: { staleTime: number; gcTime: number };
   comparison: { staleTime: number; gcTime: number };
@@ -12,6 +13,7 @@ export const queryKeys: {
     all: QueryKey;
     summary(provider?: string | null, accountId?: string | null): QueryKey;
     health(provider?: string | null, accountId?: string | null): QueryKey;
+    operationalInsights(provider?: string | null, accountId?: string | null): QueryKey;
   };
   opportunities: {
     all: QueryKey;
