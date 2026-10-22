@@ -15,6 +15,7 @@ import {
   Wrench,
   XCircle,
 } from "lucide-react";
+import { DashboardOperationalInsights as CollectionFailureOperationalInsights } from "@/components/dashboard-operational-insights";
 import { PageHeader } from "@/components/page-header";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/api";
@@ -485,7 +486,7 @@ export function ExecutiveDashboard() {
 }
 
 export function DashboardOperationalInsights() {
-  return null;
+  return <CollectionFailureOperationalInsights />;
 }
 
 function KpiCard({
