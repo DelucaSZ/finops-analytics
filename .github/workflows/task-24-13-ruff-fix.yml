@@ -25,20 +25,31 @@ jobs:
           cache: pip
           cache-dependency-path: backend/requirements-dev.txt
       - run: pip install -r requirements-dev.txt
-      - name: Apply Ruff formatter and safe fixes
+      - name: Apply targeted Phase 24 Ruff formatting
         run: |
-          ruff format .
-          ruff check . --fix
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/services/opportunity_run_comparison.py')
+          text = path.read_text()
+          old = '                "Os detalhes desta comparação não estão mais disponíveis devido à política de retenção.",'
+          new = '''                (\n                    "Os detalhes desta comparação não estão mais disponíveis "\n                    "devido à política de retenção."\n                ),'''
+          if old not in text:
+              raise SystemExit('Expected long comparison-context message was not found')
+          path.write_text(text.replace(old, new, 1))
+          PY
+          ruff format app/api/routes/opportunities.py app/services/opportunity_run_comparison.py
           ruff check .
-      - name: Commit formatting changes
+          ruff format --check .
+      - name: Commit targeted formatting changes
         run: |
           cd ..
-          if git diff --quiet; then
-            echo 'No Ruff changes required.'
+          if git diff --quiet -- backend/app/api/routes/opportunities.py backend/app/services/opportunity_run_comparison.py; then
+            echo 'No targeted Ruff changes required.'
             exit 0
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add backend
-          git commit -m 'style: normalize Phase 24 backend with Ruff'
+          git add backend/app/api/routes/opportunities.py backend/app/services/opportunity_run_comparison.py
+          git commit -m 'style: normalize Task 24.12 backend with Ruff'
           git push origin HEAD:task/24.13-phase24-hardening
