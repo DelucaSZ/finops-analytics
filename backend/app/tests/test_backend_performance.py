@@ -59,7 +59,9 @@ def test_read_contracts_and_bounded_loading(migration_engine):  # noqa: F811
             # Two of the six target-only observations are rejected and therefore suppressed
             # from the operational "new opportunities" metric.
             assert summary["recent_changes"]["new"] == 4
-            assert summary["recent_changes"]["no_longer_detected"] == 6
+            # This fixture has no authoritative SUCCESS scope coverage, so absence is not
+            # classified as no longer detected.
+            assert summary["recent_changes"]["no_longer_detected"] == 0
 
             baseline = db.get(CollectionRun, "run-0-98")
             target = db.get(CollectionRun, "run-0-99")

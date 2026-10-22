@@ -39,6 +39,8 @@ type HistoricalOpportunityDetail = OpportunityDetailType & {
   archived_at: string | null;
   archived_by: string | null;
   archive_reason: string | null;
+  first_seen_collection_run_id: string | null;
+  last_seen_collection_run_id: string | null;
 };
 
 function monthlySavings(item: OpportunityDetailType) {
@@ -221,8 +223,28 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 <div><dt>Presença técnica</dt><dd><StatusBadge value={detail.presence_status} /></dd></div>
                 <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
                 <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
-                <div><dt>Primeira detecção</dt><dd>{formatDate(detail.first_seen_at)}</dd></div>
-                <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}</dd></div>
+                <div>
+                  <dt>Primeira identificação</dt>
+                  <dd>
+                    {formatDate(detail.first_seen_at)}
+                    {detail.first_seen_collection_run_id && (
+                      <Link className="collection-link" href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>
+                        Primeira coleta {detail.first_seen_collection_run_id.slice(0, 8)}
+                      </Link>
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Última detecção</dt>
+                  <dd>
+                    {formatDate(detail.last_seen_at)}
+                    {detail.last_seen_collection_run_id && (
+                      <Link className="collection-link" href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>
+                        Última coleta {detail.last_seen_collection_run_id.slice(0, 8)}
+                      </Link>
+                    )}
+                  </dd>
+                </div>
                 {detail.treated_at && <div><dt>Tratada em</dt><dd>{formatDate(detail.treated_at)}</dd></div>}
                 {detail.rejected_at && <div><dt>Rejeitada em</dt><dd>{formatDate(detail.rejected_at)}</dd></div>}
                 {detail.resolved_externally_at && <div><dt>Resolvida externamente em</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div>}
@@ -384,6 +406,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 <div><dt>Fingerprint</dt><dd className="technical-copy"><code>{detail.fingerprint}</code><button type="button" className="copy-inline" title="Copiar fingerprint" aria-label="Copiar fingerprint" onClick={() => void navigator.clipboard.writeText(detail.fingerprint)}><Copy size={14} /></button></dd></div>
                 <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
                 <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
+                <div><dt>Primeira CollectionRun</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
+                <div><dt>Última CollectionRun</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
                 {Object.keys(detail.provider_metadata || {}).length > 0 && (
                   <div><dt>Metadata do provider</dt><dd><pre>{JSON.stringify(detail.provider_metadata, null, 2)}</pre></dd></div>
                 )}

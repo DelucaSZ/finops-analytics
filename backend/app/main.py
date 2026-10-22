@@ -21,6 +21,7 @@ from app.api.routes import (
     finops_ledger,
     mfa,
     opportunities,
+    opportunity_discovery,
     opportunity_history,
     opportunity_policy,
     policies,
@@ -114,6 +115,7 @@ app.include_router(policies.router, prefix="/api/v1")
 app.include_router(pricing.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
+app.include_router(opportunity_discovery.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")
 app.include_router(opportunity_history.router, prefix="/api/v1")

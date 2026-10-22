@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import require_admin, require_operator, require_user
 from app.db.session import get_db
-from app.models.collection_run import CollectionRun
+from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.finding import OpportunityPresenceStatus
 from app.models.user import User
 from app.schemas.finding import OpportunityNote, OpportunityReject
@@ -34,6 +34,7 @@ from app.schemas.opportunity import (
     StatusHistoryPage,
 )
 from app.schemas.opportunity_presence_history import PresenceHistoryPage
+from app.services.collection_comparison import previous_comparable_run
 from app.services.opportunity_archiving import archive, unarchive
 from app.services.opportunity_bulk_archiving import (
     archive_by_filter,
@@ -60,13 +61,15 @@ router = APIRouter(
     dependencies=[Depends(require_user)],
 )
 
+_RELATIVE_DISCOVERY_TYPES = {"new_vs_previous", "reappeared", "continued"}
+
 
 def _ensure_collection_history_available(
     db: Session,
     collection_run_id: str | None,
-) -> None:
+) -> CollectionRun | None:
     if not collection_run_id:
-        return
+        return None
     run = db.get(CollectionRun, collection_run_id)
     if run is None:
         raise HTTPException(status_code=404, detail="Collection run not found")
@@ -77,6 +80,48 @@ def _ensure_collection_history_available(
                 "COLLECTION_OBSERVATIONS_EXPIRED: As observações detalhadas desta "
                 "coleta expiraram pela política de retenção."
             ),
+        )
+    return run
+
+
+def _ensure_collection_exists(db: Session, collection_run_id: str | None) -> None:
+    if collection_run_id and db.get(CollectionRun, collection_run_id) is None:
+        raise HTTPException(status_code=404, detail="Collection run not found")
+
+
+def _comparison_context(
+    db: Session,
+    target: CollectionRun | None,
+    discovery_type: str | None,
+) -> tuple[str | None, bool]:
+    if discovery_type not in _RELATIVE_DISCOVERY_TYPES:
+        return None, True
+    if target is None:
+        raise HTTPException(
+            status_code=422,
+            detail="collection_run_id is required for relative discovery filters",
+        )
+    if target.status != CollectionRunStatus.SUCCESS:
+        raise HTTPException(
+            status_code=422,
+            detail="Relative discovery filters require a SUCCESS CollectionRun",
+        )
+    baseline = previous_comparable_run(db, target)
+    if baseline is None or not baseline.detailed_observations_available:
+        return None, False
+    return baseline.id, True
+
+
+def _validate_temporal_range(
+    start: datetime | None,
+    end: datetime | None,
+    *,
+    label: str,
+) -> None:
+    if start is not None and end is not None and start >= end:
+        raise HTTPException(
+            status_code=422,
+            detail=f"{label}_from must be earlier than {label}_to",
         )
 
 
@@ -91,14 +136,24 @@ def _filters(
     severity: str | None,
     rule: str | None,
     collection_run_id: str | None,
+    first_seen_collection_run_id: str | None,
+    discovery_type: str | None,
+    baseline_collection_run_id: str | None,
+    comparison_available: bool,
     resource_id: str | None,
     search: str | None,
+    first_seen_from: datetime | None,
+    first_seen_to: datetime | None,
+    last_seen_from: datetime | None,
+    last_seen_to: datetime | None,
     current: bool,
     archive_state: OpportunityArchiveState,
     archived_from: datetime | None,
     archived_to: datetime | None,
     archive_reason: str | None,
 ) -> OpportunityFilters:
+    _validate_temporal_range(first_seen_from, first_seen_to, label="first_seen")
+    _validate_temporal_range(last_seen_from, last_seen_to, label="last_seen")
     return OpportunityFilters(
         provider=provider.lower() if provider else None,
         account_id=account_id,
@@ -110,8 +165,16 @@ def _filters(
         severity=severity,
         rule=rule,
         collection_run_id=collection_run_id,
+        first_seen_collection_run_id=first_seen_collection_run_id,
+        discovery_type=discovery_type,
+        baseline_collection_run_id=baseline_collection_run_id,
+        comparison_available=comparison_available,
         resource_id=resource_id,
         search=search,
+        first_seen_from=first_seen_from,
+        first_seen_to=first_seen_to,
+        last_seen_from=last_seen_from,
+        last_seen_to=last_seen_to,
         current=current,
         archive_state=archive_state,
         archived_from=archived_from,
@@ -150,9 +213,18 @@ def list_opportunity_page(
     presence_status: OpportunityPresenceStatus | None = None,
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
-    collection_run_id: str | None = None,
+    collection_run_id: str | None = Query(default=None, max_length=36),
+    first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
+    discovery_type: str | None = Query(
+        default=None,
+        pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$",
+    ),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
+    first_seen_from: datetime | None = None,
+    first_seen_to: datetime | None = None,
+    last_seen_from: datetime | None = None,
+    last_seen_to: datetime | None = None,
     current: bool = False,
     archive_state: OpportunityArchiveState = "active",
     archived_from: datetime | None = None,
@@ -167,7 +239,9 @@ def list_opportunity_page(
     order: SortOrder = "desc",
     db: Session = Depends(get_db),
 ) -> dict:
-    _ensure_collection_history_available(db, collection_run_id)
+    target = _ensure_collection_history_available(db, collection_run_id)
+    _ensure_collection_exists(db, first_seen_collection_run_id)
+    baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
     filters = _filters(
         provider,
         account_id,
@@ -179,8 +253,16 @@ def list_opportunity_page(
         severity,
         rule,
         collection_run_id,
+        first_seen_collection_run_id,
+        discovery_type,
+        baseline_id,
+        comparison_available,
         resource_id,
         search,
+        first_seen_from,
+        first_seen_to,
+        last_seen_from,
+        last_seen_to,
         current,
         archive_state,
         archived_from,
@@ -207,9 +289,18 @@ def stats(
     presence_status: OpportunityPresenceStatus | None = None,
     severity: OpportunitySeverity | None = None,
     rule: str | None = None,
-    collection_run_id: str | None = None,
+    collection_run_id: str | None = Query(default=None, max_length=36),
+    first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
+    discovery_type: str | None = Query(
+        default=None,
+        pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$",
+    ),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
+    first_seen_from: datetime | None = None,
+    first_seen_to: datetime | None = None,
+    last_seen_from: datetime | None = None,
+    last_seen_to: datetime | None = None,
     current: bool = False,
     archive_state: OpportunityArchiveState = "active",
     archived_from: datetime | None = None,
@@ -220,7 +311,9 @@ def stats(
     ),
     db: Session = Depends(get_db),
 ) -> dict[str, int]:
-    _ensure_collection_history_available(db, collection_run_id)
+    target = _ensure_collection_history_available(db, collection_run_id)
+    _ensure_collection_exists(db, first_seen_collection_run_id)
+    baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
     filters = _filters(
         provider,
         account_id,
@@ -232,8 +325,16 @@ def stats(
         severity,
         rule,
         collection_run_id,
+        first_seen_collection_run_id,
+        discovery_type,
+        baseline_id,
+        comparison_available,
         resource_id,
         search,
+        first_seen_from,
+        first_seen_to,
+        last_seen_from,
+        last_seen_to,
         current,
         archive_state,
         archived_from,

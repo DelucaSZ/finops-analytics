@@ -5,14 +5,14 @@ from collections.abc import Iterable
 from decimal import Decimal
 
 from sqlalchemy import and_, case, func, select
-from sqlalchemy.orm import Session, aliased
+from sqlalchemy.orm import Session
 
 from app.db.base import utcnow
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.dashboard_summary import DashboardAccountSummary
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
-from app.services.collection_comparison import previous_comparable_run
+from app.services.opportunity_run_comparison import opportunity_run_changes
 
 logger = logging.getLogger("deepops.dashboard_summary")
 
@@ -124,77 +124,18 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
 
 
 def _comparison_metrics(db: Session, target: CollectionRun) -> dict:
-    baseline = previous_comparable_run(db, target)
-    if (
-        baseline is None
-        or not target.detailed_observations_available
-        or not baseline.detailed_observations_available
-    ):
-        return {
-            "baseline_collection_run_id": baseline.id if baseline is not None else None,
-            "new_count": 0,
-            "no_longer_detected_count": 0,
-            "has_baseline": False,
-            "rules_version_changed": False,
-            "rules_version_unknown": False,
-        }
-
-    target_observation = aliased(OpportunityObservation, name="summary_target_observation")
-    baseline_probe = aliased(OpportunityObservation, name="summary_baseline_probe")
-    baseline_exists = (
-        select(baseline_probe.id)
-        .where(
-            baseline_probe.collection_run_id == baseline.id,
-            baseline_probe.opportunity_id == target_observation.opportunity_id,
-        )
-        .exists()
-    )
-    new_count = (
-        db.scalar(
-            select(func.count())
-            .select_from(target_observation)
-            .join(Finding, Finding.id == target_observation.opportunity_id)
-            .where(
-                target_observation.collection_run_id == target.id,
-                ~baseline_exists,
-                Finding.status != _REJECTED,
-                Finding.archived_at.is_(None),
-            )
-        )
-        or 0
-    )
-
-    baseline_observation = aliased(OpportunityObservation, name="summary_baseline_observation")
-    target_probe = aliased(OpportunityObservation, name="summary_target_probe")
-    target_exists = (
-        select(target_probe.id)
-        .where(
-            target_probe.collection_run_id == target.id,
-            target_probe.opportunity_id == baseline_observation.opportunity_id,
-        )
-        .exists()
-    )
-    no_longer_detected_count = (
-        db.scalar(
-            select(func.count())
-            .select_from(baseline_observation)
-            .where(
-                baseline_observation.collection_run_id == baseline.id,
-                ~target_exists,
-            )
-        )
-        or 0
-    )
-
-    rules_unknown = baseline.analyzer_version is None or target.analyzer_version is None
-    rules_changed = bool(not rules_unknown and baseline.analyzer_version != target.analyzer_version)
+    changes = opportunity_run_changes(db, target)
+    summary = changes["summary"]
+    baseline_run_id = changes["baseline_run_id"]
+    comparable = bool(changes["comparable"])
+    rules_version_changed = changes["rules_version_changed"]
     return {
-        "baseline_collection_run_id": baseline.id,
-        "new_count": int(new_count),
-        "no_longer_detected_count": int(no_longer_detected_count),
-        "has_baseline": True,
-        "rules_version_changed": rules_changed,
-        "rules_version_unknown": rules_unknown,
+        "baseline_collection_run_id": baseline_run_id,
+        "new_count": int(summary["operational_new_vs_previous"] if comparable else 0),
+        "no_longer_detected_count": int(summary["no_longer_detected"] if comparable else 0),
+        "has_baseline": comparable,
+        "rules_version_changed": rules_version_changed is True,
+        "rules_version_unknown": baseline_run_id is not None and rules_version_changed is None,
     }
 
 
@@ -327,8 +268,8 @@ def refresh_account_summary_after_lifecycle(
             collection_run_id=target.id,
         )
 
-    # Lifecycle decisions can change whether a target-only observation is operationally
-    # "new" (notably rejected suppression), so refresh comparison metrics atomically too.
+    # Lifecycle changes and the derived aggregate commit atomically in the caller.
+    # The shared comparison service also keeps rejected suppression consistent.
     values = _current_metrics(db, target) | _comparison_metrics(db, target)
     summary.baseline_collection_run_id = values["baseline_collection_run_id"]
     summary.open_count = values["open_count"]

@@ -200,6 +200,8 @@ def _create_finding_race_safe(
     candidate = Finding(
         fingerprint=fingerprint,
         scan_id=scan.id,
+        first_seen_collection_run_id=run.id,
+        last_seen_collection_run_id=run.id,
         provider=run.provider,
         account_id=run.account_id,
         rule_key=item.rule_key,
@@ -293,6 +295,37 @@ def _normalized_utc(value: datetime) -> datetime:
     return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
 
 
+def _is_latest_observation(
+    db: Session,
+    finding: Finding,
+    observation: OpportunityObservation,
+    run: CollectionRun,
+) -> bool:
+    if finding.last_seen_at is None:
+        return True
+    observed_at = _normalized_utc(observation.observed_at)
+    last_seen_at = _normalized_utc(finding.last_seen_at)
+    if observed_at > last_seen_at:
+        return True
+    if observed_at < last_seen_at:
+        return False
+    if finding.last_seen_collection_run_id is None:
+        return True
+    if finding.last_seen_collection_run_id == run.id:
+        return True
+
+    previous_run = db.get(CollectionRun, finding.last_seen_collection_run_id)
+    if previous_run is None:
+        return True
+    current_key = (_normalized_utc(run.started_at), observation.id)
+    previous_observation = _observation_for_run(db, finding.id, previous_run.id)
+    previous_key = (
+        _normalized_utc(previous_run.started_at),
+        previous_observation.id if previous_observation is not None else "",
+    )
+    return current_key >= previous_key
+
+
 def _refresh_finding_snapshot(finding: Finding, scan: Scan, item) -> None:
     finding.scan_id = scan.id
     finding.resource_name = item.resource_name
@@ -382,15 +415,20 @@ def persist_findings(
 
         if observation_created:
             finding.total_occurrence_count = int(finding.total_occurrence_count or 0) + 1
+            if (
+                finding.first_seen_collection_run_id is None
+                and int(finding.total_occurrence_count or 0) == 1
+            ):
+                finding.first_seen_collection_run_id = run.id
 
-        is_latest_observation = observation_created and (
-            finding.last_seen_at is None
-            or _normalized_utc(observation.observed_at) >= _normalized_utc(finding.last_seen_at)
+        is_latest_observation = observation_created and _is_latest_observation(
+            db, finding, observation, run
         )
         if finding.scan_id == scan.id or is_latest_observation:
             _refresh_finding_snapshot(finding, scan, item)
         if is_latest_observation:
             finding.last_seen_at = observation.observed_at
+            finding.last_seen_collection_run_id = run.id
             reactivate_presence_from_observation(finding, run)
             if finding.status == "treated" and finding.treated_at is not None:
                 treated_at = _normalized_utc(finding.treated_at)

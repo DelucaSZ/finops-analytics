@@ -5,6 +5,9 @@ export type OpportunitySort = "created_at" | "first_seen_at" | "last_seen_at" | 
 export type OpportunityOrder = "asc" | "desc";
 export type OpportunityView = "operational" | "history";
 export type OpportunityArchiveReason = "MANUAL" | "RETENTION_POLICY";
+export type OpportunityDateField = "first_seen" | "last_seen";
+export type OpportunityTemporalPreset = "" | "today" | "last_24h" | "last_7d" | "last_30d" | "custom";
+export type OpportunityDiscoveryType = "" | "observed" | "first_seen" | "new_vs_previous" | "reappeared" | "continued";
 export type OpportunityQueryState = {
   view: OpportunityView;
   status: OpportunityStatus | "";
@@ -17,8 +20,16 @@ export type OpportunityQueryState = {
   severity: OpportunitySeverity | "";
   rule: string;
   collectionRunId: string;
+  firstSeenCollectionRunId: string;
+  discoveryType: OpportunityDiscoveryType;
   resourceId: string;
   search: string;
+  dateField: OpportunityDateField;
+  temporalPreset: OpportunityTemporalPreset;
+  temporalFrom: string;
+  temporalTo: string;
+  temporalFromRaw: string;
+  temporalToRaw: string;
   archivedFrom: string;
   archivedTo: string;
   archiveReason: OpportunityArchiveReason | "";
@@ -37,9 +48,16 @@ export const OPPORTUNITY_ORDERS: OpportunityOrder[];
 export const OPPORTUNITY_PAGE_SIZES: number[];
 export const OPPORTUNITY_VIEWS: OpportunityView[];
 export const OPPORTUNITY_ARCHIVE_REASONS: OpportunityArchiveReason[];
+export const OPPORTUNITY_DATE_FIELDS: OpportunityDateField[];
+export const OPPORTUNITY_TIME_PRESETS: OpportunityTemporalPreset[];
+export const OPPORTUNITY_DISCOVERY_TYPES: OpportunityDiscoveryType[];
 export function parseOpportunitySearchParams(value: string | URLSearchParams): OpportunityQueryState;
-export function buildOpportunityApiQuery(state: OpportunityQueryState): string;
-export function buildOpportunityStatsQuery(state: OpportunityQueryState): string;
+export function resolveOpportunityTemporalWindow(
+  state: Pick<OpportunityQueryState, "dateField" | "temporalPreset" | "temporalFrom" | "temporalTo" | "temporalFromRaw" | "temporalToRaw">,
+  anchorValue?: Date | string,
+): { field: OpportunityDateField; from: string; to: string };
+export function buildOpportunityApiQuery(state: OpportunityQueryState, options?: { now?: Date }): string;
+export function buildOpportunityStatsQuery(state: OpportunityQueryState, options?: { now?: Date }): string;
 export function patchOpportunityUrl(current: string | URLSearchParams, patch: Record<string, string | number | null | undefined>, options?: { resetPage?: boolean }): URLSearchParams;
 export function buildLifecycleRequest(args: {
   action: "treat" | "reject" | "reopen";

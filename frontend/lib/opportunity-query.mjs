@@ -14,10 +14,29 @@ export const OPPORTUNITY_ORDERS = ["asc", "desc"];
 export const OPPORTUNITY_PAGE_SIZES = [25, 50, 100];
 export const OPPORTUNITY_VIEWS = ["operational", "history"];
 export const OPPORTUNITY_ARCHIVE_REASONS = ["MANUAL", "RETENTION_POLICY"];
+export const OPPORTUNITY_DATE_FIELDS = ["first_seen", "last_seen"];
+export const OPPORTUNITY_TIME_PRESETS = ["", "today", "last_24h", "last_7d", "last_30d", "custom"];
+export const OPPORTUNITY_DISCOVERY_TYPES = [
+  "",
+  "observed",
+  "first_seen",
+  "new_vs_previous",
+  "reappeared",
+  "continued",
+];
 
 function positiveInteger(value, fallback) {
   const parsed = Number.parseInt(value || "", 10);
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+}
+
+function selectedTemporalValue(params, field, suffix) {
+  return params.get(`${field}_${suffix}`) || "";
+}
+
+function inputDate(value) {
+  if (!value) return "";
+  return value.includes("T") ? value.slice(0, 10) : value;
 }
 
 export function parseOpportunitySearchParams(value) {
@@ -30,6 +49,12 @@ export function parseOpportunitySearchParams(value) {
   const requestedOrder = params.get("order") || "desc";
   const requestedPageSize = positiveInteger(params.get("page_size"), 50);
   const requestedArchiveReason = params.get("archive_reason") || "";
+  const requestedDateField = params.get("date_field") || "first_seen";
+  const dateField = OPPORTUNITY_DATE_FIELDS.includes(requestedDateField) ? requestedDateField : "first_seen";
+  const requestedPreset = params.get("identified_preset") || "";
+  const temporalFromRaw = selectedTemporalValue(params, dateField, "from");
+  const temporalToRaw = selectedTemporalValue(params, dateField, "to");
+  const requestedDiscoveryType = params.get("discovery_type") || "";
 
   return {
     view,
@@ -43,8 +68,18 @@ export function parseOpportunitySearchParams(value) {
     severity: OPPORTUNITY_SEVERITIES.includes(requestedSeverity) ? requestedSeverity : "",
     rule: params.get("rule") || params.get("rule_key") || "",
     collectionRunId: params.get("collection_run_id") || "",
+    firstSeenCollectionRunId: params.get("first_seen_collection_run_id") || "",
+    discoveryType: OPPORTUNITY_DISCOVERY_TYPES.includes(requestedDiscoveryType) ? requestedDiscoveryType : "",
     resourceId: params.get("resource_id") || "",
     search: params.get("search") || "",
+    dateField,
+    temporalPreset: requestedPreset && OPPORTUNITY_TIME_PRESETS.includes(requestedPreset)
+      ? requestedPreset
+      : (temporalFromRaw || temporalToRaw ? "custom" : ""),
+    temporalFrom: inputDate(temporalFromRaw),
+    temporalTo: inputDate(temporalToRaw),
+    temporalFromRaw,
+    temporalToRaw,
     archivedFrom: params.get("archived_from") || "",
     archivedTo: params.get("archived_to") || "",
     archiveReason: OPPORTUNITY_ARCHIVE_REASONS.includes(requestedArchiveReason) ? requestedArchiveReason : "",
@@ -71,7 +106,60 @@ function archivedBoundary(value, endOfDay = false) {
   return `${value}T${endOfDay ? "23:59:59.999999" : "00:00:00"}Z`;
 }
 
-function addSharedFilters(params, state) {
+function dateOnlyBoundary(value, endExclusive = false) {
+  if (!value) return "";
+  if (value.includes("T")) return value;
+  const [year, month, day] = value.split("-").map(Number);
+  if (![year, month, day].every(Number.isFinite)) return value;
+  const local = new Date(year, month - 1, day + (endExclusive ? 1 : 0), 0, 0, 0, 0);
+  return local.toISOString();
+}
+
+export function resolveOpportunityTemporalWindow(state, anchorValue = new Date()) {
+  const field = state.dateField === "last_seen" ? "last_seen" : "first_seen";
+  const preset = state.temporalPreset || "";
+  const anchor = anchorValue instanceof Date ? new Date(anchorValue.getTime()) : new Date(anchorValue);
+  if (Number.isNaN(anchor.getTime())) throw new Error("Invalid temporal anchor");
+
+  if (!preset) return { field, from: "", to: "" };
+  if (preset === "custom") {
+    const fromSource = state.temporalFromRaw || state.temporalFrom;
+    const toSource = state.temporalToRaw || state.temporalTo;
+    return {
+      field,
+      from: dateOnlyBoundary(fromSource),
+      to: dateOnlyBoundary(toSource, true),
+    };
+  }
+
+  if (preset === "today") {
+    const from = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate(), 0, 0, 0, 0);
+    const to = new Date(from.getFullYear(), from.getMonth(), from.getDate() + 1, 0, 0, 0, 0);
+    return { field, from: from.toISOString(), to: to.toISOString() };
+  }
+
+  const durations = {
+    last_24h: 24 * 60 * 60 * 1000,
+    last_7d: 7 * 24 * 60 * 60 * 1000,
+    last_30d: 30 * 24 * 60 * 60 * 1000,
+  };
+  const duration = durations[preset];
+  if (!duration) return { field, from: "", to: "" };
+  return {
+    field,
+    from: new Date(anchor.getTime() - duration).toISOString(),
+    to: anchor.toISOString(),
+  };
+}
+
+function addTemporalFilters(params, state, options = {}) {
+  const window = resolveOpportunityTemporalWindow(state, options.now || new Date());
+  if (!window.from && !window.to) return;
+  addFilter(params, `${window.field}_from`, window.from);
+  addFilter(params, `${window.field}_to`, window.to);
+}
+
+function addSharedFilters(params, state, options = {}) {
   addFilter(params, "provider", state.provider);
   addFilter(params, "account_id", state.accountId);
   addFilter(params, "region", state.region);
@@ -80,8 +168,11 @@ function addSharedFilters(params, state) {
   addFilter(params, "severity", state.severity);
   addFilter(params, "rule", state.rule);
   addFilter(params, "collection_run_id", state.collectionRunId);
+  addFilter(params, "first_seen_collection_run_id", state.firstSeenCollectionRunId);
+  addFilter(params, "discovery_type", state.collectionRunId ? state.discoveryType : "");
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
+  addTemporalFilters(params, state, options);
 
   if (state.view === "history") {
     params.set("archive_state", "archived");
@@ -94,20 +185,20 @@ function addSharedFilters(params, state) {
   }
 }
 
-export function buildOpportunityApiQuery(state) {
+export function buildOpportunityApiQuery(state, options = {}) {
   const params = new URLSearchParams();
   addFilter(params, "status", state.status);
   params.set("page", String(state.page));
   params.set("page_size", String(state.pageSize));
   params.set("sort", state.sort);
   params.set("order", state.order);
-  addSharedFilters(params, state);
+  addSharedFilters(params, state, options);
   return params.toString();
 }
 
-export function buildOpportunityStatsQuery(state) {
+export function buildOpportunityStatsQuery(state, options = {}) {
   const params = new URLSearchParams();
-  addSharedFilters(params, state);
+  addSharedFilters(params, state, options);
   return params.toString();
 }
 

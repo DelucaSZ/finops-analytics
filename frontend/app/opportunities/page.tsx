@@ -80,6 +80,22 @@ const archiveReasonLabels: Record<string, string> = {
   RETENTION_POLICY: "Política de retenção",
 };
 
+const temporalPresetLabels: Record<string, string> = {
+  today: "Hoje",
+  last_24h: "Últimas 24h",
+  last_7d: "Últimos 7 dias",
+  last_30d: "Últimos 30 dias",
+  custom: "Período personalizado",
+};
+
+const discoveryTypeLabels: Record<string, string> = {
+  observed: "Observadas nesta coleta",
+  first_seen: "Identificadas pela primeira vez nesta coleta",
+  new_vs_previous: "Novas em relação à coleta anterior",
+  reappeared: "Reapareceram nesta coleta",
+  continued: "Continuaram presentes",
+};
+
 type HistoricalFinding = Finding & {
   archived: boolean;
   archived_at: string | null;
@@ -142,8 +158,12 @@ function OpportunitiesContent() {
     [searchKey],
   );
   const isHistory = state.view === "history";
+  const temporalAnchor = useMemo(() => new Date(), [searchKey]);
 
-  const listQuery = useMemo(() => buildOpportunityApiQuery(state), [state]);
+  const listQuery = useMemo(
+    () => buildOpportunityApiQuery(state, { now: temporalAnchor }),
+    [state, temporalAnchor],
+  );
   const statsQuery = useMemo(
     () => buildOpportunityStatsQuery({
       ...state,
@@ -154,8 +174,8 @@ function OpportunitiesContent() {
       archivedTo: "",
       archiveReason: "",
       current: isHistory ? false : state.current,
-    }),
-    [isHistory, state],
+    }, { now: temporalAnchor }),
+    [isHistory, state, temporalAnchor],
   );
 
   const optionsQuery = useMemo(() => {
@@ -179,8 +199,14 @@ function OpportunitiesContent() {
       severity: state.severity,
       rule: state.rule,
       collectionRunId: state.collectionRunId,
+      firstSeenCollectionRunId: state.firstSeenCollectionRunId,
+      discoveryType: state.discoveryType,
       resourceId: state.resourceId,
       search: state.search,
+      dateField: state.dateField,
+      temporalPreset: state.temporalPreset,
+      temporalFrom: state.temporalFrom,
+      temporalTo: state.temporalTo,
       current: state.current,
       archivedFrom: state.archivedFrom,
       archivedTo: state.archivedTo,
@@ -276,13 +302,16 @@ function OpportunitiesContent() {
   useEffect(() => {
     const pageData = listRequest.data;
     if (!pageData || state.page >= pageData.total_pages) return;
-    const nextQuery = buildOpportunityApiQuery({ ...state, page: state.page + 1 });
+    const nextQuery = buildOpportunityApiQuery(
+      { ...state, page: state.page + 1 },
+      { now: temporalAnchor },
+    );
     void prefetchApiQuery<OpportunityPage>({
       key: queryKeys.opportunities.list(nextQuery),
       path: `/opportunities?${nextQuery}`,
       ...cachePolicy.operational,
     }).catch(() => undefined);
-  }, [listRequest.data, state]);
+  }, [listRequest.data, state, temporalAnchor]);
 
   useEffect(() => {
     if (!loading && totalPages > 0 && state.page > totalPages) {
@@ -324,14 +353,27 @@ function OpportunitiesContent() {
     (!state.provider || run.provider.toLowerCase() === state.provider.toLowerCase()) &&
     (!state.accountId || run.account_id === state.accountId),
   );
+  const collectionRunOptions = visibleCollectionRuns.map((run) => {
+    const account = options.accounts.find(
+      (item) => item.provider.toLowerCase() === run.provider.toLowerCase() && item.account_id === run.account_id,
+    );
+    return {
+      run,
+      label: `${formatDate(run.started_at)} · ${providerLabel(run.provider)} · ${formatAccountLabel(account?.account_name, run.account_id)} · ${run.status}`,
+    };
+  });
   const pages = pageWindow(state.page, totalPages);
   const hasFilters = Boolean(
     state.provider || state.accountId || state.region || state.service || state.resourceType ||
-    state.severity || state.rule || state.collectionRunId || state.resourceId || state.search ||
-    state.current || (isHistory && (
+    state.severity || state.rule || state.collectionRunId || state.firstSeenCollectionRunId ||
+    state.discoveryType || state.resourceId || state.search || state.temporalPreset || state.current ||
+    (isHistory && (
       state.status || state.presenceStatus || state.archivedFrom || state.archivedTo || state.archiveReason
     )),
   );
+  const temporalLabel = state.temporalPreset
+    ? `${state.dateField === "last_seen" ? "Última detecção" : "Primeira identificação"}: ${temporalPresetLabels[state.temporalPreset] || state.temporalPreset}${state.temporalPreset === "custom" ? ` · ${state.temporalFrom || "…"} → ${state.temporalTo || "…"}` : ""}`
+    : "";
   const activeFilters = [
     state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
     state.accountId ? `Conta: ${formatAccountLabel(currentAccount?.account_name, state.accountId)}` : "",
@@ -343,7 +385,10 @@ function OpportunitiesContent() {
     state.resourceType ? `Tipo: ${state.resourceType}` : "",
     state.rule ? `Regra: ${state.rule}` : "",
     state.search ? `Busca: ${state.search}` : "",
+    temporalLabel,
     state.collectionRunId ? `Coleta: ${state.collectionRunId.slice(0, 8)}` : "",
+    state.collectionRunId && state.discoveryType ? `Tipo: ${discoveryTypeLabels[state.discoveryType] || state.discoveryType}` : "",
+    state.firstSeenCollectionRunId ? `Primeira coleta: ${state.firstSeenCollectionRunId.slice(0, 8)}` : "",
     state.current ? "Escopo: estado atual" : "",
     isHistory && state.archivedFrom ? `Arquivada desde: ${state.archivedFrom}` : "",
     isHistory && state.archivedTo ? `Arquivada até: ${state.archivedTo}` : "",
@@ -369,6 +414,7 @@ function OpportunitiesContent() {
         ...activeFilters,
       ].filter(Boolean)
     : [];
+  const archiveScopeMatchesVisibleQuery = !state.temporalPreset && !state.discoveryType && !state.firstSeenCollectionRunId;
 
   useEffect(() => {
     if (selectAllRef.current) {
@@ -415,8 +461,16 @@ function OpportunitiesContent() {
       rule: null,
       rule_key: null,
       collection_run_id: null,
+      first_seen_collection_run_id: null,
+      discovery_type: null,
       resource_id: null,
       search: null,
+      identified_preset: null,
+      date_field: null,
+      first_seen_from: null,
+      first_seen_to: null,
+      last_seen_from: null,
+      last_seen_to: null,
       current: null,
       ...(isHistory ? {
         status: null,
@@ -425,6 +479,31 @@ function OpportunitiesContent() {
         archived_to: null,
         archive_reason: null,
       } : {}),
+    });
+  }
+
+  function changeTemporalField(nextField: "first_seen" | "last_seen") {
+    const patch: Record<string, string | null> = {
+      date_field: nextField === "first_seen" ? null : nextField,
+      first_seen_from: null,
+      first_seen_to: null,
+      last_seen_from: null,
+      last_seen_to: null,
+    };
+    if (state.temporalPreset === "custom") {
+      patch[`${nextField}_from`] = state.temporalFrom || null;
+      patch[`${nextField}_to`] = state.temporalTo || null;
+    }
+    updateUrl(patch);
+  }
+
+  function changeTemporalPreset(preset: string) {
+    updateUrl({
+      identified_preset: preset || null,
+      first_seen_from: preset === "custom" && state.dateField === "first_seen" ? state.temporalFrom || null : null,
+      first_seen_to: preset === "custom" && state.dateField === "first_seen" ? state.temporalTo || null : null,
+      last_seen_from: preset === "custom" && state.dateField === "last_seen" ? state.temporalFrom || null : null,
+      last_seen_to: preset === "custom" && state.dateField === "last_seen" ? state.temporalTo || null : null,
     });
   }
 
@@ -538,7 +617,7 @@ function OpportunitiesContent() {
     }
     const match = accountOptions.find((account) => account.account_id === value);
     if (match) {
-      if (state.accountId !== value) updateUrl({ account_id: value, collection_run_id: null });
+      if (state.accountId !== value) updateUrl({ account_id: value, collection_run_id: null, discovery_type: null });
       return;
     }
     setAccountInput(state.accountId);
@@ -575,7 +654,7 @@ function OpportunitiesContent() {
 
           <label className="opportunity-filter">
             <span>Cloud</span>
-            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, account_id: null, collection_run_id: null })}>
+            <div><Cloud size={16} /><select value={state.provider} onChange={(event) => updateUrl({ provider: event.target.value, account_id: null, collection_run_id: null, discovery_type: null })}>
               <option value="">Todas as clouds</option>
               {providerOptions.map((provider) => <option key={provider} value={provider}>{providerLabel(provider)}</option>)}
             </select></div>
@@ -590,9 +669,9 @@ function OpportunitiesContent() {
               onChange={(event) => {
                 const value = event.target.value;
                 setAccountInput(value);
-                if (!value) updateUrl({ account_id: null, collection_run_id: null });
+                if (!value) updateUrl({ account_id: null, collection_run_id: null, discovery_type: null });
                 else if (accountOptions.some((account) => account.account_id === value)) {
-                  updateUrl({ account_id: value, collection_run_id: null });
+                  updateUrl({ account_id: value, collection_run_id: null, discovery_type: null });
                 }
               }}
               onBlur={commitAccountInput}
@@ -607,6 +686,47 @@ function OpportunitiesContent() {
               ))}
             </datalist>
           </label>
+
+          <label className="opportunity-filter">
+            <span>Filtrar data por</span>
+            <div><Filter size={16} /><select value={state.dateField} onChange={(event) => changeTemporalField(event.target.value as "first_seen" | "last_seen")}>
+              <option value="first_seen">Primeira identificação</option>
+              <option value="last_seen">Última detecção</option>
+            </select></div>
+          </label>
+
+          <label className="opportunity-filter">
+            <span>Período</span>
+            <div><Filter size={16} /><select value={state.temporalPreset} onChange={(event) => changeTemporalPreset(event.target.value)}>
+              <option value="">Todas</option>
+              <option value="today">Hoje</option>
+              <option value="last_24h">Últimas 24h</option>
+              <option value="last_7d">Últimos 7 dias</option>
+              <option value="last_30d">Últimos 30 dias</option>
+              <option value="custom">Personalizado</option>
+            </select></div>
+          </label>
+
+          {state.temporalPreset === "custom" && (
+            <>
+              <label className="opportunity-filter">
+                <span>De</span>
+                <div><Filter size={16} /><input
+                  type="date"
+                  value={state.temporalFrom}
+                  onChange={(event) => updateUrl({ [`${state.dateField}_from`]: event.target.value })}
+                /></div>
+              </label>
+              <label className="opportunity-filter">
+                <span>Até</span>
+                <div><Filter size={16} /><input
+                  type="date"
+                  value={state.temporalTo}
+                  onChange={(event) => updateUrl({ [`${state.dateField}_to`]: event.target.value })}
+                /></div>
+              </label>
+            </>
+          )}
 
           {isHistory && (
             <>
@@ -697,19 +817,36 @@ function OpportunitiesContent() {
           </label>
 
           <label className="opportunity-filter collection-filter">
-            <span>CollectionRun</span>
-            <div><RefreshCw size={16} /><select value={state.collectionRunId} onChange={(event) => updateUrl({ collection_run_id: event.target.value })}>
+            <span>Coleta</span>
+            <div><RefreshCw size={16} /><select value={state.collectionRunId} onChange={(event) => updateUrl({
+              collection_run_id: event.target.value,
+              discovery_type: event.target.value ? (state.discoveryType || "observed") : null,
+            })}>
               <option value="">Todas as coletas</option>
               {state.collectionRunId && !visibleCollectionRuns.some((run) => run.id === state.collectionRunId) && (
                 <option value={state.collectionRunId}>Coleta selecionada · {state.collectionRunId.slice(0, 8)}</option>
               )}
-              {visibleCollectionRuns.map((run) => (
-                <option key={run.id} value={run.id}>
-                  {formatDate(run.started_at)} · {providerLabel(run.provider)} · {run.account_id} · {run.status}
-                </option>
+              {collectionRunOptions.map(({ run, label }) => (
+                <option key={run.id} value={run.id}>{label}</option>
               ))}
             </select></div>
           </label>
+
+          {state.collectionRunId && (
+            <label className="opportunity-filter collection-filter">
+              <span>Tipo na coleta</span>
+              <div><RefreshCw size={16} /><select
+                value={state.discoveryType || "observed"}
+                onChange={(event) => updateUrl({ discovery_type: event.target.value })}
+              >
+                <option value="observed">Todas observadas</option>
+                <option value="first_seen">Primeira vez nesta coleta</option>
+                <option value="new_vs_previous">Novas vs coleta anterior</option>
+                <option value="reappeared">Reaparecidas</option>
+                <option value="continued">Continuaram presentes</option>
+              </select></div>
+            </label>
+          )}
         </div>
       </section>
 
@@ -799,7 +936,7 @@ function OpportunitiesContent() {
             </div>
           )}
 
-          {!isHistory && selected.length === 0 && total > 0 && (
+          {!isHistory && selected.length === 0 && total > 0 && archiveScopeMatchesVisibleQuery && (
             <div className="bulk-actions opportunity-bulk-actions" aria-label="Arquivamento do escopo">
               <button className="button ghost" type="button" onClick={() => setArchiveDialog({ mode: "filter" })}>
                 {hasFilters ? "Arquivar todas deste filtro" : "Arquivar todo o backlog"}
@@ -905,8 +1042,8 @@ function OpportunitiesContent() {
                         </>
                       ) : (
                         <>
-                          <span><strong>Primeira</strong>{formatDate(finding.first_seen_at)}</span>
-                          <span><strong>Última</strong>{formatDate(finding.last_seen_at)}</span>
+                          <span><strong>Primeira identificação</strong>{formatDate(finding.first_seen_at)}</span>
+                          <span><strong>Última detecção</strong>{formatDate(finding.last_seen_at)}</span>
                         </>
                       )}
                     </td>

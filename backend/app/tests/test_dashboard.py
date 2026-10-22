@@ -107,7 +107,8 @@ def test_recent_changes_are_account_local_and_first_collection_is_not_counted_as
     body = dashboard[0].get("/dashboard/summary").json()
     recent = body["recent_changes"]
     assert recent["new"] == 1  # opp-010 only in A target versus A baseline
-    assert recent["no_longer_detected"] == 2  # opp-006 and opp-008 disappeared from A
+    # No SUCCESS CollectionScopeExecution coverage is seeded, so disappearances are unknown.
+    assert recent["no_longer_detected"] == 0
     assert recent["comparable_scopes"] == 1
     assert recent["scopes_without_baseline"] == 2  # B and OCI only have one SUCCESS
     assert recent["rules_version_changed_scopes"] == 1

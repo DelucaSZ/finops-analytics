@@ -104,6 +104,8 @@ class OpportunityListItem(BaseModel):
     presence_reconciled_at: datetime | None = None
     first_seen_at: datetime
     last_seen_at: datetime
+    first_seen_collection_run_id: str | None = None
+    last_seen_collection_run_id: str | None = None
     total_occurrence_count: int
     needs_review: bool
     archived: bool = False

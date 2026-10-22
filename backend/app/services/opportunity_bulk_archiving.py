@@ -37,6 +37,9 @@ def _filter_payload(filters: OpportunityFilters) -> dict:
     payload.pop("archived_from", None)
     payload.pop("archived_to", None)
     payload.pop("archive_reason", None)
+    payload.pop("comparison_available", None)
+    if not payload.get("discovery_type"):
+        payload.pop("baseline_collection_run_id", None)
     return {
         key: value.isoformat() if hasattr(value, "isoformat") else value
         for key, value in payload.items()
