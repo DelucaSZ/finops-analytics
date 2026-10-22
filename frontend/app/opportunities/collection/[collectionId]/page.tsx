@@ -66,9 +66,11 @@ function CollectionOpportunitiesContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const requestedType = searchParams.get("discovery_type") || "observed";
-  const discoveryType = (
-    COLLECTION_DISCOVERY_TYPES.includes(requestedType) ? requestedType : "observed"
-  ) as DiscoveryType;
+  const discoveryType: DiscoveryType = COLLECTION_DISCOVERY_TYPES.some(
+    (type) => type === requestedType,
+  )
+    ? (requestedType as DiscoveryType)
+    : "observed";
   const page = Math.max(1, Number(searchParams.get("page") || 1) || 1);
   const provider = searchParams.get("provider") || "";
   const accountId = searchParams.get("account_id") || "";
@@ -94,7 +96,10 @@ function CollectionOpportunitiesContent() {
   function changePage(next: number) {
     const params = new URLSearchParams(searchParams.toString());
     params.set("page", String(next));
-    router.replace(`/opportunities/collection/${encodeURIComponent(collectionId)}?${params.toString()}`, { scroll: false });
+    router.replace(
+      `/opportunities/collection/${encodeURIComponent(collectionId)}?${params.toString()}`,
+      { scroll: false },
+    );
   }
 
   return (
@@ -105,8 +110,12 @@ function CollectionOpportunitiesContent() {
         description="Visão histórica/técnica baseada nas OpportunityObservations da CollectionRun, sem forçar status atual ou estado de arquivamento."
       />
       <div className="collection-toolbar">
-        <Link className="button ghost" href={`/collections/${encodeURIComponent(collectionId)}`}>← Voltar à coleta</Link>
-        <Link className="button ghost" href="/opportunities">Abrir backlog atual</Link>
+        <Link className="button ghost" href={`/collections/${encodeURIComponent(collectionId)}`}>
+          ← Voltar à coleta
+        </Link>
+        <Link className="button ghost" href="/opportunities">
+          Abrir backlog atual
+        </Link>
       </div>
 
       <section className="panel" aria-busy={request.isLoading || request.isFetching}>
@@ -117,30 +126,53 @@ function CollectionOpportunitiesContent() {
           {accountId && <span>Conta: {formatAccountLabel(null, accountId)}</span>}
         </div>
         <p className="collection-note">
-          Esta investigação pode incluir oportunidades atualmente tratadas, rejeitadas ou arquivadas. O estado operacional não é alterado.
+          Esta investigação pode incluir oportunidades atualmente tratadas, rejeitadas ou
+          arquivadas. O estado operacional não é alterado.
         </p>
 
         {request.error && (
           <div className="alert error" role="alert">
             Não foi possível carregar este subconjunto da coleta.
-            <button className="button ghost" onClick={() => void request.refetch()}>Tentar novamente</button>
+            <button className="button ghost" onClick={() => void request.refetch()}>
+              Tentar novamente
+            </button>
           </div>
         )}
-        {(request.isLoading || request.isFetching) && <p role="status">Carregando oportunidades…</p>}
-        {data?.reason === "NO_BASELINE" && discoveryType !== "observed" && discoveryType !== "first_seen" && (
-          <div className="alert" role="status">Sem coleta anterior comparável; esta classificação não é calculada para a primeira coleta.</div>
+        {(request.isLoading || request.isFetching) && (
+          <p role="status">Carregando oportunidades…</p>
         )}
-        {(data?.reason === "TARGET_OBSERVATIONS_EXPIRED" || data?.reason === "BASELINE_OBSERVATIONS_EXPIRED") && (
-          <div className="alert" role="status">Os detalhes por oportunidade necessários para esta investigação expiraram pela política de retenção.</div>
+        {data?.reason === "NO_BASELINE" &&
+          discoveryType !== "observed" &&
+          discoveryType !== "first_seen" && (
+            <div className="alert" role="status">
+              Sem coleta anterior comparável; esta classificação não é calculada para a
+              primeira coleta.
+            </div>
+          )}
+        {(data?.reason === "TARGET_OBSERVATIONS_EXPIRED" ||
+          data?.reason === "BASELINE_OBSERVATIONS_EXPIRED") && (
+          <div className="alert" role="status">
+            Os detalhes por oportunidade necessários para esta investigação expiraram pela
+            política de retenção.
+          </div>
         )}
-        {data?.reason === "TARGET_NOT_SUCCESSFUL" && !["observed", "first_seen"].includes(discoveryType) && (
-          <div className="alert" role="status">A coleta não foi concluída com sucesso; comparações relativas não são tratadas como resultado definitivo.</div>
-        )}
+        {data?.reason === "TARGET_NOT_SUCCESSFUL" &&
+          discoveryType !== "observed" &&
+          discoveryType !== "first_seen" && (
+            <div className="alert" role="status">
+              A coleta não foi concluída com sucesso; comparações relativas não são tratadas
+              como resultado definitivo.
+            </div>
+          )}
 
         {data && (
           <div className="panel-heading collection-toolbar">
             <h2>{formatNumber(data.total)} oportunidade(s)</h2>
-            {data.baseline_run_id && <span>Baseline: <code>{data.baseline_run_id.slice(0, 8)}</code></span>}
+            {data.baseline_run_id && (
+              <span>
+                Baseline: <code>{data.baseline_run_id.slice(0, 8)}</code>
+              </span>
+            )}
           </div>
         )}
 
@@ -149,21 +181,42 @@ function CollectionOpportunitiesContent() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Oportunidade</th><th>Cloud / conta</th><th>Serviço / região</th><th>Status atual</th><th>Primeira / última detecção</th>
+                  <th>Oportunidade</th>
+                  <th>Cloud / conta</th>
+                  <th>Serviço / região</th>
+                  <th>Status atual</th>
+                  <th>Primeira / última detecção</th>
                 </tr>
               </thead>
               <tbody>
                 {data.items.map((item) => (
                   <tr key={item.id}>
                     <td>
-                      <Link className="collection-link" href={`/opportunities?opportunity_id=${encodeURIComponent(item.id)}`}>{item.title}</Link>
+                      <Link
+                        className="collection-link"
+                        href={`/opportunities?opportunity_id=${encodeURIComponent(item.id)}`}
+                      >
+                        {item.title}
+                      </Link>
                       <span>{item.resource_name || item.resource_id}</span>
                       <code>{item.rule_key}</code>
                     </td>
-                    <td>{providerLabel(item.provider)}<span>{item.account_id}</span></td>
-                    <td>{item.service}<span>{item.region || "Global"}</span></td>
-                    <td>{item.status}{item.archived_at ? <span>Arquivada</span> : null}</td>
-                    <td>{formatDate(item.first_seen_at)}<span>{formatDate(item.last_seen_at)}</span></td>
+                    <td>
+                      {providerLabel(item.provider)}
+                      <span>{item.account_id}</span>
+                    </td>
+                    <td>
+                      {item.service}
+                      <span>{item.region || "Global"}</span>
+                    </td>
+                    <td>
+                      {item.status}
+                      {item.archived_at ? <span>Arquivada</span> : null}
+                    </td>
+                    <td>
+                      {formatDate(item.first_seen_at)}
+                      <span>{formatDate(item.last_seen_at)}</span>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -175,9 +228,23 @@ function CollectionOpportunitiesContent() {
         )}
         {data && (
           <div className="collection-toolbar collection-pagination">
-            <span>Página {data.page} de {data.total_pages || 1}</span>
-            <button className="button ghost" disabled={data.page <= 1} onClick={() => changePage(data.page - 1)}>Anterior</button>
-            <button className="button ghost" disabled={data.total_pages === 0 || data.page >= data.total_pages} onClick={() => changePage(data.page + 1)}>Próxima</button>
+            <span>
+              Página {data.page} de {data.total_pages || 1}
+            </span>
+            <button
+              className="button ghost"
+              disabled={data.page <= 1}
+              onClick={() => changePage(data.page - 1)}
+            >
+              Anterior
+            </button>
+            <button
+              className="button ghost"
+              disabled={data.total_pages === 0 || data.page >= data.total_pages}
+              onClick={() => changePage(data.page + 1)}
+            >
+              Próxima
+            </button>
           </div>
         )}
       </section>
