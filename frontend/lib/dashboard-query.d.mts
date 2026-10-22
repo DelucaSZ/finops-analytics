@@ -13,3 +13,9 @@ export function scopedDashboardHref(
   state: DashboardQueryState,
   extra?: Record<string, string | number | null | undefined>,
 ): string;
+export function buildDashboardNewOpportunitiesHref(
+  state: DashboardQueryState,
+  comparisonContext: string | null | undefined,
+  discoveryType?: "new_vs_previous" | "first_seen" | "reappeared",
+): string | null;
+export function buildDashboardRecentOpportunitiesHref(state: DashboardQueryState): string;

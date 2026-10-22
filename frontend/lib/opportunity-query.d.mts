@@ -21,6 +21,7 @@ export type OpportunityQueryState = {
   rule: string;
   collectionRunId: string;
   firstSeenCollectionRunId: string;
+  comparisonContext: string;
   discoveryType: OpportunityDiscoveryType;
   resourceId: string;
   search: string;

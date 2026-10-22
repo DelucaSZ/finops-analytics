@@ -42,7 +42,8 @@ function inputDate(value) {
 export function parseOpportunitySearchParams(value) {
   const params = value instanceof URLSearchParams ? value : new URLSearchParams(value || "");
   const view = params.get("view") === "history" ? "history" : "operational";
-  const requestedStatus = params.get("status") || (view === "history" ? "" : "open");
+  const rawStatus = params.get("status");
+  const requestedStatus = rawStatus === "all" ? "" : (rawStatus || (view === "history" ? "" : "open"));
   const requestedPresence = params.get("presence_status") || "";
   const requestedSeverity = params.get("severity") || "";
   const requestedSort = params.get("sort") || (view === "history" ? "archived_at" : "last_seen_at");
@@ -55,10 +56,13 @@ export function parseOpportunitySearchParams(value) {
   const temporalFromRaw = selectedTemporalValue(params, dateField, "from");
   const temporalToRaw = selectedTemporalValue(params, dateField, "to");
   const requestedDiscoveryType = params.get("discovery_type") || "";
+  const comparisonContext = params.get("comparison_context") || "";
 
   return {
     view,
-    status: OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : (view === "history" ? "" : "open"),
+    status: requestedStatus === ""
+      ? ""
+      : (OPPORTUNITY_STATUSES.includes(requestedStatus) ? requestedStatus : (view === "history" ? "" : "open")),
     presenceStatus: OPPORTUNITY_PRESENCE_STATUSES.includes(requestedPresence) ? requestedPresence : "",
     provider: params.get("provider") || "",
     accountId: params.get("account_id") || "",
@@ -69,6 +73,7 @@ export function parseOpportunitySearchParams(value) {
     rule: params.get("rule") || params.get("rule_key") || "",
     collectionRunId: params.get("collection_run_id") || "",
     firstSeenCollectionRunId: params.get("first_seen_collection_run_id") || "",
+    comparisonContext,
     discoveryType: OPPORTUNITY_DISCOVERY_TYPES.includes(requestedDiscoveryType) ? requestedDiscoveryType : "",
     resourceId: params.get("resource_id") || "",
     search: params.get("search") || "",
@@ -90,7 +95,7 @@ export function parseOpportunitySearchParams(value) {
       : (view === "history" ? "archived_at" : "last_seen_at"),
     order: OPPORTUNITY_ORDERS.includes(requestedOrder) ? requestedOrder : "desc",
     opportunityId: params.get("opportunity_id") || "",
-    current: view === "operational" && params.get("current") === "true",
+    current: view === "operational" && !comparisonContext && params.get("current") === "true",
   };
 }
 
@@ -169,7 +174,12 @@ function addSharedFilters(params, state, options = {}) {
   addFilter(params, "rule", state.rule);
   addFilter(params, "collection_run_id", state.collectionRunId);
   addFilter(params, "first_seen_collection_run_id", state.firstSeenCollectionRunId);
-  addFilter(params, "discovery_type", state.collectionRunId ? state.discoveryType : "");
+  addFilter(params, "comparison_context", state.comparisonContext);
+  addFilter(
+    params,
+    "discovery_type",
+    state.collectionRunId || state.comparisonContext ? state.discoveryType : "",
+  );
   addFilter(params, "resource_id", state.resourceId);
   addFilter(params, "search", state.search);
   addTemporalFilters(params, state, options);
@@ -180,7 +190,7 @@ function addSharedFilters(params, state, options = {}) {
     addFilter(params, "archived_from", archivedBoundary(state.archivedFrom));
     addFilter(params, "archived_to", archivedBoundary(state.archivedTo, true));
     addFilter(params, "archive_reason", state.archiveReason);
-  } else if (state.current) {
+  } else if (state.current && !state.comparisonContext) {
     params.set("current", "true");
   }
 }
@@ -214,6 +224,22 @@ export function patchOpportunityUrl(current, patch, options = {}) {
     } else {
       params.set(key, String(value));
     }
+  }
+
+  const discoveryCleared = Object.prototype.hasOwnProperty.call(patch, "discovery_type")
+    && (!patch.discovery_type || patch.discovery_type === "all");
+  const contextCleared = Object.prototype.hasOwnProperty.call(patch, "comparison_context")
+    && !patch.comparison_context;
+  if (discoveryCleared) params.delete("comparison_context");
+  if (contextCleared) params.delete("discovery_type");
+  if (patch.collection_run_id) params.delete("comparison_context");
+  if (patch.comparison_context) {
+    params.delete("collection_run_id");
+    params.delete("first_seen_collection_run_id");
+  }
+  if (patch.view === "history") {
+    params.delete("comparison_context");
+    params.delete("discovery_type");
   }
 
   if (resetPage && !("page" in patch)) params.set("page", "1");

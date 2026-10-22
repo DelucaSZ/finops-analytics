@@ -11,11 +11,26 @@ class DashboardScope(BaseModel):
     has_current_data: bool | None = None
 
 
+class DashboardNewSincePrevious(BaseModel):
+    count: int
+    first_seen_count: int
+    reappeared_count: int
+    comparable_accounts: int
+    accounts_without_baseline: int
+    rules_version_changed: bool
+    rules_version_unknown: bool
+    partial_coverage: bool
+    comparison_context: str | None = None
+
+
 class DashboardOpportunityTotals(BaseModel):
     open: int
     treated: int
     rejected: int
     new_since_previous: int
+    # Transitional additive contract: the scalar remains for older clients while
+    # the deterministic context and breakdown travel in the same response.
+    new_since_previous_details: DashboardNewSincePrevious | None = None
 
 
 class DashboardSeverity(BaseModel):

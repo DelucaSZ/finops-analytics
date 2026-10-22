@@ -1,5 +1,11 @@
 from __future__ import annotations
 
+import base64
+import binascii
+import hashlib
+import hmac
+import json
+import zlib
 from dataclasses import dataclass
 from math import ceil
 from typing import Literal
@@ -7,6 +13,7 @@ from typing import Literal
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.models.collection_run import CollectionRun, CollectionRunStatus
 from app.models.collection_scope_execution import (
     CollectionScopeExecution,
@@ -26,6 +33,16 @@ DiscoveryType = Literal[
     "no_longer_detected",
 ]
 
+_COMPARISON_CONTEXT_VERSION = 1
+_MAX_CONTEXT_LENGTH = 8192
+_MAX_CONTEXT_PAIRS = 250
+
+
+class ComparisonContextError(ValueError):
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(message)
+        self.code = code
+
 
 @dataclass(frozen=True)
 class OpportunityRunContext:
@@ -37,6 +54,17 @@ class OpportunityRunContext:
     partial_coverage: bool
     coverage: dict[str, int]
     scope_issues: tuple[dict, ...]
+
+
+@dataclass(frozen=True)
+class DashboardComparisonSnapshot:
+    contexts: tuple[OpportunityRunContext, ...]
+    comparable_accounts: int
+    accounts_without_baseline: int
+    rules_version_changed: bool
+    rules_version_unknown: bool
+    partial_coverage: bool
+    comparison_context: str | None
 
 
 def _observed_in(run_id: str):
@@ -120,6 +148,25 @@ def _rules_version_changed(
     return baseline.analyzer_version != target.analyzer_version
 
 
+def _context_with_baseline(
+    db: Session,
+    target: CollectionRun,
+    baseline: CollectionRun,
+) -> OpportunityRunContext:
+    coverage, scope_issues = _scope_coverage(db, target)
+    partial_coverage = coverage["successful_scopes"] < coverage["total_scopes"]
+    return OpportunityRunContext(
+        target=target,
+        baseline=baseline,
+        comparable=True,
+        reason=None,
+        rules_version_changed=_rules_version_changed(baseline, target),
+        partial_coverage=partial_coverage,
+        coverage=coverage,
+        scope_issues=scope_issues,
+    )
+
+
 def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunContext:
     coverage, scope_issues = _scope_coverage(db, target)
     partial_coverage = coverage["successful_scopes"] < coverage["total_scopes"]
@@ -171,16 +218,7 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
             scope_issues=scope_issues,
         )
 
-    return OpportunityRunContext(
-        target=target,
-        baseline=baseline,
-        comparable=True,
-        reason=None,
-        rules_version_changed=_rules_version_changed(baseline, target),
-        partial_coverage=partial_coverage,
-        coverage=coverage,
-        scope_issues=scope_issues,
-    )
+    return _context_with_baseline(db, target, baseline)
 
 
 def _classification_condition(context: OpportunityRunContext, discovery_type: DiscoveryType):
@@ -216,11 +254,232 @@ def _classification_condition(context: OpportunityRunContext, discovery_type: Di
     raise ValueError(f"Unsupported discovery_type: {discovery_type}")
 
 
+def comparison_condition(
+    contexts: tuple[OpportunityRunContext, ...],
+    discovery_type: DiscoveryType,
+):
+    conditions = [
+        condition
+        for context in contexts
+        if (condition := _classification_condition(context, discovery_type)) is not None
+    ]
+    if not conditions:
+        return None
+    return or_(*conditions)
+
+
 def _count(db: Session, condition, *, operational_only: bool = False) -> int:
+    if condition is None:
+        return 0
     statement = select(func.count()).select_from(Finding).where(condition)
     if operational_only:
         statement = statement.where(Finding.status != "rejected", Finding.archived_at.is_(None))
     return int(db.scalar(statement) or 0)
+
+
+def _latest_success_targets(
+    db: Session,
+    *,
+    provider: str | None = None,
+    account_id: str | None = None,
+) -> tuple[CollectionRun, ...]:
+    ranked = select(
+        CollectionRun.id.label("run_id"),
+        func.row_number()
+        .over(
+            partition_by=(CollectionRun.provider, CollectionRun.account_id),
+            order_by=(CollectionRun.started_at.desc(), CollectionRun.id.desc()),
+        )
+        .label("run_rank"),
+    ).where(CollectionRun.status == CollectionRunStatus.SUCCESS)
+    if provider:
+        ranked = ranked.where(CollectionRun.provider == provider.lower())
+    if account_id:
+        ranked = ranked.where(CollectionRun.account_id == account_id)
+    ranked_cte = ranked.cte("dashboard_comparison_success_ranked")
+    return tuple(
+        db.scalars(
+            select(CollectionRun)
+            .join(ranked_cte, CollectionRun.id == ranked_cte.c.run_id)
+            .where(ranked_cte.c.run_rank == 1)
+            .order_by(CollectionRun.provider, CollectionRun.account_id)
+        )
+    )
+
+
+def _b64encode(value: bytes) -> str:
+    return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
+
+def _b64decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
+
+def _sign_context(body: str) -> str:
+    digest = hmac.new(
+        settings.secret_key.encode("utf-8"),
+        body.encode("ascii"),
+        hashlib.sha256,
+    ).digest()
+    return _b64encode(digest)
+
+
+def _encode_contexts(contexts: tuple[OpportunityRunContext, ...]) -> str | None:
+    if not contexts:
+        return None
+    if len(contexts) > _MAX_CONTEXT_PAIRS:
+        raise ComparisonContextError(
+            "CONTEXT_TOO_LARGE",
+            "Há contas demais para representar esta comparação em uma URL compartilhável.",
+        )
+    payload = json.dumps(
+        {
+            "v": _COMPARISON_CONTEXT_VERSION,
+            "pairs": [
+                {"t": context.target.id, "b": context.baseline.id}
+                for context in contexts
+                if context.baseline is not None
+            ],
+        },
+        separators=(",", ":"),
+        sort_keys=True,
+    ).encode("utf-8")
+    body = _b64encode(zlib.compress(payload, level=9))
+    token = f"{body}.{_sign_context(body)}"
+    if len(token) > _MAX_CONTEXT_LENGTH:
+        raise ComparisonContextError(
+            "CONTEXT_TOO_LARGE",
+            "O contexto da comparação excedeu o limite seguro para uma URL compartilhável.",
+        )
+    return token
+
+
+def decode_comparison_context(token: str) -> tuple[tuple[str, str], ...]:
+    if not token or len(token) > _MAX_CONTEXT_LENGTH or token.count(".") != 1:
+        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+    body, signature = token.split(".", 1)
+    if not hmac.compare_digest(signature, _sign_context(body)):
+        raise ComparisonContextError("INVALID_CONTEXT", "Assinatura do contexto de comparação inválida.")
+    try:
+        payload = json.loads(zlib.decompress(_b64decode(body)).decode("utf-8"))
+    except (ValueError, TypeError, json.JSONDecodeError, zlib.error, binascii.Error) as exc:
+        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.") from exc
+    if payload.get("v") != _COMPARISON_CONTEXT_VERSION:
+        raise ComparisonContextError("INVALID_CONTEXT_VERSION", "Versão de contexto não suportada.")
+    pairs = payload.get("pairs")
+    if not isinstance(pairs, list) or not pairs or len(pairs) > _MAX_CONTEXT_PAIRS:
+        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+    normalized: list[tuple[str, str]] = []
+    for pair in pairs:
+        if not isinstance(pair, dict):
+            raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+        target_id = pair.get("t")
+        baseline_id = pair.get("b")
+        if (
+            not isinstance(target_id, str)
+            or not target_id
+            or len(target_id) > 64
+            or not isinstance(baseline_id, str)
+            or not baseline_id
+            or len(baseline_id) > 64
+        ):
+            raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+        item = (target_id, baseline_id)
+        if item not in normalized:
+            normalized.append(item)
+    return tuple(normalized)
+
+
+def resolve_comparison_context(
+    db: Session,
+    token: str,
+    *,
+    provider: str | None = None,
+    account_id: str | None = None,
+) -> tuple[OpportunityRunContext, ...]:
+    pairs = decode_comparison_context(token)
+    run_ids = {run_id for pair in pairs for run_id in pair}
+    runs = {
+        run.id: run
+        for run in db.scalars(select(CollectionRun).where(CollectionRun.id.in_(run_ids)))
+    }
+    if len(runs) != len(run_ids):
+        raise ComparisonContextError("INVALID_CONTEXT", "Uma ou mais coletas do contexto não existem.")
+
+    contexts: list[OpportunityRunContext] = []
+    for target_id, baseline_id in pairs:
+        target = runs[target_id]
+        baseline = runs[baseline_id]
+        if target.status != CollectionRunStatus.SUCCESS or baseline.status != CollectionRunStatus.SUCCESS:
+            raise ComparisonContextError("CONTEXT_UNAVAILABLE", "O contexto contém uma coleta não comparável.")
+        if target.provider != baseline.provider or target.account_id != baseline.account_id:
+            raise ComparisonContextError("INVALID_CONTEXT", "Target e baseline pertencem a escopos diferentes.")
+        if provider and target.provider != provider.lower():
+            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence ao provider informado.")
+        if account_id and target.account_id != account_id:
+            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence à conta informada.")
+        if not target.detailed_observations_available or not baseline.detailed_observations_available:
+            raise ComparisonContextError(
+                "CONTEXT_EXPIRED",
+                "Os detalhes desta comparação não estão mais disponíveis devido à política de retenção.",
+            )
+        contexts.append(_context_with_baseline(db, target, baseline))
+    return tuple(contexts)
+
+
+def dashboard_comparison_snapshot(
+    db: Session,
+    *,
+    provider: str | None = None,
+    account_id: str | None = None,
+) -> DashboardComparisonSnapshot:
+    targets = _latest_success_targets(db, provider=provider, account_id=account_id)
+    contexts: list[OpportunityRunContext] = []
+    accounts_without_baseline = 0
+    rules_version_unknown = False
+    partial_coverage = False
+    for target in targets:
+        context = resolve_run_context(db, target)
+        partial_coverage = partial_coverage or context.partial_coverage
+        if context.comparable and context.baseline is not None:
+            contexts.append(context)
+            rules_version_unknown = rules_version_unknown or context.rules_version_changed is None
+        elif context.reason == "NO_BASELINE":
+            accounts_without_baseline += 1
+
+    frozen_contexts = tuple(contexts)
+    return DashboardComparisonSnapshot(
+        contexts=frozen_contexts,
+        comparable_accounts=len(frozen_contexts),
+        accounts_without_baseline=accounts_without_baseline,
+        rules_version_changed=any(context.rules_version_changed is True for context in frozen_contexts),
+        rules_version_unknown=rules_version_unknown,
+        partial_coverage=partial_coverage,
+        comparison_context=_encode_contexts(frozen_contexts),
+    )
+
+
+def dashboard_new_since_previous(
+    db: Session,
+    *,
+    provider: str | None = None,
+    account_id: str | None = None,
+) -> dict:
+    snapshot = dashboard_comparison_snapshot(db, provider=provider, account_id=account_id)
+    new_condition = comparison_condition(snapshot.contexts, "new_vs_previous")
+    first_seen_condition = comparison_condition(snapshot.contexts, "first_seen")
+    reappeared_condition = comparison_condition(snapshot.contexts, "reappeared")
+    return {
+        "count": _count(db, new_condition, operational_only=True),
+        "first_seen_count": _count(db, first_seen_condition, operational_only=True),
+        "reappeared_count": _count(db, reappeared_condition, operational_only=True),
+        "comparable_accounts": snapshot.comparable_accounts,
+        "accounts_without_baseline": snapshot.accounts_without_baseline,
+        "rules_version_changed": snapshot.rules_version_changed,
+        "rules_version_unknown": snapshot.rules_version_unknown,
+        "partial_coverage": snapshot.partial_coverage,
+        "comparison_context": snapshot.comparison_context,
+    }
 
 
 def _run_reference(run: CollectionRun | None) -> dict | None:
@@ -263,7 +522,6 @@ def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
         observed = _count(db, observed_condition)
         first_seen = _count(db, first_seen_condition)
     else:
-        # Preserve the known aggregate instead of returning a misleading zero after retention purge.
         observed = target.opportunities_found
         first_seen = 0
 

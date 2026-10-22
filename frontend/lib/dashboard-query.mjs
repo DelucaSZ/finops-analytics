@@ -35,3 +35,23 @@ export function scopedDashboardHref(path, state, extra = {}) {
   }
   return `${path}${params.size ? `?${params.toString()}` : ""}`;
 }
+
+export function buildDashboardNewOpportunitiesHref(
+  state,
+  comparisonContext,
+  discoveryType = "new_vs_previous",
+) {
+  if (!comparisonContext) return null;
+  return scopedDashboardHref("/opportunities", state, {
+    discovery_type: discoveryType,
+    comparison_context: comparisonContext,
+    status: "all",
+  });
+}
+
+export function buildDashboardRecentOpportunitiesHref(state) {
+  return scopedDashboardHref("/opportunities", state, {
+    date_field: "first_seen",
+    identified_preset: "last_24h",
+  });
+}
