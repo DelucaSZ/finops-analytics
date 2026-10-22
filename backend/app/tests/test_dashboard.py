@@ -92,11 +92,46 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
         "rejected": 1,
         "new_since_previous": 1,
     }
-    assert body["severity"] == {"high": 1, "medium": 1, "low": 0, "other": 0}
+    assert body["severity"] == {
+        "critical": 0,
+        "high": 1,
+        "medium": 1,
+        "low": 0,
+        "other": 0,
+    }
     assert body["financial"]["totals"] == [{"currency": "USD", "amount": "33.00"}]
+    assert body["data_updated_at"].startswith(
+        (START + timedelta(days=3)).replace(tzinfo=None).isoformat()
+    )
+
+    assert body["by_provider"] == [
+        {
+            "provider": "aws",
+            "open": 2,
+            "estimated_monthly_savings": None,
+            "currency": None,
+            "savings": [{"currency": "USD", "amount": "33.00"}],
+        }
+    ]
+    assert {item["account_id"] for item in body["by_account"]} == {
+        "111111111111",
+        "222222222222",
+    }
+    assert body["by_service"] == [
+        {
+            "service": "EC2",
+            "open": 2,
+            "savings": [{"currency": "USD", "amount": "33.00"}],
+        }
+    ]
+    assert {item["rule_key"] for item in body["by_rule"]} == {
+        "missing_required_tags",
+        "ebs_unattached",
+    }
 
     # opp-000 has observations in run-a1 and run-a2 but is still one logical opportunity.
     assert {item["id"] for item in body["top_opportunities"]} == {"opp-000", "opp-003"}
+    assert all(item["service"] == "EC2" for item in body["top_opportunities"])
 
     drill_down = http.get("/opportunities?current=true&status=open&page_size=100").json()
     assert drill_down["total"] == body["opportunities"]["open"]
@@ -145,11 +180,14 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
     assert aws["scope"]["valid_scope_count"] == 2
     assert aws["opportunities"]["open"] == 2
     assert {row["provider"] for row in aws["by_provider"]} == {"aws"}
+    assert {row["provider"] for row in aws["by_account"]} == {"aws"}
 
     oci = http.get("/dashboard/summary?provider=oci").json()
     assert oci["scope"]["valid_scope_count"] == 1
     assert oci["opportunities"]["open"] == 0
     assert oci["by_provider"] == []
+    assert oci["by_service"] == []
+    assert oci["by_rule"] == []
 
     account = http.get("/dashboard/summary?provider=aws&account_id=111111111111").json()
     assert account["scope"]["valid_scope_count"] == 1
@@ -160,6 +198,7 @@ def test_provider_and_account_filters_are_applied_to_current_state_and_health(da
         "new_since_previous": 1,
     }
     assert {row["account_id"] for row in account["by_account"]} == {"111111111111"}
+    assert {row["account_id"] for row in account["top_opportunities"]} == {"111111111111"}
 
     health = http.get("/dashboard/collection-health?provider=aws&account_id=111111111111").json()
     assert health["total_scopes"] == 1
@@ -225,6 +264,7 @@ def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dash
     assert after_treat["opportunities"]["open"] == 1
     assert after_treat["opportunities"]["treated"] == 4
     assert after_treat["financial"]["totals"] == [{"currency": "USD", "amount": "13.00"}]
+    assert after_treat["by_service"][0]["savings"] == [{"currency": "USD", "amount": "13.00"}]
 
     reopened = http.post(
         "/opportunities/opp-000/reopen",
@@ -248,6 +288,12 @@ def test_lifecycle_and_bulk_actions_refresh_only_affected_current_summaries(dash
     assert after_bulk["opportunities"]["open"] == 0
     assert after_bulk["opportunities"]["rejected"] == 3
     assert after_bulk["opportunities"]["new_since_previous"] == 1
+    assert after_bulk["financial"]["totals"] == []
+    assert after_bulk["by_provider"] == []
+    assert after_bulk["by_account"] == []
+    assert after_bulk["by_service"] == []
+    assert after_bulk["by_rule"] == []
+    assert after_bulk["top_opportunities"] == []
 
     with Session(engine) as db:
         assert summary_matches_source(

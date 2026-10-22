@@ -1,0 +1,20 @@
+.dashboard-severity-row .severity-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: var(--muted-2);
+}
+
+.dashboard-severity-row .severity-dot.critical,
+.dashboard-bar-fill.critical,
+.dashboard-severity-row .severity-dot.high {
+  background: var(--danger);
+}
+
+.dashboard-severity-row .severity-dot.medium {
+  background: var(--warning);
+}
+
+.dashboard-severity-row .severity-dot.low {
+  background: var(--accent);
+}
