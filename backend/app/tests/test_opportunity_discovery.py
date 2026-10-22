@@ -233,9 +233,7 @@ def _seed_comparison(db: Session) -> dict[str, CollectionRun]:
                 first_seen_at=first_seen_at[opportunity_id],
                 last_seen_at=START + timedelta(days=2),
                 first_seen_collection_run_id=first_seen_run[opportunity_id],
-                last_seen_collection_run_id=(
-                    "run-2" if opportunity_id == "gone" else "run-3"
-                ),
+                last_seen_collection_run_id=("run-2" if opportunity_id == "gone" else "run-3"),
                 total_occurrence_count=2,
             )
         )
@@ -300,9 +298,7 @@ def test_run_comparison_separates_first_seen_reappeared_and_continued(engine):
             "no_longer_detected": 1,
             "operational_new_vs_previous": 2,
         }
-        assert {warning["code"] for warning in result["warnings"]} == {
-            "RULES_VERSION_CHANGED"
-        }
+        assert {warning["code"] for warning in result["warnings"]} == {"RULES_VERSION_CHANGED"}
 
 
 def test_first_collection_is_not_classified_as_new_vs_previous(engine):

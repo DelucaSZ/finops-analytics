@@ -96,14 +96,17 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
         )
 
     baseline = previous_comparable_run(db, target)
-    failed_scopes = db.scalar(
-        select(func.count())
-        .select_from(CollectionScopeExecution)
-        .where(
-            CollectionScopeExecution.collection_run_id == target.id,
-            CollectionScopeExecution.status != CollectionScopeExecutionStatus.SUCCESS,
+    failed_scopes = (
+        db.scalar(
+            select(func.count())
+            .select_from(CollectionScopeExecution)
+            .where(
+                CollectionScopeExecution.collection_run_id == target.id,
+                CollectionScopeExecution.status != CollectionScopeExecutionStatus.SUCCESS,
+            )
         )
-    ) or 0
+        or 0
+    )
     partial_coverage = bool(failed_scopes)
 
     if baseline is None:
@@ -199,9 +202,7 @@ def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
             condition = _classification_condition(context, discovery_type)
             summary[discovery_type] = _count(db, condition)
         new_condition = _classification_condition(context, "new_vs_previous")
-        summary["operational_new_vs_previous"] = _count(
-            db, new_condition, operational_only=True
-        )
+        summary["operational_new_vs_previous"] = _count(db, new_condition, operational_only=True)
 
     warnings: list[dict[str, str]] = []
     if context.rules_version_changed is True:

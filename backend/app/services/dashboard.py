@@ -139,8 +139,7 @@ def _recent_changes(db: Session, *, provider: str | None, account_id: str | None
         scopes_without_baseline += int(changes["baseline_run_id"] is None)
         rules_version_changed_scopes += int(changes["rules_version_changed"] is True)
         rules_version_unknown_scopes += int(
-            changes["baseline_run_id"] is not None
-            and changes["rules_version_changed"] is None
+            changes["baseline_run_id"] is not None and changes["rules_version_changed"] is None
         )
 
     return {
