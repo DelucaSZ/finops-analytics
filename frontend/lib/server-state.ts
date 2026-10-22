@@ -22,6 +22,7 @@ type QueryOptions<T> = {
   gcTime?: number;
   keepPreviousData?: boolean;
   placeholderIdentity?: string;
+  refetchInterval?: number;
 };
 
 type PreviousValue<T> = {
@@ -37,6 +38,7 @@ export function useApiQuery<T>({
   gcTime = 5 * 60_000,
   keepPreviousData = false,
   placeholderIdentity = "",
+  refetchInterval,
 }: QueryOptions<T>) {
   const [, render] = useReducer((value) => value + 1, 0);
   const keyId = useMemo(() => serializeQueryKey(key), [key]);
@@ -65,6 +67,15 @@ export function useApiQuery<T>({
     if (!enabled) return;
     void execute(false).catch(() => undefined);
   }, [enabled, execute, snapshot.invalidationVersion]);
+
+  useEffect(() => {
+    if (!enabled || !refetchInterval || refetchInterval <= 0) return;
+    const timer = window.setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      void execute(true).catch(() => undefined);
+    }, refetchInterval);
+    return () => window.clearInterval(timer);
+  }, [enabled, execute, refetchInterval]);
 
   if (snapshot.hasData) {
     previous.current = {
@@ -110,7 +121,7 @@ export function prefetchApiQuery<T = unknown>({
   path,
   staleTime = 0,
   gcTime = 5 * 60_000,
-}: Omit<QueryOptions<T>, "enabled" | "keepPreviousData" | "placeholderIdentity">) {
+}: Omit<QueryOptions<T>, "enabled" | "keepPreviousData" | "placeholderIdentity" | "refetchInterval">) {
   return sharedQueryCache.fetch<T>({
     key,
     staleTime,
