@@ -136,6 +136,15 @@ def test_provider_and_account_scope_do_not_mix_clouds(
     http, engine = dashboard
     with Session(engine) as db:
         db.add(
+            CloudAccount(
+                provider="oci",
+                native_account_id="ocid1.tenancy.dashboard",
+                name="OCI Financeiro",
+                enabled=True,
+                connection_status="connected",
+            )
+        )
+        db.add(
             _run(
                 run_id="run-oci-failed",
                 provider="oci",
