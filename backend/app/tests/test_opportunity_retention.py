@@ -325,7 +325,7 @@ def test_retention_settings_defaults_match_policy():
     configured = Settings()
     assert configured.opportunity_retention_enabled is True
     assert configured.opportunity_retention_treated_enabled is True
-    assert configured.opportunity_retention_treated_days == 60
+    assert configured.opportunity_retention_treated_days == 30
     assert configured.opportunity_retention_rejected_enabled is True
     assert configured.opportunity_retention_rejected_days == 30
     assert configured.opportunity_retention_resolved_externally_enabled is True
