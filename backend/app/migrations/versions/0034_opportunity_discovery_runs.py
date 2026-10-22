@@ -13,6 +13,12 @@ branch_labels = None
 depends_on = None
 
 
+def _create_index_if_missing(name: str, table: str, columns: list[str]) -> None:
+    inspector = sa.inspect(op.get_bind())
+    if name not in {item["name"] for item in inspector.get_indexes(table)}:
+        op.create_index(name, table, columns)
+
+
 def upgrade() -> None:
     with op.batch_alter_table("findings") as batch_op:
         batch_op.add_column(
@@ -87,6 +93,7 @@ def upgrade() -> None:
         ),
     )
 
+    _create_index_if_missing("ix_findings_first_seen_at", "findings", ["first_seen_at"])
     op.create_index(
         "ix_findings_first_seen_collection_run_id",
         "findings",
