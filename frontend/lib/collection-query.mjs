@@ -4,6 +4,22 @@ export const COLLECTION_STATUSES = {
   FAILED: "Falhou",
 };
 export const COLLECTION_SORTS = ["started_at", "opportunities_found"];
+export const COLLECTION_DISCOVERY_TYPES = [
+  "observed",
+  "first_seen",
+  "new_vs_previous",
+  "reappeared",
+  "continued",
+  "no_longer_detected",
+];
+export const COLLECTION_DISCOVERY_LABELS = {
+  observed: "Oportunidades observadas",
+  first_seen: "Identificadas pela primeira vez",
+  new_vs_previous: "Novas vs coleta anterior",
+  reappeared: "Reapareceram",
+  continued: "Continuaram presentes",
+  no_longer_detected: "Não detectadas nesta execução",
+};
 const filterKeys = [
   "provider",
   "account_id",
@@ -53,6 +69,39 @@ export function patchCollectionQuery(current, patch) {
   return buildCollectionQuery(state);
 }
 
+function buildCollectionDiscoveryHref(id, discoveryType, options = {}) {
+  if (!COLLECTION_DISCOVERY_TYPES.includes(discoveryType)) {
+    throw new Error(`Unsupported collection discovery type: ${discoveryType}`);
+  }
+  const params = new URLSearchParams({ discovery_type: discoveryType, page: "1" });
+  if (discoveryType === "first_seen") {
+    params.set("first_seen_collection_run_id", id);
+  }
+  if (options.provider) params.set("provider", options.provider);
+  if (options.accountId) params.set("account_id", options.accountId);
+  return `/opportunities/collection/${encodeURIComponent(id)}?${params.toString()}`;
+}
+
+export function buildObservedOpportunitiesHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "observed", options);
+}
+export function buildFirstSeenOpportunitiesHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "first_seen", options);
+}
+export function buildNewVsPreviousHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "new_vs_previous", options);
+}
+export function buildReappearedHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "reappeared", options);
+}
+export function buildContinuedHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "continued", options);
+}
+export function buildNoLongerDetectedHref(id, options) {
+  return buildCollectionDiscoveryHref(id, "no_longer_detected", options);
+}
+
+// Legacy operational CTA kept for the current backlog-oriented action in CollectionWorkspace.
 export function collectionOpportunitiesUrl(id) {
   return `/opportunities?${new URLSearchParams({ collection_run_id: id, status: "open", page: "1" })}`;
 }
