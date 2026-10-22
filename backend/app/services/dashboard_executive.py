@@ -9,7 +9,6 @@ from app.models.account import CloudAccount
 from app.models.finding import Finding
 from app.services import dashboard as dashboard_service
 
-
 _SEVERITY_WEIGHT = {
     "critical": 4,
     "high": 3,
