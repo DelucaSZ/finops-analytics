@@ -29,7 +29,6 @@ from app.services.opportunity_query import (
     serialize_list_item,
 )
 from app.services.opportunity_run_comparison import (
-    DiscoveryType,
     OpportunityRunContext,
     _classification_condition,
     resolve_run_context,
@@ -74,7 +73,12 @@ def _context_signature(payload: bytes) -> bytes:
     ).digest()
 
 
-def _encode_context(*, pairs: list[DashboardComparisonPair], provider: str | None, account_id: str | None) -> str:
+def _encode_context(
+    *,
+    pairs: list[DashboardComparisonPair],
+    provider: str | None,
+    account_id: str | None,
+) -> str:
     document = {
         "v": 1,
         "generated_at": datetime.now(UTC).isoformat(),
@@ -91,7 +95,10 @@ def _encode_context(*, pairs: list[DashboardComparisonPair], provider: str | Non
     }
     raw = json.dumps(document, separators=(",", ":"), sort_keys=True).encode("utf-8")
     compressed = zlib.compress(raw, level=9)
-    token = f"{_CONTEXT_VERSION}.{_b64encode(compressed)}.{_b64encode(_context_signature(compressed))}"
+    token = (
+        f"{_CONTEXT_VERSION}.{_b64encode(compressed)}."
+        f"{_b64encode(_context_signature(compressed))}"
+    )
     if len(token) > _MAX_CONTEXT_LENGTH:
         raise DashboardComparisonContextError(
             "O contexto consolidado excede o limite seguro para um deep link.",
@@ -116,7 +123,8 @@ def _decode_document(token: str) -> dict:
             "Contexto de comparação inválido.",
             code="INVALID_COMPARISON_CONTEXT",
         ) from None
-    if version != _CONTEXT_VERSION or not hmac.compare_digest(signature, _context_signature(payload)):
+    signature_valid = hmac.compare_digest(signature, _context_signature(payload))
+    if version != _CONTEXT_VERSION or not signature_valid:
         raise DashboardComparisonContextError(
             "Contexto de comparação inválido ou adulterado.",
             code="INVALID_COMPARISON_CONTEXT",
@@ -191,7 +199,10 @@ def _latest_pairs(
     return pairs, contexts
 
 
-def _load_context_pairs(db: Session, token: str) -> tuple[list[DashboardComparisonPair], dict]:
+def _load_context_pairs(
+    db: Session,
+    token: str,
+) -> tuple[list[DashboardComparisonPair], dict]:
     document = _decode_document(token)
     raw_pairs = document["pairs"]
     run_ids = {
@@ -229,9 +240,14 @@ def _load_context_pairs(db: Session, token: str) -> tuple[list[DashboardComparis
                 "Contexto de comparação inconsistente.",
                 code="INVALID_COMPARISON_CONTEXT",
             )
-        if not target.detailed_observations_available or not baseline.detailed_observations_available:
+        observations_unavailable = (
+            not target.detailed_observations_available
+            or not baseline.detailed_observations_available
+        )
+        if observations_unavailable:
             raise DashboardComparisonContextError(
-                "Os detalhes desta comparação não estão mais disponíveis devido à política de retenção.",
+                "Os detalhes desta comparação não estão mais disponíveis devido à "
+                "política de retenção.",
                 code="COMPARISON_CONTEXT_EXPIRED",
                 status_code=410,
             )
