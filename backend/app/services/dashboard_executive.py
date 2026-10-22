@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.models.account import CloudAccount
 from app.models.finding import Finding
 from app.services import dashboard as dashboard_service
+from app.services.opportunity_run_comparison import dashboard_new_since_previous
 
 _SEVERITY_WEIGHT = {
     "critical": 4,
@@ -320,6 +321,16 @@ def executive_dashboard_summary(
         provider=provider,
         account_id=account_id,
     )
+
+    # Task 24.12: calculate the KPI and its navigation context atomically from the
+    # same comparison service. Persisted dashboard aggregates remain useful for the
+    # other metrics, but they are no longer the source of truth for this KPI.
+    new_details = dashboard_new_since_previous(db, provider=provider, account_id=account_id)
+    payload["opportunities"]["new_since_previous"] = new_details["count"]
+    payload["opportunities"]["new_since_previous_details"] = new_details
+    payload["recent_changes"]["new"] = new_details["count"]
+    payload["recent_changes"]["comparable_scopes"] = new_details["comparable_accounts"]
+    payload["recent_changes"]["scopes_without_baseline"] = new_details["accounts_without_baseline"]
 
     payload["data_updated_at"] = db.scalar(select(func.max(latest_valid.c.started_at)))
     payload["severity"] = _severity_distribution(db, current)
