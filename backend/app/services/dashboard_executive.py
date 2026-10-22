@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import Any
 
 from sqlalchemy import case, func, select
 from sqlalchemy.orm import Session
@@ -19,7 +18,7 @@ _SEVERITY_WEIGHT = {
 }
 
 
-def _money_rows(values: dict[str, Decimal]) -> list[dict[str, Any]]:
+def _money_rows(values: dict[str, Decimal]) -> list[dict[str, object]]:
     return [
         {"currency": currency, "amount": amount}
         for currency, amount in sorted(values.items())
@@ -36,7 +35,7 @@ def _append_money(
     target[currency] = target.get(currency, Decimal("0")) + Decimal(str(amount or 0))
 
 
-def _provider_distribution(db: Session, current) -> list[dict[str, Any]]:
+def _provider_distribution(db: Session, current) -> list[dict[str, object]]:
     rows = db.execute(
         select(
             current.c.provider,
@@ -52,7 +51,7 @@ def _provider_distribution(db: Session, current) -> list[dict[str, Any]]:
         .group_by(current.c.provider, current.c.currency)
     ).all()
 
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[str, dict[str, object]] = {}
     for row in rows:
         item = grouped.setdefault(
             row.provider,
@@ -76,7 +75,7 @@ def _provider_distribution(db: Session, current) -> list[dict[str, Any]]:
     ]
 
 
-def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict[str, Any]]:
+def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict[str, object]]:
     account_join = (current.c.provider == CloudAccount.provider) & (
         current.c.account_id == CloudAccount.native_account_id
     )
@@ -103,7 +102,7 @@ def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict
         )
     ).all()
 
-    grouped: dict[tuple[str, str], dict[str, Any]] = {}
+    grouped: dict[tuple[str, str], dict[str, object]] = {}
     for row in rows:
         key = (row.provider, row.account_id)
         item = grouped.setdefault(
@@ -141,7 +140,7 @@ def _dimension_distribution(
     dimension,
     key_name: str,
     limit: int = 5,
-) -> list[dict[str, Any]]:
+) -> list[dict[str, object]]:
     rows = db.execute(
         select(
             dimension.label("dimension_key"),
@@ -157,7 +156,7 @@ def _dimension_distribution(
         .group_by(dimension, current.c.currency)
     ).all()
 
-    grouped: dict[str, dict[str, Any]] = {}
+    grouped: dict[str, dict[str, object]] = {}
     for row in rows:
         value = str(row.dimension_key or "unknown")
         item = grouped.setdefault(value, {key_name: value, "open": 0, "savings": {}})
@@ -195,7 +194,7 @@ def _severity_distribution(db: Session, current) -> dict[str, int]:
     return result
 
 
-def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[str, Any]]:
+def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[str, object]]:
     severity_order = case(
         *[
             (func.lower(current.c.severity) == severity, weight)
@@ -271,7 +270,7 @@ def executive_dashboard_summary(
     *,
     provider: str | None = None,
     account_id: str | None = None,
-) -> dict[str, Any]:
+) -> dict[str, object]:
     """Return the business-facing summary without collection-health coupling."""
 
     payload = dashboard_service.dashboard_summary(db, provider=provider, account_id=account_id)
