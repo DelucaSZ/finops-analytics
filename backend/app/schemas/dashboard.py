@@ -11,11 +11,24 @@ class DashboardScope(BaseModel):
     has_current_data: bool | None = None
 
 
+class DashboardNewSincePrevious(BaseModel):
+    count: int
+    first_seen_count: int
+    reappeared_count: int
+    comparable_accounts: int
+    accounts_without_baseline: int
+    unavailable_accounts: int = 0
+    rules_version_changed: bool = False
+    partial_coverage_accounts: int = 0
+    comparison_context: str
+    generated_at: datetime
+
+
 class DashboardOpportunityTotals(BaseModel):
     open: int
     treated: int
     rejected: int
-    new_since_previous: int
+    new_since_previous: DashboardNewSincePrevious
 
 
 class DashboardSeverity(BaseModel):
