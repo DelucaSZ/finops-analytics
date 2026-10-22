@@ -7,6 +7,7 @@ from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.services.dashboard_aggregation import rebuild_account_summary
 from app.tests.test_dashboard import START, dashboard  # noqa: F401
+from app.tests.test_opportunities_api import client  # noqa: F401
 
 
 def test_executive_dashboard_preserves_currencies_in_every_financial_breakdown(
