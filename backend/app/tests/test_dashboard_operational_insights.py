@@ -40,7 +40,7 @@ def _active_account(db: Session, provider: str, account_id: str) -> CloudAccount
     )
 
 
-def test_latest_failed_terminal_run_is_exposed_with_safe_account_identity(dashboard):
+def test_latest_failed_terminal_run_is_exposed_with_safe_account_identity(dashboard):  # noqa: F811
     http, _ = dashboard
 
     response = http.get("/dashboard/operational-insights")
@@ -59,7 +59,9 @@ def test_latest_failed_terminal_run_is_exposed_with_safe_account_identity(dashbo
     assert item["newer_run"] is None
 
 
-def test_success_posterior_resolves_failure_and_historical_failed_does_not_return(dashboard):
+def test_success_posterior_resolves_failure_and_historical_failed_does_not_return(
+    dashboard,  # noqa: F811
+):
     http, engine = dashboard
     with Session(engine) as db:
         db.add(
@@ -94,7 +96,7 @@ def test_success_posterior_resolves_failure_and_historical_failed_does_not_retur
     assert current["items"][0]["collection_run_id"] == "run-a5-failed"
 
 
-def test_newer_running_run_keeps_last_failed_terminal_visible(dashboard):
+def test_newer_running_run_keeps_last_failed_terminal_visible(dashboard):  # noqa: F811
     http, engine = dashboard
     with Session(engine) as db:
         db.add(
@@ -124,7 +126,7 @@ def test_newer_running_run_keeps_last_failed_terminal_visible(dashboard):
     assert resolved == {"count": 0, "items": [], "truncated": False}
 
 
-def test_provider_and_account_scope_do_not_mix_clouds(dashboard):
+def test_provider_and_account_scope_do_not_mix_clouds(dashboard):  # noqa: F811
     http, engine = dashboard
     with Session(engine) as db:
         db.add(
@@ -160,7 +162,7 @@ def test_provider_and_account_scope_do_not_mix_clouds(dashboard):
     assert oci["items"][0]["account_id"] == "ocid1.tenancy.dashboard"
 
 
-def test_error_summary_is_allowlisted_and_does_not_echo_credentials(dashboard):
+def test_error_summary_is_allowlisted_and_does_not_echo_credentials(dashboard):  # noqa: F811
     http, engine = dashboard
     secret = "AKIA_NOT_A_REAL_KEY_BUT_MUST_NOT_LEAK"
     with Session(engine) as db:
@@ -178,7 +180,7 @@ def test_error_summary_is_allowlisted_and_does_not_echo_credentials(dashboard):
     assert secret not in summary
 
 
-def test_disabled_account_does_not_keep_home_alert_alive(dashboard):
+def test_disabled_account_does_not_keep_home_alert_alive(dashboard):  # noqa: F811
     http, engine = dashboard
     with Session(engine) as db:
         account = _active_account(db, "aws", "111111111111")
@@ -190,7 +192,7 @@ def test_disabled_account_does_not_keep_home_alert_alive(dashboard):
     assert body == {"count": 0, "items": [], "truncated": False}
 
 
-def test_failures_are_ordered_newest_first_and_response_is_bounded(dashboard):
+def test_failures_are_ordered_newest_first_and_response_is_bounded(dashboard):  # noqa: F811
     http, engine = dashboard
     with Session(engine) as db:
         db.add(
@@ -213,7 +215,7 @@ def test_failures_are_ordered_newest_first_and_response_is_bounded(dashboard):
     assert body["items"][0]["collection_run_id"] == "run-b2-failed"
 
 
-def test_service_uses_one_bounded_query_without_per_account_reads(dashboard):
+def test_service_uses_one_bounded_query_without_per_account_reads(dashboard):  # noqa: F811
     _, engine = dashboard
     statements: list[str] = []
 
