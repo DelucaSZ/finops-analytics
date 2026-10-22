@@ -19,6 +19,7 @@ class DashboardOpportunityTotals(BaseModel):
 
 
 class DashboardSeverity(BaseModel):
+    critical: int = 0
     high: int
     medium: int
     low: int
@@ -42,6 +43,7 @@ class DashboardProviderDistribution(BaseModel):
     open: int
     estimated_monthly_savings: Decimal | None = None
     currency: str | None = None
+    savings: list[DashboardMoneyTotal] = Field(default_factory=list)
 
 
 class DashboardAccountDistribution(BaseModel):
@@ -51,12 +53,26 @@ class DashboardAccountDistribution(BaseModel):
     open: int
     estimated_monthly_savings: Decimal | None = None
     currency: str | None = None
+    savings: list[DashboardMoneyTotal] = Field(default_factory=list)
+
+
+class DashboardServiceDistribution(BaseModel):
+    service: str
+    open: int
+    savings: list[DashboardMoneyTotal] = Field(default_factory=list)
+
+
+class DashboardRuleDistribution(BaseModel):
+    rule_key: str
+    open: int
+    savings: list[DashboardMoneyTotal] = Field(default_factory=list)
 
 
 class DashboardTopOpportunity(BaseModel):
     id: str
     title: str
     rule_key: str
+    service: str | None = None
     resource_id: str
     resource_name: str | None = None
     region: str | None
@@ -87,8 +103,11 @@ class DashboardSummary(BaseModel):
     financial: DashboardFinancial
     by_provider: list[DashboardProviderDistribution] = Field(default_factory=list)
     by_account: list[DashboardAccountDistribution] = Field(default_factory=list)
+    by_service: list[DashboardServiceDistribution] = Field(default_factory=list)
+    by_rule: list[DashboardRuleDistribution] = Field(default_factory=list)
     top_opportunities: list[DashboardTopOpportunity] = Field(default_factory=list)
     recent_changes: DashboardRecentChanges
+    data_updated_at: datetime | None = None
 
 
 class DashboardCollectionExecution(BaseModel):
