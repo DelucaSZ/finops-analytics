@@ -287,10 +287,7 @@ def list_opportunity_page(
     rule: str | None = None,
     collection_run_id: str | None = Query(default=None, max_length=36),
     first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
-    discovery_type: str | None = Query(
-        default=None,
-        pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$",
-    ),
+    discovery_type: str | None = Query(default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"),
     comparison_context: str | None = Query(default=None, max_length=8192),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
@@ -313,68 +310,13 @@ def list_opportunity_page(
         if collection_run_id or first_seen_collection_run_id:
             raise HTTPException(status_code=422, detail="comparison_context cannot be combined with run filters")
         contexts = _frozen_context(db, comparison_context, discovery_type)
-        filters = _comparison_filters(
-            provider,
-            account_id,
-            region,
-            service,
-            resource_type,
-            opportunity_status,
-            presence_status.value if presence_status else None,
-            severity,
-            rule,
-            resource_id,
-            search,
-            first_seen_from,
-            first_seen_to,
-            last_seen_from,
-            last_seen_to,
-            archive_state,
-            archived_from,
-            archived_to,
-            archive_reason,
-        )
-        return list_dashboard_comparison_opportunities(
-            db,
-            filters,
-            contexts,
-            discovery_type=discovery_type,
-            page=page,
-            page_size=page_size,
-            sort=sort,
-            order=order,
-        )
+        filters = _comparison_filters(provider, account_id, region, service, resource_type, opportunity_status, presence_status.value if presence_status else None, severity, rule, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, archive_state, archived_from, archived_to, archive_reason)
+        return list_dashboard_comparison_opportunities(db, filters, contexts, discovery_type=discovery_type, page=page, page_size=page_size, sort=sort, order=order)
 
     target = _ensure_collection_history_available(db, collection_run_id)
     _ensure_collection_exists(db, first_seen_collection_run_id)
     baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
-    filters = _filters(
-        provider,
-        account_id,
-        region,
-        service,
-        resource_type,
-        opportunity_status,
-        presence_status.value if presence_status else None,
-        severity,
-        rule,
-        collection_run_id,
-        first_seen_collection_run_id,
-        discovery_type,
-        baseline_id,
-        comparison_available,
-        resource_id,
-        search,
-        first_seen_from,
-        first_seen_to,
-        last_seen_from,
-        last_seen_to,
-        current,
-        archive_state,
-        archived_from,
-        archived_to,
-        archive_reason,
-    )
+    filters = _filters(provider, account_id, region, service, resource_type, opportunity_status, presence_status.value if presence_status else None, severity, rule, collection_run_id, first_seen_collection_run_id, discovery_type, baseline_id, comparison_available, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, current, archive_state, archived_from, archived_to, archive_reason)
     return list_opportunities(db, filters, page=page, page_size=page_size, sort=sort, order=order)
 
 
@@ -390,10 +332,7 @@ def stats(
     rule: str | None = None,
     collection_run_id: str | None = Query(default=None, max_length=36),
     first_seen_collection_run_id: str | None = Query(default=None, max_length=36),
-    discovery_type: str | None = Query(
-        default=None,
-        pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$",
-    ),
+    discovery_type: str | None = Query(default=None, pattern="^(observed|first_seen|new_vs_previous|reappeared|continued)$"),
     comparison_context: str | None = Query(default=None, max_length=8192),
     resource_id: str | None = None,
     search: str | None = Query(default=None, max_length=200),
@@ -412,59 +351,13 @@ def stats(
         if collection_run_id or first_seen_collection_run_id:
             raise HTTPException(status_code=422, detail="comparison_context cannot be combined with run filters")
         contexts = _frozen_context(db, comparison_context, discovery_type)
-        filters = _comparison_filters(
-            provider,
-            account_id,
-            region,
-            service,
-            resource_type,
-            None,
-            presence_status.value if presence_status else None,
-            severity,
-            rule,
-            resource_id,
-            search,
-            first_seen_from,
-            first_seen_to,
-            last_seen_from,
-            last_seen_to,
-            archive_state,
-            archived_from,
-            archived_to,
-            archive_reason,
-        )
+        filters = _comparison_filters(provider, account_id, region, service, resource_type, None, presence_status.value if presence_status else None, severity, rule, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, archive_state, archived_from, archived_to, archive_reason)
         return dashboard_comparison_stats(db, filters, contexts, discovery_type=discovery_type)
 
     target = _ensure_collection_history_available(db, collection_run_id)
     _ensure_collection_exists(db, first_seen_collection_run_id)
     baseline_id, comparison_available = _comparison_context(db, target, discovery_type)
-    filters = _filters(
-        provider,
-        account_id,
-        region,
-        service,
-        resource_type,
-        None,
-        presence_status.value if presence_status else None,
-        severity,
-        rule,
-        collection_run_id,
-        first_seen_collection_run_id,
-        discovery_type,
-        baseline_id,
-        comparison_available,
-        resource_id,
-        search,
-        first_seen_from,
-        first_seen_to,
-        last_seen_from,
-        last_seen_to,
-        current,
-        archive_state,
-        archived_from,
-        archived_to,
-        archive_reason,
-    )
+    filters = _filters(provider, account_id, region, service, resource_type, None, presence_status.value if presence_status else None, severity, rule, collection_run_id, first_seen_collection_run_id, discovery_type, baseline_id, comparison_available, resource_id, search, first_seen_from, first_seen_to, last_seen_from, last_seen_to, current, archive_state, archived_from, archived_to, archive_reason)
     return opportunity_stats(db, filters)
 
 
@@ -537,7 +430,7 @@ def archive_matching_opportunities(payload: ArchiveScopeRequest, db: Session = D
 
 
 @router.post("/period-close", response_model=PeriodCloseResult, dependencies=[Depends(require_admin)])
-def close_operational_period(payload: ArchiveScopeRequest, db: Session = Depends(get_db), actor: User = Depends(require_admin)) -> dict:
+def close_operational_period(payload: PeriodCloseRequest, db: Session = Depends(get_db), actor: User = Depends(require_admin)) -> dict:
     try:
         result = close_period_and_archive(db, cycle_id=payload.cycle_id, filters=_archive_filters(payload.filters), archive_all=payload.archive_all, actor=actor)
         db.commit()
