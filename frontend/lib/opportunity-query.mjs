@@ -226,6 +226,22 @@ export function patchOpportunityUrl(current, patch, options = {}) {
     }
   }
 
+  const discoveryCleared = Object.prototype.hasOwnProperty.call(patch, "discovery_type")
+    && (!patch.discovery_type || patch.discovery_type === "all");
+  const contextCleared = Object.prototype.hasOwnProperty.call(patch, "comparison_context")
+    && !patch.comparison_context;
+  if (discoveryCleared) params.delete("comparison_context");
+  if (contextCleared) params.delete("discovery_type");
+  if (patch.collection_run_id) params.delete("comparison_context");
+  if (patch.comparison_context) {
+    params.delete("collection_run_id");
+    params.delete("first_seen_collection_run_id");
+  }
+  if (patch.view === "history") {
+    params.delete("comparison_context");
+    params.delete("discovery_type");
+  }
+
   if (resetPage && !("page" in patch)) params.set("page", "1");
   return params;
 }
