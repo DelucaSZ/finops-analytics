@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.models.account import CloudAccount
 from app.models.finding import Finding
-from app.services.dashboard import _current_observations, dashboard_summary
+from app.services import dashboard as dashboard_service
 
 
 _SEVERITY_WEIGHT = {
@@ -274,8 +274,11 @@ def executive_dashboard_summary(
 ) -> dict[str, Any]:
     """Return the business-facing summary without collection-health coupling."""
 
-    payload = dashboard_summary(db, provider=provider, account_id=account_id)
-    latest_valid, current = _current_observations(provider=provider, account_id=account_id)
+    payload = dashboard_service.dashboard_summary(db, provider=provider, account_id=account_id)
+    latest_valid, current = dashboard_service._current_observations(
+        provider=provider,
+        account_id=account_id,
+    )
 
     payload["data_updated_at"] = db.scalar(select(func.max(latest_valid.c.started_at)))
     payload["severity"] = _severity_distribution(db, current)
