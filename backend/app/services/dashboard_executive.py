@@ -18,10 +18,7 @@ _SEVERITY_WEIGHT = {
 
 
 def _money_rows(values: dict[str, Decimal]) -> list[dict[str, object]]:
-    return [
-        {"currency": currency, "amount": amount}
-        for currency, amount in sorted(values.items())
-    ]
+    return [{"currency": currency, "amount": amount} for currency, amount in sorted(values.items())]
 
 
 def _append_money(
