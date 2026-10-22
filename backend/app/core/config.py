@@ -90,7 +90,7 @@ class Settings(BaseSettings):
         True, alias="OPPORTUNITY_RETENTION_TREATED_ENABLED"
     )
     opportunity_retention_treated_days: int = Field(
-        60,
+        30,
         ge=1,
         le=3650,
         alias="OPPORTUNITY_RETENTION_TREATED_DAYS",
@@ -121,7 +121,7 @@ class Settings(BaseSettings):
     )
     retention_enabled: bool = Field(True, alias="NUVEMIQ_RETENTION_ENABLED")
     opportunity_observation_retention_days: int = Field(
-        90,
+        400,
         ge=1,
         le=3650,
         alias="NUVEMIQ_OPPORTUNITY_OBSERVATION_RETENTION_DAYS",
