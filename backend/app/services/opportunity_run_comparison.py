@@ -15,6 +15,7 @@ from app.models.collection_scope_execution import (
 from app.models.finding import Finding
 from app.models.opportunity_observation import OpportunityObservation
 from app.services.collection_comparison import previous_comparable_run
+from app.services.collection_errors import sanitize_collection_error
 
 DiscoveryType = Literal[
     "observed",
@@ -34,6 +35,8 @@ class OpportunityRunContext:
     reason: str | None
     rules_version_changed: bool | None
     partial_coverage: bool
+    coverage: dict[str, int]
+    scope_issues: tuple[dict, ...]
 
 
 def _observed_in(run_id: str):
@@ -64,6 +67,48 @@ def _covered_by_target(target: CollectionRun):
     )
 
 
+def _scope_coverage(db: Session, target: CollectionRun) -> tuple[dict[str, int], tuple[dict, ...]]:
+    rows = list(
+        db.scalars(
+            select(CollectionScopeExecution)
+            .where(CollectionScopeExecution.collection_run_id == target.id)
+            .order_by(
+                CollectionScopeExecution.provider,
+                CollectionScopeExecution.account_id,
+                CollectionScopeExecution.region,
+                CollectionScopeExecution.rule_key,
+            )
+        )
+    )
+    counts = {"SUCCESS": 0, "FAILED": 0, "SKIPPED": 0}
+    issues: list[dict] = []
+    for scope in rows:
+        status = str(scope.status)
+        counts[status] = counts.get(status, 0) + 1
+        if status != CollectionScopeExecutionStatus.SUCCESS:
+            issues.append(
+                {
+                    "provider": scope.provider,
+                    "account_id": scope.account_id,
+                    "region": scope.region,
+                    "service": scope.service,
+                    "rule_key": scope.rule_key,
+                    "status": status,
+                    "error_detail": sanitize_collection_error(scope.error_detail),
+                }
+            )
+    return (
+        {
+            "total_scopes": len(rows),
+            "successful_scopes": counts.get("SUCCESS", 0),
+            "failed_scopes": counts.get("FAILED", 0),
+            "skipped_scopes": counts.get("SKIPPED", 0),
+            "comparable_scopes": counts.get("SUCCESS", 0),
+        },
+        tuple(issues),
+    )
+
+
 def _rules_version_changed(
     baseline: CollectionRun | None,
     target: CollectionRun,
@@ -76,6 +121,9 @@ def _rules_version_changed(
 
 
 def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunContext:
+    coverage, scope_issues = _scope_coverage(db, target)
+    partial_coverage = coverage["successful_scopes"] < coverage["total_scopes"]
+
     if target.status != CollectionRunStatus.SUCCESS:
         return OpportunityRunContext(
             target=target,
@@ -83,7 +131,9 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
             comparable=False,
             reason="TARGET_NOT_SUCCESSFUL",
             rules_version_changed=None,
-            partial_coverage=False,
+            partial_coverage=partial_coverage,
+            coverage=coverage,
+            scope_issues=scope_issues,
         )
     if not target.detailed_observations_available:
         return OpportunityRunContext(
@@ -92,23 +142,12 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
             comparable=False,
             reason="TARGET_OBSERVATIONS_EXPIRED",
             rules_version_changed=None,
-            partial_coverage=False,
+            partial_coverage=partial_coverage,
+            coverage=coverage,
+            scope_issues=scope_issues,
         )
 
     baseline = previous_comparable_run(db, target)
-    failed_scopes = (
-        db.scalar(
-            select(func.count())
-            .select_from(CollectionScopeExecution)
-            .where(
-                CollectionScopeExecution.collection_run_id == target.id,
-                CollectionScopeExecution.status != CollectionScopeExecutionStatus.SUCCESS,
-            )
-        )
-        or 0
-    )
-    partial_coverage = bool(failed_scopes)
-
     if baseline is None:
         return OpportunityRunContext(
             target=target,
@@ -117,6 +156,8 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
             reason="NO_BASELINE",
             rules_version_changed=None,
             partial_coverage=partial_coverage,
+            coverage=coverage,
+            scope_issues=scope_issues,
         )
     if not baseline.detailed_observations_available:
         return OpportunityRunContext(
@@ -126,6 +167,8 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
             reason="BASELINE_OBSERVATIONS_EXPIRED",
             rules_version_changed=_rules_version_changed(baseline, target),
             partial_coverage=partial_coverage,
+            coverage=coverage,
+            scope_issues=scope_issues,
         )
 
     return OpportunityRunContext(
@@ -135,6 +178,8 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
         reason=None,
         rules_version_changed=_rules_version_changed(baseline, target),
         partial_coverage=partial_coverage,
+        coverage=coverage,
+        scope_issues=scope_issues,
     )
 
 
@@ -178,14 +223,53 @@ def _count(db: Session, condition, *, operational_only: bool = False) -> int:
     return int(db.scalar(statement) or 0)
 
 
+def _run_reference(run: CollectionRun | None) -> dict | None:
+    if run is None:
+        return None
+    return {
+        "id": run.id,
+        "provider": run.provider,
+        "account_id": run.account_id,
+        "started_at": run.started_at,
+        "finished_at": run.finished_at,
+        "status": run.status,
+        "analyzer_version": run.analyzer_version,
+        "detailed_observations_available": run.detailed_observations_available,
+    }
+
+
+def _comparison_status(context: OpportunityRunContext) -> str:
+    if context.target.status == CollectionRunStatus.RUNNING:
+        return "RUNNING"
+    if context.target.status == CollectionRunStatus.FAILED:
+        return "FAILED"
+    if context.reason in {"TARGET_OBSERVATIONS_EXPIRED", "BASELINE_OBSERVATIONS_EXPIRED"}:
+        return "EXPIRED"
+    if context.reason == "NO_BASELINE":
+        return "NO_BASELINE"
+    if context.comparable and context.partial_coverage:
+        return "PARTIAL"
+    if context.comparable:
+        return "COMPARABLE"
+    return "UNAVAILABLE"
+
+
 def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
     context = resolve_run_context(db, target)
-    observed_condition = _classification_condition(context, "observed")
-    first_seen_condition = _classification_condition(context, "first_seen")
+
+    if target.detailed_observations_available:
+        observed_condition = _classification_condition(context, "observed")
+        first_seen_condition = _classification_condition(context, "first_seen")
+        observed = _count(db, observed_condition)
+        first_seen = _count(db, first_seen_condition)
+    else:
+        # Preserve the known aggregate instead of returning a misleading zero after retention purge.
+        observed = target.opportunities_found
+        first_seen = 0
 
     summary = {
-        "observed": _count(db, observed_condition),
-        "first_seen": _count(db, first_seen_condition),
+        "observed": observed,
+        "first_seen": first_seen,
         "new_vs_previous": 0,
         "reappeared": 0,
         "continued": 0,
@@ -209,7 +293,10 @@ def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
         warnings.append(
             {
                 "code": "RULES_VERSION_CHANGED",
-                "message": "Target e baseline usam analyzer_version diferentes.",
+                "message": (
+                    "Esta comparação utiliza coletas com versões de regras diferentes; "
+                    "parte das diferenças pode ter sido causada por mudanças nos analyzers."
+                ),
             }
         )
     elif context.baseline is not None and context.rules_version_changed is None:
@@ -224,19 +311,27 @@ def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
             {
                 "code": "PARTIAL_COVERAGE",
                 "message": (
-                    "A coleta target possui scopes sem SUCCESS; no_longer_detected "
-                    "é calculado somente para scopes com cobertura autoritativa."
+                    f"{context.coverage['failed_scopes']} scope(s) falharam e "
+                    f"{context.coverage['skipped_scopes']} foram ignorados. "
+                    "no_longer_detected considera somente scopes com cobertura autoritativa."
                 ),
             }
         )
 
     return {
         "collection_run_id": target.id,
+        "status": target.status,
+        "comparison_status": _comparison_status(context),
         "baseline_run_id": context.baseline.id if context.baseline else None,
+        "baseline": _run_reference(context.baseline),
         "comparable": context.comparable,
         "reason": context.reason,
+        "target_details_available": target.detailed_observations_available,
+        "comparison_details_available": context.comparable,
         "rules_version_changed": context.rules_version_changed,
         "partial_coverage": context.partial_coverage,
+        "coverage": context.coverage,
+        "scope_issues": list(context.scope_issues),
         "summary": summary,
         "warnings": warnings,
     }
@@ -254,6 +349,8 @@ def list_run_opportunities(
 ) -> dict:
     context = resolve_run_context(db, target)
     condition = _classification_condition(context, discovery_type)
+    if context.reason == "TARGET_OBSERVATIONS_EXPIRED":
+        condition = None
     if condition is None:
         return {
             "collection_run_id": target.id,
