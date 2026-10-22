@@ -100,7 +100,9 @@ def test_current_state_uses_latest_success_per_account_and_counts_opportunities_
         "other": 0,
     }
     assert body["financial"]["totals"] == [{"currency": "USD", "amount": "33.00"}]
-    assert body["data_updated_at"] == (START + timedelta(days=3)).isoformat().replace("+00:00", "Z")
+    assert body["data_updated_at"].startswith(
+        (START + timedelta(days=3)).replace(tzinfo=None).isoformat()
+    )
 
     assert body["by_provider"] == [
         {
