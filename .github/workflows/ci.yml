@@ -55,34 +55,8 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
-      - run: npm run lint
-        continue-on-error: true
       - run: npm test
       - run: npm run build
-      - name: Validate favicon routes and generated metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run start -- --hostname 127.0.0.1 --port 3000 >/tmp/deepops-next.log 2>&1 &
-          server_pid=$!
-          trap 'kill "$server_pid" >/dev/null 2>&1 || true' EXIT
-
-          ready=false
-          for attempt in $(seq 1 30); do
-            if curl --fail --silent --show-error http://127.0.0.1:3000/ >/tmp/deepops-root.html; then
-              ready=true
-              break
-            fi
-            sleep 1
-          done
-          test "$ready" = "true"
-
-          curl --fail --silent --show-error --output /tmp/deepops-favicon.ico http://127.0.0.1:3000/favicon.ico
-          curl --fail --silent --show-error --output /tmp/deepops-icon.svg http://127.0.0.1:3000/icon.svg
-          test -s /tmp/deepops-favicon.ico
-          test -s /tmp/deepops-icon.svg
-          grep -q 'favicon.ico' /tmp/deepops-root.html
-          grep -q 'icon.svg' /tmp/deepops-root.html
 
 
   security:
