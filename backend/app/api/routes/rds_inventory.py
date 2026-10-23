@@ -4,7 +4,7 @@ from typing import Any
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.api.deps import require_admin
+from app.core.security import require_admin
 from app.db.session import get_db
 from app.models.rds_inventory import AwsRdsInstance, AwsRdsReservedInstance
 from app.services.rds_inventory import (
