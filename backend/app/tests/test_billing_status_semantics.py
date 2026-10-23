@@ -41,10 +41,21 @@ def _row(day: int, *, amount: str = "10", estimated: bool, key: str = "Amazon EC
     )
 
 
+class _RowsBillingService(AwsBillingService):
+    def __init__(self, rows: tuple[_BillingRow, ...]) -> None:
+        self._test_rows = rows
+
+    def _rows(
+        self,
+        request: AwsBillingRequest,
+        *,
+        group_by: BillingGroupBy,
+    ) -> tuple[_BillingRow, ...]:
+        return self._test_rows
+
+
 def _service_with_rows(rows: tuple[_BillingRow, ...]) -> AwsBillingService:
-    service = object.__new__(AwsBillingService)
-    service._rows = lambda request, *, group_by: rows
-    return service
+    return _RowsBillingService(rows)
 
 
 def test_status_from_estimation_flags_keeps_three_aggregation_outcomes() -> None:
