@@ -116,3 +116,30 @@ test("account selector is visually ordered before Billing filters", async () => 
   assert.match(css, /\.primaryFilters\s*\{[^}]*order:\s*2;/s);
   assert.match(css, /\.advancedFilters\s*\{[^}]*order:\s*3;/s);
 });
+
+test("Billing tooltip keeps hover while entering the interactive scroll area", async () => {
+  const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
+
+  assert.match(chart, /className=\{styles\.chartCanvas\}[\s\S]*?onMouseLeave=\{\(\) => setHovered\(null\)\}[\s\S]*?<svg/);
+  assert.ok(chart.includes("tooltipAlignmentForPointer"));
+  assert.ok(chart.includes('role="tooltip"'));
+  assert.ok(chart.includes("title={item.label}"));
+  assert.match(css, /\.chartTooltip\s*\{[^}]*pointer-events:\s*auto;/s);
+  assert.match(css, /\.tooltipSeries\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s);
+  assert.match(css, /\.tooltipSeries\s*\{[^}]*scrollbar-gutter:\s*stable;/s);
+});
+
+test("custom period dates stay in the filter flow next to the period column", async () => {
+  const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
+  const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
+
+  assert.ok(page.includes('periodPreset === "custom"'));
+  assert.ok(page.includes('<input type="date" value={customFrom}'));
+  assert.ok(page.includes('<input type="date" value={customTo}'));
+  assert.match(css, /\.customDates\s*\{[^}]*order:\s*2;/s);
+  assert.match(css, /\.customDates > \.field:first-child\s*\{[^}]*grid-column:\s*2;/s);
+  assert.match(css, /\.customDates > \.field:nth-child\(2\)\s*\{[^}]*grid-column:\s*3;/s);
+  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\.customDates > \.field:first-child\s*\{[^}]*grid-column:\s*1;/s);
+  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.customDates,[\s\S]*?grid-template-columns:\s*1fr;/s);
+});
