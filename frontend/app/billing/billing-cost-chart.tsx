@@ -3,6 +3,10 @@
 import { useMemo, useState } from "react";
 import type { BillingGranularity, BillingGroupBy } from "@/lib/billing";
 import {
+  aggregateBillingStatuses,
+  billingStatusHasForecast,
+  billingStatusIsEstimated,
+  billingStatusLabel,
   formatBillingAxisDate,
   formatBillingAxisMoney,
   formatBillingDate,
@@ -12,6 +16,7 @@ import {
 import type {
   BillingChartDataset,
   BillingChartPeriod,
+  BillingDataStatus,
 } from "@/lib/billing-dashboard.mjs";
 import styles from "./billing.module.css";
 
@@ -89,6 +94,37 @@ function formatShare(amount: number, total: number) {
   }).format(Math.abs(amount) / Math.abs(total));
 }
 
+function statusOpacity(status: BillingDataStatus) {
+  switch (status) {
+    case "FORECAST":
+      return 0.46;
+    case "INCLUDES_FORECAST":
+      return 0.58;
+    case "ESTIMATED":
+      return 0.76;
+    case "PARTIALLY_ESTIMATED":
+      return 0.68;
+    case "ACTUAL":
+    default:
+      return 1;
+  }
+}
+
+function statusMarker(status: BillingDataStatus) {
+  switch (status) {
+    case "FORECAST":
+    case "INCLUDES_FORECAST":
+      return "F";
+    case "ESTIMATED":
+      return "*";
+    case "PARTIALLY_ESTIMATED":
+      return "≈";
+    case "ACTUAL":
+    default:
+      return null;
+  }
+}
+
 function compactServiceDataset(dataset: BillingChartDataset, groupBy: BillingGroupBy) {
   if (groupBy !== "SERVICE" || dataset.series.length <= MAX_SERVICE_SERIES) return dataset;
 
@@ -105,11 +141,11 @@ function compactServiceDataset(dataset: BillingChartDataset, groupBy: BillingGro
     const visibleItems = period.series.filter((item) => visibleKeys.has(item.key));
     const hiddenItems = period.series.filter((item) => !visibleKeys.has(item.key));
     const otherAmount = hiddenItems.reduce((sum, item) => sum + item.amount, 0);
-    const otherEstimated = hiddenItems.some((item) => item.estimated);
+    const otherStatus = aggregateBillingStatuses(hiddenItems.map((item) => item.status));
 
     return {
       ...period,
-      series: otherAmount === 0 && !otherEstimated
+      series: otherAmount === 0 && hiddenItems.length === 0
         ? visibleItems
         : [
             ...visibleItems,
@@ -117,7 +153,8 @@ function compactServiceDataset(dataset: BillingChartDataset, groupBy: BillingGro
               key: OTHER_SERIES_KEY,
               label: "Outros",
               amount: otherAmount,
-              estimated: otherEstimated,
+              status: otherStatus,
+              estimated: billingStatusIsEstimated(otherStatus),
             },
           ],
     };
@@ -202,7 +239,9 @@ export function BillingCostChart({
           <span>Agrupamento</span>
           <strong>{GROUP_BY_LABELS[groupBy]}</strong>
         </div>
-        {chartDataset.estimated && <span className={styles.estimatedBadge}>Inclui dados estimados</span>}
+        {chartDataset.status !== "ACTUAL" && (
+          <span className={styles.estimatedBadge}>{billingStatusLabel(chartDataset.status)}</span>
+        )}
       </div>
 
       {groupBy !== "NONE" && series.length > 0 && (
@@ -271,6 +310,7 @@ export function BillingCostChart({
 
             {periods.map((period, periodIndex) => {
               const centerX = margin.left + slotWidth * periodIndex + slotWidth / 2;
+              const marker = statusMarker(period.status);
               let positiveBase = 0;
               let negativeBase = 0;
               return (
@@ -292,6 +332,7 @@ export function BillingCostChart({
                     const rectY = Math.min(y(startValue), y(endValue));
                     const rectHeight = Math.max(1, Math.abs(y(startValue) - y(endValue)));
                     const fill = colorBySeries.get(item.key) || SERIES_COLORS[0];
+                    const hasForecast = billingStatusHasForecast(item.status);
                     return (
                       <rect
                         key={item.key}
@@ -301,10 +342,14 @@ export function BillingCostChart({
                         height={rectHeight}
                         rx={groupBy === "NONE" ? 2 : 1}
                         fill={fill}
+                        fillOpacity={statusOpacity(item.status)}
+                        stroke={hasForecast ? "var(--text)" : undefined}
+                        strokeDasharray={hasForecast ? "4 3" : undefined}
+                        strokeWidth={hasForecast ? 1.25 : undefined}
                         className={styles.chartBar}
                         onMouseEnter={(event) => setHovered(hoveredBucket(periodIndex, item.key, event.clientX))}
                       >
-                        <title>{`${formatBillingDate(period.start_date)} · ${item.label} · ${formatBillingMoney(item.amount, currency)} · ${formatShare(item.amount, period.total)}`}</title>
+                        <title>{`${formatBillingDate(period.start_date)} · ${billingStatusLabel(period.status)} · ${item.label} · ${formatBillingMoney(item.amount, currency)} · ${formatShare(item.amount, period.total)}`}</title>
                       </rect>
                     );
                   })}
@@ -319,8 +364,16 @@ export function BillingCostChart({
                       {formatBillingAxisDate(period.start_date, granularity)}
                     </text>
                   )}
-                  {period.estimated && (
-                    <text x={centerX} y={margin.top + 12} textAnchor="middle" className={styles.estimatedMark}>*</text>
+                  {marker && (
+                    <text
+                      x={centerX}
+                      y={margin.top + 12}
+                      textAnchor="middle"
+                      className={styles.estimatedMark}
+                    >
+                      <title>{billingStatusLabel(period.status)}</title>
+                      {marker}
+                    </text>
                   )}
                 </g>
               );
@@ -338,7 +391,7 @@ export function BillingCostChart({
             >
               <div className={styles.tooltipHeading}>
                 <strong>{formatBillingDate(hoveredPeriod.start_date)}</strong>
-                {hoveredPeriod.estimated && <span>Estimado</span>}
+                <span>{billingStatusLabel(hoveredPeriod.status)}</span>
               </div>
               {hoveredPeriod.series.length > 0 && (
                 <div className={styles.tooltipSeries}>
@@ -368,7 +421,10 @@ export function BillingCostChart({
         <p className={styles.chartNote}>Serviços de menor custo foram consolidados em “Outros” para manter a leitura do gráfico.</p>
       )}
       {chartDataset.estimated && (
-        <p className={styles.chartNote}>* Bucket marcado como estimado pelo AWS Cost Explorer.</p>
+        <p className={styles.chartNote}>* / ≈ indicam buckets provisórios conforme o AWS Cost Explorer.</p>
+      )}
+      {billingStatusHasForecast(chartDataset.status) && (
+        <p className={styles.chartNote}>F indica forecast; barras previstas mantêm a cor do serviço e usam contorno tracejado.</p>
       )}
     </div>
   );
