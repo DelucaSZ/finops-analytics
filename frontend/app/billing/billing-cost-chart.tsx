@@ -39,10 +39,14 @@ const SERIES_COLORS = [
 
 const MAX_SERVICE_SERIES = SERIES_COLORS.length;
 const OTHER_SERIES_KEY = "__billing_other__";
+const TOOLTIP_EDGE_SPACE = 190;
+
+type TooltipAlignment = "start" | "center" | "end";
 
 type HoveredBucket = {
   periodIndex: number;
   seriesKey: string | null;
+  tooltipAlignment: TooltipAlignment;
 };
 
 function stackBounds(period: BillingChartPeriod) {
@@ -55,10 +59,25 @@ function stackBounds(period: BillingChartPeriod) {
   return { positive, negative };
 }
 
-function tooltipTransform(x: number, width: number) {
-  if (x < width * 0.25) return "translateX(0)";
-  if (x > width * 0.75) return "translateX(-100%)";
+function tooltipTransform(alignment: TooltipAlignment) {
+  if (alignment === "start") return "translateX(0)";
+  if (alignment === "end") return "translateX(-100%)";
   return "translateX(-50%)";
+}
+
+function tooltipAlignmentForPointer(clientX: number): TooltipAlignment {
+  if (typeof window === "undefined") return "center";
+  if (clientX < TOOLTIP_EDGE_SPACE) return "start";
+  if (clientX > window.innerWidth - TOOLTIP_EDGE_SPACE) return "end";
+  return "center";
+}
+
+function hoveredBucket(periodIndex: number, seriesKey: string | null, clientX: number): HoveredBucket {
+  return {
+    periodIndex,
+    seriesKey,
+    tooltipAlignment: tooltipAlignmentForPointer(clientX),
+  };
 }
 
 function formatShare(amount: number, total: number) {
@@ -198,13 +217,16 @@ export function BillingCostChart({
       )}
 
       <div className={styles.chartScroll}>
-        <div className={styles.chartCanvas} style={{ minWidth: `${width}px` }}>
+        <div
+          className={styles.chartCanvas}
+          style={{ minWidth: `${width}px` }}
+          onMouseLeave={() => setHovered(null)}
+        >
           <svg
             className={styles.chart}
             viewBox={`0 0 ${width} ${height}`}
             role="img"
             aria-label={`Custos em ${currency}, ${GRANULARITY_LABELS[granularity].toLowerCase()}, agrupamento ${GROUP_BY_LABELS[groupBy].toLowerCase()}.`}
-            onMouseLeave={() => setHovered(null)}
           >
             <text
               x={18}
@@ -259,7 +281,7 @@ export function BillingCostChart({
                     width={slotWidth}
                     height={innerHeight}
                     className={styles.hoverBand}
-                    onMouseEnter={() => setHovered({ periodIndex, seriesKey: null })}
+                    onMouseEnter={(event) => setHovered(hoveredBucket(periodIndex, null, event.clientX))}
                   />
                   {period.series.map((item) => {
                     if (item.amount === 0) return null;
@@ -280,7 +302,7 @@ export function BillingCostChart({
                         rx={groupBy === "NONE" ? 2 : 1}
                         fill={fill}
                         className={styles.chartBar}
-                        onMouseEnter={() => setHovered({ periodIndex, seriesKey: item.key })}
+                        onMouseEnter={(event) => setHovered(hoveredBucket(periodIndex, item.key, event.clientX))}
                       >
                         <title>{`${formatBillingDate(period.start_date)} · ${item.label} · ${formatBillingMoney(item.amount, currency)} · ${formatShare(item.amount, period.total)}`}</title>
                       </rect>
@@ -305,12 +327,13 @@ export function BillingCostChart({
             })}
           </svg>
 
-          {hoveredPeriod && (
+          {hoveredPeriod && hovered && (
             <div
               className={styles.chartTooltip}
+              role="tooltip"
               style={{
                 left: `${(hoveredX / width) * 100}%`,
-                transform: tooltipTransform(hoveredX, width),
+                transform: tooltipTransform(hovered.tooltipAlignment),
               }}
             >
               <div className={styles.tooltipHeading}>
@@ -322,10 +345,11 @@ export function BillingCostChart({
                   {hoveredPeriod.series.map((item) => (
                     <div
                       key={item.key}
-                      className={hovered?.seriesKey === item.key ? styles.tooltipSeriesActive : undefined}
+                      className={hovered.seriesKey === item.key ? styles.tooltipSeriesActive : undefined}
+                      onMouseEnter={() => setHovered((current) => current ? { ...current, seriesKey: item.key } : current)}
                     >
                       <i style={{ background: colorBySeries.get(item.key) || SERIES_COLORS[0] }} />
-                      <span>{item.label}</span>
+                      <span title={item.label}>{item.label}</span>
                       <strong>{formatBillingMoney(item.amount, currency)} · {formatShare(item.amount, hoveredPeriod.total)}</strong>
                     </div>
                   ))}
