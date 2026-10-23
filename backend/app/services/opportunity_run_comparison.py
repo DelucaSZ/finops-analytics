@@ -95,7 +95,10 @@ def _covered_by_target(target: CollectionRun):
     )
 
 
-def _scope_coverage(db: Session, target: CollectionRun) -> tuple[dict[str, int], tuple[dict, ...]]:
+def _scope_coverage(
+    db: Session,
+    target: CollectionRun,
+) -> tuple[dict[str, int], tuple[dict, ...]]:
     rows = list(
         db.scalars(
             select(CollectionScopeExecution)
@@ -221,7 +224,10 @@ def resolve_run_context(db: Session, target: CollectionRun) -> OpportunityRunCon
     return _context_with_baseline(db, target, baseline)
 
 
-def _classification_condition(context: OpportunityRunContext, discovery_type: DiscoveryType):
+def _classification_condition(
+    context: OpportunityRunContext,
+    discovery_type: DiscoveryType,
+):
     target_observed = _observed_in(context.target.id)
     if discovery_type == "observed":
         return target_observed
@@ -273,7 +279,10 @@ def _count(db: Session, condition, *, operational_only: bool = False) -> int:
         return 0
     statement = select(func.count()).select_from(Finding).where(condition)
     if operational_only:
-        statement = statement.where(Finding.status != "rejected", Finding.archived_at.is_(None))
+        statement = statement.where(
+            Finding.status != "rejected",
+            Finding.archived_at.is_(None),
+        )
     return int(db.scalar(statement) or 0)
 
 
@@ -356,23 +365,47 @@ def _encode_contexts(contexts: tuple[OpportunityRunContext, ...]) -> str | None:
 
 def decode_comparison_context(token: str) -> tuple[tuple[str, str], ...]:
     if not token or len(token) > _MAX_CONTEXT_LENGTH or token.count(".") != 1:
-        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT",
+            "Contexto de comparação inválido.",
+        )
     body, signature = token.split(".", 1)
     if not hmac.compare_digest(signature, _sign_context(body)):
-        raise ComparisonContextError("INVALID_CONTEXT", "Assinatura do contexto de comparação inválida.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT",
+            "Assinatura do contexto de comparação inválida.",
+        )
     try:
         payload = json.loads(zlib.decompress(_b64decode(body)).decode("utf-8"))
-    except (ValueError, TypeError, json.JSONDecodeError, zlib.error, binascii.Error) as exc:
-        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.") from exc
+    except (
+        ValueError,
+        TypeError,
+        json.JSONDecodeError,
+        zlib.error,
+        binascii.Error,
+    ) as exc:
+        raise ComparisonContextError(
+            "INVALID_CONTEXT",
+            "Contexto de comparação inválido.",
+        ) from exc
     if payload.get("v") != _COMPARISON_CONTEXT_VERSION:
-        raise ComparisonContextError("INVALID_CONTEXT_VERSION", "Versão de contexto não suportada.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT_VERSION",
+            "Versão de contexto não suportada.",
+        )
     pairs = payload.get("pairs")
     if not isinstance(pairs, list) or not pairs or len(pairs) > _MAX_CONTEXT_PAIRS:
-        raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT",
+            "Contexto de comparação inválido.",
+        )
     normalized: list[tuple[str, str]] = []
     for pair in pairs:
         if not isinstance(pair, dict):
-            raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+            raise ComparisonContextError(
+                "INVALID_CONTEXT",
+                "Contexto de comparação inválido.",
+            )
         target_id = pair.get("t")
         baseline_id = pair.get("b")
         if (
@@ -383,7 +416,10 @@ def decode_comparison_context(token: str) -> tuple[tuple[str, str], ...]:
             or not baseline_id
             or len(baseline_id) > 64
         ):
-            raise ComparisonContextError("INVALID_CONTEXT", "Contexto de comparação inválido.")
+            raise ComparisonContextError(
+                "INVALID_CONTEXT",
+                "Contexto de comparação inválido.",
+            )
         item = (target_id, baseline_id)
         if item not in normalized:
             normalized.append(item)
@@ -404,24 +440,48 @@ def resolve_comparison_context(
         for run in db.scalars(select(CollectionRun).where(CollectionRun.id.in_(run_ids)))
     }
     if len(runs) != len(run_ids):
-        raise ComparisonContextError("INVALID_CONTEXT", "Uma ou mais coletas do contexto não existem.")
+        raise ComparisonContextError(
+            "INVALID_CONTEXT",
+            "Uma ou mais coletas do contexto não existem.",
+        )
 
     contexts: list[OpportunityRunContext] = []
     for target_id, baseline_id in pairs:
         target = runs[target_id]
         baseline = runs[baseline_id]
-        if target.status != CollectionRunStatus.SUCCESS or baseline.status != CollectionRunStatus.SUCCESS:
-            raise ComparisonContextError("CONTEXT_UNAVAILABLE", "O contexto contém uma coleta não comparável.")
+        if (
+            target.status != CollectionRunStatus.SUCCESS
+            or baseline.status != CollectionRunStatus.SUCCESS
+        ):
+            raise ComparisonContextError(
+                "CONTEXT_UNAVAILABLE",
+                "O contexto contém uma coleta não comparável.",
+            )
         if target.provider != baseline.provider or target.account_id != baseline.account_id:
-            raise ComparisonContextError("INVALID_CONTEXT", "Target e baseline pertencem a escopos diferentes.")
+            raise ComparisonContextError(
+                "INVALID_CONTEXT",
+                "Target e baseline pertencem a escopos diferentes.",
+            )
         if provider and target.provider != provider.lower():
-            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence ao provider informado.")
+            raise ComparisonContextError(
+                "SCOPE_MISMATCH",
+                "O contexto não pertence ao provider informado.",
+            )
         if account_id and target.account_id != account_id:
-            raise ComparisonContextError("SCOPE_MISMATCH", "O contexto não pertence à conta informada.")
-        if not target.detailed_observations_available or not baseline.detailed_observations_available:
+            raise ComparisonContextError(
+                "SCOPE_MISMATCH",
+                "O contexto não pertence à conta informada.",
+            )
+        if (
+            not target.detailed_observations_available
+            or not baseline.detailed_observations_available
+        ):
             raise ComparisonContextError(
                 "CONTEXT_EXPIRED",
-                "Os detalhes desta comparação não estão mais disponíveis devido à política de retenção.",
+                (
+                    "Os detalhes desta comparação não estão mais disponíveis devido "
+                    "à política de retenção."
+                ),
             )
         contexts.append(_context_with_baseline(db, target, baseline))
     return tuple(contexts)
@@ -452,7 +512,9 @@ def dashboard_comparison_snapshot(
         contexts=frozen_contexts,
         comparable_accounts=len(frozen_contexts),
         accounts_without_baseline=accounts_without_baseline,
-        rules_version_changed=any(context.rules_version_changed is True for context in frozen_contexts),
+        rules_version_changed=any(
+            context.rules_version_changed is True for context in frozen_contexts
+        ),
         rules_version_unknown=rules_version_unknown,
         partial_coverage=partial_coverage,
         comparison_context=_encode_contexts(frozen_contexts),
@@ -465,7 +527,11 @@ def dashboard_new_since_previous(
     provider: str | None = None,
     account_id: str | None = None,
 ) -> dict:
-    snapshot = dashboard_comparison_snapshot(db, provider=provider, account_id=account_id)
+    snapshot = dashboard_comparison_snapshot(
+        db,
+        provider=provider,
+        account_id=account_id,
+    )
     new_condition = comparison_condition(snapshot.contexts, "new_vs_previous")
     first_seen_condition = comparison_condition(snapshot.contexts, "first_seen")
     reappeared_condition = comparison_condition(snapshot.contexts, "reappeared")
@@ -502,7 +568,10 @@ def _comparison_status(context: OpportunityRunContext) -> str:
         return "RUNNING"
     if context.target.status == CollectionRunStatus.FAILED:
         return "FAILED"
-    if context.reason in {"TARGET_OBSERVATIONS_EXPIRED", "BASELINE_OBSERVATIONS_EXPIRED"}:
+    if context.reason in {
+        "TARGET_OBSERVATIONS_EXPIRED",
+        "BASELINE_OBSERVATIONS_EXPIRED",
+    }:
         return "EXPIRED"
     if context.reason == "NO_BASELINE":
         return "NO_BASELINE"
@@ -544,7 +613,11 @@ def opportunity_run_changes(db: Session, target: CollectionRun) -> dict:
             condition = _classification_condition(context, discovery_type)
             summary[discovery_type] = _count(db, condition)
         new_condition = _classification_condition(context, "new_vs_previous")
-        summary["operational_new_vs_previous"] = _count(db, new_condition, operational_only=True)
+        summary["operational_new_vs_previous"] = _count(
+            db,
+            new_condition,
+            operational_only=True,
+        )
 
     warnings: list[dict[str, str]] = []
     if context.rules_version_changed is True:
