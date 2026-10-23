@@ -4,7 +4,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from enum import StrEnum
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, computed_field, field_validator, model_validator
 
 
 class BillingGranularity(StrEnum):
@@ -22,6 +22,42 @@ class BillingGroupBy(StrEnum):
     NONE = "NONE"
     SERVICE = "SERVICE"
     ACCOUNT = "ACCOUNT"
+
+
+class BillingDataStatus(StrEnum):
+    """Temporal provenance of a billing value.
+
+    ACTUAL and ESTIMATED are emitted from AWS GetCostAndUsage using the
+    ResultsByTime[].Estimated flag. FORECAST is reserved for values produced by
+    an explicit forecast source and must never be inferred from dates alone.
+    Aggregate values can expose the two mixed states without pretending the
+    complete amount has one homogeneous provenance.
+    """
+
+    ACTUAL = "ACTUAL"
+    ESTIMATED = "ESTIMATED"
+    PARTIALLY_ESTIMATED = "PARTIALLY_ESTIMATED"
+    FORECAST = "FORECAST"
+    INCLUDES_FORECAST = "INCLUDES_FORECAST"
+
+
+class BillingStatusModel(BaseModel):
+    status: BillingDataStatus
+
+    @computed_field
+    @property
+    def estimated(self) -> bool:
+        """Backward-compatible flag derived from the canonical status.
+
+        Consumers should use ``status``. Keeping this computed field avoids a
+        contradictory pair of independently writable ``status``/``estimated``
+        values while existing clients migrate.
+        """
+
+        return self.status in {
+            BillingDataStatus.ESTIMATED,
+            BillingDataStatus.PARTIALLY_ESTIMATED,
+        }
 
 
 AWS_RECORD_TYPES = frozenset(
@@ -201,10 +237,9 @@ class BillingProfileMetadata(BaseModel):
     resolved_options: ResolvedBillingOptions | None = None
 
 
-class BillingSummaryTotal(BaseModel):
+class BillingSummaryTotal(BillingStatusModel):
     amount: Decimal
     currency: str
-    estimated: bool
 
 
 class BillingSummaryResponse(BillingProfileMetadata):
@@ -214,23 +249,21 @@ class BillingSummaryResponse(BillingProfileMetadata):
     totals: list[BillingSummaryTotal]
 
 
-class BillingSeriesGroup(BaseModel):
+class BillingSeriesGroup(BillingStatusModel):
     key: str
     label: str
     amount: Decimal
     currency: str
-    estimated: bool
     deepops_account_id: int | None = None
     aws_account_id: str | None = None
     display_name: str | None = None
 
 
-class BillingSeriesPoint(BaseModel):
+class BillingSeriesPoint(BillingStatusModel):
     start_date: date
     end_date: date
     amount: Decimal
     currency: str
-    estimated: bool
     groups: list[BillingSeriesGroup] = Field(default_factory=list)
 
 
@@ -243,12 +276,11 @@ class BillingTimeSeriesResponse(BillingProfileMetadata):
     points: list[BillingSeriesPoint]
 
 
-class BillingBreakdownItem(BaseModel):
+class BillingBreakdownItem(BillingStatusModel):
     key: str
     label: str
     amount: Decimal
     currency: str
-    estimated: bool
     deepops_account_id: int | None = None
     aws_account_id: str | None = None
     display_name: str | None = None

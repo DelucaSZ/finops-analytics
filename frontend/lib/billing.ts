@@ -3,6 +3,12 @@ import { api } from "./api";
 export type BillingGranularity = "DAILY" | "MONTHLY";
 export type BillingMetric = "AMORTIZED_COST" | "NET_AMORTIZED_COST" | "UNBLENDED_COST";
 export type BillingGroupBy = "NONE" | "SERVICE" | "ACCOUNT";
+export type BillingDataStatus =
+  | "ACTUAL"
+  | "ESTIMATED"
+  | "PARTIALLY_ESTIMATED"
+  | "FORECAST"
+  | "INCLUDES_FORECAST";
 
 export type AwsBillingRequest = {
   account_ids: number[];
@@ -57,6 +63,8 @@ export type BillingProfileMetadata = {
 export type BillingSummaryTotal = {
   amount: string;
   currency: string;
+  status: BillingDataStatus;
+  /** @deprecated Use status. This is derived by the backend for compatibility. */
   estimated: boolean;
 };
 

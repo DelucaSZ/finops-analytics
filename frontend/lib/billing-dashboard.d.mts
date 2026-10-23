@@ -7,6 +7,13 @@ export type BillingPeriodPreset =
   | "this_year"
   | "custom";
 
+export type BillingDataStatus =
+  | "ACTUAL"
+  | "ESTIMATED"
+  | "PARTIALLY_ESTIMATED"
+  | "FORECAST"
+  | "INCLUDES_FORECAST";
+
 export type BillingPeriod = { start_date: string; end_date: string };
 
 export type BillingChartSeries = {
@@ -19,6 +26,7 @@ export type BillingChartPeriodSeries = {
   key: string;
   label: string;
   amount: number;
+  status: BillingDataStatus;
   estimated: boolean;
 };
 
@@ -26,6 +34,7 @@ export type BillingChartPeriod = {
   start_date: string;
   end_date: string;
   total: number;
+  status: BillingDataStatus;
   estimated: boolean;
   series: BillingChartPeriodSeries[];
 };
@@ -33,6 +42,7 @@ export type BillingChartPeriod = {
 export type BillingChartDataset = {
   currency: string;
   total: number;
+  status: BillingDataStatus;
   estimated: boolean;
   series: BillingChartSeries[];
   periods: BillingChartPeriod[];
@@ -97,18 +107,34 @@ export function groupBillingByCurrency<T extends { currency: string }>(
   items: T[],
 ): Array<[string, T[]]>;
 
+export function normalizeBillingStatus(
+  value: BillingDataStatus | { status?: BillingDataStatus; estimated?: boolean } | null | undefined,
+): BillingDataStatus;
+export function aggregateBillingStatuses(statuses: BillingDataStatus[]): BillingDataStatus;
+export function billingStatusLabel(
+  status: BillingDataStatus | { status?: BillingDataStatus; estimated?: boolean },
+): string;
+export function billingStatusIsEstimated(
+  status: BillingDataStatus | { status?: BillingDataStatus; estimated?: boolean },
+): boolean;
+export function billingStatusHasForecast(
+  status: BillingDataStatus | { status?: BillingDataStatus; estimated?: boolean },
+): boolean;
+
 export function mapBillingTimeSeriesToChartData(
   points: Array<{
     start_date: string;
     end_date: string;
     amount: string | number;
     currency: string;
-    estimated: boolean;
+    status?: BillingDataStatus;
+    estimated?: boolean;
     groups?: Array<{
       key: string;
       label: string;
       amount: string | number;
-      estimated: boolean;
+      status?: BillingDataStatus;
+      estimated?: boolean;
       display_name?: string | null;
       aws_account_id?: string | null;
     }>;

@@ -27,6 +27,7 @@ import {
   areAllBillingAccountsSelected,
   billingAccountIdsForSelectAll,
   billingQuerySignature,
+  billingStatusLabel,
   billingVariation,
   formatBillingMoney,
   formatBillingRange,
@@ -211,7 +212,7 @@ function BreakdownTable({ items, kind }: {
                       </td>
                       {kind === "account" && <td><code>{item.aws_account_id || item.key}</code></td>}
                       <td>{formatBillingMoney(item.amount, item.currency)}</td>
-                      <td>{item.estimated ? <span className={styles.estimatedBadge}>Estimado</span> : "—"}</td>
+                      <td><span className={styles.estimatedBadge}>{billingStatusLabel(item.status)}</span></td>
                     </tr>
                   ))}
                 </tbody>
@@ -702,7 +703,7 @@ export default function BillingPage() {
                     <article key={total.currency} className={styles.kpiCard}>
                       <div className={styles.kpiHeading}>
                         <span>Custo do período · {total.currency}</span>
-                        {total.estimated && <span className={styles.estimatedBadge}>Estimado</span>}
+                        <span className={styles.estimatedBadge}>{billingStatusLabel(total.status)}</span>
                       </div>
                       <strong>{formatBillingMoney(total.amount, total.currency)}</strong>
                       <div className={styles.comparisonBlock}>
@@ -712,7 +713,7 @@ export default function BillingPage() {
                           <span>Comparação indisponível</span>
                         ) : previous ? (
                           <>
-                            <span>Anterior: {formatBillingMoney(previous.amount, previous.currency)}{previous.estimated ? " · estimado" : ""}</span>
+                            <span>Anterior: {formatBillingMoney(previous.amount, previous.currency)} · {billingStatusLabel(previous.status).toLocaleLowerCase("pt-BR")}</span>
                             <b>{formatVariation(total.amount, previous.amount)}</b>
                           </>
                         ) : (

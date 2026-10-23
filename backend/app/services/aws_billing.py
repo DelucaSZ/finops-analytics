@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 import threading
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
@@ -19,6 +19,7 @@ from app.schemas.billing import (
     AwsBillingRequest,
     BillingBreakdownItem,
     BillingBreakdownResponse,
+    BillingDataStatus,
     BillingGranularity,
     BillingGroupBy,
     BillingMetric,
@@ -37,6 +38,10 @@ from app.services.aws_cost_explorer import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Version the cache identity so hot processes never reuse rows normalized under an
+# older billing contract after a deploy. The cache remains local/in-memory.
+_BILLING_CACHE_SCHEMA_VERSION = 2
 
 
 class BillingServiceError(RuntimeError):
@@ -118,6 +123,26 @@ def _parse_cost(value: Any) -> Decimal:
         ) from exc
 
 
+def _status_from_estimation_flags(flags: Iterable[bool]) -> BillingDataStatus:
+    """Classify GetCostAndUsage values without deriving forecast from dates."""
+
+    values = frozenset(flags)
+    if values == frozenset({True}):
+        return BillingDataStatus.ESTIMATED
+    if True in values and False in values:
+        return BillingDataStatus.PARTIALLY_ESTIMATED
+    return BillingDataStatus.ACTUAL
+
+
+def _bucket_state_counts(rows: Iterable[_BillingRow]) -> tuple[int, int, int]:
+    by_bucket: dict[tuple[date, date], set[bool]] = {}
+    for row in rows:
+        by_bucket.setdefault((row.start_date, row.end_date), set()).add(row.estimated)
+    estimated = sum(True in flags for flags in by_bucket.values())
+    partial = sum(flags == {False, True} for flags in by_bucket.values())
+    return len(by_bucket), estimated, partial
+
+
 def _normalize_pages(
     pages: tuple[dict[str, Any], ...],
     *,
@@ -138,6 +163,7 @@ def _normalize_pages(
                     "UPSTREAM_DATA_INVALID",
                     "O AWS Cost Explorer retornou um período inválido.",
                 ) from exc
+            # Preserve the authoritative AWS flag at the temporal bucket granularity.
             estimated = bool(bucket.get("Estimated", False))
 
             if group_by == BillingGroupBy.NONE:
@@ -276,6 +302,7 @@ class AwsBillingService:
         group_by: BillingGroupBy,
     ) -> tuple[Any, ...]:
         return (
+            _BILLING_CACHE_SCHEMA_VERSION,
             account.billing_scope,
             account.deepops_account_id,
             request.start_date.isoformat(),
@@ -299,10 +326,14 @@ class AwsBillingService:
         started = time.perf_counter()
         cached = self._cache.get(cache_key)
         if cached is not None:
+            bucket_count, estimated_bucket_count, partial_bucket_count = _bucket_state_counts(
+                cached
+            )
             logger.info(
-                "aws_billing_query billing_scope=%s account_count=%d start_date=%s end_date=%s "
-                "granularity=%s metric=%s group_by=%s cache_hit=true aws_request_count=0 "
-                "duration_ms=%.2f",
+                "aws_billing_query provider=aws billing_scope=%s account_count=%d "
+                "start_date=%s end_date=%s granularity=%s metric=%s group_by=%s "
+                "bucket_count=%d estimated_bucket_count=%d partial_bucket_count=%d "
+                "forecast_bucket_count=0 cache_hit=true aws_request_count=0 duration_ms=%.2f",
                 account.billing_scope,
                 account_count,
                 request.start_date,
@@ -310,6 +341,9 @@ class AwsBillingService:
                 request.granularity.value,
                 request.metric.value,
                 group_by.value,
+                bucket_count,
+                estimated_bucket_count,
+                partial_bucket_count,
                 (time.perf_counter() - started) * 1000,
             )
             return cached
@@ -344,10 +378,12 @@ class AwsBillingService:
             account=account,
         )
         self._cache.set(cache_key, rows, ttl_seconds)
+        bucket_count, estimated_bucket_count, partial_bucket_count = _bucket_state_counts(rows)
         logger.info(
-            "aws_billing_query billing_scope=%s account_count=%d start_date=%s end_date=%s "
-            "granularity=%s metric=%s group_by=%s cache_hit=false aws_request_count=%d "
-            "duration_ms=%.2f",
+            "aws_billing_query provider=aws billing_scope=%s account_count=%d start_date=%s "
+            "end_date=%s granularity=%s metric=%s group_by=%s bucket_count=%d "
+            "estimated_bucket_count=%d partial_bucket_count=%d forecast_bucket_count=0 "
+            "cache_hit=false aws_request_count=%d duration_ms=%.2f",
             account.billing_scope,
             account_count,
             request.start_date,
@@ -355,6 +391,9 @@ class AwsBillingService:
             request.granularity.value,
             request.metric.value,
             group_by.value,
+            bucket_count,
+            estimated_bucket_count,
+            partial_bucket_count,
             result.aws_request_count,
             (time.perf_counter() - started) * 1000,
         )
@@ -386,41 +425,47 @@ class AwsBillingService:
 
     def summary(self, request: AwsBillingRequest) -> BillingSummaryResponse:
         rows = self._rows(request, group_by=BillingGroupBy.NONE)
-        totals: dict[str, tuple[Decimal, bool]] = {}
+        totals: dict[str, tuple[Decimal, frozenset[bool]]] = {}
         for row in rows:
-            amount, estimated = totals.get(row.currency, (Decimal("0"), False))
-            totals[row.currency] = (amount + row.amount, estimated or row.estimated)
+            amount, flags = totals.get(row.currency, (Decimal("0"), frozenset()))
+            totals[row.currency] = (amount + row.amount, flags | {row.estimated})
         return BillingSummaryResponse(
             metric=request.metric,
             start_date=request.start_date,
             end_date=request.end_date,
             totals=[
-                BillingSummaryTotal(amount=amount, currency=currency, estimated=estimated)
-                for currency, (amount, estimated) in sorted(totals.items())
+                BillingSummaryTotal(
+                    amount=amount,
+                    currency=currency,
+                    status=_status_from_estimation_flags(flags),
+                )
+                for currency, (amount, flags) in sorted(totals.items())
             ],
         )
 
     def timeseries(self, request: AwsBillingRequest) -> BillingTimeSeriesResponse:
         rows = self._rows(request, group_by=request.group_by)
-        values: dict[tuple[date, date, str], tuple[Decimal, bool]] = {}
-        grouped_values: dict[tuple[date, date, str, str], tuple[Decimal, bool, _BillingRow]] = {}
+        values: dict[tuple[date, date, str], tuple[Decimal, frozenset[bool]]] = {}
+        grouped_values: dict[
+            tuple[date, date, str, str], tuple[Decimal, frozenset[bool], _BillingRow]
+        ] = {}
         currencies: set[str] = set()
         for row in rows:
             currencies.add(row.currency)
             bucket_key = (row.start_date, row.end_date, row.currency)
-            amount, estimated = values.get(bucket_key, (Decimal("0"), False))
-            values[bucket_key] = (amount + row.amount, estimated or row.estimated)
+            amount, flags = values.get(bucket_key, (Decimal("0"), frozenset()))
+            values[bucket_key] = (amount + row.amount, flags | {row.estimated})
 
             if request.group_by != BillingGroupBy.NONE:
                 series_key = row.key or ""
                 aggregate_key = (*bucket_key, series_key)
-                grouped_amount, grouped_estimated, sample = grouped_values.get(
+                grouped_amount, grouped_flags, sample = grouped_values.get(
                     aggregate_key,
-                    (Decimal("0"), False, row),
+                    (Decimal("0"), frozenset(), row),
                 )
                 grouped_values[aggregate_key] = (
                     grouped_amount + row.amount,
-                    grouped_estimated or row.estimated,
+                    grouped_flags | {row.estimated},
                     sample,
                 )
 
@@ -433,12 +478,12 @@ class AwsBillingService:
             for currency in currencies:
                 values.setdefault(
                     (bucket_start, bucket_end, currency),
-                    (Decimal("0"), False),
+                    (Decimal("0"), frozenset({False})),
                 )
             bucket_start = bucket_end
 
         points: list[BillingSeriesPoint] = []
-        for (start, end, currency), (amount, estimated) in sorted(values.items()):
+        for (start, end, currency), (amount, flags) in sorted(values.items()):
             groups: list[BillingSeriesGroup] = []
             if request.group_by != BillingGroupBy.NONE:
                 for (
@@ -448,11 +493,12 @@ class AwsBillingService:
                     group_key,
                 ), (
                     group_amount,
-                    group_estimated,
+                    group_flags,
                     sample,
                 ) in sorted(grouped_values.items()):
                     if group_start != start or group_end != end or group_currency != currency:
                         continue
+                    group_status = _status_from_estimation_flags(group_flags)
                     if request.group_by == BillingGroupBy.ACCOUNT:
                         known = group_key == sample.aws_account_id
                         groups.append(
@@ -461,7 +507,7 @@ class AwsBillingService:
                                 label=sample.display_name if known else group_key,
                                 amount=group_amount,
                                 currency=currency,
-                                estimated=group_estimated,
+                                status=group_status,
                                 deepops_account_id=(sample.deepops_account_id if known else None),
                                 aws_account_id=group_key,
                                 display_name=sample.display_name if known else None,
@@ -474,7 +520,7 @@ class AwsBillingService:
                                 label=group_key,
                                 amount=group_amount,
                                 currency=currency,
-                                estimated=group_estimated,
+                                status=group_status,
                             )
                         )
 
@@ -484,7 +530,7 @@ class AwsBillingService:
                     end_date=end,
                     amount=amount,
                     currency=currency,
-                    estimated=estimated,
+                    status=_status_from_estimation_flags(flags),
                     groups=groups,
                 )
             )
@@ -505,18 +551,19 @@ class AwsBillingService:
                 "breakdown requer group_by SERVICE ou ACCOUNT.",
             )
         rows = self._rows(request, group_by=request.group_by)
-        values: dict[tuple[str, str], tuple[Decimal, bool, _BillingRow]] = {}
+        values: dict[tuple[str, str], tuple[Decimal, frozenset[bool], _BillingRow]] = {}
         for row in rows:
             key = row.key or ""
             aggregate_key = (key, row.currency)
-            amount, estimated, sample = values.get(
+            amount, flags, sample = values.get(
                 aggregate_key,
-                (Decimal("0"), False, row),
+                (Decimal("0"), frozenset(), row),
             )
-            values[aggregate_key] = (amount + row.amount, estimated or row.estimated, sample)
+            values[aggregate_key] = (amount + row.amount, flags | {row.estimated}, sample)
 
         items: list[BillingBreakdownItem] = []
-        for (key, currency), (amount, estimated, sample) in sorted(values.items()):
+        for (key, currency), (amount, flags, sample) in sorted(values.items()):
+            status = _status_from_estimation_flags(flags)
             if request.group_by == BillingGroupBy.ACCOUNT:
                 known = key == sample.aws_account_id
                 items.append(
@@ -525,7 +572,7 @@ class AwsBillingService:
                         label=sample.display_name if known else key,
                         amount=amount,
                         currency=currency,
-                        estimated=estimated,
+                        status=status,
                         deepops_account_id=sample.deepops_account_id if known else None,
                         aws_account_id=key,
                         display_name=sample.display_name if known else None,
@@ -538,7 +585,7 @@ class AwsBillingService:
                         label=key,
                         amount=amount,
                         currency=currency,
-                        estimated=estimated,
+                        status=status,
                     )
                 )
         return BillingBreakdownResponse(
