@@ -6,6 +6,7 @@ import "./ui-system.css";
 import "./legacy-theme-compat.css";
 import "./dashboard-executive.css";
 import "./dashboard-operational-insights.css";
+import "./task-23-25-layout.css";
 
 export const metadata: Metadata = {
   title: "DeepOps | FinOps Multi-Cloud",
