@@ -160,10 +160,13 @@ def test_reservation_expiration_and_days_until_expiration():
     start = datetime(2026, 1, 1, tzinfo=UTC)
     expiration = reservation_expiration(start, 31536000)
     assert expiration == datetime(2027, 1, 1, tzinfo=UTC)
-    assert days_until_expiration(
-        expiration,
-        now=datetime(2026, 12, 2, tzinfo=UTC),
-    ) == 30
+    assert (
+        days_until_expiration(
+            expiration,
+            now=datetime(2026, 12, 2, tzinfo=UTC),
+        )
+        == 30
+    )
 
 
 def test_db_instance_collection_uses_pagination_and_tags():
