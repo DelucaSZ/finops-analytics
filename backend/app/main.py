@@ -26,6 +26,7 @@ from app.api.routes import (
     opportunity_policy,
     policies,
     pricing,
+    rds_inventory,
     scans,
     tls,
     users,
@@ -89,6 +90,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/deepops-costs",
             "/api/v1/opportunity-history",
             "/api/v1/settings/opportunity-policy",
+            "/api/v1/rds",
         )
     ):
         response.headers["Cache-Control"] = "no-store"
@@ -115,6 +117,7 @@ app.include_router(policies.router, prefix="/api/v1")
 app.include_router(pricing.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
+app.include_router(rds_inventory.router, prefix="/api/v1")
 app.include_router(opportunity_discovery.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")

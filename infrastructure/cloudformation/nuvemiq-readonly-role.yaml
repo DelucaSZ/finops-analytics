@@ -55,6 +55,16 @@ Resources:
                   - pricing:GetProducts
                   - pricing:DescribeServices
                 Resource: "*"
+        - PolicyName: NuvemIQRdsInventoryReadOnly
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - rds:DescribeDBInstances
+                  - rds:DescribeReservedDBInstances
+                  - rds:ListTagsForResource
+                Resource: "*"
 
 Outputs:
   RoleArn:

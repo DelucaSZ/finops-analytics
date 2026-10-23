@@ -39,7 +39,48 @@ For each AWS account:
 The Account ID entered in DeepOps must match the account contained in the Role
 ARN. The API rejects mismatched values.
 
-## 3. Cost data
+## 3. Amazon RDS inventory
+
+Task 23.29 adds read-only inventory of provisioned Amazon RDS DB Instances and
+Reserved DB Instances. The target role needs these actions:
+
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "rds:DescribeDBInstances",
+        "rds:DescribeReservedDBInstances",
+        "rds:ListTagsForResource"
+      ],
+      "Resource": "*"
+    }
+  ]
+}
+```
+
+The repository's `NuvemIQReadOnly` CloudFormation template declares these
+permissions explicitly. It does not grant RDS write operations.
+
+Inventory collection uses only the regions selected for each DeepOps AWS
+account. A failure in one region is recorded and does not stop the remaining
+accounts or regions. Tags are best-effort: failure in `ListTagsForResource`
+does not discard the DB Instance itself.
+
+The collector can be started by an authenticated DeepOps administrator through
+`POST /api/v1/rds/collect`. For operational use it can also be run inside the
+backend container with:
+
+```bash
+python -m app.commands.rds_inventory
+```
+
+Pass `--cloud-account-id <id>` to restrict collection to one registered AWS
+account.
+
+## 4. Cost data
 
 Cost Explorer must be enabled before Billing or the cost-growth detector can
 return data. Cost Explorer is queried with the same assumed role already used
@@ -96,9 +137,9 @@ The Billing API accepts DeepOps internal account IDs, resolves the corresponding
 AWS Account IDs server-side, and never accepts a raw linked-account selector from
 the client.
 
-## 4. Least privilege hardening
+## 5. Least privilege hardening
 
 The MVP target template starts with AWS managed read-only policies plus explicit
-Cost Explorer permissions. After a validation period, use CloudTrail and IAM
-Access Analyzer to create a narrower customer-managed policy based on the APIs
-actually used in your environment.
+Cost Explorer and RDS inventory permissions. After a validation period, use
+CloudTrail and IAM Access Analyzer to create a narrower customer-managed policy
+based on the APIs actually used in your environment.
