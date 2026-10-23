@@ -326,7 +326,9 @@ class AwsBillingService:
         started = time.perf_counter()
         cached = self._cache.get(cache_key)
         if cached is not None:
-            bucket_count, estimated_bucket_count, partial_bucket_count = _bucket_state_counts(cached)
+            bucket_count, estimated_bucket_count, partial_bucket_count = _bucket_state_counts(
+                cached
+            )
             logger.info(
                 "aws_billing_query provider=aws billing_scope=%s account_count=%d "
                 "start_date=%s end_date=%s granularity=%s metric=%s group_by=%s "
