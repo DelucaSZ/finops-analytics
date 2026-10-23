@@ -8,6 +8,14 @@ export const BILLING_PERIOD_PRESETS = [
   { value: "custom", label: "Personalizado" },
 ];
 
+const BILLING_DATA_STATUSES = new Set([
+  "ACTUAL",
+  "ESTIMATED",
+  "PARTIALLY_ESTIMATED",
+  "FORECAST",
+  "INCLUDES_FORECAST",
+]);
+
 function atLocalMidnight(value) {
   return new Date(value.getFullYear(), value.getMonth(), value.getDate());
 }
@@ -277,6 +285,52 @@ export function groupBillingByCurrency(items) {
   return Array.from(groups.entries()).sort(([left], [right]) => left.localeCompare(right));
 }
 
+export function normalizeBillingStatus(value) {
+  const rawStatus = typeof value === "string" ? value : value?.status;
+  if (BILLING_DATA_STATUSES.has(rawStatus)) return rawStatus;
+  // Transitional fallback for cached/legacy payloads. Never infer state from dates.
+  return value?.estimated ? "ESTIMATED" : "ACTUAL";
+}
+
+export function aggregateBillingStatuses(statuses) {
+  const values = new Set(statuses.map((status) => normalizeBillingStatus(status)));
+  if (!values.size) return "ACTUAL";
+  if (values.has("INCLUDES_FORECAST")) return "INCLUDES_FORECAST";
+  if (values.has("FORECAST")) {
+    return values.size === 1 ? "FORECAST" : "INCLUDES_FORECAST";
+  }
+  if (values.has("PARTIALLY_ESTIMATED")) return "PARTIALLY_ESTIMATED";
+  if (values.has("ACTUAL") && values.has("ESTIMATED")) return "PARTIALLY_ESTIMATED";
+  if (values.has("ESTIMATED")) return "ESTIMATED";
+  return "ACTUAL";
+}
+
+export function billingStatusLabel(status) {
+  switch (normalizeBillingStatus(status)) {
+    case "ESTIMATED":
+      return "Estimado";
+    case "PARTIALLY_ESTIMATED":
+      return "Parcialmente estimado";
+    case "FORECAST":
+      return "Forecast";
+    case "INCLUDES_FORECAST":
+      return "Inclui forecast";
+    case "ACTUAL":
+    default:
+      return "Realizado";
+  }
+}
+
+export function billingStatusIsEstimated(status) {
+  const normalized = normalizeBillingStatus(status);
+  return normalized === "ESTIMATED" || normalized === "PARTIALLY_ESTIMATED";
+}
+
+export function billingStatusHasForecast(status) {
+  const normalized = normalizeBillingStatus(status);
+  return normalized === "FORECAST" || normalized === "INCLUDES_FORECAST";
+}
+
 export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
   const byCurrency = new Map();
 
@@ -295,7 +349,7 @@ export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
         start_date: point.start_date,
         end_date: point.end_date,
         total: 0,
-        estimated: false,
+        statuses: new Set(),
         series: new Map(),
       });
     }
@@ -303,10 +357,15 @@ export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
     const period = currencyData.periods.get(periodKey);
     const total = Number(point.amount);
     if (Number.isFinite(total)) period.total += total;
-    period.estimated ||= Boolean(point.estimated);
+    period.statuses.add(normalizeBillingStatus(point));
 
     const sourceSeries = groupBy === "NONE"
-      ? [{ key: "__total__", label: "Custo total", amount: point.amount, estimated: point.estimated }]
+      ? [{
+        key: "__total__",
+        label: "Custo total",
+        amount: point.amount,
+        status: normalizeBillingStatus(point),
+      }]
       : (point.groups || []);
 
     for (const item of sourceSeries) {
@@ -318,10 +377,10 @@ export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
         key,
         label,
         amount: 0,
-        estimated: false,
+        statuses: new Set(),
       };
       existing.amount += amount;
-      existing.estimated ||= Boolean(item.estimated);
+      existing.statuses.add(normalizeBillingStatus(item));
       period.series.set(key, existing);
 
       const series = currencyData.series.get(key) || { key, label, total: 0 };
@@ -342,21 +401,38 @@ export function mapBillingTimeSeriesToChartData(points, groupBy = "NONE") {
       const order = new Map(series.map((item, index) => [item.key, index]));
       const periods = Array.from(currencyData.periods.values())
         .sort((left, right) => left.start_date.localeCompare(right.start_date))
-        .map((period) => ({
-          start_date: period.start_date,
-          end_date: period.end_date,
-          total: period.total,
-          estimated: period.estimated,
-          series: Array.from(period.series.values()).sort((left, right) => (
-            (order.get(left.key) ?? Number.MAX_SAFE_INTEGER)
-            - (order.get(right.key) ?? Number.MAX_SAFE_INTEGER)
-          )),
-        }));
+        .map((period) => {
+          const status = aggregateBillingStatuses(Array.from(period.statuses));
+          return {
+            start_date: period.start_date,
+            end_date: period.end_date,
+            total: period.total,
+            status,
+            estimated: billingStatusIsEstimated(status),
+            series: Array.from(period.series.values())
+              .sort((left, right) => (
+                (order.get(left.key) ?? Number.MAX_SAFE_INTEGER)
+                - (order.get(right.key) ?? Number.MAX_SAFE_INTEGER)
+              ))
+              .map((item) => {
+                const itemStatus = aggregateBillingStatuses(Array.from(item.statuses));
+                return {
+                  key: item.key,
+                  label: item.label,
+                  amount: item.amount,
+                  status: itemStatus,
+                  estimated: billingStatusIsEstimated(itemStatus),
+                };
+              }),
+          };
+        });
+      const status = aggregateBillingStatuses(periods.map((period) => period.status));
 
       return {
         currency,
         total: periods.reduce((sum, period) => sum + period.total, 0),
-        estimated: periods.some((period) => period.estimated),
+        status,
+        estimated: billingStatusIsEstimated(status),
         series,
         periods,
       };
