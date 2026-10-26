@@ -340,9 +340,7 @@ def run_rds_reservation_coverage(
             )
         except Exception:
             db.rollback()
-            logger.exception(
-                "RDS opportunity generation failed coverage_run_id=%s", run_id
-            )
+            logger.exception("RDS opportunity generation failed coverage_run_id=%s", run_id)
 
         refreshed = db.get(RdsReservationCoverageRun, run_id)
         return refreshed or run
