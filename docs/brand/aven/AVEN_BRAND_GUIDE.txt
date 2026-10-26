@@ -1,0 +1,225 @@
+AVEN — BRAND KIT v1
+====================
+
+1. IDENTIDADE
+-------------
+Nome: Aven
+Assinatura oficial: Clarity. Flow. Control.
+
+Posicionamento:
+Aven é uma plataforma tecnológica premium orientada a clareza, confiança e controle.
+A marca deve transformar a percepção de uma infraestrutura cloud complexa em uma experiência
+visual simples, fluida, confiável e governável.
+
+Personalidade:
+- Premium
+- Tecnológica
+- Segura
+- Controlada
+- Minimalista
+- Elegante
+
+Atributos centrais escolhidos:
+- Confiança
+- Controle
+
+Princípio de marca:
+"Complexidade por baixo. Clareza por cima."
+
+2. SIGNIFICADO DA ASSINATURA
+----------------------------
+CLARITY
+Dar visibilidade ao que está acontecendo no ambiente e transformar dados técnicos em decisões claras.
+
+FLOW
+Reduzir atrito entre análise, otimização, governança e execução. A experiência deve parecer contínua.
+
+CONTROL
+Transmitir confiança operacional: custos, recursos, reservas, recomendações e ambientes sob controle.
+
+Assinatura oficial:
+Clarity. Flow. Control.
+
+3. LOGO
+-------
+Símbolo:
+Um "A" abstrato construído como uma fita/fluxo contínuo. O movimento do símbolo representa convergência,
+fluidez e múltiplos ambientes chegando a uma única camada de controle.
+
+Gradiente principal do símbolo:
+#38B2F6 → #6366F1 → #8B5CF6
+
+Versões incluídas:
+- Vertical para interfaces claras
+- Vertical para interfaces escuras
+- Vertical sem tagline
+- Horizontal para interfaces claras
+- Horizontal para interfaces escuras
+- Ícone isolado em gradiente
+- Ícone monocromático preto
+- Ícone monocromático branco
+- Favicons e app icons
+- SVG vetorial de fallback
+
+Regra:
+Em produção, prefira os PNGs oficiais deste kit para preservar o wordmark aprovado.
+O SVG de fallback é útil para situações que exigem vetor, mas o desenho tipográfico do wordmark
+é uma aproximação técnica; o asset raster aprovado é a referência visual mestre.
+
+4. PALETA OFICIAL
+-----------------
+CORES PRINCIPAIS
+Primary Blue       #3B82F6
+Primary Purple     #8B5CF6
+Accent Indigo      #6366F1
+Light Blue         #60A5FA
+
+CORES DE APOIO
+Soft Blue          #EAF4FF
+Lavender           #F3EEFF
+Soft Violet        #EDE9FE
+Soft Cyan          #ECFDF5
+
+NEUTROS
+Near Black         #0A0A0F
+Dark Slate         #1F2937
+Slate              #6B7280
+Light Gray         #E5E7EB
+White              #FFFFFF
+
+5. GRADIENTES
+-------------
+Light Theme Background
+#FFFFFF → #EAF4FF → #93C5FD
+
+Dark Theme Background
+#0A0A0F → #1A0F3D → #8B5CF6
+
+Brand / Logo Gradient
+#38B2F6 → #6366F1 → #8B5CF6
+
+Direção visual:
+Os gradientes devem ser suaves e elegantes. Evitar saturação neon excessiva.
+O roxo é um acento premium, não deve dominar cada componente.
+
+6. TIPOGRAFIA
+-------------
+Wordmark:
+O wordmark AVEN é tratado como arte final e deve ser usado a partir dos arquivos do kit.
+
+Headings / identidade:
+Usar uma construção geométrica alinhada ao visual do logo.
+A referência do brand board é Sora-like/geometric; quando a fonte exata do wordmark não estiver disponível,
+não recriar o logo por texto.
+
+Interface / textos:
+Inter
+Pesos recomendados:
+- 400 Regular: corpo
+- 500 Medium: labels
+- 600 SemiBold: subtítulos e controles
+- 700 Bold: KPIs e headings de destaque
+
+7. TEMA CLARO
+-------------
+Objetivo:
+Premium, arejado e tecnológico.
+
+Background principal:
+Gradiente branco → azul-gelo → azul claro.
+
+Surfaces:
+Cards predominantemente brancos ou branco translúcido, com bordas discretas.
+
+Texto:
+Primário: #0A0A0F / #1F2937
+Secundário: #6B7280
+
+Acentos:
+Azul e índigo como ação primária.
+Roxo usado seletivamente para destaque, estado ou identidade.
+
+8. TEMA ESCURO
+--------------
+Objetivo:
+Profundo, sofisticado e tecnológico — sem parecer "gaming" ou neon.
+
+Background principal:
+Near Black → Deep Indigo → Violet.
+
+Surfaces:
+Azul-marinho/índigo muito escuro, separadas por bordas de baixo contraste.
+
+Texto:
+Primário: #FFFFFF
+Secundário: tons frios próximos de #BFC7DA
+
+Acentos:
+Azul, índigo e violeta. Glow apenas pontual.
+
+9. LINGUAGEM DE INTERFACE
+-------------------------
+- Bordas arredondadas, mas não excessivamente "bubble".
+- Cards com bastante respiro.
+- Hierarquia tipográfica forte.
+- Ícones minimalistas.
+- Uso controlado de blur/glass.
+- Gráficos com azul/índigo/violeta como família primária.
+- Estados semânticos (success/warning/error) devem continuar reconhecíveis e não ser substituídos por roxo.
+- Evitar fundos totalmente chapados quando houver espaço para o gradiente institucional.
+- Evitar excesso de efeitos de luz.
+
+10. USO NO SISTEMA WEB
+----------------------
+A marca foi definida prioritariamente para o sistema web Aven.
+
+Aplicações principais:
+- Login
+- Sidebar / navegação
+- Favicon
+- Dashboard
+- Billing
+- Reservas
+- Inventário
+- Recomendações
+- Relatórios
+- Configurações
+
+Logo na sidebar:
+Preferir versão horizontal ou símbolo + wordmark sem tagline.
+
+Favicon:
+Usar favicon.ico ou aven_icon_32x32.png.
+
+Tela de login:
+Pode usar a versão vertical completa com tagline sobre o gradiente institucional.
+
+11. ARQUIVOS DO KIT
+-------------------
+01_Logos/
+Logos de produção em PNG HQ e SVG de fallback.
+
+02_Icons/
+Símbolos, variantes monocromáticas, app icons e favicons.
+
+03_Palette/
+Paleta, gradientes e tokens JSON.
+
+04_Design_References/
+Brand boards e referências de interface light/dark.
+
+05_Brand_Guide/
+Este documento.
+
+06_Web_Tokens/
+CSS e manifest prontos para integração inicial no frontend.
+
+Source_References/
+Imagens originais aprovadas usadas como referência visual.
+
+12. STATUS
+----------
+Versão: v1
+Uso: identidade inicial oficial para o redesenho do sistema web.
+Próximo passo recomendado: transformar este brand kit em um design system de produto
+(tokens semânticos, spacing, typography scale, componentes, estados e data visualization).
