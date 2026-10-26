@@ -1,0 +1,33 @@
+{
+  "brand": {
+    "name": "Aven",
+    "tagline": "Clarity. Flow. Control.",
+    "personality": ["premium", "technological"],
+    "attributes": ["trust", "control"],
+    "coreIdea": "Transform complex cloud infrastructure into clear, fluid and controllable decisions."
+  },
+  "colors": {
+    "primaryBlue": "#3B82F6",
+    "primaryPurple": "#8B5CF6",
+    "accentIndigo": "#6366F1",
+    "lightBlue": "#60A5FA",
+    "softBlue": "#EAF4FF",
+    "lavender": "#F3EEFF",
+    "softViolet": "#EDE9FE",
+    "softCyan": "#ECFDF5",
+    "nearBlack": "#0A0A0F",
+    "darkSlate": "#1F2937",
+    "slate": "#6B7280",
+    "lightGray": "#E5E7EB"
+  },
+  "gradients": {
+    "light": ["#FFFFFF", "#EAF4FF", "#93C5FD"],
+    "dark": ["#0A0A0F", "#1A0F3D", "#8B5CF6"],
+    "brand": ["#38B2F6", "#6366F1", "#8B5CF6"]
+  },
+  "typography": {
+    "display": "Aven custom geometric wordmark; use Sora-like geometric treatment for brand headings",
+    "ui": "Inter",
+    "notes": "The final generated logo wordmark is a custom visual asset. Do not retype the logo for production use."
+  }
+}
