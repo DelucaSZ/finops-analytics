@@ -31,9 +31,9 @@ html[data-theme="dark"] {
   --border-focus: var(--aven-color-blue-400);
   --border-disabled: var(--aven-color-neutral-800);
 
-  --action-primary: var(--aven-color-blue-500);
-  --action-primary-hover: var(--aven-color-blue-400);
-  --action-primary-active: var(--aven-color-indigo-500);
+  --action-primary: var(--aven-color-blue-600);
+  --action-primary-hover: var(--aven-color-blue-700);
+  --action-primary-active: var(--aven-color-indigo-600);
   --action-primary-text: var(--aven-color-neutral-0);
 
   --action-secondary: var(--aven-color-neutral-800);
