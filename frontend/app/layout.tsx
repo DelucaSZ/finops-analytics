@@ -1,5 +1,10 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
+import { ThemeProvider } from "@/components/theme-provider";
+import {
+  getThemeBootstrapScript,
+  SIDEBAR_STORAGE_KEY,
+} from "@/lib/ui-preferences.mjs";
 import "./globals.css";
 import "./opportunities-stage5.css";
 import "./styles/tokens/index.css";
@@ -14,25 +19,16 @@ export const metadata: Metadata = {
   description: "Operação, governança e inteligência FinOps para ambientes multi-cloud.",
 };
 
-const appearanceBootstrap = `
+const sidebarBootstrap = `
 (() => {
   const root = document.documentElement;
-  let preference = "system";
-  try {
-    const stored = window.localStorage.getItem("deepops.theme");
-    if (stored === "light" || stored === "dark" || stored === "system") preference = stored;
-  } catch {}
-  const systemDark = window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
-  const resolved = preference === "system" ? (systemDark ? "dark" : "light") : preference;
-  root.dataset.themePreference = preference;
-  root.dataset.theme = resolved;
-  root.style.colorScheme = resolved;
-
   let collapsed = false;
-  try { collapsed = window.localStorage.getItem("deepops.sidebar.collapsed") === "true"; } catch {}
+  try { collapsed = window.localStorage.getItem(${JSON.stringify(SIDEBAR_STORAGE_KEY)}) === "true"; } catch {}
   root.dataset.sidebar = collapsed ? "collapsed" : "expanded";
 })();
 `;
+
+const appearanceBootstrap = `${getThemeBootstrapScript()}${sidebarBootstrap}`;
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
@@ -41,7 +37,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
       </head>
       <body>
-        <AppShell>{children}</AppShell>
+        <ThemeProvider>
+          <AppShell>{children}</AppShell>
+        </ThemeProvider>
       </body>
     </html>
   );

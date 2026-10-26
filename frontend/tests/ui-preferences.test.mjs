@@ -10,12 +10,16 @@ import {
   THEME_STORAGE_KEY,
 } from "../lib/ui-preferences.mjs";
 
-test("theme preference defaults to system and preserves explicit choices", () => {
+test("theme preference defaults to system, preserves explicit choices and migrates legacy booleans", () => {
   assert.equal(normalizeThemePreference(null), "system");
   assert.equal(normalizeThemePreference("unknown"), "system");
   assert.equal(normalizeThemePreference("SYSTEM"), "system");
   assert.equal(normalizeThemePreference("light"), "light");
   assert.equal(normalizeThemePreference("dark"), "dark");
+  assert.equal(normalizeThemePreference(true), "dark");
+  assert.equal(normalizeThemePreference(false), "light");
+  assert.equal(normalizeThemePreference("true"), "dark");
+  assert.equal(normalizeThemePreference("false"), "light");
 });
 
 test("system theme follows the operating system while explicit themes do not", () => {
@@ -34,21 +38,21 @@ test("sidebar persistence is strict and has an expanded fallback", () => {
   assert.equal(serializeSidebarCollapsed(true), "true");
 });
 
-test("layout bootstraps appearance before hydration and keeps preference keys stable", async () => {
+test("layout bootstraps appearance before hydration and mounts the centralized theme provider", async () => {
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
-  assert.match(layout, new RegExp(THEME_STORAGE_KEY.replaceAll(".", "\\.")));
+  assert.ok(layout.includes("getThemeBootstrapScript"));
   assert.match(layout, new RegExp(SIDEBAR_STORAGE_KEY.replaceAll(".", "\\.")));
-  assert.ok(layout.includes('matchMedia("(prefers-color-scheme: dark)")'));
-  assert.ok(layout.includes('root.dataset.theme = resolved'));
-  assert.ok(layout.includes('root.dataset.sidebar = collapsed ? "collapsed" : "expanded"'));
+  assert.ok(layout.includes("<ThemeProvider>"));
+  assert.ok(layout.includes("<AppShell>{children}</AppShell>"));
 });
 
-test("theme selector falls back to system when browser storage cannot be read", async () => {
+test("theme selector delegates preference state and mutation to useTheme", async () => {
   const selector = await readFile(new URL("../components/theme-selector.tsx", import.meta.url), "utf8");
-  assert.ok(selector.includes("let stored: string | null = null"));
-  assert.ok(selector.includes("stored = window.localStorage.getItem(THEME_STORAGE_KEY)"));
-  assert.ok(selector.includes("stored = null"));
-  assert.ok(selector.includes("normalizeThemePreference(stored)"));
+  assert.ok(selector.includes("useTheme"));
+  assert.ok(selector.includes("const { theme, setTheme } = useTheme()"));
+  assert.ok(selector.includes("setTheme(option.value)"));
+  assert.ok(!selector.includes("localStorage"));
+  assert.ok(!selector.includes("matchMedia"));
 });
 
 test("global shell is provider-neutral and exposes accessible persistent collapse behavior", async () => {
@@ -63,6 +67,8 @@ test("global shell is provider-neutral and exposes accessible persistent collaps
   assert.ok(shell.includes("serializeSidebarCollapsed"));
   assert.ok(shell.includes('aria-label={mobileOpen ? "Fechar navegação" : "Abrir navegação"}'));
   assert.ok(shell.includes('event.key === "Escape"'));
+  assert.ok(!shell.includes("resolveThemePreference"));
+  assert.ok(!shell.includes("deepops:theme-change"));
 });
 
 test("authentication and metadata no longer present DeepOps as AWS-only", async () => {
