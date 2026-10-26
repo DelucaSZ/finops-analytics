@@ -8,6 +8,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CloudCog,
+  Database,
   History,
   LayoutDashboard,
   LogOut,
@@ -35,6 +36,7 @@ const nav = [
   { href: "/opportunities/history-cycles", label: "Histórico", icon: History },
   { href: "/flow", label: "Fluxo", icon: WalletCards },
   { href: "/billing", label: "Billing", icon: ReceiptText },
+  { href: "/rds/reservations", label: "Reservas RDS", icon: Database },
   { href: "/collections", label: "Coletas", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ];
