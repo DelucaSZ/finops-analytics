@@ -1,0 +1,59 @@
+/* Aven semantic tokens — Dark Theme */
+html[data-theme="dark"] {
+  --background-primary: var(--aven-color-neutral-950);
+  --background-secondary: var(--aven-color-neutral-900);
+  --background-tertiary: var(--aven-color-indigo-deep);
+  --background-inverse: var(--aven-color-neutral-0);
+
+  --surface-primary: var(--aven-color-neutral-900);
+  --surface-secondary: var(--aven-color-neutral-800);
+  --surface-tertiary: var(--aven-color-indigo-deep);
+  --surface-elevated: #182033;
+  --surface-overlay: rgba(17, 24, 39, 0.96);
+  --surface-hover: var(--aven-color-neutral-800);
+  --surface-selected: var(--aven-color-indigo-deep);
+  --surface-disabled: var(--aven-color-neutral-800);
+  --surface-inverse: var(--aven-color-neutral-0);
+
+  --text-primary: var(--aven-color-neutral-0);
+  --text-secondary: var(--aven-color-neutral-300);
+  --text-muted: var(--aven-color-neutral-400);
+  --text-disabled: var(--aven-color-neutral-600);
+  --text-inverse: var(--aven-color-neutral-950);
+  --text-link: var(--aven-color-blue-400);
+  --text-link-hover: var(--aven-color-indigo-400);
+  --text-brand: var(--aven-color-violet-300);
+
+  --border-subtle: var(--aven-color-neutral-800);
+  --border-default: var(--aven-color-neutral-700);
+  --border-strong: var(--aven-color-neutral-600);
+  --border-interactive: var(--aven-color-indigo-500);
+  --border-focus: var(--aven-color-blue-400);
+  --border-disabled: var(--aven-color-neutral-800);
+
+  --action-primary: var(--aven-color-blue-500);
+  --action-primary-hover: var(--aven-color-blue-400);
+  --action-primary-active: var(--aven-color-indigo-500);
+  --action-primary-text: var(--aven-color-neutral-0);
+
+  --action-secondary: var(--aven-color-neutral-800);
+  --action-secondary-hover: var(--aven-color-neutral-700);
+  --action-secondary-active: var(--aven-color-neutral-600);
+  --action-secondary-text: var(--aven-color-neutral-100);
+
+  --action-ghost-hover: rgba(96, 165, 250, 0.1);
+  --action-ghost-active: rgba(129, 140, 248, 0.16);
+  --action-disabled: var(--aven-color-neutral-800);
+  --action-disabled-text: var(--aven-color-neutral-600);
+
+  --focus-ring: var(--aven-color-blue-400);
+  --focus-ring-offset: var(--aven-color-neutral-950);
+
+  --state-hover-overlay: rgba(96, 165, 250, 0.1);
+  --state-active-overlay: rgba(129, 140, 248, 0.16);
+  --state-selected-bg: var(--aven-color-indigo-deep);
+  --state-selected-border: var(--aven-color-indigo-500);
+
+  --overlay-backdrop: rgba(2, 6, 23, 0.68);
+  --overlay-backdrop-strong: rgba(2, 6, 23, 0.82);
+}
