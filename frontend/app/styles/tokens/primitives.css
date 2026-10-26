@@ -1,0 +1,158 @@
+/*
+ * Aven Design System — Primitive Tokens
+ *
+ * Raw brand and scale values. Product components should not consume color
+ * primitives directly; use semantic tokens instead.
+ */
+:root {
+  /* Brand anchors from Aven Brand Kit v1. */
+  --aven-color-blue-50: #eff6ff;
+  --aven-color-blue-100: #dbeafe;
+  --aven-color-blue-200: #bfdbfe;
+  --aven-color-blue-300: #93c5fd;
+  --aven-color-blue-400: #60a5fa;
+  --aven-color-blue-500: #3b82f6;
+  --aven-color-blue-600: #2563eb;
+  --aven-color-blue-700: #1d4ed8;
+  --aven-color-blue-800: #1e40af;
+  --aven-color-blue-900: #1e3a8a;
+
+  --aven-color-indigo-50: #eef2ff;
+  --aven-color-indigo-100: #e0e7ff;
+  --aven-color-indigo-200: #c7d2fe;
+  --aven-color-indigo-300: #a5b4fc;
+  --aven-color-indigo-400: #818cf8;
+  --aven-color-indigo-500: #6366f1;
+  --aven-color-indigo-600: #4f46e5;
+  --aven-color-indigo-700: #4338ca;
+  --aven-color-indigo-800: #3730a3;
+  --aven-color-indigo-900: #312e81;
+  --aven-color-indigo-deep: #1a0f3d;
+
+  --aven-color-violet-50: #f5f3ff;
+  --aven-color-violet-100: #ede9fe;
+  --aven-color-violet-200: #ddd6fe;
+  --aven-color-violet-300: #c4b5fd;
+  --aven-color-violet-400: #a78bfa;
+  --aven-color-violet-500: #8b5cf6;
+  --aven-color-violet-600: #7c3aed;
+  --aven-color-violet-700: #6d28d9;
+  --aven-color-violet-800: #5b21b6;
+  --aven-color-violet-900: #4c1d95;
+
+  --aven-color-cyan-50: #ecfeff;
+  --aven-color-cyan-100: #cffafe;
+  --aven-color-cyan-200: #a5f3fc;
+  --aven-color-cyan-300: #67e8f9;
+  --aven-color-cyan-400: #22d3ee;
+  --aven-color-cyan-500: #06b6d4;
+  --aven-color-cyan-600: #0891b2;
+  --aven-color-cyan-700: #0e7490;
+
+  --aven-color-green-50: #ecfdf5;
+  --aven-color-green-100: #d1fae5;
+  --aven-color-green-200: #a7f3d0;
+  --aven-color-green-400: #34d399;
+  --aven-color-green-500: #10b981;
+  --aven-color-green-600: #059669;
+  --aven-color-green-700: #047857;
+  --aven-color-green-800: #065f46;
+  --aven-color-green-900: #064e3b;
+
+  --aven-color-amber-50: #fffbeb;
+  --aven-color-amber-100: #fef3c7;
+  --aven-color-amber-200: #fde68a;
+  --aven-color-amber-400: #fbbf24;
+  --aven-color-amber-500: #f59e0b;
+  --aven-color-amber-600: #d97706;
+  --aven-color-amber-700: #b45309;
+  --aven-color-amber-800: #92400e;
+  --aven-color-amber-900: #78350f;
+
+  --aven-color-red-50: #fef2f2;
+  --aven-color-red-100: #fee2e2;
+  --aven-color-red-200: #fecaca;
+  --aven-color-red-400: #f87171;
+  --aven-color-red-500: #ef4444;
+  --aven-color-red-600: #dc2626;
+  --aven-color-red-700: #b91c1c;
+  --aven-color-red-800: #991b1b;
+  --aven-color-red-900: #7f1d1d;
+
+  /* Official neutral anchors are retained at 0/200/500/800/950. */
+  --aven-color-neutral-0: #ffffff;
+  --aven-color-neutral-50: #f9fafb;
+  --aven-color-neutral-100: #f3f4f6;
+  --aven-color-neutral-200: #e5e7eb;
+  --aven-color-neutral-300: #d1d5db;
+  --aven-color-neutral-400: #9ca3af;
+  --aven-color-neutral-500: #6b7280;
+  --aven-color-neutral-600: #4b5563;
+  --aven-color-neutral-700: #374151;
+  --aven-color-neutral-800: #1f2937;
+  --aven-color-neutral-900: #111827;
+  --aven-color-neutral-950: #0a0a0f;
+
+  /* Supporting colors from Aven Brand Kit v1. */
+  --aven-color-soft-blue: #eaf4ff;
+  --aven-color-lavender: #f3eeff;
+  --aven-color-soft-violet: #ede9fe;
+  --aven-color-soft-cyan: #ecfdf5;
+
+  /* Official gradients. */
+  --gradient-brand: linear-gradient(135deg, #38b2f6 0%, #6366f1 52%, #8b5cf6 100%);
+  --gradient-background-light: linear-gradient(135deg, #ffffff 0%, #eaf4ff 56%, #93c5fd 100%);
+  --gradient-background-dark: linear-gradient(135deg, #0a0a0f 0%, #1a0f3d 56%, #8b5cf6 140%);
+
+  /* Spacing scale — 4px base. */
+  --space-0: 0;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  /* Radius scale. */
+  --radius-none: 0;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-control: 10px;
+  --radius-card: 16px;
+  --radius-dialog: 18px;
+  --radius-pill: 999px;
+  --radius-full: 50%;
+
+  /* Typography hooks. Task 24.4 owns final tuning and font delivery. */
+  --font-family-ui: "Inter", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-display: "Sora", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-family-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --font-size-xs: 0.75rem;
+  --font-size-sm: 0.875rem;
+  --font-size-md: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-xl: 1.25rem;
+  --font-size-2xl: 1.5rem;
+  --font-size-3xl: 1.875rem;
+
+  --line-height-tight: 1.2;
+  --line-height-normal: 1.5;
+  --line-height-relaxed: 1.7;
+
+  /* Elevation scale. Dark surfaces should rely primarily on surface/border contrast. */
+  --shadow-xs: 0 1px 2px rgba(10, 10, 15, 0.05);
+  --shadow-sm: 0 2px 8px rgba(10, 10, 15, 0.08);
+  --shadow-md: 0 8px 24px rgba(10, 10, 15, 0.1);
+  --shadow-lg: 0 16px 40px rgba(10, 10, 15, 0.12);
+  --shadow-xl: 0 24px 64px rgba(10, 10, 15, 0.16);
+}
