@@ -61,6 +61,7 @@ Resources:
             Statement:
               - Effect: Allow
                 Action:
+                  - rds:DescribeDBClusters
                   - rds:DescribeDBInstances
                   - rds:DescribeReservedDBInstances
                   - rds:ListTagsForResource
