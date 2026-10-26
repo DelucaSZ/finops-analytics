@@ -32,8 +32,8 @@ html[data-theme="light"] {
   --border-focus: var(--aven-color-blue-500);
   --border-disabled: var(--aven-color-neutral-200);
 
-  --action-primary: var(--aven-color-blue-500);
-  --action-primary-hover: var(--aven-color-blue-600);
+  --action-primary: var(--aven-color-blue-600);
+  --action-primary-hover: var(--aven-color-blue-700);
   --action-primary-active: var(--aven-color-indigo-600);
   --action-primary-text: var(--aven-color-neutral-0);
 
