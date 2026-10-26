@@ -819,14 +819,17 @@ def generate_rds_reservation_opportunities(
     # "missing" instead of being falsely resolved or kept as a strong active conclusion.
     for fingerprint in uncertain:
         finding = existing.get(fingerprint)
-        if finding is not None and fingerprint not in observed:
-            if _mark_uncertain(
+        if (
+            finding is not None
+            and fingerprint not in observed
+            and _mark_uncertain(
                 finding,
                 run_id=run.id,
                 now=generated_at,
                 reason="STALE_OR_UNKNOWN_RDS_RESERVATION_DATA",
-            ):
-                result.uncertain += 1
+            )
+        ):
+            result.uncertain += 1
 
     instances_by_key = {
         (row.account_id, row.region, row.db_instance_identifier): row
