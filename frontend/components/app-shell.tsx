@@ -22,12 +22,9 @@ import {
 import { api, ApiError } from "@/lib/api";
 import { clearApiQueryCache } from "@/lib/server-state";
 import {
-  normalizeThemePreference,
   parseSidebarCollapsed,
-  resolveThemePreference,
   serializeSidebarCollapsed,
   SIDEBAR_STORAGE_KEY,
-  THEME_STORAGE_KEY,
 } from "@/lib/ui-preferences.mjs";
 
 const nav = [
@@ -59,35 +56,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const isPublic = publicRoutes.includes(pathname);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    const media = window.matchMedia("(prefers-color-scheme: dark)");
-
-    const applyTheme = () => {
-      let saved: string | null = null;
-      try {
-        saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-      } catch {
-        saved = null;
-      }
-      const preference = normalizeThemePreference(saved);
-      const resolved = resolveThemePreference(preference, media.matches);
-      root.dataset.themePreference = preference;
-      root.dataset.theme = resolved;
-      root.style.colorScheme = resolved;
-    };
-
-    applyTheme();
-    media.addEventListener("change", applyTheme);
-    window.addEventListener("storage", applyTheme);
-    window.addEventListener("deepops:theme-change", applyTheme);
-    return () => {
-      media.removeEventListener("change", applyTheme);
-      window.removeEventListener("storage", applyTheme);
-      window.removeEventListener("deepops:theme-change", applyTheme);
-    };
-  }, []);
 
   useEffect(() => {
     let saved: string | null = null;

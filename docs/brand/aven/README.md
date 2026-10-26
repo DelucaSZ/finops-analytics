@@ -7,7 +7,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 1. `docs/brand/aven/README.md`
 2. `docs/brand/aven/AVEN_BRAND_GUIDE.txt`
 3. `docs/brand/aven/AVEN_DESIGN_TOKENS.md`
-4. the applicable assets and visual references under this directory
+4. `docs/brand/aven/AVEN_THEME_ENGINE.md`
+5. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -21,13 +22,26 @@ The approved visual references in the Brand Kit v1 are the golden references for
 
 ## Aven Design System foundation
 
-Task 24.2 establishes the official design-token architecture documented in:
+Tasks 24.2 and 24.3 establish the official design-token and theme-runtime architecture documented in:
 
 - `docs/brand/aven/AVEN_DESIGN_TOKENS.md` — architecture, usage rules, theme mapping and migration policy;
+- `docs/brand/aven/AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
 - `docs/brand/aven/aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical product-token source and runtime CSS Custom Properties.
 
-The runtime contract follows:
+The product pipeline is:
+
+```text
+Brand
+↓
+Design Tokens
+↓
+Theme Engine
+↓
+Components
+```
+
+The runtime token contract remains:
 
 ```text
 Component
@@ -39,7 +53,7 @@ Theme Mapping
 Primitive Token
 ```
 
-New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, not raw brand colors.
+New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, not raw brand colors. Components should not implement independent Light/Dark variants when semantic tokens already express the visual role.
 
 ## Mandatory engineering rule — Task 24.5 onward
 
@@ -80,6 +94,7 @@ This rule applies to all new visual components and to components migrated into t
 - Treat this directory as the authoritative brand source. Do not recreate the Aven wordmark using text.
 - Prefer the approved production PNGs for the wordmark. SVG wordmark assets are fallback approximations, as specified in the guide.
 - Light and dark modes must be designed as first-class themes; dark mode must not be a simple color inversion.
+- `system` is a user preference that resolves dynamically to Light or Dark; it must not be replaced by the current resolved value.
 - Purple is a premium accent, not the default color for every component.
 - Semantic states such as success, warning, error and information must remain recognizable.
 - Institutional gradients should be atmospheric and controlled, not neon or pervasive.
@@ -94,4 +109,4 @@ The textual specifications, tokens and vector fallbacks are stored directly unde
 
 Brand Kit: **v1**
 
-The identity and product-token foundation are now versioned. Tasks 24.3 and 24.4 can evolve theme resolution and refine typography/spacing/radius/shadows without rebuilding the token architecture.
+The identity, product-token foundation and Light/Dark/System runtime contract are now versioned. Task 24.4 can refine typography/spacing/radius/shadows/iconography, and Task 24.5 can build theme-aware primitives on top of the stable token/theme foundation.
