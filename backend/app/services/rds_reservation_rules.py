@@ -77,7 +77,7 @@ class InstanceDemand:
     remaining_units: Decimal
     calculation_method: str
     unknown_reason: str | None = None
-    allocations: list["Allocation"] = field(default_factory=list)
+    allocations: list[Allocation] = field(default_factory=list)
 
 
 @dataclass
@@ -381,4 +381,3 @@ class RdsReservationMatcher:
         if bool(reservation.multi_az) != expected_multi_az:
             return MatchDecision(False, "incompatible", "DEPLOYMENT_MISMATCH", scope)
         return MatchDecision(True, "exact", "EXACT_MATCH", scope)
-
