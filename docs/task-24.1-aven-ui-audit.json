@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 1,
+  "task": "24.1",
+  "product": {
+    "currentName": "DeepOps",
+    "targetName": "Aven",
+    "canonicalBrandPath": "docs/brand/aven/"
+  },
+  "stack": {
+    "framework": "Next.js",
+    "frameworkVersion": "^15.2.0",
+    "reactVersion": "^19.0.0",
+    "typescriptVersion": "^5.7.0",
+    "router": "App Router",
+    "styling": ["global CSS", "CSS Modules"],
+    "uiLibraries": [],
+    "iconLibraries": ["lucide-react"],
+    "chartLibraries": [],
+    "formLibraries": [],
+    "themeModes": ["system", "light", "dark"]
+  },
+  "routes": [
+    {"route":"/","area":"dashboard","complexity":"high","risk":"high","migrationTask":"24.10"},
+    {"route":"/accept-invitation","area":"auth","complexity":"medium","risk":"medium","migrationTask":"24.9/24.17"},
+    {"route":"/billing","area":"billing","complexity":"very-high","risk":"high","migrationTask":"24.11"},
+    {"route":"/collections","area":"collections","complexity":"high","risk":"high","migrationTask":"24.15/24.17"},
+    {"route":"/collections/[collectionId]","area":"collections","complexity":"very-high","risk":"high","migrationTask":"24.15/24.17"},
+    {"route":"/collections/[collectionId]/compare","area":"collections","complexity":"high","risk":"high","migrationTask":"24.15/24.17"},
+    {"route":"/finops/ledger","area":"ledger","complexity":"high","risk":"high","migrationTask":"24.17"},
+    {"route":"/flow","area":"flow","complexity":"very-high","risk":"high","migrationTask":"24.17"},
+    {"route":"/forgot-password","area":"auth","complexity":"medium","risk":"medium","migrationTask":"24.9"},
+    {"route":"/login","area":"auth","complexity":"high","risk":"high","migrationTask":"24.9"},
+    {"route":"/mfa-setup","area":"auth-security","complexity":"medium","risk":"medium","migrationTask":"24.9/24.16"},
+    {"route":"/opportunities","area":"opportunities","complexity":"very-high","risk":"high","migrationTask":"24.14"},
+    {"route":"/opportunities/collection/[collectionId]","area":"opportunities","complexity":"high","risk":"high","migrationTask":"24.14"},
+    {"route":"/opportunities/history-cycles","area":"opportunities","complexity":"high","risk":"medium","migrationTask":"24.14/24.17"},
+    {"route":"/rds/reservations","area":"rds-reservations","complexity":"very-high","risk":"high","migrationTask":"24.12"},
+    {"route":"/reset-password","area":"auth","complexity":"medium","risk":"medium","migrationTask":"24.9"},
+    {"route":"/scans","area":"collections","complexity":"high","risk":"medium","migrationTask":"24.15/24.17"},
+    {"route":"/security","area":"security","complexity":"medium","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings","area":"settings","complexity":"medium","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/accounts","area":"settings-accounts","complexity":"very-high","risk":"high","migrationTask":"24.16"},
+    {"route":"/settings/appearance","area":"settings-appearance","complexity":"low","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/audit","area":"settings-audit","complexity":"high","risk":"high","migrationTask":"24.16"},
+    {"route":"/settings/billing/profiles","area":"settings-billing","complexity":"high","risk":"high","migrationTask":"24.16"},
+    {"route":"/settings/https","area":"settings-https","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/opportunities","area":"settings-opportunities","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/policies","area":"settings-policies","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/pricing/oci","area":"settings-oci-pricing","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/security","area":"settings-security","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/sessions","area":"settings-sessions","complexity":"medium","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/usage-costs","area":"settings-usage-costs","complexity":"high","risk":"medium","migrationTask":"24.16"},
+    {"route":"/settings/users","area":"settings-users","complexity":"very-high","risk":"high","migrationTask":"24.16"}
+  ],
+  "components": [
+    {"name":"PageHeader","path":"frontend/components/page-header.tsx","classification":"REFACTOR","target":"product-component"},
+    {"name":"StatusBadge","path":"frontend/components/status-badge.tsx","classification":"REFACTOR","target":"Badge primitive + StatusIndicator product component"},
+    {"name":"ThemeSelector","path":"frontend/components/theme-selector.tsx","classification":"REFACTOR","target":"product-component using centralized theme API"},
+    {"name":"AppShell","path":"frontend/components/app-shell.tsx","classification":"REBUILD","target":"Aven application shell; preserve/extract non-visual behavior"},
+    {"name":"ExecutiveDashboard","path":"frontend/components/executive-dashboard.tsx","classification":"REFACTOR","target":"golden-reference composition"},
+    {"name":"DashboardOperationalInsights","path":"frontend/components/dashboard-operational-insights.tsx","classification":"REFACTOR","target":"product visualization component"},
+    {"name":"ManualCollectionLauncher","path":"frontend/components/manual-collection-launcher.tsx","classification":"REFACTOR","target":"product component"},
+    {"name":"CollectionWorkspace","path":"frontend/components/collection-workspace.tsx","classification":"REFACTOR","target":"split product components"},
+    {"name":"OpportunityDetail","path":"frontend/components/opportunity-detail.tsx","classification":"REFACTOR","target":"split product components"},
+    {"name":"OpportunityDecisionDialog","path":"frontend/components/opportunity-decision-dialog.tsx","classification":"REFACTOR","target":"Dialog primitive + product content"},
+    {"name":"OpportunityArchiveDialog","path":"frontend/components/opportunity-archive-dialog.tsx","classification":"REFACTOR","target":"Dialog primitive + product content"}
+  ],
+  "stylesheets": [
+    {"path":"frontend/app/globals.css","bytes":50864,"layer":"legacy-global","action":"migrate-then-remove","risk":"P0"},
+    {"path":"frontend/app/opportunities-stage5.css","bytes":22507,"layer":"page-global","action":"migrate","risk":"P1"},
+    {"path":"frontend/app/ui-system.css","bytes":16676,"layer":"transitional-theme-and-components","action":"replace-with-aven-semantic-layer","risk":"P0"},
+    {"path":"frontend/app/legacy-theme-compat.css","bytes":2224,"layer":"compatibility","action":"temporary-remove-at-24.20","risk":"P0"},
+    {"path":"frontend/app/dashboard-executive.css","bytes":436,"layer":"page-global","action":"consolidate","risk":"P2"},
+    {"path":"frontend/app/dashboard-operational-insights.css","bytes":2691,"layer":"page-global","action":"migrate","risk":"P1"},
+    {"path":"frontend/app/task-23-25-layout.css","bytes":2455,"layer":"corrective-global","action":"absorb","risk":"P1"},
+    {"path":"frontend/app/billing/billing.module.css","bytes":12569,"layer":"css-module","action":"migrate","risk":"P1"},
+    {"path":"frontend/app/collections/collection.module.css","bytes":3835,"layer":"css-module","action":"migrate","risk":"P2"},
+    {"path":"frontend/app/flow/flow-layout.module.css","bytes":13240,"layer":"css-module-corrective","action":"rebuild-around-product-components","risk":"P1"},
+    {"path":"frontend/app/opportunities/history-cycles/page.module.css","bytes":3551,"layer":"css-module","action":"migrate","risk":"P2"},
+    {"path":"frontend/app/rds/reservations/rds-reservations.module.css","bytes":18864,"layer":"css-module","action":"migrate","risk":"P1"},
+    {"path":"frontend/app/settings/settings-layout.module.css","bytes":7146,"layer":"css-module","action":"migrate","risk":"P1"},
+    {"path":"frontend/app/settings/opportunities/page.module.css","bytes":3519,"layer":"css-module","action":"migrate","risk":"P2"},
+    {"path":"frontend/app/settings/pricing/oci/pricing.module.css","bytes":4335,"layer":"css-module","action":"migrate","risk":"P2"},
+    {"path":"frontend/app/settings/usage-costs/usage-costs.module.css","bytes":7852,"layer":"css-module","action":"migrate","risk":"P2"},
+    {"path":"frontend/components/manual-collection-launcher.module.css","bytes":1050,"layer":"css-module","action":"refactor","risk":"P2"}
+  ],
+  "styleSummary": {
+    "stylesheetCount": 17,
+    "approximateBytes": 173814,
+    "globalLayerCount": 7,
+    "cssModuleCount": 10
+  },
+  "colors": [
+    {"value":"#070b10","category":"background","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#0c131b","category":"surface","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#111b26","category":"surface","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#172331","category":"surface","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#e7eef6","category":"text","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#93a4b6","category":"text-muted","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#6f8296","category":"text-muted","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#1e3042","category":"border","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#ff3d7f","category":"accent","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#ff6b9d","category":"accent-secondary","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#4ea1ff","category":"chart/info","source":"legacy root","futureRole":"migration-only"},
+    {"value":"#8b7bff","category":"chart","source":"legacy root","futureRole":"migration-only"}
+  ],
+  "spacing": {
+    "plannedAvenScalePx": [4,8,12,16,20,24,32,40,48,64],
+    "commonAlignedValuesPx": [4,8,12,16,20,24,32],
+    "commonDivergentValuesPx": [2,3,5,6,7,9,10,11,13,14,18,22],
+    "recommendation": "Expose primitive scale plus semantic component/layout spacing roles."
+  },
+  "radii": {
+    "currentVariablesPx": {"sm":6,"md":9,"lg":12,"legacyDefault":14},
+    "observedLiteralPatternsPx": [2,5,7,8,9,10,11,12,14,99],
+    "plannedAvenConceptsPx": {"control":10,"card":16,"modal":18},
+    "recommendation": "Use semantic radius.control/card/dialog/pill/round tokens."
+  },
+  "typography": {
+    "currentBodyStack": "Inter, ui-sans-serif, system-ui, ...",
+    "fontExplicitlyLoaded": false,
+    "observedNonstandardWeights": [650,750,800,850,900],
+    "numericPattern": "tabular-nums used on KPI/table values",
+    "aven": {"display":"geometric/Sora-like","ui":"Inter","weights":[400,500,600,700]}
+  },
+  "theme": {
+    "preferenceStorageKey": "deepops.theme",
+    "sidebarStorageKey": "deepops.sidebar.collapsed",
+    "domPreferenceAttribute": "data-theme-preference",
+    "domResolvedAttribute": "data-theme",
+    "supportsPrefersColorScheme": true,
+    "preHydrationBootstrap": true,
+    "duplicatedApplicationLocations": ["frontend/app/layout.tsx","frontend/components/app-shell.tsx","frontend/components/theme-selector.tsx"],
+    "risk":"P0"
+  },
+  "charts": [
+    {"area":"billing","component":"BillingCostChart","type":"custom SVG stacked bar","library":"none","issues":["visual geometry embedded in TSX","series palette coupled to CSS variables","forecast/estimated opacity and stroke embedded in component","custom tooltip and axis contract"]},
+    {"area":"dashboard","component":"ExecutiveDashboard","type":"KPI/distribution/breakdown","library":"none","issues":["global CSS","must become golden reference"]},
+    {"area":"dashboard","component":"DashboardOperationalInsights","type":"operational insight visualization","library":"none","issues":["dedicated global CSS layer"]},
+    {"area":"rds-reservations","component":"route visualizations","type":"coverage/progress/stacked summary","library":"none","issues":["page-local chart/status semantics"]},
+    {"area":"flow","component":"route SVG","type":"temporal/custom visualization","library":"none","issues":["DOM-selector geometry overrides","minimum widths","page-local visual rules"]}
+  ],
+  "primitiveCandidates": ["Button","IconButton","Input","Textarea","Select","Checkbox","Radio","Switch","Badge","Tooltip","Dropdown","Tabs","Dialog","Drawer","Card","Table","Pagination","Skeleton","Alert","EmptyState","Toast","Divider","Popover","Menu","Avatar"],
+  "productComponentCandidates": ["MetricCard","PageHeader","FilterBar","AccountSelector","EnvironmentSelector","ScopeSelector","DateRangePicker","ChartCard","Section","StatusIndicator","RecommendationCard","CostSummary","SavingsSummary","ProviderBadge","ResourceIdentifier","CurrencyDisplay","DataState","DataTable","SettingsSection","SettingsNavigation","CollectionLauncher","CoverageSummary","ForecastStatus","EstimatedDataIndicator"],
+  "legacyBrandReferences": [
+    {"type":"metadata","example":"DeepOps | FinOps Multi-Cloud","rename":"24.8","risk":"low"},
+    {"type":"visible-shell-brand","example":"DeepOps","rename":"24.7/24.8","risk":"medium"},
+    {"type":"visible-auth-brand","example":"DeepOps login brand/copy","rename":"24.9","risk":"low"},
+    {"type":"storage-key","example":"deepops.theme","rename":"compatibility migration in 24.8","risk":"medium"},
+    {"type":"storage-key","example":"deepops.sidebar.collapsed","rename":"compatibility migration in 24.8","risk":"medium"},
+    {"type":"custom-event","example":"deepops:theme-change","rename":"dual compatibility if renamed","risk":"medium"},
+    {"type":"legacy-auth-compatibility","example":"nuvemiq_token","rename":"only after auth compatibility verification","risk":"high"},
+    {"type":"infrastructure","example":"DeepOps/NuvemIQ filenames/templates","rename":"separate infrastructure plan","risk":"high"}
+  ],
+  "technicalDebt": [
+    {"priority":"P0","finding":"Legacy global styling overlaps transitional theme and compatibility layers."},
+    {"priority":"P0","finding":"No canonical Aven semantic token API is consumed by components."},
+    {"priority":"P0","finding":"Hardcoded color/radius/spacing/typography is widespread."},
+    {"priority":"P0","finding":"Theme application logic is duplicated across layout, AppShell and ThemeSelector."},
+    {"priority":"P0","finding":"Pages reimplement primitives and chart semantics."},
+    {"priority":"P1","finding":"AppShell couples visual shell with auth/navigation/theme/responsive state."},
+    {"priority":"P1","finding":"Flow uses DOM-order selectors, :global and !important corrective styling."},
+    {"priority":"P1","finding":"Billing/RDS/Opportunities contain substantial local visual systems."},
+    {"priority":"P1","finding":"Responsive breakpoints and minimum widths are route-specific."},
+    {"priority":"P1","finding":"Typography lacks explicit font delivery and uses arbitrary weights."},
+    {"priority":"P2","finding":"Loading/error/empty, badges, progress, tables and filters have duplicate implementations."},
+    {"priority":"P3","finding":"Off-scale micro spacing/radius values and historical layout patches remain."}
+  ],
+  "migrationDependencies": [
+    {"from":"24.2","to":"24.3-24.20","reason":"semantic token contract must precede all new visual components"},
+    {"from":"24.3","to":"24.5+","reason":"central theme resolution must precede token-only components"},
+    {"from":"24.4","to":"24.5+","reason":"typography/spacing/radius/shadow/icon contracts required by primitives"},
+    {"from":"24.5","to":"24.6+","reason":"product components must compose primitives"},
+    {"from":"24.18-foundation","to":"24.10/24.11","reason":"dashboard/billing must not invent chart semantics before the visualization contract"}
+  ],
+  "recommendedMigrationOrder": ["24.1","24.2","24.3","24.4","24.5","24.6","24.7","24.8","24.9","24.18A","24.10","24.11","24.12","24.13","24.14","24.15","24.16","24.17","24.18B","24.19","24.20"],
+  "task24_2Readiness": {
+    "ready": true,
+    "requiredInputs": ["existing primitive colors","required semantic token categories","existing theme hooks","existing CSS variables and compatibility aliases","legacy compatibility requirements","high-risk components","high-risk pages","early chart semantics"]
+  }
+}
