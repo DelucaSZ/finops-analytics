@@ -145,11 +145,7 @@ def _coverage(
     required_d = Decimal(required)
     covered_d = Decimal(covered)
     uncovered_d = max(Decimal("0"), required_d - covered_d)
-    pct = (
-        Decimal("0")
-        if required_d == 0
-        else covered_d / required_d * Decimal("100")
-    )
+    pct = Decimal("0") if required_d == 0 else covered_d / required_d * Decimal("100")
     row = RdsInstanceReservationCoverage(
         coverage_run_id=run.id,
         rds_instance_id=instance.id,
@@ -180,11 +176,7 @@ def _utilization(
     total_d = Decimal(total)
     allocated_d = Decimal(allocated)
     unused_d = max(Decimal("0"), total_d - allocated_d)
-    pct = (
-        Decimal("0")
-        if total_d == 0
-        else allocated_d / total_d * Decimal("100")
-    )
+    pct = Decimal("0") if total_d == 0 else allocated_d / total_d * Decimal("100")
     row = RdsReservationUtilization(
         coverage_run_id=run.id,
         reservation_id=reservation.id,
@@ -256,9 +248,7 @@ def test_transition_uncovered_partial_full_has_only_current_active_finding(db: S
     db.commit()
 
     uncovered = _finding(db, RDS_RESERVATION_UNCOVERED, instance.db_instance_identifier)
-    partial = _finding(
-        db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier
-    )
+    partial = _finding(db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier)
     assert uncovered.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
     assert partial.presence_status == OpportunityPresenceStatus.ACTIVE.value
     assert partial.provider_metadata["coverage_percentage"] == 50.0
@@ -271,17 +261,13 @@ def test_transition_uncovered_partial_full_has_only_current_active_finding(db: S
     )
     db.commit()
 
-    partial = _finding(
-        db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier
-    )
+    partial = _finding(db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier)
     assert partial.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
     active = (
         db.query(Finding)
         .filter(
             Finding.resource_id == instance.db_instance_identifier,
-            Finding.rule_key.in_(
-                [RDS_RESERVATION_UNCOVERED, RDS_RESERVATION_PARTIAL_COVERAGE]
-            ),
+            Finding.rule_key.in_([RDS_RESERVATION_UNCOVERED, RDS_RESERVATION_PARTIAL_COVERAGE]),
             Finding.presence_status == OpportunityPresenceStatus.ACTIVE.value,
         )
         .count()
@@ -337,9 +323,7 @@ def test_unused_capacity_resolves_when_fully_allocated(db: Session) -> None:
     db.commit()
 
     assert result.resolved >= 1
-    finding = _finding(
-        db, RDS_RESERVATION_UNUSED_CAPACITY, reservation.reserved_db_instance_id
-    )
+    finding = _finding(db, RDS_RESERVATION_UNUSED_CAPACITY, reservation.reserved_db_instance_id)
     assert finding.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
 
 
@@ -406,9 +390,7 @@ def test_summary_exposes_coverage_reservation_and_expiration_totals(db: Session)
     generate_rds_reservation_opportunities(db, coverage_run_id=run.id, now=NOW)
     db.commit()
 
-    summary = rds_reservation_opportunity_summary(
-        db, coverage_run_id=run.id, now=NOW
-    )
+    summary = rds_reservation_opportunity_summary(db, coverage_run_id=run.id, now=NOW)
     assert summary["rds"]["partially_covered"] == 1
     assert summary["coverage"]["coverage_percentage"] == 50.0
     assert summary["reservations"]["unused_units"] == 8.0
