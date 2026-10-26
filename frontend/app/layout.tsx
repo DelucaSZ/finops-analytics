@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
 import "./globals.css";
 import "./opportunities-stage5.css";
+import "./styles/tokens/index.css";
 import "./ui-system.css";
 import "./legacy-theme-compat.css";
 import "./dashboard-executive.css";
