@@ -24,12 +24,12 @@ from app.services.aws_cost_explorer import AwsBillingUpstreamError
 from app.services.rds_cost_explorer import RdsCostExplorerClient
 from app.services.rds_reservation_engine import RdsReservationCoverageEngine
 from app.services.rds_reservation_rules import (
-    BillingScopeContext,
     COVERAGE_FULL,
     COVERAGE_PARTIAL,
     COVERAGE_UNCOVERED,
     COVERAGE_UNKNOWN,
     ZERO,
+    BillingScopeContext,
     _safe_percentage,
     is_active_reservation,
     is_reservation_coverage_eligible_instance,
