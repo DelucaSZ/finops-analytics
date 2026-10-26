@@ -56,6 +56,7 @@ from app.models.pricing_audit import (
     PricingAuditActorType,
     PricingAuditEvent,
 )
+from app.models.rds_inventory import AwsRdsInstance, AwsRdsReservedInstance
 from app.models.scan import Scan
 from app.models.user import AuthState, User
 
@@ -69,6 +70,8 @@ __all__ = [
     "AuthRateLimit",
     "LoginSession",
     "AwsAccount",
+    "AwsRdsInstance",
+    "AwsRdsReservedInstance",
     "BillingProfile",
     "CloudAccount",
     "CloudAccountAuditEvent",
