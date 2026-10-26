@@ -101,7 +101,7 @@ export function buildRdsDashboardQuery(state, kind) {
     if (state.opportunityStatus) params.set("opportunity_status", state.opportunityStatus);
     if (state.severity) params.set("severity", state.severity);
     params.set("sort", state.sort || "last_seen");
-    params.set("order", state.order || "desc");
+    params.set("order", state.sort ? (state.order || "desc") : "desc");
   }
   return params.toString();
 }
