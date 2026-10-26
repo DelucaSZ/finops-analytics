@@ -23,9 +23,7 @@ def generate_opportunities(
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
     try:
-        result = generate_rds_reservation_opportunities(
-            db, coverage_run_id=coverage_run_id
-        )
+        result = generate_rds_reservation_opportunities(db, coverage_run_id=coverage_run_id)
         db.commit()
     except ValueError as exc:
         db.rollback()
@@ -44,9 +42,7 @@ def get_summary(
     engine: str | None = Query(default=None, max_length=64),
     family: str | None = Query(default=None, max_length=32),
     instance_class: str | None = Query(default=None, max_length=64),
-    opportunity_status: str | None = Query(
-        default=None, pattern="^(open|treated|rejected)$"
-    ),
+    opportunity_status: str | None = Query(default=None, pattern="^(open|treated|rejected)$"),
     severity: str | None = Query(default=None, pattern="^(high|medium|low)$"),
     db: Session = Depends(get_db),
 ) -> dict[str, Any]:
