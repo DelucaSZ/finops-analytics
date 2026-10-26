@@ -6,7 +6,6 @@ import {
   parseSidebarCollapsed,
   resolveThemePreference,
   serializeSidebarCollapsed,
-  SIDEBAR_STORAGE_KEY,
   THEME_STORAGE_KEY,
 } from "../lib/ui-preferences.mjs";
 
@@ -41,7 +40,7 @@ test("sidebar persistence is strict and has an expanded fallback", () => {
 test("layout bootstraps appearance before hydration and mounts the centralized theme provider", async () => {
   const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
   assert.ok(layout.includes("getThemeBootstrapScript"));
-  assert.match(layout, new RegExp(SIDEBAR_STORAGE_KEY.replaceAll(".", "\\.")));
+  assert.ok(layout.includes("JSON.stringify(SIDEBAR_STORAGE_KEY)"));
   assert.ok(layout.includes("<ThemeProvider>"));
   assert.ok(layout.includes("<AppShell>{children}</AppShell>"));
 });
