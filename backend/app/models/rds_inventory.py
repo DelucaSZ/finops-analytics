@@ -47,6 +47,8 @@ class AwsRdsInstance(TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
     coverage_eligible: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     multi_az: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    deployment_topology: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    cluster_storage_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     availability_zone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     secondary_availability_zone: Mapped[str | None] = mapped_column(String(32), nullable=True)
     storage_type: Mapped[str | None] = mapped_column(String(32), nullable=True)

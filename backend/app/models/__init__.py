@@ -56,6 +56,12 @@ from app.models.pricing_audit import (
     PricingAuditActorType,
     PricingAuditEvent,
 )
+from app.models.rds_coverage import (
+    RdsInstanceReservationCoverage,
+    RdsReservationAllocation,
+    RdsReservationCoverageRun,
+    RdsReservationUtilization,
+)
 from app.models.rds_inventory import AwsRdsInstance, AwsRdsReservedInstance
 from app.models.scan import Scan
 from app.models.user import AuthState, User
@@ -72,6 +78,10 @@ __all__ = [
     "AwsAccount",
     "AwsRdsInstance",
     "AwsRdsReservedInstance",
+    "RdsInstanceReservationCoverage",
+    "RdsReservationAllocation",
+    "RdsReservationCoverageRun",
+    "RdsReservationUtilization",
     "BillingProfile",
     "CloudAccount",
     "CloudAccountAuditEvent",
