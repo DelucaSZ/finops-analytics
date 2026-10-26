@@ -1,0 +1,55 @@
+/* Aven semantic status families. Status meaning is independent from brand accent. */
+:root,
+html[data-theme="light"] {
+  --status-success: var(--aven-color-green-600);
+  --status-success-bg: var(--aven-color-green-50);
+  --status-success-border: var(--aven-color-green-200);
+  --status-success-text: var(--aven-color-green-800);
+
+  --status-warning: var(--aven-color-amber-500);
+  --status-warning-bg: var(--aven-color-amber-50);
+  --status-warning-border: var(--aven-color-amber-200);
+  --status-warning-text: var(--aven-color-amber-800);
+
+  --status-danger: var(--aven-color-red-600);
+  --status-danger-bg: var(--aven-color-red-50);
+  --status-danger-border: var(--aven-color-red-200);
+  --status-danger-text: var(--aven-color-red-800);
+
+  --status-info: var(--aven-color-blue-600);
+  --status-info-bg: var(--aven-color-blue-50);
+  --status-info-border: var(--aven-color-blue-200);
+  --status-info-text: var(--aven-color-blue-800);
+
+  --status-neutral: var(--aven-color-neutral-500);
+  --status-neutral-bg: var(--aven-color-neutral-100);
+  --status-neutral-border: var(--aven-color-neutral-200);
+  --status-neutral-text: var(--aven-color-neutral-700);
+}
+
+html[data-theme="dark"] {
+  --status-success: var(--aven-color-green-400);
+  --status-success-bg: var(--aven-color-green-900);
+  --status-success-border: var(--aven-color-green-700);
+  --status-success-text: var(--aven-color-green-100);
+
+  --status-warning: var(--aven-color-amber-400);
+  --status-warning-bg: var(--aven-color-amber-900);
+  --status-warning-border: var(--aven-color-amber-700);
+  --status-warning-text: var(--aven-color-amber-100);
+
+  --status-danger: var(--aven-color-red-400);
+  --status-danger-bg: var(--aven-color-red-900);
+  --status-danger-border: var(--aven-color-red-700);
+  --status-danger-text: var(--aven-color-red-100);
+
+  --status-info: var(--aven-color-blue-400);
+  --status-info-bg: var(--aven-color-blue-900);
+  --status-info-border: var(--aven-color-blue-700);
+  --status-info-text: var(--aven-color-blue-100);
+
+  --status-neutral: var(--aven-color-neutral-400);
+  --status-neutral-bg: var(--aven-color-neutral-800);
+  --status-neutral-border: var(--aven-color-neutral-700);
+  --status-neutral-text: var(--aven-color-neutral-200);
+}

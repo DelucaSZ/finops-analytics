@@ -1,0 +1,29 @@
+/*
+ * Aven compatibility aliases.
+ *
+ * These aliases preserve the Brand Kit v1 token names while the product token
+ * architecture becomes canonical. Existing DeepOps UI variables such as
+ * --background, --primary, --bg and --accent intentionally remain owned by
+ * ui-system.css during the incremental migration; new Aven components must not
+ * consume those legacy application variables.
+ */
+:root {
+  --aven-blue: var(--aven-color-blue-500);
+  --aven-purple: var(--aven-color-violet-500);
+  --aven-indigo: var(--aven-color-indigo-500);
+  --aven-blue-light: var(--aven-color-blue-400);
+  --aven-surface-blue: var(--aven-color-soft-blue);
+  --aven-lavender: var(--aven-color-lavender);
+  --aven-violet-soft: var(--aven-color-soft-violet);
+  --aven-cyan-soft: var(--aven-color-soft-cyan);
+  --aven-black: var(--aven-color-neutral-950);
+  --aven-slate-900: var(--aven-color-neutral-800);
+  --aven-slate-500: var(--aven-color-neutral-500);
+  --aven-slate-200: var(--aven-color-neutral-200);
+  --aven-bg-light: var(--gradient-background-light);
+  --aven-bg-dark: var(--gradient-background-dark);
+  --aven-brand-gradient: var(--gradient-brand);
+  --aven-radius-card: var(--radius-card);
+  --aven-radius-control: var(--radius-control);
+  --aven-font-ui: var(--font-family-ui);
+}

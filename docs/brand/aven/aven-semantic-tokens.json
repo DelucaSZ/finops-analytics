@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "name": "Aven Semantic Token Index",
+  "sourceOfTruth": "frontend/app/styles/tokens/",
+  "runtimeInterface": "CSS Custom Properties",
+  "note": "This file indexes token names for tooling. It intentionally does not duplicate raw color/spacing values from the CSS source of truth.",
+  "layers": [
+    "primitive",
+    "semantic",
+    "status",
+    "visualization",
+    "component",
+    "legacy-compatibility"
+  ],
+  "themes": {
+    "light": {
+      "selector": ":root, html[data-theme=\"light\"]",
+      "background": ["--background-primary", "--background-secondary", "--background-tertiary", "--background-inverse"],
+      "surface": ["--surface-primary", "--surface-secondary", "--surface-tertiary", "--surface-elevated", "--surface-overlay", "--surface-hover", "--surface-selected", "--surface-disabled", "--surface-inverse"],
+      "text": ["--text-primary", "--text-secondary", "--text-muted", "--text-disabled", "--text-inverse", "--text-link", "--text-link-hover", "--text-brand"],
+      "border": ["--border-subtle", "--border-default", "--border-strong", "--border-interactive", "--border-focus", "--border-disabled"],
+      "action": ["--action-primary", "--action-primary-hover", "--action-primary-active", "--action-primary-text", "--action-secondary", "--action-secondary-hover", "--action-secondary-active", "--action-secondary-text", "--action-ghost-hover", "--action-ghost-active", "--action-disabled", "--action-disabled-text"],
+      "focus": ["--focus-ring", "--focus-ring-offset"],
+      "state": ["--state-hover-overlay", "--state-active-overlay", "--state-selected-bg", "--state-selected-border"],
+      "overlay": ["--overlay-backdrop", "--overlay-backdrop-strong"]
+    },
+    "dark": {
+      "selector": "html[data-theme=\"dark\"]",
+      "usesSameSemanticInterface": true
+    }
+  },
+  "status": {
+    "families": ["success", "warning", "danger", "info", "neutral"],
+    "suffixes": ["", "-bg", "-border", "-text"]
+  },
+  "visualization": {
+    "series": ["--chart-series-1", "--chart-series-2", "--chart-series-3", "--chart-series-4", "--chart-series-5", "--chart-series-6"],
+    "structure": ["--chart-grid", "--chart-axis", "--chart-label", "--chart-tooltip-bg", "--chart-tooltip-text", "--chart-reference-line"],
+    "financialStates": ["--chart-forecast", "--chart-estimated", "--chart-comparison", "--chart-baseline"],
+    "providerIdentityRule": "Series tokens are categorical and must not imply AWS=blue or OCI=violet without an explicit product semantic decision."
+  },
+  "foundations": {
+    "spacing": ["--space-0", "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6", "--space-8", "--space-10", "--space-12", "--space-16"],
+    "radius": ["--radius-none", "--radius-sm", "--radius-md", "--radius-control", "--radius-card", "--radius-dialog", "--radius-pill", "--radius-full"],
+    "typography": ["--font-family-ui", "--font-family-display", "--font-family-mono", "--font-weight-regular", "--font-weight-medium", "--font-weight-semibold", "--font-weight-bold", "--font-size-xs", "--font-size-sm", "--font-size-md", "--font-size-lg", "--font-size-xl", "--font-size-2xl", "--font-size-3xl", "--line-height-tight", "--line-height-normal", "--line-height-relaxed"],
+    "shadows": ["--shadow-xs", "--shadow-sm", "--shadow-md", "--shadow-lg", "--shadow-xl"],
+    "gradients": ["--gradient-brand", "--gradient-background-light", "--gradient-background-dark"]
+  },
+  "componentTokens": ["--sidebar-background", "--sidebar-border", "--header-background", "--header-border", "--card-background", "--card-border", "--control-background", "--control-border", "--dialog-background", "--dialog-border", "--tooltip-background", "--tooltip-text"],
+  "legacyCompatibility": {
+    "brandKitAliasesFile": "frontend/app/styles/tokens/legacy.css",
+    "currentApplicationCompatibilityOwner": "frontend/app/ui-system.css",
+    "policy": "Existing DeepOps variables stay in place until their owning UI is migrated. New Aven components consume the semantic token interface only."
+  }
+}

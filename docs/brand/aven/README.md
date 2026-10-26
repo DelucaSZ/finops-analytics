@@ -6,7 +6,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 
 1. `docs/brand/aven/README.md`
 2. `docs/brand/aven/AVEN_BRAND_GUIDE.txt`
-3. the applicable assets and visual references under this directory
+3. `docs/brand/aven/AVEN_DESIGN_TOKENS.md`
+4. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -17,6 +18,28 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 - Product direction: premium, technological, secure, controlled, minimal, elegant
 
 The approved visual references in the Brand Kit v1 are the golden references for the product redesign, especially the light and dark dashboard references.
+
+## Aven Design System foundation
+
+Task 24.2 establishes the official design-token architecture documented in:
+
+- `docs/brand/aven/AVEN_DESIGN_TOKENS.md` — architecture, usage rules, theme mapping and migration policy;
+- `docs/brand/aven/aven-semantic-tokens.json` — tooling-oriented token-name index;
+- `frontend/app/styles/tokens/` — canonical product-token source and runtime CSS Custom Properties.
+
+The runtime contract follows:
+
+```text
+Component
+↓
+Semantic / Component Token
+↓
+Theme Mapping
+↓
+Primitive Token
+```
+
+New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, not raw brand colors.
 
 ## Mandatory engineering rule — Task 24.5 onward
 
@@ -47,7 +70,7 @@ font-size: 14px;
 color: var(--action-primary);
 border-radius: var(--radius-control);
 padding: var(--space-4);
-font-size: var(--text-sm);
+font-size: var(--font-size-sm);
 ```
 
 This rule applies to all new visual components and to components migrated into the Aven design system from Task 24.5 onward.
@@ -61,6 +84,7 @@ This rule applies to all new visual components and to components migrated into t
 - Semantic states such as success, warning, error and information must remain recognizable.
 - Institutional gradients should be atmospheric and controlled, not neon or pervasive.
 - Data visualization must use dedicated semantic chart tokens rather than raw brand colors.
+- Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
 
 ## Repository note
 
@@ -70,4 +94,4 @@ The textual specifications, tokens and vector fallbacks are stored directly unde
 
 Brand Kit: **v1**
 
-This version is the initial official identity for the Aven web-system redesign. The next implementation layer is the Aven product design system: semantic tokens, spacing, typography scale, components, states, accessibility and data visualization.
+The identity and product-token foundation are now versioned. Tasks 24.3 and 24.4 can evolve theme resolution and refine typography/spacing/radius/shadows without rebuilding the token architecture.
