@@ -1,3 +1,4 @@
+from decimal import Decimal
 from functools import lru_cache
 from typing import Annotated
 
@@ -76,6 +77,14 @@ class Settings(BaseSettings):
             Fernet(self.mfa_encryption_key.get_secret_value().encode())
         if self.smtp_host and (not self.public_url or not self.smtp_from):
             raise ValueError("SMTP requires NUVEMIQ_PUBLIC_URL and NUVEMIQ_SMTP_FROM")
+        if not (
+            self.rds_reservation_expiration_critical_days
+            <= self.rds_reservation_expiration_high_days
+            <= self.rds_reservation_expiration_warning_days
+        ):
+            raise ValueError(
+                "RDS reservation expiration thresholds must satisfy critical <= high <= warning"
+            )
         return self
 
     worker_poll_seconds: int = Field(5, alias="NUVEMIQ_WORKER_POLL_SECONDS")
@@ -152,6 +161,35 @@ class Settings(BaseSettings):
         ge=300,
         le=604800,
         alias="AWS_BILLING_CACHE_TTL_HISTORICAL_SECONDS",
+    )
+    rds_reservation_expiration_warning_days: int = Field(
+        30,
+        ge=1,
+        le=365,
+        alias="RDS_RESERVATION_EXPIRATION_WARNING_DAYS",
+    )
+    rds_reservation_expiration_high_days: int = Field(
+        15,
+        ge=0,
+        le=365,
+        alias="RDS_RESERVATION_EXPIRATION_HIGH_DAYS",
+    )
+    rds_reservation_expiration_critical_days: int = Field(
+        7,
+        ge=0,
+        le=365,
+        alias="RDS_RESERVATION_EXPIRATION_CRITICAL_DAYS",
+    )
+    rds_reservation_inventory_freshness_hours: int = Field(
+        24,
+        ge=1,
+        le=720,
+        alias="RDS_RESERVATION_INVENTORY_FRESHNESS_HOURS",
+    )
+    rds_reservation_unused_units_tolerance: Decimal = Field(
+        Decimal("0.000001"),
+        gt=Decimal("0"),
+        alias="RDS_RESERVATION_UNUSED_UNITS_TOLERANCE",
     )
     ai_provider: str = Field("disabled", alias="NUVEMIQ_AI_PROVIDER")
     bedrock_region: str = Field("us-east-1", alias="NUVEMIQ_BEDROCK_REGION")

@@ -27,6 +27,7 @@ from app.api.routes import (
     policies,
     pricing,
     rds_inventory,
+    rds_reservation_opportunities,
     scans,
     tls,
     users,
@@ -118,6 +119,7 @@ app.include_router(pricing.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
 app.include_router(rds_inventory.router, prefix="/api/v1")
+app.include_router(rds_reservation_opportunities.router, prefix="/api/v1")
 app.include_router(opportunity_discovery.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")
