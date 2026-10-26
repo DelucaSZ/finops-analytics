@@ -1,0 +1,20 @@
+:root {
+  --aven-blue: #3B82F6;
+  --aven-purple: #8B5CF6;
+  --aven-indigo: #6366F1;
+  --aven-blue-light: #60A5FA;
+  --aven-surface-blue: #EAF4FF;
+  --aven-lavender: #F3EEFF;
+  --aven-violet-soft: #EDE9FE;
+  --aven-cyan-soft: #ECFDF5;
+  --aven-black: #0A0A0F;
+  --aven-slate-900: #1F2937;
+  --aven-slate-500: #6B7280;
+  --aven-slate-200: #E5E7EB;
+  --aven-bg-light: linear-gradient(135deg, #FFFFFF 0%, #EAF4FF 56%, #93C5FD 100%);
+  --aven-bg-dark: linear-gradient(135deg, #0A0A0F 0%, #1A0F3D 56%, #8B5CF6 140%);
+  --aven-brand-gradient: linear-gradient(135deg, #38B2F6 0%, #6366F1 52%, #8B5CF6 100%);
+  --aven-radius-card: 16px;
+  --aven-radius-control: 10px;
+  --aven-font-ui: "Inter", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
