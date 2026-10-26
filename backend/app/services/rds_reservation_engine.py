@@ -54,15 +54,13 @@ class RdsReservationCoverageEngine:
             if row.is_active and is_reservation_coverage_eligible_instance(row)
         ]
         capacities = [
-            self._capacity(row, at=at)
-            for row in reservations
-            if is_active_reservation(row, at=at)
+            self._capacity(row, at=at) for row in reservations if is_active_reservation(row, at=at)
         ]
         demands.sort(key=self._demand_sort_key)
         capacities.sort(key=self._capacity_sort_key)
-        capacity_pools: dict[
-            tuple[str, str, str | None], list[ReservationCapacity]
-        ] = defaultdict(list)
+        capacity_pools: dict[tuple[str, str, str | None], list[ReservationCapacity]] = defaultdict(
+            list
+        )
         for capacity in capacities:
             capacity_pools[self._pool_key(capacity.row)].append(capacity)
 
@@ -77,9 +75,7 @@ class RdsReservationCoverageEngine:
                     continue
                 if capacity.row.db_instance_class != demand.row.db_instance_class:
                     continue
-                decision = self.matcher.match(
-                    capacity.row, demand.row, at=at, allow_flexible=False
-                )
+                decision = self.matcher.match(capacity.row, demand.row, at=at, allow_flexible=False)
                 if not decision.compatible:
                     # Flexible products may convert Single/Multi-AZ while keeping the same class.
                     decision = self.matcher.match(
