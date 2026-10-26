@@ -49,12 +49,8 @@ RDS_RESERVATION_RULES = frozenset(
         RDS_RESERVATION_EXPIRING,
     }
 )
-COVERAGE_RULES = frozenset(
-    {RDS_RESERVATION_UNCOVERED, RDS_RESERVATION_PARTIAL_COVERAGE}
-)
-RESERVATION_RULES = frozenset(
-    {RDS_RESERVATION_UNUSED_CAPACITY, RDS_RESERVATION_EXPIRING}
-)
+COVERAGE_RULES = frozenset({RDS_RESERVATION_UNCOVERED, RDS_RESERVATION_PARTIAL_COVERAGE})
+RESERVATION_RULES = frozenset({RDS_RESERVATION_UNUSED_CAPACITY, RDS_RESERVATION_EXPIRING})
 ZERO = Decimal("0")
 ONE_HUNDRED = Decimal("100")
 FINGERPRINT_SCOPE = "rds-reservation"
@@ -141,18 +137,14 @@ def _expiration_delta(reservation: AwsRdsReservedInstance, *, now: datetime) -> 
     return _utc(reservation.expiration_at) - now
 
 
-def _days_until_expiration(
-    reservation: AwsRdsReservedInstance, *, now: datetime
-) -> int:
+def _days_until_expiration(reservation: AwsRdsReservedInstance, *, now: datetime) -> int:
     seconds = _expiration_delta(reservation, now=now).total_seconds()
     if seconds <= 0:
         return 0 if seconds == 0 else -math.ceil(abs(seconds) / 86400)
     return math.ceil(seconds / 86400)
 
 
-def _active_for_expiration(
-    reservation: AwsRdsReservedInstance, *, now: datetime
-) -> bool:
+def _active_for_expiration(reservation: AwsRdsReservedInstance, *, now: datetime) -> bool:
     start = _utc(reservation.start_time)
     expiration = _utc(reservation.expiration_at)
     return (
@@ -180,9 +172,7 @@ def _coverage_severity(uncovered_units: Decimal, percentage: Decimal) -> str:
     return "low"
 
 
-def _unused_severity(
-    unused_units: Decimal, utilization_percentage: Decimal
-) -> str:
+def _unused_severity(unused_units: Decimal, utilization_percentage: Decimal) -> str:
     if utilization_percentage <= Decimal("25") or unused_units >= Decimal("16"):
         return "high"
     if utilization_percentage <= Decimal("60") or unused_units >= Decimal("4"):
@@ -192,11 +182,7 @@ def _unused_severity(
 
 def _expiration_severity(days: int) -> str:
     # DeepOps' global severity taxonomy is high / medium / low.
-    return (
-        "high"
-        if days <= settings.rds_reservation_expiration_high_days
-        else "medium"
-    )
+    return "high" if days <= settings.rds_reservation_expiration_high_days else "medium"
 
 
 def _mark_active(finding: Finding, *, run_id: int, now: datetime) -> None:
@@ -228,9 +214,7 @@ def _resolve(finding: Finding, *, run_id: int, now: datetime, reason: str) -> bo
     return True
 
 
-def _mark_uncertain(
-    finding: Finding, *, run_id: int, now: datetime, reason: str
-) -> bool:
+def _mark_uncertain(finding: Finding, *, run_id: int, now: datetime, reason: str) -> bool:
     marker = _run_marker(run_id)
     if (
         finding.presence_status == OpportunityPresenceStatus.MISSING.value
@@ -275,10 +259,7 @@ def _upsert(
         rule_key=rule_key,
     )
     finding = (
-        db.query(Finding)
-        .filter(Finding.fingerprint == fingerprint)
-        .with_for_update()
-        .one_or_none()
+        db.query(Finding).filter(Finding.fingerprint == fingerprint).with_for_update().one_or_none()
     )
     created = False
     if finding is None:
@@ -315,10 +296,7 @@ def _upsert(
             created = True
         except IntegrityError:
             finding = (
-                db.query(Finding)
-                .filter(Finding.fingerprint == fingerprint)
-                .with_for_update()
-                .one()
+                db.query(Finding).filter(Finding.fingerprint == fingerprint).with_for_update().one()
             )
 
     if created:
@@ -615,9 +593,7 @@ def generate_rds_reservation_opportunities(
                 f"{_number(uncovered):g} de {_number(required):g} normalized units "
                 "permanecem descobertas."
             )
-            recommendation = (
-                "Avaliar cobertura adicional para a capacidade atualmente descoberta."
-            )
+            recommendation = "Avaliar cobertura adicional para a capacidade atualmente descoberta."
             result.partial_found += 1
         elif coverage.coverage_status == COVERAGE_FULL:
             continue
@@ -697,7 +673,7 @@ def generate_rds_reservation_opportunities(
         days = _days_until_expiration(reservation, now=generated_at)
         workloads = workloads_by_reservation.get(reservation.id, [])
 
-        if unused_units > tolerance:
+        if is_active_reservation(reservation, at=generated_at) and unused_units > tolerance:
             recommendation = (
                 "Revisar a capacidade reservada em relação ao inventário atual antes "
                 "de novas aquisições ou renovações."
@@ -750,11 +726,9 @@ def generate_rds_reservation_opportunities(
             result.unused_capacity_found += 1
 
         delta = _expiration_delta(reservation, now=generated_at)
-        if (
-            _active_for_expiration(reservation, now=generated_at)
-            and timedelta(0) <= delta
-            <= timedelta(days=settings.rds_reservation_expiration_warning_days)
-        ):
+        if _active_for_expiration(reservation, now=generated_at) and timedelta(
+            0
+        ) <= delta <= timedelta(days=settings.rds_reservation_expiration_warning_days):
             days = _days_until_expiration(reservation, now=generated_at)
             used = allocated_units > settings.rds_reservation_unused_units_tolerance
             recommendation = (
@@ -966,9 +940,7 @@ def rds_reservation_opportunity_summary(
             AwsRdsReservedInstance.instance_family == family
         )
     if instance_class:
-        coverage_query = coverage_query.filter(
-            AwsRdsInstance.db_instance_class == instance_class
-        )
+        coverage_query = coverage_query.filter(AwsRdsInstance.db_instance_class == instance_class)
         utilization_query = utilization_query.filter(
             AwsRdsReservedInstance.db_instance_class == instance_class
         )
@@ -997,11 +969,13 @@ def rds_reservation_opportunity_summary(
         reserved += _decimal(utilization.total_units)
         allocated += _decimal(utilization.allocated_units)
         unused += _decimal(utilization.unused_units)
-        if is_active_reservation(reservation, at=current_time):
+        if _active_for_expiration(reservation, now=current_time):
             active_reservations += 1
             delta = _expiration_delta(reservation, now=current_time)
-            if timedelta(0) <= delta <= timedelta(
-                days=settings.rds_reservation_expiration_warning_days
+            if (
+                timedelta(0)
+                <= delta
+                <= timedelta(days=settings.rds_reservation_expiration_warning_days)
             ):
                 days = _days_until_expiration(reservation, now=current_time)
                 if days <= settings.rds_reservation_expiration_critical_days:
