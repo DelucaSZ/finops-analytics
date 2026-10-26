@@ -74,9 +74,7 @@ def enrich_rds_cluster_metadata(db: Session, instances: list[AwsRdsInstance]) ->
     accounts = {
         account.id: account
         for account in (
-            db.query(CloudAccount)
-            .filter(CloudAccount.id.in_({key[0] for key in grouped}))
-            .all()
+            db.query(CloudAccount).filter(CloudAccount.id.in_({key[0] for key in grouped})).all()
         )
     }
     for (cloud_account_id, region), rows in sorted(grouped.items()):
