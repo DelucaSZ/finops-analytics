@@ -234,7 +234,8 @@ def test_uncovered_is_idempotent_and_preserves_first_seen(db: Session) -> None:
         .count()
         == 1
     )
-    assert _finding(db, RDS_RESERVATION_UNCOVERED, instance.db_instance_identifier).first_seen_at == first_seen
+    refreshed = _finding(db, RDS_RESERVATION_UNCOVERED, instance.db_instance_identifier)
+    assert refreshed.first_seen_at == first_seen
 
 
 def test_transition_uncovered_partial_full_has_only_current_active_finding(db: Session) -> None:
@@ -270,10 +271,10 @@ def test_transition_uncovered_partial_full_has_only_current_active_finding(db: S
     )
     db.commit()
 
-    assert (
-        _finding(db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier).presence_status
-        == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
+    partial = _finding(
+        db, RDS_RESERVATION_PARTIAL_COVERAGE, instance.db_instance_identifier
     )
+    assert partial.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
     active = (
         db.query(Finding)
         .filter(
@@ -336,10 +337,10 @@ def test_unused_capacity_resolves_when_fully_allocated(db: Session) -> None:
     db.commit()
 
     assert result.resolved >= 1
-    assert (
-        _finding(db, RDS_RESERVATION_UNUSED_CAPACITY, reservation.reserved_db_instance_id).presence_status
-        == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
+    finding = _finding(
+        db, RDS_RESERVATION_UNUSED_CAPACITY, reservation.reserved_db_instance_id
     )
+    assert finding.presence_status == OpportunityPresenceStatus.RESOLVED_EXTERNALLY.value
 
 
 @pytest.mark.parametrize(
