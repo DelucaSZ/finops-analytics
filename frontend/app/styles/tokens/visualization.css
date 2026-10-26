@@ -1,0 +1,41 @@
+/* Aven data visualization tokens. These colors are categorical, not provider identities. */
+:root,
+html[data-theme="light"] {
+  --chart-series-1: var(--aven-color-blue-500);
+  --chart-series-2: var(--aven-color-indigo-500);
+  --chart-series-3: var(--aven-color-violet-500);
+  --chart-series-4: var(--aven-color-blue-400);
+  --chart-series-5: var(--aven-color-violet-300);
+  --chart-series-6: var(--aven-color-cyan-500);
+
+  --chart-grid: var(--aven-color-neutral-200);
+  --chart-axis: var(--aven-color-neutral-400);
+  --chart-label: var(--text-secondary);
+  --chart-tooltip-bg: var(--aven-color-neutral-950);
+  --chart-tooltip-text: var(--aven-color-neutral-0);
+  --chart-reference-line: var(--aven-color-neutral-500);
+  --chart-forecast: var(--aven-color-amber-500);
+  --chart-estimated: var(--aven-color-blue-300);
+  --chart-comparison: var(--aven-color-violet-500);
+  --chart-baseline: var(--aven-color-neutral-500);
+}
+
+html[data-theme="dark"] {
+  --chart-series-1: var(--aven-color-blue-400);
+  --chart-series-2: var(--aven-color-indigo-400);
+  --chart-series-3: var(--aven-color-violet-400);
+  --chart-series-4: var(--aven-color-blue-300);
+  --chart-series-5: var(--aven-color-violet-300);
+  --chart-series-6: var(--aven-color-cyan-400);
+
+  --chart-grid: var(--aven-color-neutral-800);
+  --chart-axis: var(--aven-color-neutral-600);
+  --chart-label: var(--text-secondary);
+  --chart-tooltip-bg: var(--aven-color-neutral-0);
+  --chart-tooltip-text: var(--aven-color-neutral-950);
+  --chart-reference-line: var(--aven-color-neutral-500);
+  --chart-forecast: var(--aven-color-amber-400);
+  --chart-estimated: var(--aven-color-blue-300);
+  --chart-comparison: var(--aven-color-violet-400);
+  --chart-baseline: var(--aven-color-neutral-500);
+}
