@@ -1,0 +1,19 @@
+/*
+ * Minimal structural component tokens.
+ * Keep this layer small: component tokens must derive from semantic tokens and
+ * must never be page-specific.
+ */
+:root {
+  --sidebar-background: var(--surface-primary);
+  --sidebar-border: var(--border-subtle);
+  --header-background: var(--surface-primary);
+  --header-border: var(--border-subtle);
+  --card-background: var(--surface-primary);
+  --card-border: var(--border-subtle);
+  --control-background: var(--surface-primary);
+  --control-border: var(--border-default);
+  --dialog-background: var(--surface-elevated);
+  --dialog-border: var(--border-subtle);
+  --tooltip-background: var(--chart-tooltip-bg);
+  --tooltip-text: var(--chart-tooltip-text);
+}
