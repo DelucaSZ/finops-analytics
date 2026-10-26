@@ -297,12 +297,13 @@ def run_rds_reservation_coverage(
                 )
         run.status = "COMPLETED"
         run.completed_at = utcnow()
+        run_id = run.id
         db.commit()
         logger.info(
             "RDS coverage run completed id=%s instances=%s reservations=%s full=%s partial=%s "
             "uncovered=%s unknown=%s required_units=%s covered_units=%s unused_reserved_units=%s "
             "allocations=%s duration_ms=%s reconciliation=%s",
-            run.id,
+            run_id,
             run.instances_analyzed,
             run.reservations_analyzed,
             run.fully_covered,
@@ -316,7 +317,35 @@ def run_rds_reservation_coverage(
             int((time.monotonic() - started_clock) * 1000),
             run.reconciliation_status,
         )
-        return run
+
+        # Opportunity generation is deliberately a separate transaction. A failure here
+        # must not invalidate an already valid coverage run, but it is logged as a partial
+        # pipeline failure and can be retried through the dedicated endpoint.
+        try:
+            from app.services.rds_reservation_opportunities import (
+                generate_rds_reservation_opportunities,
+            )
+
+            opportunity_result = generate_rds_reservation_opportunities(
+                db, coverage_run_id=run_id, now=now
+            )
+            db.commit()
+            logger.info(
+                "RDS opportunity generation completed coverage_run_id=%s "
+                "created=%s updated=%s resolved=%s",
+                run_id,
+                opportunity_result.created,
+                opportunity_result.updated,
+                opportunity_result.resolved,
+            )
+        except Exception:
+            db.rollback()
+            logger.exception(
+                "RDS opportunity generation failed coverage_run_id=%s", run_id
+            )
+
+        refreshed = db.get(RdsReservationCoverageRun, run_id)
+        return refreshed or run
     except Exception as exc:
         db.rollback()
         failed = db.get(RdsReservationCoverageRun, run.id)
