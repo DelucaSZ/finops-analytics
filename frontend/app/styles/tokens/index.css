@@ -1,4 +1,5 @@
 @import "./primitives.css";
+@import "./foundations.css";
 @import "./semantic-light.css";
 @import "./semantic-dark.css";
 @import "./status.css";

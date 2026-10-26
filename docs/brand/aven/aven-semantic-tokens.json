@@ -1,11 +1,12 @@
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "name": "Aven Semantic Token Index",
   "sourceOfTruth": "frontend/app/styles/tokens/",
   "runtimeInterface": "CSS Custom Properties",
-  "note": "This file indexes token names for tooling. It intentionally does not duplicate raw color/spacing values from the CSS source of truth.",
+  "note": "This file indexes token names for tooling. It intentionally does not duplicate raw visual values from the CSS source of truth.",
   "layers": [
     "primitive",
+    "foundation",
     "semantic",
     "status",
     "visualization",
@@ -22,11 +23,14 @@
       "action": ["--action-primary", "--action-primary-hover", "--action-primary-active", "--action-primary-text", "--action-secondary", "--action-secondary-hover", "--action-secondary-active", "--action-secondary-text", "--action-ghost-hover", "--action-ghost-active", "--action-disabled", "--action-disabled-text"],
       "focus": ["--focus-ring", "--focus-ring-offset"],
       "state": ["--state-hover-overlay", "--state-active-overlay", "--state-selected-bg", "--state-selected-border"],
-      "overlay": ["--overlay-backdrop", "--overlay-backdrop-strong"]
+      "overlay": ["--overlay-backdrop", "--overlay-backdrop-strong"],
+      "shadows": ["--shadow-xs", "--shadow-sm", "--shadow-md", "--shadow-lg", "--shadow-xl"],
+      "elevation": ["--elevation-0-surface", "--elevation-0-border", "--elevation-0-shadow", "--elevation-1-surface", "--elevation-1-border", "--elevation-1-shadow", "--elevation-2-surface", "--elevation-2-border", "--elevation-2-shadow", "--elevation-3-surface", "--elevation-3-border", "--elevation-3-shadow", "--elevation-4-surface", "--elevation-4-border", "--elevation-4-shadow"]
     },
     "dark": {
       "selector": "html[data-theme=\"dark\"]",
-      "usesSameSemanticInterface": true
+      "usesSameSemanticInterface": true,
+      "elevationStrategy": "surface and border contrast before shadow"
     }
   },
   "status": {
@@ -41,15 +45,28 @@
   },
   "foundations": {
     "spacing": ["--space-0", "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6", "--space-8", "--space-10", "--space-12", "--space-16"],
-    "radius": ["--radius-none", "--radius-sm", "--radius-md", "--radius-control", "--radius-card", "--radius-dialog", "--radius-pill", "--radius-full"],
-    "typography": ["--font-family-ui", "--font-family-display", "--font-family-mono", "--font-weight-regular", "--font-weight-medium", "--font-weight-semibold", "--font-weight-bold", "--font-size-xs", "--font-size-sm", "--font-size-md", "--font-size-lg", "--font-size-xl", "--font-size-2xl", "--font-size-3xl", "--line-height-tight", "--line-height-normal", "--line-height-relaxed"],
-    "shadows": ["--shadow-xs", "--shadow-sm", "--shadow-md", "--shadow-lg", "--shadow-xl"],
+    "radius": ["--radius-none", "--radius-xs", "--radius-sm", "--radius-md", "--radius-control", "--radius-card", "--radius-dialog", "--radius-pill", "--radius-full"],
+    "fontFamilies": ["--font-family-ui", "--font-family-display", "--font-family-mono"],
+    "fontWeights": ["--font-weight-regular", "--font-weight-medium", "--font-weight-semibold", "--font-weight-bold"],
+    "fontSizes": ["--font-size-xs", "--font-size-sm", "--font-size-md", "--font-size-lg", "--font-size-xl", "--font-size-2xl", "--font-size-3xl", "--font-size-4xl", "--font-size-5xl"],
+    "lineHeights": ["--line-height-none", "--line-height-tight", "--line-height-snug", "--line-height-normal", "--line-height-relaxed"],
+    "letterSpacing": ["--letter-spacing-tight", "--letter-spacing-normal", "--letter-spacing-wide"],
+    "typeRoles": ["--type-display-lg-*", "--type-display-md-*", "--type-heading-xl-*", "--type-heading-lg-*", "--type-heading-md-*", "--type-heading-sm-*", "--type-body-lg-*", "--type-body-md-*", "--type-body-sm-*", "--type-label-md-*", "--type-label-sm-*", "--type-caption-*", "--type-button-*", "--type-kpi-lg-*", "--type-kpi-md-*", "--type-table-header-*", "--type-table-body-*", "--type-code-*"],
+    "numeric": ["--font-variant-numeric-tabular"],
+    "icons": ["--icon-size-xs", "--icon-size-sm", "--icon-size-md", "--icon-size-lg", "--icon-size-xl", "--icon-size-2xl", "--icon-size-3xl", "--icon-stroke-default", "--icon-stroke-strong"],
+    "interactionGeometry": ["--focus-outline-width", "--focus-outline-offset", "--hit-target-min", "--hit-target-touch", "--control-height-compact", "--control-height-default", "--control-height-comfortable"],
+    "motion": ["--motion-duration-fast", "--motion-duration-normal", "--motion-duration-slow", "--motion-spinner-duration", "--motion-spinner-iteration-count", "--motion-ease-standard"],
     "gradients": ["--gradient-brand", "--gradient-background-light", "--gradient-background-dark"]
   },
-  "componentTokens": ["--sidebar-background", "--sidebar-border", "--header-background", "--header-border", "--card-background", "--card-border", "--control-background", "--control-border", "--dialog-background", "--dialog-border", "--tooltip-background", "--tooltip-text"],
+  "componentTokens": ["--sidebar-background", "--sidebar-border", "--header-background", "--header-border", "--card-background", "--card-border", "--card-radius", "--card-padding", "--card-shadow", "--control-background", "--control-border", "--control-radius", "--control-padding-inline-compact", "--control-padding-inline-default", "--control-padding-inline-comfortable", "--control-gap", "--dialog-background", "--dialog-border", "--dialog-radius", "--dialog-padding", "--dialog-shadow", "--popover-background", "--popover-border", "--popover-radius", "--popover-shadow", "--tooltip-background", "--tooltip-text", "--icon-button-size", "--icon-button-icon-size", "--form-field-gap", "--table-cell-padding-block", "--table-cell-padding-inline"],
+  "iconography": {
+    "library": "lucide-react",
+    "reactApi": "frontend/lib/iconography.ts",
+    "brandAndProviderMarks": "separate asset domain"
+  },
   "legacyCompatibility": {
     "brandKitAliasesFile": "frontend/app/styles/tokens/legacy.css",
     "currentApplicationCompatibilityOwner": "frontend/app/ui-system.css",
-    "policy": "Existing DeepOps variables stay in place until their owning UI is migrated. New Aven components consume the semantic token interface only."
+    "policy": "Existing DeepOps variables stay in place until their owning UI is migrated. New Aven components consume the semantic/foundation token interface only."
   }
 }

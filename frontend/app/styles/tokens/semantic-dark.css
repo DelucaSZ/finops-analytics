@@ -56,4 +56,27 @@ html[data-theme="dark"] {
 
   --overlay-backdrop: rgba(2, 6, 23, 0.68);
   --overlay-backdrop-strong: rgba(2, 6, 23, 0.82);
+
+  /* Dark elevation relies on surface/border contrast before shadow. */
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.16);
+  --shadow-sm: 0 4px 12px rgba(0, 0, 0, 0.18);
+  --shadow-md: 0 10px 28px rgba(0, 0, 0, 0.22);
+  --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.26);
+  --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.3);
+
+  --elevation-0-surface: var(--background-primary);
+  --elevation-0-border: transparent;
+  --elevation-0-shadow: var(--shadow-none);
+  --elevation-1-surface: var(--surface-primary);
+  --elevation-1-border: var(--border-subtle);
+  --elevation-1-shadow: var(--shadow-none);
+  --elevation-2-surface: var(--surface-elevated);
+  --elevation-2-border: var(--border-default);
+  --elevation-2-shadow: var(--shadow-xs);
+  --elevation-3-surface: var(--surface-overlay);
+  --elevation-3-border: var(--border-default);
+  --elevation-3-shadow: var(--shadow-sm);
+  --elevation-4-surface: var(--surface-overlay);
+  --elevation-4-border: var(--border-strong);
+  --elevation-4-shadow: var(--shadow-md);
 }

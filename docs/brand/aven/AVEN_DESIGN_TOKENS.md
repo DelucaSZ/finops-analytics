@@ -1,24 +1,22 @@
 # Aven Design Tokens
 
-Task 24.2 defines the official product-token foundation for Aven. It converts Brand Kit v1 and the Task 24.1 UI audit into a runtime token contract that later UI work can consume without knowing raw color, radius, spacing or typography values.
+Task 24.2 established the official Aven product-token architecture. Task 24.4 refines the visual foundation values while preserving that architecture. Detailed visual application rules now live in [`AVEN_FOUNDATIONS.md`](./AVEN_FOUNDATIONS.md); this document remains the architectural contract.
 
 ## Philosophy
 
-Aven follows the brand principle **“Complexity underneath. Clarity above.”** The design-token architecture therefore separates raw visual values from product meaning:
+Aven follows **“Complexity underneath. Clarity above.”** Product code expresses visual intent instead of raw implementation values.
 
 ```text
 Component
   ↓
-Semantic / Component Token
+Semantic / Foundation / Component Token
   ↓
 Theme Mapping
   ↓
 Primitive Token
 ```
 
-Product code should express intent (`--action-primary`, `--text-secondary`, `--surface-primary`) instead of implementation (`#2563eb`, `16px`, `600`).
-
-The brand direction remains premium, technological, secure, controlled, minimal and elegant. Purple is a selective premium accent; it is not a replacement for every semantic state. Success, warning, danger and information retain recognizable semantics.
+Raw brand colors and scales belong in the token-definition layer. New product components should not know whether a semantic action currently resolves to a particular hex value, shadow alpha or font file.
 
 ## Architecture
 
@@ -27,6 +25,7 @@ Runtime tokens live under:
 ```text
 frontend/app/styles/tokens/
   primitives.css
+  foundations.css
   semantic-light.css
   semantic-dark.css
   status.css
@@ -38,34 +37,33 @@ frontend/app/styles/tokens/
 
 Layers:
 
-1. **Primitive tokens** — raw brand anchors and reusable scales.
-2. **Semantic tokens** — visual function resolved per Light/Dark theme.
-3. **Status tokens** — success/warning/danger/info/neutral families.
-4. **Data visualization tokens** — categorical chart series and chart structure/state semantics.
-5. **Component tokens** — a deliberately small set of reusable structural aliases derived from semantic tokens.
-6. **Legacy compatibility** — temporary names needed while the existing UI migrates incrementally.
+1. **Primitive tokens** — raw brand anchors and reusable scales for spacing, radius, typography, icon geometry, focus/hit-target geometry and shared motion.
+2. **Foundation roles** — semantic typography roles, operational density and cross-cutting visual guidance derived from primitives.
+3. **Theme semantic tokens** — Light/Dark background, surfaces, text, borders, actions, focus, overlays, shadows and elevation mapping.
+4. **Status tokens** — success/warning/danger/info/neutral families.
+5. **Visualization tokens** — categorical chart series and chart structure/state semantics.
+6. **Component tokens** — a deliberately small reusable composition layer derived from semantic/foundation roles.
+7. **Legacy compatibility** — temporary aliases needed while the existing product migrates incrementally.
 
 `frontend/app/styles/tokens/index.css` is the single runtime entrypoint.
 
 ## Source of Truth
 
-The product token source of truth is:
+Canonical runtime values are CSS Custom Properties in:
 
 ```text
 frontend/app/styles/tokens/*.css
 ```
 
-CSS Custom Properties are both the canonical product definitions and the runtime interface. This avoids maintaining divergent raw values in CSS, JSON and TypeScript.
+`docs/brand/aven/palette/aven_design_tokens.json` remains Brand Kit input, not a competing runtime store.
 
-`docs/brand/aven/palette/aven_design_tokens.json` remains the **Brand Kit input**, not a second product-token store.
+`docs/brand/aven/aven-semantic-tokens.json` indexes token names for tooling without duplicating raw values.
 
-`docs/brand/aven/aven-semantic-tokens.json` is an index for future tooling. It lists token names and ownership but intentionally does **not** duplicate raw values.
+`frontend/lib/iconography.ts` is a token-backed React adapter for Lucide geometry; it references CSS variables rather than creating a second numeric icon scale.
 
-## Primitive Tokens
+## Primitive Brand Anchors
 
-### Brand color anchors
-
-Official Brand Kit anchors are preserved:
+Brand Kit anchors remain unchanged:
 
 | Brand value | Primitive |
 |---|---|
@@ -83,32 +81,18 @@ Official Brand Kit anchors are preserved:
 | Light Gray `#E5E7EB` | `--aven-color-neutral-200` |
 | White `#FFFFFF` | `--aven-color-neutral-0` |
 
-Intermediate blue/indigo/violet/neutral values are systematic ramps around those anchors. Green, amber, red and cyan ramps are supporting primitives required for semantic states and data visualization; they are not additional brand-primary colors.
+Intermediate ramps and semantic status ramps are supporting primitives; they do not replace the official brand-primary colors.
 
-### Gradients
+## Semantic Interface
 
-```css
---gradient-brand
---gradient-background-light
---gradient-background-dark
-```
-
-These preserve the Brand Kit v1 gradients. They are intended for institutional/background/hero moments, not as default card/control backgrounds.
-
-## Semantic Tokens
-
-### Background
+### Background and surfaces
 
 ```css
 --background-primary
 --background-secondary
 --background-tertiary
 --background-inverse
-```
 
-### Surfaces
-
-```css
 --surface-primary
 --surface-secondary
 --surface-tertiary
@@ -120,7 +104,7 @@ These preserve the Brand Kit v1 gradients. They are intended for institutional/b
 --surface-inverse
 ```
 
-### Text
+### Text and borders
 
 ```css
 --text-primary
@@ -131,11 +115,7 @@ These preserve the Brand Kit v1 gradients. They are intended for institutional/b
 --text-link
 --text-link-hover
 --text-brand
-```
 
-### Borders
-
-```css
 --border-subtle
 --border-default
 --border-strong
@@ -144,206 +124,107 @@ These preserve the Brand Kit v1 gradients. They are intended for institutional/b
 --border-disabled
 ```
 
-### Actions
+### Actions and interaction
 
 ```css
 --action-primary
 --action-primary-hover
 --action-primary-active
 --action-primary-text
-
 --action-secondary
 --action-secondary-hover
 --action-secondary-active
 --action-secondary-text
-
 --action-ghost-hover
 --action-ghost-active
 --action-disabled
 --action-disabled-text
-```
 
-Primary actions use the blue/indigo family. The semantic action color is intentionally not tied to `--aven-color-blue-500`; the current mapping uses a darker blue step where necessary to maintain readable white text.
-
-### Focus
-
-```css
 --focus-ring
 --focus-ring-offset
-```
-
-Focus is a dedicated semantic state and must not depend only on a background change.
-
-### Interactive states
-
-```css
 --state-hover-overlay
 --state-active-overlay
 --state-selected-bg
 --state-selected-border
-```
-
-These prevent each component from inventing independent hover/active/selected opacities.
-
-### Overlay/backdrop
-
-```css
 --overlay-backdrop
 --overlay-backdrop-strong
 ```
 
-Intended for dialogs, drawers, command palettes and other modal surfaces.
+Primary actions use the blue/indigo family. Purple remains a selective premium/brand accent.
 
 ## Theme Mapping
 
-### Light
-
-Selector:
+Light is selected by:
 
 ```css
 :root,
-html[data-theme="light"] { ... }
+html[data-theme="light"]
 ```
 
-Direction:
-
-- white/off-white backgrounds;
-- subtle blue tertiary surfaces;
-- white primary/elevated cards;
-- near-black and dark-slate text hierarchy;
-- blue/indigo actions;
-- violet only as selective premium/brand accent;
-- soft borders and restrained shadow.
-
-### Dark
-
-Selector:
+Dark is selected by:
 
 ```css
-html[data-theme="dark"] { ... }
+html[data-theme="dark"]
 ```
 
-Direction:
+The Task 24.3 Theme Engine owns preference resolution and root attributes. Components should not branch on `resolvedTheme` for normal CSS colors when semantic tokens can express the role.
 
-- near-black/deep-navy application background;
-- dark-neutral surfaces with limited deep-indigo use;
-- cool white/gray text;
-- blue/indigo/violet accents;
-- surface + border differentiation before shadow;
-- no pervasive purple, neon glow or gaming aesthetic.
+The Light and Dark shadow/elevation APIs have the same names but intentionally different values. Dark prioritizes surface + border contrast and starts base cards at zero shadow.
 
-System preference continues to resolve to one of these two selectors through the existing theme engine. Task 24.2 does not rebuild theme persistence/resolution.
+## Visual Foundations
 
-## Status Tokens
+The complete scale, usage matrix and constraints for typography, spacing, radius, elevation and iconography are documented in [`AVEN_FOUNDATIONS.md`](./AVEN_FOUNDATIONS.md).
 
-Every status has base, background, border and text roles:
+Key public hooks include:
+
+### Typography
 
 ```css
---status-success
---status-success-bg
---status-success-border
---status-success-text
-
---status-warning
---status-warning-bg
---status-warning-border
---status-warning-text
-
---status-danger
---status-danger-bg
---status-danger-border
---status-danger-text
-
---status-info
---status-info-bg
---status-info-border
---status-info-text
-
---status-neutral
---status-neutral-bg
---status-neutral-border
---status-neutral-text
+--font-family-ui
+--font-family-display
+--font-family-mono
+--font-weight-regular
+--font-weight-medium
+--font-weight-semibold
+--font-weight-bold
+--font-size-xs ... --font-size-5xl
+--line-height-none
+--line-height-tight
+--line-height-snug
+--line-height-normal
+--line-height-relaxed
+--letter-spacing-tight
+--letter-spacing-normal
+--letter-spacing-wide
 ```
 
-Status semantics are explicitly independent from brand accent. A successful operation remains green even when Aven brand accents are blue/indigo/violet.
+Semantic text roles use the `--type-*` family in `foundations.css`, including display, heading, body, label, caption, button, KPI, table and code/resource roles.
 
-## Interactive States
+Inter is the UI family; Sora is the display family. Both are loaded through `next/font/google` with weights 400/500/600/700. The Aven wordmark remains an official graphic asset and must not be recreated using the display font.
 
-New components should derive hover, active, selected, disabled and focus behavior from semantic state/action tokens rather than inventing local alpha values or literal colors.
-
-Disabled state must preserve state comprehension and accessible text contrast. Task 24.4/24.5 may refine opacity and control-specific rules while preserving this contract.
-
-## Surfaces
-
-Surface roles are reusable across application background, Sidebar, Header, Cards, Tables, Forms, Dropdowns, Dialogs and Tooltips. Page-specific names such as `--billing-card-blue` or `--dashboard-widget-purple` are prohibited.
-
-## Text
-
-Text hierarchy is semantic, not page-specific:
-
-- `--text-primary`: primary reading content and headings;
-- `--text-secondary`: supporting content;
-- `--text-muted`: metadata/low-emphasis content;
-- `--text-disabled`: unavailable control content;
-- `--text-inverse`: content on inverse surfaces;
-- link/brand roles are explicit.
-
-## Borders
-
-Cards/surfaces must not rely on shadow alone. Dark theme in particular should prefer surface differentiation plus subtle borders.
-
-## Actions
-
-Correct:
+### Spacing
 
 ```css
-.buttonPrimary {
-  color: var(--action-primary-text);
-  background: var(--action-primary);
-}
+--space-0
+--space-1
+--space-2
+--space-3
+--space-4
+--space-5
+--space-6
+--space-8
+--space-10
+--space-12
+--space-16
 ```
 
-Avoid:
+No page-specific spacing namespaces are permitted unless a genuine reusable product semantic emerges.
 
-```css
-.buttonPrimary {
-  background: var(--aven-color-blue-500);
-}
-```
-
-The semantic mapping can change without editing every component.
-
-## Focus
-
-Recommended primitive pattern:
-
-```css
-.control:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 2px;
-}
-```
-
-Task 24.4 will refine focus geometry if needed; components should already consume the semantic focus roles.
-
-## Shadows
-
-Available scale:
-
-```css
---shadow-xs
---shadow-sm
---shadow-md
---shadow-lg
---shadow-xl
-```
-
-Light theme may use restrained elevation. Dark theme should not simulate elevation with bright/heavy shadows; use surfaces and borders first.
-
-## Radius
+### Radius
 
 ```css
 --radius-none
+--radius-xs
 --radius-sm
 --radius-md
 --radius-control
@@ -353,91 +234,64 @@ Light theme may use restrained elevation. Dark theme should not simulate elevati
 --radius-full
 ```
 
-Initial Aven structural direction:
+New components should prefer semantic geometry roles (`control`, `card`, `dialog`, `pill`, `full`) instead of choosing arbitrary intermediates.
 
-- controls: `--radius-control` = 10px;
-- cards: `--radius-card` = 16px;
-- dialogs: `--radius-dialog` = 18px.
-
-`--radius-pill` is reserved for true pill/chip/status geometries, not every control.
-
-## Spacing
-
-Official scale:
+### Shadows and elevation
 
 ```css
---space-0   /* 0 */
---space-1   /* 4px */
---space-2   /* 8px */
---space-3   /* 12px */
---space-4   /* 16px */
---space-5   /* 20px */
---space-6   /* 24px */
---space-8   /* 32px */
---space-10  /* 40px */
---space-12  /* 48px */
---space-16  /* 64px */
+--shadow-none
+--shadow-xs
+--shadow-sm
+--shadow-md
+--shadow-lg
+--shadow-xl
+
+--elevation-0-surface / border / shadow
+...
+--elevation-4-surface / border / shadow
 ```
 
-Do not create page implementation aliases such as `--billing-filter-gap` unless a genuine reusable product semantic emerges.
+Elevation is always a surface/border/shadow composition. Glow is not standard card elevation.
 
-## Typography
-
-Task 24.2 establishes hooks; Task 24.4 owns final tuning/font delivery.
-
-Families:
+### Iconography
 
 ```css
---font-family-ui
---font-family-display
---font-family-mono
+--icon-size-xs
+--icon-size-sm
+--icon-size-md
+--icon-size-lg
+--icon-size-xl
+--icon-size-2xl
+--icon-size-3xl
+--icon-stroke-default
+--icon-stroke-strong
 ```
 
-Weights:
+`lucide-react` is the canonical functional icon library. Brand/provider assets remain separate.
+
+## Status Tokens
+
+Every status exposes base/background/border/text roles:
 
 ```css
---font-weight-regular
---font-weight-medium
---font-weight-semibold
---font-weight-bold
+--status-success*
+--status-warning*
+--status-danger*
+--status-info*
+--status-neutral*
 ```
 
-Initial size hooks:
-
-```css
---font-size-xs
---font-size-sm
---font-size-md
---font-size-lg
---font-size-xl
---font-size-2xl
---font-size-3xl
-```
-
-Line height:
-
-```css
---line-height-tight
---line-height-normal
---line-height-relaxed
-```
-
-The Aven wordmark remains an official image asset and must not be recreated with `--font-family-display`.
+Semantic status must not be replaced by brand purple. Status UI should not rely on color alone; icon and/or label should accompany state where appropriate.
 
 ## Data Visualization
 
 Categorical series:
 
 ```css
---chart-series-1
---chart-series-2
---chart-series-3
---chart-series-4
---chart-series-5
---chart-series-6
+--chart-series-1 ... --chart-series-6
 ```
 
-Structure:
+Structure/state:
 
 ```css
 --chart-grid
@@ -446,145 +300,68 @@ Structure:
 --chart-tooltip-bg
 --chart-tooltip-text
 --chart-reference-line
-```
-
-Financial/data states:
-
-```css
 --chart-forecast
 --chart-estimated
 --chart-comparison
 --chart-baseline
 ```
 
-The sequence follows Blue → Indigo → Violet → Light Blue → Lavender-compatible → Cool Cyan-compatible.
-
-### FinOps rule
-
-Chart series are **categorical tokens**, not provider identities. Do not infer:
-
-```text
-AWS = Aven blue
-OCI = Aven violet
-```
-
-unless a later explicit product semantic establishes that mapping. Cost, forecast, savings, reservation coverage, service, account and environment dimensions must use visualization semantics appropriate to the data.
-
-Task 24.18 may refine palette/geometry/legend/tooltip behavior without changing the semantic contract established here.
+Chart series are categorical—not provider identities. Do not infer AWS = blue or OCI = violet without an explicit product semantic.
 
 ## Component Tokens
 
-The component layer is intentionally small and reusable:
+The reusable component-composition layer includes structural roles such as:
 
 ```css
---sidebar-background
---sidebar-border
---header-background
---header-border
 --card-background
 --card-border
+--card-radius
+--card-padding
+--card-shadow
 --control-background
 --control-border
+--control-radius
+--control-padding-inline-*
 --dialog-background
 --dialog-border
---tooltip-background
---tooltip-text
+--dialog-radius
+--dialog-padding
+--dialog-shadow
+--popover-*
+--icon-button-*
+--form-field-gap
+--table-cell-padding-*
 ```
 
-Every component token derives from semantic tokens. Page-specific component tokens are forbidden.
-
-## Contrast
-
-Representative WCAG contrast checks for the current mappings:
-
-| Pair | Ratio |
-|---|---:|
-| Light `text-primary` on `surface-primary` | 19.75:1 |
-| Light `text-secondary` on `surface-primary` | 10.31:1 |
-| Light `text-muted` on `surface-primary` | 4.83:1 |
-| `action-primary-text` on `action-primary` | 5.17:1 |
-| Dark `text-primary` on primary background | 19.75:1 |
-| Dark `text-secondary` on primary surface | 12.04:1 |
-| Dark `text-muted` on primary surface | 6.99:1 |
-
-Representative status text/background pairs are above 6.8:1 in Light and above 8.1:1 in Dark.
-
-These checks validate core text/action/status mappings, not every future component composition. Component-level contrast still requires validation when primitives and product components are built.
+These derive from the shared token/foundation system. Page-specific component tokens remain prohibited.
 
 ## Legacy Compatibility
 
-Task 24.1 identified two compatibility domains.
+Two compatibility domains remain deliberately separate:
 
-### 1. Brand Kit v1 aliases
+1. `frontend/app/styles/tokens/legacy.css` keeps Brand Kit v1 alias names such as `--aven-blue`, `--aven-radius-card` and `--aven-font-ui`.
+2. `frontend/app/ui-system.css` and `legacy-theme-compat.css` continue to own existing DeepOps application variables during incremental migration.
 
-`frontend/app/styles/tokens/legacy.css` keeps the original brand-token names such as:
+Do not use transitional names such as `--bg`, `--accent`, `--surface-2`, `--radius` or the legacy application palette in new Aven primitives.
 
-```css
---aven-blue
---aven-purple
---aven-indigo
---aven-bg-light
---aven-bg-dark
---aven-brand-gradient
---aven-radius-card
---aven-radius-control
---aven-font-ui
-```
-
-These now resolve to the formal token system.
-
-### 2. Existing DeepOps application variables
-
-The current application consumes transitional/legacy variables such as:
-
-```css
---background
---foreground
---surface
---surface-muted
---primary
---bg
---text
---accent
---accent-2
---radius
---shadow
---chart-1 ... --chart-5
-```
-
-They intentionally remain owned by `frontend/app/ui-system.css` during Task 24.2. Repointing them to the Aven semantic palette now would cause a broad unplanned redesign.
-
-Migration contract:
-
-```text
-Existing UI
-  ↓
-ui-system.css / legacy-theme-compat.css (temporary)
-
-New or migrated Aven UI
-  ↓
-Aven semantic tokens
-```
-
-As routes/components migrate, old variables are removed progressively. The compatibility layers must not become permanent.
+Task 24.4 does not mass-replace existing hardcodes. Later component/page tasks remove legacy consumption route by route.
 
 ## Usage Rules
 
-New/migrated visual components should consume semantic tokens first. Primitive color tokens are appropriate only inside token-definition layers or when the value truly represents raw brand identity rather than UI meaning.
-
-### Correct
+Correct:
 
 ```css
 .card {
-  background: var(--surface-primary);
+  background: var(--card-background);
   color: var(--text-primary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-card);
-  padding: var(--space-6);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  padding: var(--card-padding);
+  box-shadow: var(--card-shadow);
 }
 ```
 
-### Incorrect
+Incorrect:
 
 ```css
 .card {
@@ -593,150 +370,28 @@ New/migrated visual components should consume semantic tokens first. Primitive c
   border: 1px solid #e5e7eb;
   border-radius: 16px;
   padding: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.1);
 }
 ```
 
 ## Forbidden Patterns
 
-Starting with **Task 24.5**, new visual components must not introduce hardcoded:
+Starting with Task 24.5, new/migrated visual components must not introduce hardcoded structural:
 
-- color;
+- colors;
+- spacing/padding/margin/gap;
 - border radius;
-- spacing;
 - font family;
 - font size;
 - font weight;
 - line height.
 
-Forbidden in new/migrated component styling:
+Shadows and functional icon geometry should use the shared API whenever they represent reusable visual decisions.
 
-```css
-color: #6b7280;
-background: #3b82f6;
-padding: 16px;
-gap: 12px;
-border-radius: 10px;
-font-size: 14px;
-font-weight: 600;
-```
+Token abuse is also forbidden. Do not create variables such as `--billing-label-top-2px` simply to hide a local literal.
 
-Expected:
+## Task 24.5 Readiness
 
-```css
-color: var(--text-secondary);
-background: var(--action-primary);
-padding: var(--space-4);
-gap: var(--space-3);
-border-radius: var(--radius-control);
-font-size: var(--font-size-sm);
-font-weight: var(--font-weight-semibold);
-```
+The token architecture, Theme Engine and Visual Foundations together now provide a complete input contract for Aven UI Primitives.
 
-### Token abuse is also forbidden
-
-Do not mechanically replace every literal with a page-specific variable:
-
-```css
---dashboard-card-padding
---billing-filter-gap
---reservation-table-radius
-```
-
-Prefer reusable design decisions:
-
-```css
---space-4
---space-6
---radius-card
-```
-
-## Coverage
-
-The token set can represent the planned visual requirements for:
-
-- application background;
-- Sidebar / Header;
-- Cards;
-- Tables;
-- Forms/controls;
-- Buttons/links;
-- Badges/statuses;
-- Dialogs/drawers;
-- Tooltips/dropdowns;
-- Charts;
-- loading/empty/error/warning/success states;
-- disabled/focus/selected/hover states.
-
-This is infrastructure coverage; Task 24.2 does not migrate all of those components.
-
-## Migration Notes
-
-Task 24.1 found repeated literal colors in multiple syntaxes, inconsistent spacing/radii and duplicated page-local visual systems. The new architecture consolidates the future design decisions without mass-editing legacy CSS.
-
-The load strategy is intentionally additive:
-
-```text
-globals.css
-opportunities-stage5.css
-Aven tokens/index.css
-ui-system.css
-legacy-theme-compat.css
-remaining page/global CSS
-```
-
-The Aven semantic names do not collide with the existing transitional names, so importing the token layer should not alter current page rendering by itself.
-
-### No page redesign in 24.2
-
-This task does not redesign Dashboard, Billing, Reservations, Inventory, Recommendations, Reports, Settings, Login, Sidebar or Topbar. It only establishes the shared runtime contract required for those later tasks.
-
-## Task 24.3 Readiness
-
-**Is Task 24.3 ready to start? YES.**
-
-Task 24.3: **Aven Theme Engine — Light / Dark / System**.
-
-Inputs now available:
-
-```text
-Light theme token selector:
-:root, html[data-theme="light"]
-
-Dark theme token selector:
-html[data-theme="dark"]
-
-Current theme persistence mechanism:
-localStorage key "deepops.theme"
-
-Current resolved DOM attribute:
-html[data-theme="light|dark"]
-
-Current preference DOM attribute:
-html[data-theme-preference="system|light|dark"]
-
-Current resolver:
-pre-hydration bootstrap in frontend/app/layout.tsx plus duplicated runtime logic in AppShell and ThemeSelector
-
-Compatibility aliases:
-Brand Kit aliases in frontend/app/styles/tokens/legacy.css;
-existing application aliases remain in ui-system.css / legacy-theme-compat.css until migrated
-```
-
-Theme-sensitive areas requiring careful migration include AppShell, ThemeSelector, Billing charts, Dashboard, RDS Reservations, Opportunities, Flow and Settings surfaces/controls.
-
-Task 24.3 should centralize resolution/application/persistence while preserving the current `deepops.theme` compatibility behavior until the technical rebrand owns key migration.
-
-## Task 24.4 Readiness
-
-**Is Task 24.4 foundation ready? YES.**
-
-Task 24.4 may refine values without rebuilding architecture for:
-
-- Typography;
-- Spacing;
-- Radius;
-- Shadows;
-- Focus/motion;
-- Iconography.
-
-The required token hooks are already present. Typography still needs final font delivery and named text-style decisions; spacing/radius/shadow values may be tuned while keeping their semantic API stable.
+**Is Task 24.5 ready to start? YES.**
