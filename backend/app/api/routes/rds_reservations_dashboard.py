@@ -130,9 +130,7 @@ def _apply_reservation_filters(
     if instance_class:
         query = query.filter(AwsRdsReservedInstance.db_instance_class == instance_class)
     if reservation_status:
-        query = query.filter(
-            func.lower(AwsRdsReservedInstance.state) == reservation_status.lower()
-        )
+        query = query.filter(func.lower(AwsRdsReservedInstance.state) == reservation_status.lower())
     if expiration_range:
         normalized = expiration_range.upper()
         if normalized == "LE_7":
@@ -151,9 +149,7 @@ def _apply_reservation_filters(
                 AwsRdsReservedInstance.expiration_at <= now + timedelta(days=30),
             )
         elif normalized == "GT_30":
-            query = query.filter(
-                AwsRdsReservedInstance.expiration_at > now + timedelta(days=30)
-            )
+            query = query.filter(AwsRdsReservedInstance.expiration_at > now + timedelta(days=30))
         elif normalized == "EXPIRED":
             query = query.filter(AwsRdsReservedInstance.expiration_at < now)
     return query
@@ -487,9 +483,7 @@ def reservations(
                 "allocation_id": allocation.id,
                 "instance": instance.db_instance_identifier,
                 "instance_id": instance.id,
-                "workload_account": _account_payload(
-                    workload_account, instance.account_id
-                ),
+                "workload_account": _account_payload(workload_account, instance.account_id),
                 "allocated_units": _float(allocation.allocated_units),
                 "match_type": allocation.match_type,
                 "allocation_scope": allocation.allocation_scope,
@@ -548,9 +542,7 @@ def reservations(
                 "workloads": workloads_by_reservation.get(reservation.id, []),
                 "expiration_severity": expiring.severity if expiring else None,
                 "expiration_band": metadata.get("expiration_band") if metadata else None,
-                "recommended_action": (
-                    metadata.get("recommended_action") if metadata else None
-                ),
+                "recommended_action": (metadata.get("recommended_action") if metadata else None),
                 "inventory_updated_at": reservation.collected_at,
             }
         )
@@ -572,9 +564,7 @@ def opportunities(
     family: str | None = Query(default=None, max_length=32),
     instance_class: str | None = Query(default=None, max_length=64),
     opportunity_type: str | None = Query(default=None, max_length=64),
-    opportunity_status: str | None = Query(
-        default=None, pattern="^(open|treated|rejected)$"
-    ),
+    opportunity_status: str | None = Query(default=None, pattern="^(open|treated|rejected)$"),
     severity: str | None = Query(default=None, pattern="^(high|medium|low)$"),
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=50, ge=1, le=200),
@@ -601,13 +591,10 @@ def opportunities(
         query = query.filter(Finding.severity == severity)
     if engine:
         query = query.filter(
-            Finding.provider_metadata["engine"].as_string()
-            == normalize_rds_engine(engine)
+            Finding.provider_metadata["engine"].as_string() == normalize_rds_engine(engine)
         )
     if family:
-        query = query.filter(
-            Finding.provider_metadata["instance_family"].as_string() == family
-        )
+        query = query.filter(Finding.provider_metadata["instance_family"].as_string() == family)
     if instance_class:
         query = query.filter(
             Finding.provider_metadata["instance_class"].as_string() == instance_class
@@ -621,12 +608,7 @@ def opportunities(
     sort_column = sort_columns[sort]
     ordered = desc(sort_column) if order == "desc" else asc(sort_column)
     total = query.count()
-    rows = (
-        query.order_by(ordered, Finding.id)
-        .offset((page - 1) * page_size)
-        .limit(page_size)
-        .all()
-    )
+    rows = query.order_by(ordered, Finding.id).offset((page - 1) * page_size).limit(page_size).all()
     return {
         "items": [
             {
@@ -645,9 +627,7 @@ def opportunities(
                 "last_seen_at": finding.last_seen_at,
                 "title": finding.title,
                 "description": finding.description,
-                "recommended_action": (
-                    (finding.provider_metadata or {}).get("recommended_action")
-                ),
+                "recommended_action": ((finding.provider_metadata or {}).get("recommended_action")),
                 "metadata": finding.provider_metadata or {},
             }
             for finding in rows
