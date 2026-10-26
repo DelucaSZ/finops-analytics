@@ -1,30 +1,30 @@
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Iterable
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Iterable
 
 from app.models.rds_inventory import AwsRdsInstance, AwsRdsReservedInstance
 from app.services.rds_reservation_rules import (
-    Allocation,
-    BillingScopeContext,
     COVERAGE_FULL,
     COVERAGE_PARTIAL,
     COVERAGE_UNCOVERED,
     COVERAGE_UNKNOWN,
     CROSS_ACCOUNT_VERIFIED,
+    ONE_HUNDRED,
+    SAME_ACCOUNT,
+    UNKNOWN_SCOPE,
+    ZERO,
+    Allocation,
+    BillingScopeContext,
     CoverageAnalysis,
     InstanceCoverageResult,
     InstanceDemand,
     MatchDecision,
-    ONE_HUNDRED,
     RdsReservationMatcher,
     ReservationCapacity,
     ReservationUtilizationResult,
-    SAME_ACCOUNT,
-    UNKNOWN_SCOPE,
-    ZERO,
     UnknownRdsConfiguration,
     _instance_topology,
     _safe_percentage,
@@ -266,4 +266,3 @@ class RdsReservationCoverageEngine:
                 raise AssertionError("utilization_percentage is outside [0, 100]")
             if by_reservation[result.reservation.id] > result.total_units:
                 raise AssertionError("sum(allocations) cannot exceed reservation capacity")
-
