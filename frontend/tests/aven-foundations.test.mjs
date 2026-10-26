@@ -82,8 +82,10 @@ test("iconography has one library and one token-backed geometry API", async () =
 
   assert.equal(typeof pkg.dependencies?.["lucide-react"], "string");
   assert.match(iconography, /import type \{ LucideProps \} from "lucide-react"/);
-  assert.match(iconography, /size: "var\(--icon-size-md\)"/);
+  assert.match(iconography, /md: "var\(--icon-size-md\)"/);
   assert.match(iconography, /default: "var\(--icon-stroke-default\)"/);
+  assert.match(iconography, /size: iconSizes\.md/);
+  assert.match(iconography, /strokeWidth: iconStrokeWidths\.default/);
 
   for (const token of ["--icon-size-xs", "--icon-size-sm", "--icon-size-md", "--icon-size-lg", "--icon-size-xl", "--icon-size-2xl", "--icon-size-3xl", "--icon-stroke-default"]) {
     assert.ok(primitives.includes(`${token}:`), `missing icon token ${token}`);
