@@ -575,8 +575,7 @@ def build_evidence(
         )
         if datapoints == 0:
             notes.append(
-                "Sem datapoints do CloudWatch, o Aven não trata tráfego zero "
-                "como fato comprovado."
+                "Sem datapoints do CloudWatch, o Aven não trata tráfego zero como fato comprovado."
             )
 
     elif rule_key == "rds_nonprod_idle":
