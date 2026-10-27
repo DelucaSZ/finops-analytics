@@ -1,0 +1,74 @@
+.page {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.metricsGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  min-inline-size: 0;
+}
+
+.secondary {
+  color: var(--text-muted);
+  display: block;
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+  margin-block-start: var(--space-1);
+}
+
+.statusStack {
+  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.tableMeta {
+  align-items: center;
+  color: var(--text-secondary);
+  display: flex;
+  flex-wrap: wrap;
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  gap: var(--space-3);
+  justify-content: space-between;
+  line-height: var(--type-body-sm-line-height);
+  margin-block-end: var(--space-3);
+}
+
+.paginationRow {
+  align-items: flex-end;
+  border-block-start: 1px solid var(--border-subtle);
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+}
+
+@media (max-width: 1100px) {
+  .metricsGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .page {
+    gap: var(--space-6);
+  }
+
+  .metricsGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .paginationRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
