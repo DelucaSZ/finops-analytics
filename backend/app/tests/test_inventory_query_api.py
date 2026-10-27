@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.models.account import CloudAccount
 from app.models.inventory import InventoryResource
-from app.services.aws_inventory_discovery import AwsInventoryDiscoveryService
 from app.services import oci_inventory_adapter
+from app.services.aws_inventory_discovery import AwsInventoryDiscoveryService
 from app.tests.test_security import auth_env as auth_env
 from app.tests.test_security import headers
 
