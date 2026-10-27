@@ -201,7 +201,7 @@ function Filters({ state, options, loading, onChange, onClear }: {
   onClear: () => void;
 }) {
   return (
-    <FilterBar title="Context and filters" description="Empty account selection keeps the existing Reservations contract: all authorized accounts." actions={<Button variant="ghost" size="sm" onClick={onClear}>Clear filters</Button>}>
+    <FilterBar aria-label="Context and filters" actions={<Button variant="ghost" size="sm" onClick={onClear}>Clear filters</Button>}>
       <AccountSelector label="Account" value={state.account} onChange={(account) => onChange({ account, page: 1 })} options={accountOptions(options)} loading={loading} placeholder="All authorized accounts" clearLabel="All authorized accounts" />
       <Select label="Region" value={state.region} onChange={(event) => onChange({ region: event.target.value, page: 1 })} options={selectOptions(options?.regions)} placeholder="All regions" />
       <Select label="Engine" value={state.engine} onChange={(event) => onChange({ engine: event.target.value, page: 1 })} options={selectOptions(options?.engines)} placeholder="All engines" />
