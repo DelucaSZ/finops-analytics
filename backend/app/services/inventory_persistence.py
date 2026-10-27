@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
-from typing import TYPE_CHECKING, Iterable, Sequence
+from typing import TYPE_CHECKING
 
 from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
@@ -40,9 +41,7 @@ class InventoryPersistenceService:
     """Persist normalized resource observations without owning transaction commit."""
 
     @staticmethod
-    def _validate_context(
-        cloud_account: "CloudAccount", collection_run: "CollectionRun"
-    ) -> str:
+    def _validate_context(cloud_account: CloudAccount, collection_run: CollectionRun) -> str:
         account_provider = normalize_provider(cloud_account.provider).value
         run_provider = normalize_provider(collection_run.provider).value
         if account_provider != run_provider:
@@ -84,8 +83,8 @@ class InventoryPersistenceService:
         self,
         db: Session,
         *,
-        cloud_account: "CloudAccount",
-        collection_run: "CollectionRun",
+        cloud_account: CloudAccount,
+        collection_run: CollectionRun,
         resource: DiscoveredInventoryResource,
         observed_at: datetime | None = None,
     ) -> InventoryResource:
@@ -101,8 +100,8 @@ class InventoryPersistenceService:
         self,
         db: Session,
         *,
-        cloud_account: "CloudAccount",
-        collection_run: "CollectionRun",
+        cloud_account: CloudAccount,
+        collection_run: CollectionRun,
         resources: Sequence[DiscoveredInventoryResource],
         observed_at: datetime | None = None,
     ) -> list[InventoryResource]:
