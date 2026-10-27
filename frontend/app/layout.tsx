@@ -2,14 +2,12 @@ import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
-import { ToastProvider } from "@/components/ui/toast";
-import {
-  getThemeBootstrapScript,
-  SIDEBAR_STORAGE_KEY,
-} from "@/lib/ui-preferences.mjs";
+import { ToastProvider } from "@/components/ui";
+import { brand, PRODUCT_NAME } from "@/lib/brand";
+import { getThemeBootstrapScript } from "@/lib/ui-preferences.mjs";
+import "./styles/tokens/index.css";
 import "./globals.css";
 import "./opportunities-stage5.css";
-import "./styles/tokens/index.css";
 import "./ui-system.css";
 import "./legacy-theme-compat.css";
 import "./dashboard-executive.css";
@@ -18,43 +16,33 @@ import "./task-23-25-layout.css";
 
 const inter = Inter({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
-  variable: "--aven-font-inter",
+  variable: "--font-inter",
 });
 
 const sora = Sora({
   subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
   display: "swap",
-  variable: "--aven-font-sora",
+  variable: "--font-sora",
 });
 
 export const metadata: Metadata = {
-  title: "DeepOps | FinOps Multi-Cloud",
-  description: "Operação, governança e inteligência FinOps para ambientes multi-cloud.",
+  applicationName: PRODUCT_NAME,
+  title: {
+    default: PRODUCT_NAME,
+    template: `%s — ${PRODUCT_NAME}`,
+  },
+  description: brand.description,
+  icons: {
+    icon: [{ url: brand.assets.symbolGradient, type: "image/svg+xml" }],
+  },
 };
 
-const sidebarBootstrap = `
-(() => {
-  const root = document.documentElement;
-  let collapsed = false;
-  try { collapsed = window.localStorage.getItem(${JSON.stringify(SIDEBAR_STORAGE_KEY)}) === "true"; } catch {}
-  root.dataset.sidebar = collapsed ? "collapsed" : "expanded";
-})();
-`;
-
-const appearanceBootstrap = `${getThemeBootstrapScript()}${sidebarBootstrap}`;
-
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html
-      lang="pt-BR"
-      className={`${inter.variable} ${sora.variable}`}
-      suppressHydrationWarning
-    >
+    <html lang="pt-BR" suppressHydrationWarning className={`${inter.variable} ${sora.variable}`}>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
+        <script dangerouslySetInnerHTML={{ __html: getThemeBootstrapScript() }} />
       </head>
       <body>
         <ThemeProvider>

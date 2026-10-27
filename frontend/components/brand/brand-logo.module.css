@@ -1,0 +1,40 @@
+.root {
+  align-items: center;
+  display: inline-flex;
+  min-inline-size: var(--space-0);
+}
+
+.wordmark {
+  block-size: var(--shell-brand-wordmark-block-size);
+  display: block;
+  inline-size: var(--shell-brand-wordmark-inline-size);
+  object-fit: contain;
+  object-position: left center;
+}
+
+.symbol {
+  block-size: var(--shell-brand-mark-size);
+  display: none;
+  inline-size: var(--shell-brand-mark-size);
+  object-fit: contain;
+}
+
+.symbolOnly .wordmark {
+  display: none;
+}
+
+.symbolOnly .symbol {
+  display: block;
+}
+
+.wordmarkOnly .symbol {
+  display: none;
+}
+
+:global(html[data-theme="dark"]) .auto .wordmark {
+  display: none;
+}
+
+:global(html[data-theme="dark"]) .auto .symbol {
+  display: block;
+}

@@ -21,11 +21,11 @@ def send_link(email: str, link: str, purpose: str) -> None:
     message["From"] = settings.smtp_from
     message["To"] = email
     message["Subject"] = (
-        "DeepOps — convite de acesso" if purpose == "invite" else "DeepOps — recuperação de senha"
+        "Aven — convite de acesso" if purpose == "invite" else "Aven — recuperação de senha"
     )
     duration = "24 horas" if purpose == "invite" else "30 minutos"
     message.set_content(
-        f"Use este link de uso único para definir sua senha no DeepOps (validade: {duration}):\n\n"
+        f"Use este link de uso único para definir sua senha no Aven (validade: {duration}):\n\n"
         f"{link}\n\nSe você não esperava esta mensagem, ignore-a. Sua senha não foi alterada."
     )
     factory = smtplib.SMTP_SSL if settings.smtp_ssl else smtplib.SMTP

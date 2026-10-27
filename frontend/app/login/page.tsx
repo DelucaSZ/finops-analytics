@@ -2,9 +2,11 @@
 
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, CloudCog, LockKeyhole } from "lucide-react";
+import { ArrowRight, LockKeyhole } from "lucide-react";
 import Link from "next/link";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { api } from "@/lib/api";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -42,7 +44,7 @@ export default function LoginPage() {
   return (
     <main className="login-page">
       <section className="login-visual">
-        <div className="login-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
+        <div className="login-brand"><BrandLogo /></div>
         <div className="login-copy">
           <span className="eyebrow">FINOPS MULTI-CLOUD</span>
           <h1>Operação FinOps<br /><em>em um só lugar.</em></h1>
@@ -52,11 +54,11 @@ export default function LoginPage() {
       </section>
       <section className="login-form-area">
         <form className="login-card" onSubmit={submit}>
-          <div className="login-brand login-mobile-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
+          <div className="login-brand login-mobile-brand"><BrandLogo /></div>
           <div className="login-icon"><LockKeyhole size={23} /></div>
           <h2>{challenge ? "Verificar segundo fator" : "Acessar plataforma"}</h2>
           {!challenge ? <>
-          <p>Use o e-mail e a senha da sua conta DeepOps.</p>
+          <p>Use o e-mail e a senha da sua conta {PRODUCT_NAME}.</p>
           <label>E-mail<input type="email" autoComplete="username" value={email} onChange={(e) => setEmail(e.target.value)} required /></label>
           <label>Senha<input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required /></label>
           <Link className="auth-link" href="/forgot-password">Esqueci minha senha</Link>

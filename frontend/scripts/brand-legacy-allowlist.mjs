@@ -1,0 +1,112 @@
+export const legacyBrandAllowlist = Object.freeze([
+  {
+    file: "frontend/lib/ui-preferences.mjs",
+    pattern: /deepops\.(?:theme|sidebar\.collapsed)/i,
+    classification: "BACKWARD_COMPATIBILITY",
+    reason: "Persisted browser preference keys must remain stable so the rebrand does not reset user settings.",
+    futureMigration: "Only migrate with dual-read/dual-write compatibility and an explicit storage migration task.",
+  },
+  {
+    file: "frontend/lib/api.ts",
+    pattern: /X-DeepOps-Request|deepops:session-invalidated/i,
+    classification: "API_CONTRACT",
+    reason: "CSRF/request marker and session invalidation event are established runtime contracts.",
+    futureMigration: "Rename only with coordinated backend/event compatibility aliases.",
+  },
+  {
+    file: "frontend/components/app-shell.tsx",
+    pattern: /deepops:session-invalidated|nuvemiq_token/i,
+    classification: "BACKWARD_COMPATIBILITY",
+    reason: "Session event and legacy-token cleanup preserve authentication behavior across existing sessions.",
+    futureMigration: "Remove only after auth compatibility is explicitly retired.",
+  },
+  {
+    file: "frontend/app/settings/usage-costs/page.tsx",
+    pattern: /deepops-usage-costs/i,
+    classification: "INTERNAL_IDENTIFIER",
+    reason: "Private module filename is an internal import identifier with no user-visible branding.",
+    futureMigration: "Rename in a separate internal cleanup with imports/tests updated atomically.",
+  },
+  {
+    file: "frontend/package.json",
+    pattern: /deepops-web/i,
+    classification: "INTERNAL_IDENTIFIER",
+    reason: "Private npm package identifier is coupled to package-lock metadata and is not user-visible.",
+    futureMigration: "Rename together with lockfile/package tooling in a dedicated cleanup.",
+  },
+  {
+    file: "backend/app/core/config.py",
+    pattern: /NUVEMIQ_[A-Z0-9_]+|nuvemiq\.db|admin@nuvemiq\.local|nuvemiq-collector/i,
+    classification: "ENVIRONMENT_VARIABLE",
+    reason: "Deployment environment names/default technical identifiers are production compatibility contracts.",
+    futureMigration: "Introduce AVEN_* aliases first; migrate infrastructure and deployments separately.",
+  },
+  {
+    file: "backend/app/main.py",
+    pattern: /\/api\/v1\/deepops-costs|nuvemiq-api/i,
+    classification: "API_CONTRACT",
+    reason: "Existing API path and health service identifier may be consumed by deployed clients/infra.",
+    futureMigration: "Version/alias the API and coordinate observability before changing.",
+  },
+  {
+    file: "backend/app/api/routes/cloudwatch_cost.py",
+    pattern: /deepops-costs/i,
+    classification: "API_CONTRACT",
+    reason: "Router prefix is an existing API contract.",
+    futureMigration: "Add a versioned alias before deprecating the legacy route.",
+  },
+  {
+    file: "infrastructure/cloudformation/deepops-public-security-group.yaml",
+    pattern: /DeepOps|deepops/i,
+    classification: "INFRASTRUCTURE",
+    reason: "Deployed CloudFormation/security-group identifiers must not be renamed by a product-brand task.",
+    futureMigration: "Handle through an infrastructure migration with replacement/retention semantics.",
+  },
+  {
+    file: "infrastructure/cloudformation/nuvemiq-central-role.yaml",
+    pattern: /NuvemIQ|nuvemiq/i,
+    classification: "INFRASTRUCTURE",
+    reason: "IAM stack/role identifiers are deployed infrastructure contracts.",
+    futureMigration: "Migrate only with an IAM/infrastructure rollout plan.",
+  },
+  {
+    file: "infrastructure/cloudformation/nuvemiq-readonly-role.yaml",
+    pattern: /NuvemIQ|nuvemiq/i,
+    classification: "INFRASTRUCTURE",
+    reason: "IAM stack/role identifiers are deployed infrastructure contracts.",
+    futureMigration: "Migrate only with an IAM/infrastructure rollout plan.",
+  },
+]);
+
+export const legacyBrandPathAllowlist = Object.freeze([
+  {
+    path: "frontend/lib/deepops-usage-costs.mjs",
+    classification: "INTERNAL_IDENTIFIER",
+    reason: "Private helper filename; changing it provides no public-brand value and creates import churn.",
+    futureMigration: "Rename atomically with its declarations, imports and tests in a later cleanup.",
+  },
+  {
+    path: "frontend/lib/deepops-usage-costs.d.mts",
+    classification: "INTERNAL_IDENTIFIER",
+    reason: "Declaration filename mirrors the private helper filename for TypeScript resolution.",
+    futureMigration: "Rename atomically with the helper module in a later cleanup.",
+  },
+  {
+    path: "infrastructure/cloudformation/deepops-public-security-group.yaml",
+    classification: "INFRASTRUCTURE",
+    reason: "Filename maps to deployed infrastructure and is intentionally preserved.",
+    futureMigration: "Change only under a dedicated infrastructure migration.",
+  },
+  {
+    path: "infrastructure/cloudformation/nuvemiq-central-role.yaml",
+    classification: "INFRASTRUCTURE",
+    reason: "Filename maps to deployed IAM infrastructure and is intentionally preserved.",
+    futureMigration: "Change only under a dedicated infrastructure migration.",
+  },
+  {
+    path: "infrastructure/cloudformation/nuvemiq-readonly-role.yaml",
+    classification: "INFRASTRUCTURE",
+    reason: "Filename maps to deployed IAM infrastructure and is intentionally preserved.",
+    futureMigration: "Change only under a dedicated infrastructure migration.",
+  },
+]);

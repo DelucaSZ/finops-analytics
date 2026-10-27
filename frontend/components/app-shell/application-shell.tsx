@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { useTheme } from "@/components/theme-provider";
 import {
   Avatar,
@@ -29,6 +30,7 @@ import {
   IconButton,
   Tooltip,
 } from "@/components/ui";
+import { brand } from "@/lib/brand";
 import { iconDefaults, iconSizes } from "@/lib/iconography";
 import {
   parseSidebarCollapsed,
@@ -66,19 +68,16 @@ const themeOptions: ReadonlyArray<{
 
 function AvenBrand({ compact = false }: { compact?: boolean }) {
   return (
-    <Link className={styles.brandLink} href="/" aria-label="Aven — Dashboard">
+    <Link className={styles.brandLink} href="/" aria-label={`${brand.name} — Dashboard`}>
       <span className={compact ? styles.brandWordmarkMobile : styles.brandWordmark} aria-hidden="true">
-        {/* Official repository fallback; production raster assets remain a Task 24.8 concern. */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/brand/aven/aven-logo-horizontal-fallback.svg" alt="" />
+        <BrandLogo decorative />
       </span>
       {!compact && (
         <span className={styles.brandMark} aria-hidden="true">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/brand/aven/aven-icon-gradient.svg" alt="" />
+          <BrandLogo variant="symbol" decorative />
         </span>
       )}
-      <span className={styles.srOnly}>Aven</span>
+      <span className={styles.srOnly}>{brand.name}</span>
     </Link>
   );
 }
