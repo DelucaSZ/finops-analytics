@@ -86,7 +86,7 @@ export function DashboardOperationalInsights() {
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const state = useMemo(() => parseDashboardSearchParams(searchKey), [searchKey]);
-  const apiQuery = useMemo(() => buildDashboardApiQuery(state), [state.accountId, state.provider]);
+  const apiQuery = useMemo(() => buildDashboardApiQuery(state), [state]);
   const request = useApiQuery<OperationalInsightsResponse>({
     key: queryKeys.dashboard.operationalInsights(state.provider, state.accountId),
     path: `/dashboard/operational-insights${apiQuery ? `?${apiQuery}` : ""}`,
@@ -107,7 +107,7 @@ export function DashboardOperationalInsights() {
       title="Atenção operacional"
       description={headline}
       actions={failures.count > 1 ? <InsightLink href={collectionsHref}>Ver coletas</InsightLink> : undefined}
-      aria-labelledby="dashboard-operational-insight-title"
+      aria-label="Atenção operacional"
     >
       <Alert
         variant="warning"
