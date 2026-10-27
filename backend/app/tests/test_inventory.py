@@ -350,8 +350,7 @@ def test_batch_path_avoids_select_per_resource(db):
             statements.append(statement)
 
     resources = [
-        resource(resource_id=f"i-{index:010d}", name=f"instance-{index}")
-        for index in range(100)
+        resource(resource_id=f"i-{index:010d}", name=f"instance-{index}") for index in range(100)
     ]
     service.persist_observations(
         db,
