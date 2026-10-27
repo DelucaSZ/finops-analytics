@@ -13,8 +13,6 @@ import "./opportunities-stage5.css";
 import "./styles/tokens/index.css";
 import "./ui-system.css";
 import "./legacy-theme-compat.css";
-import "./dashboard-executive.css";
-import "./dashboard-operational-insights.css";
 import "./task-23-25-layout.css";
 
 const inter = Inter({

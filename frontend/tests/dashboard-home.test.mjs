@@ -17,13 +17,18 @@ test("dashboard home does not fetch or render detailed collection health", () =>
   assert.match(homeSource, /DashboardOperationalInsights/);
 });
 
-test("dashboard home exposes executive dimensions and multi-currency savings", () => {
+test("dashboard home exposes Aven executive dimensions and multi-currency savings", () => {
+  assert.match(homeSource, /<PageHeader/);
+  assert.match(homeSource, /<FilterBar/);
   assert.match(homeSource, /Oportunidades em aberto/);
-  assert.match(homeSource, /Economia potencial/);
-  assert.match(homeSource, /Oportunidades por severidade/);
-  assert.match(homeSource, /Distribuição por provider/);
-  assert.match(homeSource, /Contas com maior backlog/);
-  assert.match(homeSource, /Top serviços e regras/);
+  assert.match(homeSource, /Economia potencial mensal/);
+  assert.match(homeSource, /Novas vs coleta anterior/);
+  assert.match(homeSource, /Escopos válidos/);
+  assert.match(homeSource, /Concentração por serviço/);
+  assert.match(homeSource, /Estado das oportunidades/);
+  assert.match(homeSource, /Distribuição por cloud/);
   assert.match(homeSource, /Maiores oportunidades/);
   assert.match(homeSource, /SavingsValues/);
+  assert.match(homeSource, /CurrencyDisplay/);
+  assert.doesNotMatch(homeSource, /Evolução de custos/);
 });

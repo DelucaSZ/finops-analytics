@@ -14,7 +14,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 8. `docs/brand/aven/AVEN_APPLICATION_SHELL.md`
 9. `docs/brand/aven/AVEN_TECHNICAL_REBRAND.md`
 10. `docs/brand/aven/AVEN_LOGIN_EXPERIENCE.md`
-11. the applicable assets and visual references under this directory
+11. `docs/brand/aven/AVEN_DASHBOARD.md`
+12. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -28,7 +29,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.9 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand and Login Experience architecture:
+Tasks 24.2–24.10 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience and first operational-page composition architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -38,6 +39,7 @@ Tasks 24.2–24.9 establish the official token, theme-runtime, visual-foundation
 - `AVEN_APPLICATION_SHELL.md` — authenticated shell hierarchy, Sidebar, Topbar, shared navigation, responsive/mobile behavior, scroll model and legacy compatibility;
 - `AVEN_TECHNICAL_REBRAND.md` — public identity, runtime assets, metadata, legacy classification/compatibility, brand lint and raster status;
 - `AVEN_LOGIN_EXPERIENCE.md` — public Login composition, auth preservation, MFA, responsive/theme behavior and Login-specific gates;
+- `AVEN_DASHBOARD.md` — **Aven Page Composition Golden Reference** for authenticated operational pages;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -69,6 +71,8 @@ Aven Application Shell
 Technical Rebrand
 ↓
 Aven Login Experience
+↓
+Aven Page Composition Golden Reference
 ↓
 Feature Experiences
 ```
@@ -130,6 +134,26 @@ Tokens / Theme Engine
 
 `frontend/components/auth/` owns only institutional/auth layout composition. Authentication logic remains in the page/service/session layers. The Login uses official `Card`, `Input`, `Button`, `IconButton` and `Alert` primitives and is included in both the normal lint scope and the Aven hardcode gate.
 
+## Aven Dashboard — Page Composition Golden Reference
+
+Task 24.10 migrates the authenticated Visão Geral to the Aven Design System and establishes `AVEN_DASHBOARD.md` as the official **Page Composition Golden Reference**.
+
+Future operational pages should reuse its composition rules for:
+
+```text
+PageHeader placement
+page vertical rhythm
+FilterBar layout
+metric-grid behavior
+Section hierarchy
+ChartCard composition
+loading / empty / error treatment
+responsive stacking
+Light / Dark balance
+```
+
+The Dashboard reference is intentionally based on real product contracts. It does not fabricate cost evolution, reservation coverage, resource counts or other metrics that are absent from `/dashboard/summary`. Page-specific domain content remains owned by each feature.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -162,7 +186,7 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
@@ -191,6 +215,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Persistent authenticated navigation/chrome consumes `frontend/components/app-shell/`.
 - Authentication layout composition consumes `frontend/components/auth/` while auth state/API behavior stays in the existing page/service/session layers.
 - Feature pages own APIs, query params, routing, permissions, feature state and business rules.
+- Authenticated feature pages use `AVEN_DASHBOARD.md` for page-level composition unless a documented domain constraint requires deviation.
 
 ## Repository note
 
@@ -200,4 +225,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.9 provide the complete design-system, product-composition, persistent-shell, technical-brand and Login foundation required for Task 24.10 — Aven Dashboard / Visão Geral and the progressive feature-page redesign tasks.
+Tasks 24.2–24.10 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login and page-composition foundation required for Task 24.11 — Aven Billing / Uso e Custos and the remaining progressive feature-page redesign tasks.
