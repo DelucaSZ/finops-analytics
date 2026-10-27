@@ -2,12 +2,12 @@
 
 ## Scope
 
-Task 24.8 moves the public/runtime identity from DeepOps to Aven without turning branding into a breaking infrastructure refactor. Public naming, metadata, authentication copy, email copy, developer-facing API title, browser icon and shell brand consumption are migrated. Technical identifiers remain legacy where changing them would alter API, storage, deployment, database or infrastructure contracts.
+Task 24.8 moves the public/runtime identity from DeepOps to Aven without turning branding into a breaking infrastructure refactor. Public naming, metadata, authentication copy, email copy, developer-facing API title, browser icon and shell brand consumption are migrated. Technical identifiers remain legacy where changing them would alter API, storage, deployment, database, security or infrastructure contracts.
 
 **Technical rebrand: COMPLETE**  
 **Raster-dependent runtime branding: PARTIAL**
 
-The partial raster state is intentional: the approved raster masters listed in `ASSET_INVENTORY.md` are not present in the repository and were not regenerated or approximated.
+The partial raster state is intentional: the approved raster masters listed in `ASSET_INVENTORY.md` are not present in the repository and were not regenerated, rasterized from SVG, or approximated.
 
 ## Public Product Identity
 
@@ -40,19 +40,21 @@ Versioned runtime assets currently available:
 - `frontend/public/brand/aven/aven-icon-gradient.svg`
 - `frontend/app/icon.svg` — exact copy of the official gradient symbol for Next.js metadata routing.
 
-The horizontal SVG remains the documented technical fallback. The approved raster wordmarks remain the visual master.
+The horizontal SVG remains a documented technical fallback only. It is not promoted to the final production wordmark because the approved raster wordmarks remain the visual master.
 
 ## Logo Strategy
 
 `frontend/components/brand/BrandLogo` centralizes runtime logo selection.
 
-- Light: horizontal repository fallback wordmark is used where a wordmark is appropriate.
-- Dark: the official gradient symbol is used while the approved dark-runtime raster wordmark is unavailable.
+- Light: official gradient Aven symbol while approved raster wordmarks are unavailable.
+- Dark: official gradient Aven symbol while approved raster wordmarks are unavailable.
+- System: follows the resolved Theme Engine with the same official symbol-safe strategy.
 - Compact/collapsed: official gradient symbol.
-- No text is used to recreate the AVEN wordmark.
+- The approximate horizontal SVG is available only through the explicit `wordmark` variant for controlled institutional/fallback use; it is not the default runtime asset.
+- No text is used to recreate the AVEN wordmark in application code.
 - No CSS brightness/invert/hue recoloring is required; the legacy shell filter token resolves to `none`.
 
-This is an explicit temporary runtime strategy until the approved raster masters are uploaded.
+This temporary strategy deliberately prefers an official asset over an approximate wordmark until the approved light/dark raster masters are uploaded.
 
 ## Favicon
 
@@ -72,7 +74,7 @@ Root metadata now uses Aven for:
 
 No artificial SEO/Open Graph/Twitter metadata was added because the authenticated application did not already use those surfaces.
 
-A static `theme-color` was not introduced: the application already resolves Light/Dark/System client-side and a hardcoded color would diverge from the semantic Theme Engine. This can be added later only through a framework-supported theme-aware strategy.
+A static `theme-color` was not introduced: the application resolves Light/Dark/System client-side and a hardcoded color would diverge from the semantic Theme Engine. This can be added later only through a framework-supported theme-aware strategy.
 
 ## Manifest / PWA
 
@@ -82,14 +84,16 @@ The repository contains a brand-kit reference manifest under `docs/brand/aven/we
 
 The Task 24.7 shell already exposed Aven publicly. Task 24.8 makes it consume the central brand configuration and shared `BrandLogo` abstraction, preserving navigation, auth gating, responsive behavior, sidebar persistence and Theme Engine behavior.
 
+The shell uses the official Aven symbol in expanded, collapsed and mobile branding while the no-tagline production wordmarks are blocked by missing raster assets. This avoids displaying the fallback SVG tagline permanently in the sidebar.
+
 ## Authentication Surfaces
 
 Updated public branding:
 
-- Login base branding uses Aven runtime logo.
+- Login base branding uses the Aven runtime logo abstraction.
 - Login account copy uses `PRODUCT_NAME`.
-- Forgot/reset/invitation form uses Aven runtime logo.
-- MFA enrollment references Aven.
+- Forgot/reset/invitation form uses the Aven runtime logo abstraction.
+- MFA enrollment and QR accessible copy reference Aven.
 - Authentication flow, routes, cookies and session behavior are unchanged.
 
 The complete visual Login redesign remains Task 24.9.
@@ -110,7 +114,7 @@ Password-reset and invitation email subjects/body now identify the product as Av
 | DeepOps login wordmark/copy | `frontend/app/login/page.tsx` | USER_VISIBLE_BRAND | REPLACE | Aven logo/name | Public auth surface |
 | DeepOps access-form brand | `frontend/components/access-form.tsx` | USER_VISIBLE_BRAND | REPLACE | Aven logo | Public auth surface |
 | `Proteja sua conta DeepOps` | `frontend/app/mfa-setup/page.tsx` | USER_VISIBLE_BRAND | REPLACE | Aven | Public auth surface |
-| `tema visual do DeepOps` | Appearance settings | USER_VISIBLE_BRAND | REPLACE | Aven | Public settings copy |
+| legacy product copy in settings/evidence/MFA | frontend runtime surfaces | USER_VISIBLE_BRAND | REPLACE | Aven | Public UI copy |
 | DeepOps mail subject/body | `backend/app/services/mailer.py` | USER_VISIBLE_BRAND | REPLACE | Aven | User-facing email |
 | `DeepOps API` | `backend/app/main.py` | METADATA | REPLACE | `Aven API` | Developer-facing brand metadata only |
 | legacy green `app/icon.svg` | `frontend/app/icon.svg` | ASSET | REPLACE | official Aven gradient SVG | Public browser icon |
@@ -121,16 +125,25 @@ Password-reset and invitation email subjects/body now identify the product as Av
 | `nuvemiq_token` cleanup | `frontend/components/app-shell.tsx` | BACKWARD_COMPATIBILITY | KEEP | preserved | Clears obsolete auth state safely |
 | `X-DeepOps-Request` | `frontend/lib/api.ts` | API_CONTRACT | KEEP | preserved | Backend CSRF/request marker contract |
 | `/api/v1/deepops-costs` | backend/cloudwatch cost API | API_CONTRACT | KEEP | preserved | Existing client/API contract |
-| `NUVEMIQ_*` | `backend/app/core/config.py` | ENVIRONMENT_VARIABLE | KEEP | preserved | Production/deployment compatibility |
+| `deepops_account_id` | billing schema/DTO | API_CONTRACT | KEEP | preserved | Serialized billing contract |
+| `nuvemiq-*` AWS external IDs | account APIs | API_CONTRACT | KEEP | preserved | IAM/security integration contract |
+| `nuvemiq:ignore` | policy integration | API_CONTRACT | KEEP | preserved | Existing resource-tag convention |
+| `deepops:totp:v1` | MFA crypto context | BACKWARD_COMPATIBILITY | KEEP | preserved | Existing encrypted MFA material depends on it |
+| `NUVEMIQ_*` | backend configuration/operator messages | ENVIRONMENT_VARIABLE | KEEP | preserved | Production/deployment compatibility |
 | `nuvemiq-api` health service | `backend/app/main.py` | INFRASTRUCTURE | KEEP | preserved | Health/observability compatibility |
 | `deepops-usage-costs.*` | frontend lib/imports | INTERNAL_IDENTIFIER | KEEP | preserved | Private module naming, no public value |
 | `deepops-web` | `frontend/package.json` | INTERNAL_IDENTIFIER | KEEP | preserved | Private package/lockfile coupling |
+| `deepops.*` logger namespaces | backend services/workers | INTERNAL_IDENTIFIER | KEEP | preserved | Observability filters/dashboards may depend on them |
+| `deepops_*_version` | database migration setup | DATABASE_CONTRACT | KEEP | preserved | Deployed Alembic version-table contract |
+| legacy TLS filesystem paths | TLS service | INFRASTRUCTURE | KEEP | preserved | Existing persisted deployment paths |
 | DeepOps/NuvemIQ CFN filenames/identifiers | `infrastructure/cloudformation/` | INFRASTRUCTURE | KEEP | preserved | Deployed infrastructure contracts |
 | historical Task/docs terminology | historical docs/changelogs | DOCUMENTATION | KEEP | preserved | Correct historical context |
 
 ## Technical Identifiers Preserved
 
 Technical legacy is allowed only where it is classified and justified. Public identity and internal contract names are deliberately separated. Remaining technical identifiers do not authorize new DeepOps/NuvemIQ user-facing copy.
+
+The executable allowlist is `frontend/scripts/brand-legacy-allowlist.mjs`; entries are scoped to exact files/paths and include classification, compatibility reason and future migration strategy. Broad directory wildcards are intentionally not used.
 
 ## Environment Variables
 
@@ -144,12 +157,15 @@ If an `AVEN_*` family is introduced in the future, it must use compatible fallba
 - Keep `deepops.sidebar.collapsed`.
 - Keep existing auth/session cookies and their security attributes.
 - Keep `nuvemiq_token` cleanup until obsolete-token compatibility is explicitly retired.
+- Keep `deepops:session-invalidated` until event compatibility is migrated deliberately.
 
 No user preference or authenticated session is reset by this rebrand.
 
 ## Brand Lint
 
 `npm run lint:brand` scans runtime frontend/backend/infrastructure source for DeepOps/NuvemIQ variants. Known technical references are allowed only through `frontend/scripts/brand-legacy-allowlist.mjs`, where each entry records file, classification, reason and future migration strategy. Legacy filenames are separately allowlisted by exact path.
+
+Test fixture directories are excluded from this runtime branding gate; targeted Task 24.8 tests assert both public Aven identity and the technical contracts intentionally preserved.
 
 The CI frontend job executes brand lint before the design-system gate, lint, typecheck, tests and build.
 
@@ -158,6 +174,7 @@ The CI frontend job executes brand lint before the design-system gate, lint, typ
 Blocked/pending approved files from `ASSET_INVENTORY.md`:
 
 ### Production wordmarks
+
 - `01_Logos/PNG/aven_logo_horizontal_dark_ui_4096.png`
 - `01_Logos/PNG/aven_logo_horizontal_light_ui_4096.png`
 - `01_Logos/PNG/aven_logo_vertical_dark_ui_4096.png`
@@ -166,6 +183,7 @@ Blocked/pending approved files from `ASSET_INVENTORY.md`:
 - `01_Logos/PNG/aven_logo_vertical_no_tagline_white_text_4096.png`
 
 ### Favicon/app icons
+
 - `02_Icons/Favicon/favicon.ico`
 - `02_Icons/Favicon/apple-touch-icon.png`
 - `02_Icons/Favicon/android-chrome-192x192.png`
@@ -197,9 +215,9 @@ npm test
 npm run build
 ```
 
-Backend CI continues to run Ruff formatting/lint and pytest. Runtime smoke validation covers Login, authenticated shell, Dashboard, Billing, Reservations, Collections/Inventory-equivalent surfaces, Recommendations/Opportunities, Reports where present, and Settings without altering feature business logic.
+Backend CI continues to run Ruff formatting/lint and pytest. Existing Compose/deployment smoke workflows remain in place. Interactive browser smoke should verify Login, authenticated shell, Dashboard, Billing, Reservations, Inventory/Collections, Recommendations/Opportunities, Reports where present, Settings, direct-route access, hard reload, and Light/Dark/System behavior when deployed.
 
-Expected hardcode gate for the new branding component:
+The design-system gate for the new branding component requires:
 
 ```text
 Hardcoded colors: 0
@@ -211,35 +229,42 @@ Hardcoded typography: 0
 ## Scope Report
 
 ### Changed
+
 - Public product naming and root metadata.
 - Browser SVG icon.
 - Shell brand consumption/asset strategy.
 - Login/access/MFA/appearance visible branding.
+- Additional visible settings/evidence/backend product copy found by brand lint.
 - User-facing auth emails.
 - FastAPI public/developer title.
 - Brand lint and CI gate.
 
 ### Preserved intentionally
-- API paths/headers.
+
+- API paths/headers and serialized contract fields.
 - `NUVEMIQ_*` environment variables.
-- storage keys, auth cleanup and session event.
-- database/service/infrastructure identifiers.
+- storage keys, auth cleanup, crypto context and session event.
+- database/service/observability/infrastructure identifiers.
 - repository/domain/DNS/TLS/CORS.
 
 ### Deprecated
+
 - DeepOps public product identity.
 - old DeepOps App Router favicon asset.
 - CloudCog/text recreation of the login brand.
 
 ### Blocked by missing raster assets
+
 - approved `favicon.ico`;
 - Apple touch icon;
 - Android/PWA icons;
 - production light/dark PNG wordmarks.
 
 ### Deferred
+
 - domain/repository/infrastructure renaming;
 - environment-variable aliases/migration;
+- internal logger/package/module cleanup;
 - full PWA implementation;
 - Login redesign (24.9);
 - Dashboard redesign (24.10);
@@ -247,16 +272,16 @@ Hardcoded typography: 0
 
 ## Deferred Infrastructure Changes
 
-No repository rename, domain/DNS/TLS change, CORS change, API namespace change, database migration, Docker network/container/volume rename, OAuth/OIDC identifier change or telemetry rename is part of Task 24.8.
+No repository rename, domain/DNS/TLS change, CORS change, API namespace change, database migration, Docker network/container/volume rename, OAuth/OIDC identifier change or telemetry/observability namespace rename is part of Task 24.8.
 
 ## Task 24.9 Readiness
 
 **Is Task 24.9 ready to start? YES**
 
 - Aven product name globally available: **YES**
-- Aven logo runtime available: **YES** (official SVG symbol + documented horizontal fallback)
-- Light logo strategy: **YES**
-- Dark logo strategy: **YES** (official symbol fallback; final raster wordmark pending)
+- Aven logo runtime available: **YES** (official gradient SVG symbol; approximate horizontal fallback retained but not default)
+- Light logo strategy: **YES** (official symbol until raster wordmark arrives)
+- Dark logo strategy: **YES** (official symbol until raster wordmark arrives)
 - Tagline available: **YES**
 - Theme Engine ready: **YES**
 - UI Primitives ready: **YES**
