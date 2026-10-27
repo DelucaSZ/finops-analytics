@@ -1,10 +1,21 @@
 "use client";
 
-import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { LockKeyhole } from "lucide-react";
-import { BrandLogo } from "@/components/brand/brand-logo";
+import { AuthLayout } from "@/components/auth/auth-layout";
+import {
+  Alert,
+  Button,
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+  Input,
+} from "@/components/ui";
 import { api } from "@/lib/api";
+import { iconDefaults } from "@/lib/iconography";
+import styles from "./access-form.module.css";
 
 export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
   const initialized = useRef("");
@@ -22,41 +33,123 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
     initialized.current = mode;
     const value = new URLSearchParams(window.location.hash.slice(1)).get("token") || "";
     setToken(value);
-    // Drop the bearer link from the current history entry after reading it into memory.
     window.history.replaceState(null, "", window.location.pathname);
-    if (value.length !== 43) setError("Link inválido. Abra o link completo recebido ou solicite um novo.");
+    if (value.length !== 43) {
+      setError("Link inválido. Abra o link completo recebido ou solicite um novo.");
+    }
     setReady(true);
   }, [mode]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setError("");
-    if (mode !== "forgot" && password !== confirm) { setError("As senhas não conferem."); return; }
+    if (mode !== "forgot" && password !== confirm) {
+      setError("As senhas não conferem.");
+      return;
+    }
     setLoading(true);
     try {
-      const path = mode === "forgot" ? "/auth/forgot-password" : mode === "invite" ? "/auth/accept-invitation" : "/auth/reset-password";
+      const path = mode === "forgot"
+        ? "/auth/forgot-password"
+        : mode === "invite"
+          ? "/auth/accept-invitation"
+          : "/auth/reset-password";
       const result = await api<{ message: string }>(path, {
-        method: "POST", body: JSON.stringify(mode === "forgot" ? { email } : { token, password }),
+        method: "POST",
+        body: JSON.stringify(mode === "forgot" ? { email } : { token, password }),
       });
       setMessage(result.message);
-      setPassword(""); setConfirm(""); setToken("");
-    } catch (err) { setError(err instanceof Error ? err.message : "Não foi possível concluir."); }
-    finally { setLoading(false); }
+      setPassword("");
+      setConfirm("");
+      setToken("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+    } finally {
+      setLoading(false);
+    }
   }
 
-  return <main className="access-page"><section className="login-card">
-    <div className="login-brand"><BrandLogo /></div>
-    <div className="login-icon"><LockKeyhole size={23} /></div>
-    <h1>{mode === "forgot" ? "Recuperar acesso" : mode === "invite" ? "Ativar sua conta" : "Definir nova senha"}</h1>
-    <p>{mode === "forgot" ? "Informe o e-mail da sua conta para solicitar a recuperação." : "Escolha uma senha de 12 a 128 caracteres. Após concluir, entre pela página de login."}</p>
-    {message ? <p className="form-success" role="status">{message}</p> : <form onSubmit={submit}>
-      {mode === "forgot" ? <label>E-mail<input type="email" autoComplete="email" maxLength={254} value={email} onChange={(event) => setEmail(event.target.value)} required /></label> : <>
-        <label>Nova senha<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} required /></label>
-        <label>Confirmar senha<input type="password" autoComplete="new-password" minLength={12} maxLength={128} value={confirm} onChange={(event) => setConfirm(event.target.value)} required /></label>
-      </>}
-      <button className="button primary full" disabled={!ready || loading || (mode !== "forgot" && token.length !== 43)}>{loading ? "Processando…" : mode === "forgot" ? "Solicitar recuperação" : "Salvar senha"}</button>
-    </form>}
-    {error && <p className="form-error" role="alert">{error}</p>}
-    <Link className="auth-link" href="/login">Voltar para o login</Link>
-  </section></main>;
+  const title = mode === "forgot"
+    ? "Recuperar acesso"
+    : mode === "invite"
+      ? "Ativar sua conta"
+      : "Definir nova senha";
+  const description = mode === "forgot"
+    ? "Informe o e-mail da sua conta para solicitar a recuperação."
+    : "Escolha uma senha de 12 a 128 caracteres. Após concluir, entre pela página de login.";
+  const submitLabel = mode === "forgot" ? "Solicitar recuperação" : "Salvar senha";
+  const submitDisabled = !ready || (mode !== "forgot" && token.length !== 43);
+
+  return (
+    <AuthLayout>
+      <Card className={styles.card}>
+        <CardHeader className={styles.header}>
+          <span className={styles.icon} aria-hidden="true">
+            <LockKeyhole {...iconDefaults} />
+          </span>
+          <h1 className={styles.title}>{title}</h1>
+          <p className={styles.description}>{description}</p>
+        </CardHeader>
+
+        <CardContent className={styles.content}>
+          {message ? (
+            <Alert variant="success" description={message} />
+          ) : (
+            <form className={styles.form} onSubmit={submit}>
+              {mode === "forgot" ? (
+                <Input
+                  type="email"
+                  label="E-mail"
+                  autoComplete="email"
+                  maxLength={254}
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
+                  required
+                />
+              ) : (
+                <>
+                  <Input
+                    type="password"
+                    label="Nova senha"
+                    autoComplete="new-password"
+                    minLength={12}
+                    maxLength={128}
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    required
+                  />
+                  <Input
+                    type="password"
+                    label="Confirmar senha"
+                    autoComplete="new-password"
+                    minLength={12}
+                    maxLength={128}
+                    value={confirm}
+                    onChange={(event) => setConfirm(event.target.value)}
+                    required
+                  />
+                </>
+              )}
+              <Button
+                className={styles.submit}
+                type="submit"
+                loading={loading}
+                disabled={submitDisabled}
+              >
+                {submitLabel}
+              </Button>
+            </form>
+          )}
+
+          {error && <Alert variant="danger" description={error} />}
+        </CardContent>
+
+        <CardFooter className={styles.footer}>
+          <Link className={styles.link} href="/login">
+            Voltar para o login
+          </Link>
+        </CardFooter>
+      </Card>
+    </AuthLayout>
+  );
 }
