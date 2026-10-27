@@ -15,7 +15,7 @@ const TARGETS = [
 ];
 const SOURCE_EXTENSIONS = new Set([".css", ".html", ".js", ".json", ".mjs", ".mts", ".py", ".ts", ".tsx", ".yaml", ".yml"]);
 const LEGACY_PATTERN = /DeepOps|Deep Ops|deepops|deep-ops|deep_ops|DEEPOPS|DEEP_OPS|NuvemIQ|Nuvem IQ|nuvemiq/gi;
-const SKIP_DIRECTORIES = new Set([".next", "__pycache__", "node_modules"]);
+const SKIP_DIRECTORIES = new Set([".next", "__pycache__", "node_modules", "tests"]);
 
 function relative(filename) {
   return path.relative(REPO_ROOT, filename).split(path.sep).join("/");
@@ -70,6 +70,7 @@ console.log(`Aven brand lint: ${findings.length === 0 ? "PASS" : "FAIL"}`);
 console.log(`Files scanned: ${files.length}`);
 console.log(`Allowlisted technical references: ${legacyBrandAllowlist.length}`);
 console.log(`Allowlisted legacy paths: ${legacyBrandPathAllowlist.length}`);
+console.log("Test fixtures are excluded from brand lint; runtime contracts are covered by targeted rebrand tests.");
 
 if (findings.length) {
   console.error("\nUnclassified legacy branding references:");
