@@ -1,0 +1,319 @@
+.pageHeader {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.pageHeaderMain,
+.sectionHeader,
+.cardHeaderRow,
+.filterBar,
+.recommendationActions {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.pageHeaderCopy,
+.sectionCopy,
+.cardHeaderCopy,
+.metricContent,
+.recommendationContent,
+.resourceValues,
+.selector,
+.dateRangePicker {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.pageHeaderCopy,
+.sectionCopy,
+.cardHeaderCopy {
+  min-inline-size: 0;
+}
+
+.pageTitle,
+.sectionTitle,
+.pageDescription,
+.sectionDescription {
+  margin: var(--space-0);
+}
+
+.pageTitle {
+  color: var(--text-primary);
+  font-family: var(--type-heading-xl-family);
+  font-size: var(--type-heading-xl-size);
+  font-weight: var(--type-heading-xl-weight);
+  line-height: var(--type-heading-xl-line-height);
+  letter-spacing: var(--type-heading-xl-letter-spacing);
+}
+
+.pageDescription,
+.sectionDescription {
+  color: var(--text-secondary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+}
+
+.pageMetadata,
+.breadcrumbs,
+.recommendationMetadata,
+.metricSupporting {
+  color: var(--text-muted);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.pageActions,
+.sectionActions,
+.cardHeaderActions,
+.filterActions,
+.selectorActions,
+.dateRangeActions,
+.recommendationBadges,
+.metricMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  color: var(--text-primary);
+  font-family: var(--type-heading-lg-family);
+  font-size: var(--type-heading-lg-size);
+  font-weight: var(--type-heading-lg-weight);
+  line-height: var(--type-heading-lg-line-height);
+  letter-spacing: var(--type-heading-lg-letter-spacing);
+}
+
+.sectionContent {
+  min-inline-size: 0;
+}
+
+.sectionCardHeader,
+.sectionCardContent,
+.filterSurfaceContent {
+  padding-block: var(--space-4);
+}
+
+.filterSurfaceContent {
+  inline-size: 100%;
+}
+
+.filterPrimary {
+  align-items: flex-end;
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  min-inline-size: 0;
+}
+
+.filterPrimary > * {
+  flex: 1 1 auto;
+  min-inline-size: min(100%, var(--popover-min-inline-size));
+}
+
+.filterActions {
+  margin-inline-start: auto;
+}
+
+.filterSurfacePlain {
+  border-block: 1px solid var(--border-subtle);
+  padding-block: var(--space-4);
+}
+
+.metricCard,
+.chartCard,
+.recommendationCard,
+.sectionCard,
+.filterSurface {
+  min-inline-size: 0;
+}
+
+.metricHeader {
+  padding-block-end: var(--space-2);
+}
+
+.metricLabelRow {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+}
+
+.metricLabel,
+.recommendationMetricLabel {
+  color: var(--text-secondary);
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+}
+
+.metricIcon {
+  color: var(--text-muted);
+  display: inline-flex;
+}
+
+.metricValue,
+.recommendationSavings {
+  color: var(--text-primary);
+  font-family: var(--type-kpi-md-family);
+  font-size: var(--type-kpi-md-size);
+  font-weight: var(--type-kpi-md-weight);
+  line-height: var(--type-kpi-md-line-height);
+  letter-spacing: var(--type-kpi-md-letter-spacing);
+  font-variant-numeric: var(--font-variant-numeric-tabular);
+  overflow-wrap: anywhere;
+}
+
+.metricLoading,
+.dataStateSkeleton {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.numeric,
+.recommendationMetricValue {
+  font-variant-numeric: var(--font-variant-numeric-tabular);
+}
+
+.inlineDisplay {
+  display: inline-flex;
+  max-inline-size: 100%;
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.chartContent,
+.dataState {
+  min-inline-size: 0;
+}
+
+.selector {
+  align-content: start;
+  min-inline-size: min(100%, var(--popover-min-inline-size));
+}
+
+.selectorLoading {
+  min-block-size: var(--control-height-compact);
+  padding-block: var(--space-3);
+}
+
+.selectorActions,
+.dateRangeActions {
+  justify-content: flex-end;
+}
+
+.multiSelect {
+  min-block-size: calc(var(--control-height-default) + var(--control-height-default) + var(--space-2));
+}
+
+.dateRangeFields {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.resourceIdentifier {
+  align-items: center;
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
+  min-inline-size: 0;
+}
+
+.resourceValues {
+  min-inline-size: 0;
+}
+
+.resourcePrimary {
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resourceTechnical {
+  color: var(--text-muted);
+  cursor: help;
+  display: block;
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resourceTechnical:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.recommendationContent {
+  gap: var(--space-4);
+}
+
+.recommendationMetrics {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.recommendationMetric,
+.recommendationResource {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.recommendationMetricValue {
+  color: var(--text-primary);
+  font-family: var(--type-label-md-family);
+  font-size: var(--type-label-md-size);
+  font-weight: var(--type-label-md-weight);
+  line-height: var(--type-label-md-line-height);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 48rem) {
+  .pageHeaderMain,
+  .sectionHeader,
+  .cardHeaderRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pageActions,
+  .sectionActions,
+  .cardHeaderActions {
+    inline-size: 100%;
+  }
+
+  .recommendationMetrics,
+  .dateRangeFields {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,185 @@
+import type { HTMLAttributes, ReactNode } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui";
+import styles from "./product-components.module.css";
+import { DataState } from "./data-state";
+
+function classNames(...values: Array<string | undefined | false>) {
+  return values.filter(Boolean).join(" ");
+}
+
+export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
+  title: ReactNode;
+  description?: ReactNode;
+  breadcrumbs?: ReactNode;
+  actions?: ReactNode;
+  metadata?: ReactNode;
+}
+
+export function PageHeader({
+  title,
+  description,
+  breadcrumbs,
+  actions,
+  metadata,
+  className,
+  ...props
+}: PageHeaderProps) {
+  return (
+    <header className={classNames(styles.pageHeader, className)} {...props}>
+      {breadcrumbs && <div className={styles.breadcrumbs}>{breadcrumbs}</div>}
+      <div className={styles.pageHeaderMain}>
+        <div className={styles.pageHeaderCopy}>
+          <h1 className={styles.pageTitle}>{title}</h1>
+          {description && <p className={styles.pageDescription}>{description}</p>}
+          {metadata && <div className={styles.pageMetadata}>{metadata}</div>}
+        </div>
+        {actions && <div className={styles.pageActions}>{actions}</div>}
+      </div>
+    </header>
+  );
+}
+
+export interface SectionProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  title?: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  appearance?: "plain" | "card";
+  children: ReactNode;
+}
+
+export function Section({
+  title,
+  description,
+  actions,
+  appearance = "plain",
+  children,
+  className,
+  ...props
+}: SectionProps) {
+  const heading = title || description || actions ? (
+    <div className={styles.sectionHeader}>
+      <div className={styles.sectionCopy}>
+        {title && <h2 className={styles.sectionTitle}>{title}</h2>}
+        {description && <p className={styles.sectionDescription}>{description}</p>}
+      </div>
+      {actions && <div className={styles.sectionActions}>{actions}</div>}
+    </div>
+  ) : null;
+
+  if (appearance === "card") {
+    return (
+      <Card className={classNames(styles.sectionCard, className)} {...props}>
+        {heading && <CardHeader className={styles.sectionCardHeader}>{heading}</CardHeader>}
+        <CardContent className={styles.sectionCardContent}>{children}</CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <section className={classNames(styles.section, className)} {...props}>
+      {heading}
+      <div className={styles.sectionContent}>{children}</div>
+    </section>
+  );
+}
+
+export interface FilterBarProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+  children: ReactNode;
+  actions?: ReactNode;
+  clearAction?: ReactNode;
+  surface?: boolean;
+}
+
+function FilterBarContent({ children, actions, clearAction }: Pick<FilterBarProps, "children" | "actions" | "clearAction">) {
+  return (
+    <div className={styles.filterBar}>
+      <div className={styles.filterPrimary}>{children}</div>
+      {(clearAction || actions) && <div className={styles.filterActions}>{clearAction}{actions}</div>}
+    </div>
+  );
+}
+
+export function FilterBar({
+  children,
+  actions,
+  clearAction,
+  surface = true,
+  className,
+  ...props
+}: FilterBarProps) {
+  if (surface) {
+    return (
+      <Card className={classNames(styles.filterSurface, className)} {...props}>
+        <CardContent className={styles.filterSurfaceContent}>
+          <FilterBarContent actions={actions} clearAction={clearAction}>{children}</FilterBarContent>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className={classNames(styles.filterSurfacePlain, className)} {...props}>
+      <FilterBarContent actions={actions} clearAction={clearAction}>{children}</FilterBarContent>
+    </div>
+  );
+}
+
+export interface ChartCardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+  title: ReactNode;
+  description?: ReactNode;
+  actions?: ReactNode;
+  legend?: ReactNode;
+  children: ReactNode;
+  loading?: boolean;
+  error?: ReactNode;
+  empty?: boolean;
+  emptyTitle?: ReactNode;
+  emptyDescription?: ReactNode;
+}
+
+export function ChartCard({
+  title,
+  description,
+  actions,
+  legend,
+  children,
+  loading = false,
+  error,
+  empty = false,
+  emptyTitle = "No chart data",
+  emptyDescription,
+  className,
+  ...props
+}: ChartCardProps) {
+  return (
+    <Card className={classNames(styles.chartCard, className)} {...props}>
+      <CardHeader>
+        <div className={styles.cardHeaderRow}>
+          <div className={styles.cardHeaderCopy}>
+            <CardTitle>{title}</CardTitle>
+            {description && <CardDescription>{description}</CardDescription>}
+          </div>
+          {actions && <div className={styles.cardHeaderActions}>{actions}</div>}
+        </div>
+        {legend && <div className={styles.chartLegend}>{legend}</div>}
+      </CardHeader>
+      <CardContent className={styles.chartContent}>
+        <DataState
+          loading={loading}
+          error={error}
+          empty={empty}
+          emptyTitle={emptyTitle}
+          emptyDescription={emptyDescription}
+        >
+          {children}
+        </DataState>
+      </CardContent>
+    </Card>
+  );
+}

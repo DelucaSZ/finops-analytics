@@ -10,7 +10,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 4. `docs/brand/aven/AVEN_THEME_ENGINE.md`
 5. `docs/brand/aven/AVEN_FOUNDATIONS.md`
 6. `docs/brand/aven/AVEN_UI_PRIMITIVES.md`
-7. the applicable assets and visual references under this directory
+7. `docs/brand/aven/AVEN_PRODUCT_COMPONENTS.md`
+8. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -24,17 +25,19 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.5 establish the official token, theme-runtime, visual-foundation and UI primitive architecture:
+Tasks 24.2–24.6 establish the official token, theme-runtime, visual-foundation, UI primitive and Product Component architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
 - `AVEN_FOUNDATIONS.md` — typography, spacing, radius, elevation, iconography, density, focus/hit-target and primitive usage contract;
 - `AVEN_UI_PRIMITIVES.md` — official generic component APIs, accessibility, hardcode gate, composition and migration rules;
+- `AVEN_PRODUCT_COMPONENTS.md` — reusable FinOps/product composition APIs and page-migration contract;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/iconography.ts` — token-backed React geometry API for `lucide-react`;
 - `frontend/components/ui/` — canonical Aven UI primitive implementation;
-- `frontend/app/dev/ui/` — technical primitive preview using the real Theme Engine.
+- `frontend/components/aven/` — canonical Aven Product Component implementation;
+- `frontend/app/dev/ui/` — technical preview using the real Theme Engine.
 
 The product pipeline is:
 
@@ -49,7 +52,7 @@ Visual Foundations
 ↓
 Aven UI Primitives
 ↓
-Product Components
+Aven Product Components
 ↓
 Pages
 ```
@@ -94,14 +97,24 @@ font-size: var(--font-size-md);
 
 Shadows and icon geometry should likewise use the shared foundation contracts whenever they represent reusable design decisions.
 
-Task 24.5 enforces this with:
+Task 24.6 enforces this with:
 
 ```bash
 cd frontend
 npm run lint:design-system
 ```
 
-The gate initially covers the official primitive library and its technical preview instead of failing on historical page debt that is scheduled for progressive migration.
+The gate protects the official primitive library, Product Component library and `/dev/ui` technical preview instead of failing on historical page debt that is scheduled for progressive migration.
+
+## Layer dependency rule
+
+The supported dependency direction is:
+
+```text
+Page → Product Component → UI Primitive → Token
+```
+
+`frontend/components/ui/` may not import `frontend/components/aven/`. Product Components may know reusable product concepts such as account, provider, environment, cost, savings, resource, status and recommendation, but they may not own feature-specific fetching/routing/business rules.
 
 ## Implementation principles
 
@@ -116,7 +129,8 @@ The gate initially covers the official primitive library and its technical previ
 - Institutional gradients/glow are atmospheric and controlled, not neon or pervasive.
 - Data visualization uses dedicated semantic chart tokens rather than raw brand colors.
 - Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
-- New generic interaction patterns should consume `frontend/components/ui/` instead of recreating button, field, card, table, overlay, feedback, or loading styling page by page.
+- New generic interaction patterns consume `frontend/components/ui/`; reusable FinOps/product patterns consume `frontend/components/aven/`.
+- Feature pages own APIs, query params, routing, permissions, feature state and business rules.
 
 ## Repository note
 
@@ -126,4 +140,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.5 provide the complete generic UI foundation required for Task 24.6 — Aven Product Components.
+Tasks 24.2–24.6 provide the complete design-system and product-composition foundation required for Task 24.7 — Aven Application Shell + Sidebar + Topbar.

@@ -51,13 +51,13 @@
 .grid {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
 }
 
 .formGrid {
   display: grid;
   gap: var(--space-4);
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
 }
 
 .stack {
@@ -76,4 +76,16 @@
   font-size: var(--type-caption-size);
   font-weight: var(--type-caption-weight);
   line-height: var(--type-caption-line-height);
+}
+
+.previewChart {
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px dashed var(--border-default);
+  border-radius: var(--radius-card);
+  color: var(--text-muted);
+  display: flex;
+  justify-content: center;
+  min-block-size: calc(var(--space-16) + var(--space-16));
+  padding: var(--space-4);
 }
