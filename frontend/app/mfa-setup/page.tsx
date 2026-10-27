@@ -4,11 +4,12 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { MfaSettings } from "@/components/mfa-settings";
 import { api } from "@/lib/api";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export default function MfaSetupPage() {
   const router = useRouter();
   const [error, setError] = useState("");
-  return <main className="mfa-enrollment"><h1>Proteja sua conta DeepOps</h1>
+  return <main className="mfa-enrollment"><h1>Proteja sua conta {PRODUCT_NAME}</h1>
     <MfaSettings enrollment />
     {error && <p role="alert" className="form-error">{error}</p>}
     <button className="button" onClick={async () => {

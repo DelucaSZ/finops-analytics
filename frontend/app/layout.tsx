@@ -3,6 +3,7 @@ import { Inter, Sora } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
+import { brand, PRODUCT_NAME } from "@/lib/brand";
 import {
   getThemeBootstrapScript,
   SIDEBAR_STORAGE_KEY,
@@ -31,8 +32,15 @@ const sora = Sora({
 });
 
 export const metadata: Metadata = {
-  title: "DeepOps | FinOps Multi-Cloud",
-  description: "Operação, governança e inteligência FinOps para ambientes multi-cloud.",
+  applicationName: PRODUCT_NAME,
+  title: {
+    default: PRODUCT_NAME,
+    template: `%s — ${PRODUCT_NAME}`,
+  },
+  description: brand.description,
+  icons: {
+    icon: [{ url: brand.assets.symbolGradient, type: "image/svg+xml" }],
+  },
 };
 
 const sidebarBootstrap = `

@@ -173,7 +173,7 @@ export default function OciPricingPage() {
       <PageHeader
         eyebrow="CONFIGURAÇÕES · PRICING · OCI"
         title="Pricing OCI"
-        description="Administre preços unitários OCI persistidos pelo DeepOps. Os valores atuais desta área são denominados em BRL."
+        description="Administre preços unitários OCI persistidos pelo Aven. Os valores atuais desta área são denominados em BRL."
         actions={
           <button className="button primary" onClick={() => setForm({ mode: "create" })}>
             <Plus size={16} /> Novo preço

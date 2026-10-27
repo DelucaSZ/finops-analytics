@@ -521,7 +521,7 @@ export default function AccountsPage() {
                           ...form,
                           aws: { ...form.aws, role_arn: e.target.value },
                         })}
-                        placeholder="arn:aws:iam::123456789012:role/DeepOpsReadOnly"
+                        placeholder="arn:aws:iam::123456789012:role/FinOpsReadOnly"
                         required
                         disabled={formBusy}
                       />

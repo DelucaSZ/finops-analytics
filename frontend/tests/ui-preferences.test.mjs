@@ -77,13 +77,18 @@ test("global shell is provider-neutral and exposes accessible persistent collaps
   assert.ok(!rootShell.includes("deepops:theme-change"));
 });
 
-test("authentication and metadata no longer present DeepOps as AWS-only", async () => {
-  const login = await readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8");
-  const layout = await readFile(new URL("../app/layout.tsx", import.meta.url), "utf8");
+test("authentication and metadata use provider-neutral Aven identity", async () => {
+  const [login, layout, brand] = await Promise.all([
+    readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../lib/brand.ts", import.meta.url), "utf8"),
+  ]);
   assert.ok(!login.includes("AWS FINOPS INTELLIGENCE"));
   assert.ok(login.includes("FINOPS MULTI-CLOUD"));
   assert.ok(!layout.includes("ambientes AWS"));
-  assert.ok(layout.includes("FinOps Multi-Cloud"));
+  assert.ok(layout.includes("brand.description"));
+  assert.ok(brand.includes("FinOps Multi-Cloud"));
+  assert.ok(brand.includes('PRODUCT_NAME = "Aven"'));
 });
 
 test("semantic design tokens cover both themes, charts, focus, responsive navigation and reduced motion", async () => {

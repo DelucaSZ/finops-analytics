@@ -6,6 +6,7 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "ui"),
   path.join(ROOT, "components", "aven"),
+  path.join(ROOT, "components", "brand"),
   path.join(ROOT, "components", "app-shell.tsx"),
   path.join(ROOT, "components", "app-shell"),
   path.join(ROOT, "app", "dev", "ui"),

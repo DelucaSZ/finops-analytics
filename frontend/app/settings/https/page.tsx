@@ -351,7 +351,7 @@ export default function HttpsSettingsPage() {
             alcançar as portas 80/443.
           </p>
           <p>
-            No modo próprio, o DeepOps valida separadamente o certificado do
+            No modo próprio, o Aven valida separadamente o certificado do
             servidor, as CAs intermediárias e a chave privada, ordena a cadeia e
             monta o fullchain servido pelo Caddy.
           </p>
@@ -387,7 +387,7 @@ export default function HttpsSettingsPage() {
               <input
                 inputMode="url"
                 autoComplete="off"
-                placeholder="deepops.exemplo.com"
+                placeholder="aven.exemplo.com"
                 maxLength={253}
                 value={domain}
                 onChange={(event) => {
@@ -441,7 +441,7 @@ export default function HttpsSettingsPage() {
               </label>
               <p className="settings-help">
                 Cole as CAs intermediárias fornecidas pela autoridade
-                certificadora. O DeepOps valida e ordena a cadeia. O Root CA
+                certificadora. O Aven valida e ordena a cadeia. O Root CA
                 normalmente não deve ser enviado pelo servidor e será omitido do
                 fullchain quando identificado.
               </p>

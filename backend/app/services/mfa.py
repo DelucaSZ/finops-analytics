@@ -125,7 +125,7 @@ def challenge(db: Session, user: User) -> str:
 
 
 def provisioning(secret: str, email: str) -> dict:
-    uri = pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="DeepOps")
+    uri = pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="Aven")
     image = qrcode.make(uri)
     output = io.BytesIO()
     image.save(output, format="PNG")

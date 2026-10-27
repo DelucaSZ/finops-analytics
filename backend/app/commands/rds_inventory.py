@@ -11,7 +11,7 @@ def main() -> None:
         "--cloud-account-id",
         type=int,
         default=None,
-        help="Collect only one DeepOps cloud account id. Default: all enabled AWS accounts.",
+        help="Collect only one Aven cloud account id. Default: all enabled AWS accounts.",
     )
     args = parser.parse_args()
 

@@ -54,7 +54,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="DeepOps API",
+    title="Aven API",
     description="Multi-account cloud FinOps analysis API",
     version="0.1.0",
     lifespan=lifespan,

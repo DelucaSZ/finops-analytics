@@ -2,7 +2,8 @@
 
 import { FormEvent, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { CloudCog, LockKeyhole } from "lucide-react";
+import { LockKeyhole } from "lucide-react";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import { api } from "@/lib/api";
 
 export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
@@ -44,7 +45,7 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
   }
 
   return <main className="access-page"><section className="login-card">
-    <div className="login-brand"><CloudCog size={28} /><span><strong>Deep</strong>Ops</span></div>
+    <div className="login-brand"><BrandLogo /></div>
     <div className="login-icon"><LockKeyhole size={23} /></div>
     <h1>{mode === "forgot" ? "Recuperar acesso" : mode === "invite" ? "Ativar sua conta" : "Definir nova senha"}</h1>
     <p>{mode === "forgot" ? "Informe o e-mail da sua conta para solicitar a recuperação." : "Escolha uma senha de 12 a 128 caracteres. Após concluir, entre pela página de login."}</p>

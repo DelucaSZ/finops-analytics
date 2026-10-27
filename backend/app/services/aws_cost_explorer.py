@@ -45,7 +45,7 @@ def build_cost_and_usage_query(
     exclude_record_types: tuple[str, ...],
     linked_account_id: str | None = None,
 ) -> dict[str, Any]:
-    """Translate the provider-neutral DeepOps billing request to Cost Explorer."""
+    """Translate the provider-neutral Aven billing request to Cost Explorer."""
 
     query: dict[str, Any] = {
         "TimePeriod": {"Start": start_date, "End": end_date},

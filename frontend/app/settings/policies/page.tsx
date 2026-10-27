@@ -103,7 +103,7 @@ export default function PoliciesPage() {
           ))}
         </div>
         <p>
-          Políticas nesta área são regras FinOps do DeepOps; não são políticas IAM de autenticação.
+          Políticas nesta área são regras FinOps do Aven; não são políticas IAM de autenticação.
         </p>
       </section>
 

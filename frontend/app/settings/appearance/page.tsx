@@ -1,5 +1,6 @@
 import { PageHeader } from "@/components/page-header";
 import { ThemeSelector } from "@/components/theme-selector";
+import { PRODUCT_NAME } from "@/lib/brand";
 
 export default function AppearanceSettingsPage() {
   return (
@@ -7,7 +8,7 @@ export default function AppearanceSettingsPage() {
       <PageHeader
         eyebrow="PREFERÊNCIAS"
         title="Aparência"
-        description="Ajuste o tema visual do DeepOps neste navegador."
+        description={`Ajuste o tema visual do ${PRODUCT_NAME} neste navegador.`}
       />
       <section className="panel settings-preference-panel" aria-labelledby="appearance-heading">
         <div className="panel-heading settings-preference-heading">

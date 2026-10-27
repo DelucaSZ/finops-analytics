@@ -601,7 +601,7 @@ def _financial_summary(rows, baseline_id, target_id):
         return None, {
             "code": "MULTIPLE_CURRENCIES",
             "message": (
-                "A comparação contém mais de uma moeda. O DeepOps não soma valores "
+                "A comparação contém mais de uma moeda. O Aven não soma valores "
                 "de moedas diferentes sem conversão explícita."
             ),
         }

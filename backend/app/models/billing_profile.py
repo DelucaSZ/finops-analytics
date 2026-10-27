@@ -18,7 +18,7 @@ from app.db.base import Base, TimestampMixin
 
 
 class BillingProfile(TimestampMixin, Base):
-    """Reusable DeepOps configuration for AWS Billing queries."""
+    """Reusable Aven configuration for AWS Billing queries."""
 
     __tablename__ = "billing_profiles"
     __table_args__ = (

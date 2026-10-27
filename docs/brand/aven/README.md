@@ -12,7 +12,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 6. `docs/brand/aven/AVEN_UI_PRIMITIVES.md`
 7. `docs/brand/aven/AVEN_PRODUCT_COMPONENTS.md`
 8. `docs/brand/aven/AVEN_APPLICATION_SHELL.md`
-9. the applicable assets and visual references under this directory
+9. `docs/brand/aven/AVEN_TECHNICAL_REBRAND.md`
+10. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -26,7 +27,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.7 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component and persistent Application Shell architecture:
+Tasks 24.2–24.8 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell and technical rebrand architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -34,11 +35,14 @@ Tasks 24.2–24.7 establish the official token, theme-runtime, visual-foundation
 - `AVEN_UI_PRIMITIVES.md` — official generic component APIs, accessibility, hardcode gate, composition and migration rules;
 - `AVEN_PRODUCT_COMPONENTS.md` — reusable FinOps/product composition APIs and page-migration contract;
 - `AVEN_APPLICATION_SHELL.md` — authenticated shell hierarchy, Sidebar, Topbar, shared navigation, responsive/mobile behavior, scroll model and legacy compatibility;
+- `AVEN_TECHNICAL_REBRAND.md` — public identity, runtime assets, metadata, legacy classification/compatibility, brand lint and raster status;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
+- `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
 - `frontend/lib/iconography.ts` — token-backed React geometry API for `lucide-react`;
 - `frontend/components/ui/` — canonical Aven UI primitive implementation;
 - `frontend/components/aven/` — canonical Aven Product Component implementation;
+- `frontend/components/brand/` — runtime brand/logo abstraction;
 - `frontend/components/app-shell/` — canonical persistent authenticated shell implementation;
 - `frontend/app/dev/ui/` — technical preview using the real Theme Engine.
 
@@ -59,7 +63,9 @@ Aven Product Components
 ↓
 Aven Application Shell
 ↓
-Feature Pages
+Technical Rebrand
+↓
+Feature Experiences
 ```
 
 The runtime token contract remains:
@@ -76,9 +82,17 @@ Primitive Token
 
 New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, plus foundation roles for typography/spacing/radius/elevation/iconography. Components should not implement independent Light/Dark variants when semantic tokens already express the visual role.
 
+## Aven Technical Rebrand
+
+Task 24.8 makes Aven the public runtime identity without renaming technical contracts purely for aesthetics. `frontend/lib/brand.ts` is the public-name/asset source of truth, `BrandLogo` centralizes runtime logo behavior, root metadata and auth surfaces use Aven, and `npm run lint:brand` rejects unexplained DeepOps/NuvemIQ runtime references.
+
+Legacy storage keys, environment variables, API paths/headers and infrastructure identifiers remain only when compatibility requires them and are documented in `AVEN_TECHNICAL_REBRAND.md` plus the brand-lint allowlist.
+
+Official raster wordmarks/favicons/app icons remain blocked until the Brand Kit raster masters listed in `ASSET_INVENTORY.md` are uploaded through a binary-safe path. They must not be reconstructed from SVG fallbacks or screenshots.
+
 ## Aven Application Shell
 
-Task 24.7 makes Aven visible continuously across authenticated routes without redesigning each feature page.
+Task 24.7 makes Aven visible continuously across authenticated routes without redesigning each feature page. Task 24.8 centralizes the shell's brand source while preserving authentication, responsive navigation, Theme Engine and storage compatibility.
 
 The shell is intentionally split into:
 
@@ -92,10 +106,6 @@ ApplicationShell
 ├── mobile Drawer
 └── main page scroll/content frame
 ```
-
-The Sidebar collapse preference remains independent from theme. The Topbar delegates Light/Dark/System to the existing Theme Engine, mobile navigation consumes the same navigation configuration as desktop, and the fallback wordmark has centralized theme-aware treatment until Task 24.8 replaces final runtime assets.
-
-Task 24.8 may replace global product naming, metadata, favicon, manifest and final runtime brand assets without rebuilding the shell.
 
 ## Mandatory engineering rule — Task 24.5 onward
 
@@ -121,16 +131,15 @@ padding: var(--space-4);
 font-size: var(--font-size-md);
 ```
 
-Shadows and icon geometry should likewise use the shared foundation contracts whenever they represent reusable design decisions.
-
-Task 24.7 enforces this with:
+The enforced gates are:
 
 ```bash
 cd frontend
+npm run lint:brand
 npm run lint:design-system
 ```
 
-The gate protects the official primitive library, Product Component library, Application Shell and `/dev/ui` technical preview instead of failing on historical page debt that is scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
@@ -167,4 +176,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.7 provide the complete design-system, product-composition and persistent-shell foundation required for Task 24.8 — Technical Rebrand DeepOps → Aven and the progressive feature-page redesign tasks.
+Tasks 24.2–24.8 provide the complete design-system, product-composition, persistent-shell and technical-brand foundation required for Task 24.9 — Aven Login Experience and the progressive feature-page redesign tasks.

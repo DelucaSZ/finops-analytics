@@ -1,1 +1,1 @@
-"""DeepOps API and worker package."""
+"""Aven API and worker package."""

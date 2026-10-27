@@ -18,7 +18,7 @@ from app.db.base import Base, TimestampMixin
 
 
 class CloudWatchPricingRule(TimestampMixin, Base):
-    """Effective-dated public pricing rule for DeepOps CloudWatch usage estimates."""
+    """Effective-dated public pricing rule for Aven CloudWatch usage estimates."""
 
     __tablename__ = "cloudwatch_pricing_rules"
     __table_args__ = (

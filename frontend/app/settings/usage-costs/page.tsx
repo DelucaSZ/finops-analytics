@@ -200,7 +200,7 @@ function CostChart({ response }: { response: CostResponse }) {
               <span>{response.granularity === "monthly" ? "Buckets mensais" : "Buckets diários"}</span>
             </div>
             <div className={styles.chartScroll}>
-              <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Custo estimado do DeepOps em ${currency} ao longo do tempo`}>
+              <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Custo estimado do Aven em ${currency} ao longo do tempo`}>
                 <line x1={padX} x2={width - padX} y1={height - padY} y2={height - padY} className={styles.axisLine} />
                 <path d={path} className={styles.costLine} />
                 {points.map((point, index) => (
@@ -322,7 +322,7 @@ function BreakdownSection({
   );
 }
 
-export default function DeepOpsUsageCostsPage() {
+export default function AvenUsageCostsPage() {
   const [preset, setPreset] = useState("this-month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -451,7 +451,7 @@ export default function DeepOpsUsageCostsPage() {
         if (current === sequence.current && !signal.aborted) setUsage({ operation: operationUsage, account, collector: collectorUsage, analyzer: analyzerUsage, collectionRun });
       })
       .catch((error) => {
-        if (!signal.aborted && current === sequence.current) setUsageError(message(error, "Falha ao consultar a telemetria CloudWatch do DeepOps."));
+        if (!signal.aborted && current === sequence.current) setUsageError(message(error, "Falha ao consultar a telemetria CloudWatch do Aven."));
       })
       .finally(() => {
         if (!signal.aborted && current === sequence.current) setUsageLoading(false);
@@ -512,9 +512,9 @@ export default function DeepOpsUsageCostsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Configurações · DeepOps"
+        eyebrow="Configurações · Aven"
         title="Uso e custos"
-        description="Telemetria e estimativa do custo das chamadas CloudWatch geradas pelo próprio DeepOps. Não representa a fatura AWS nem o custo total de CloudWatch da conta."
+        description="Telemetria e estimativa do custo das chamadas CloudWatch geradas pelo próprio Aven. Não representa a fatura AWS nem o custo total de CloudWatch da conta."
         actions={<button className="button secondary" onClick={() => setRefreshToken((value) => value + 1)}><RefreshCw size={16} /> Atualizar</button>}
       />
 
@@ -584,7 +584,7 @@ export default function DeepOpsUsageCostsPage() {
 
       <div className={styles.kpiGrid}>
         <article className={styles.kpiCard}>
-          <span>Custo estimado do DeepOps</span>
+          <span>Custo estimado do Aven</span>
           {costLoading ? <strong>Carregando…</strong> : costError ? <strong>Indisponível</strong> : <CostTotals totals={cost?.summary.totals ?? []} />}
           <small>Estimativa bruta retornada pelo CloudWatch Cost Engine.</small>
         </article>
@@ -610,7 +610,7 @@ export default function DeepOpsUsageCostsPage() {
 
       {!usageLoading && !usageError && !hasUsage && (
         <section className={styles.emptyState}>
-          <h2>Nenhum uso CloudWatch do DeepOps foi registrado neste período.</h2>
+          <h2>Nenhum uso CloudWatch do Aven foi registrado neste período.</h2>
           <p>A telemetria começa a aparecer após novas coletas AWS instrumentadas; nenhum histórico anterior à instrumentação é estimado artificialmente.</p>
         </section>
       )}
@@ -702,9 +702,9 @@ export default function DeepOpsUsageCostsPage() {
       <section className={styles.panel}>
         <div className={styles.panelHeader}><div><h2>Sobre esta estimativa</h2><p>Premissas e provenance do CloudWatch Cost Engine.</p></div></div>
         <div className={styles.assumptions}>
-          <div><span>Definição</span><strong>Estimativa do custo das chamadas CloudWatch geradas pelo próprio DeepOps</strong><p>Não é o custo total de CloudWatch da conta e não é a fatura final da AWS.</p></div>
+          <div><span>Definição</span><strong>Estimativa do custo das chamadas CloudWatch geradas pelo próprio Aven</strong><p>Não é o custo total de CloudWatch da conta e não é a fatura final da AWS.</p></div>
           <div><span>Fonte de pricing</span><strong>{cost?.summary.pricing_sources.length ? cost.summary.pricing_sources.map(sourceLabel).join(", ") : "Sem regra aplicada no recorte"}</strong><p>Verificado em {formatUsageCostDate(cost?.summary.pricing_verified_at)}.</p></div>
-          <div><span>Free tier</span><strong>{cost?.summary.free_tier_applied ? "Aplicado pelo Cost Engine" : "Não aplicado"}</strong><p>Por padrão, a estimativa é bruta: o DeepOps não conhece necessariamente o consumo compartilhado do free tier por outras workloads da conta.</p></div>
+          <div><span>Free tier</span><strong>{cost?.summary.free_tier_applied ? "Aplicado pelo Cost Engine" : "Não aplicado"}</strong><p>Por padrão, a estimativa é bruta: o Aven não conhece necessariamente o consumo compartilhado do free tier por outras workloads da conta.</p></div>
           <div><span>Completude</span><strong>{cost?.summary.is_complete ? "Completa para as regras disponíveis" : "Incompleta"}</strong><p>{cost?.summary.unpriced_events ?? 0} eventos sem pricing; {cost?.summary.inexact_request_events ?? 0} eventos com request count inexato.</p></div>
           <div><span>Vigências</span><strong>{versions > 1 ? `${versions} versões de pricing aplicadas` : versions === 1 ? "1 versão de pricing aplicada" : "Nenhuma versão aplicada"}</strong><p>O frontend não usa o preço atual para recalcular histórico.</p></div>
           <div><span>Moeda</span><strong>Sem conversão cambial</strong><p>Moedas são exibidas separadamente e nunca somadas entre si.</p></div>

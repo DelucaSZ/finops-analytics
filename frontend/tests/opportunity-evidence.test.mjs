@@ -19,7 +19,9 @@ test("opportunity detail renders backend-owned evidence and historical observati
   assert.match(detail, /Voltar à evidência mais recente/);
   assert.match(detail, /Histórico de decisões/);
 
-  assert.match(evidence, /Por que o DeepOps chegou nessa conclusão\?/);
+  assert.match(evidence, /Por que o \{PRODUCT_NAME\} chegou nessa conclusão\?/);
+  assert.match(evidence, /PRODUCT_NAME/);
+  assert.doesNotMatch(evidence, /DeepOps/);
   assert.match(evidence, /Detalhes adicionais não disponíveis para esta análise/);
   assert.match(evidence, /Critério aplicado nesta coleta/);
   assert.match(evidence, /Principais responsáveis pelo crescimento/);

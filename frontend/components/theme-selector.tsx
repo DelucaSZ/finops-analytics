@@ -46,7 +46,7 @@ export function ThemeSelector() {
             >
               <input
                 type="radio"
-                name="deepops-theme"
+                name="aven-theme"
                 value={option.value}
                 checked={theme === option.value}
                 onChange={() => setTheme(option.value)}

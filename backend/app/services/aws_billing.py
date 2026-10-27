@@ -271,12 +271,12 @@ class AwsBillingService:
             if account is None:
                 raise BillingServiceError(
                     "ACCOUNT_NOT_FOUND",
-                    f"Conta DeepOps {account_id} não foi encontrada ou não está autorizada.",
+                    f"Conta Aven {account_id} não foi encontrada ou não está autorizada.",
                 )
             if account.provider != CloudProvider.AWS.value or account.aws_configuration is None:
                 raise BillingServiceError(
                     "ACCOUNT_NOT_AWS",
-                    f"Conta DeepOps {account_id} não possui configuração AWS.",
+                    f"Conta Aven {account_id} não possui configuração AWS.",
                 )
             contexts.append(
                 _AccountContext(
@@ -349,7 +349,7 @@ class AwsBillingService:
             return cached
 
         # A management/payer role can see the whole organization. Restrict it to the
-        # registered DeepOps account so an arbitrary linked account can never leak in.
+        # registered Aven account so an arbitrary linked account can never leak in.
         linked_account_id = account.aws_account_id if account.is_management_account else None
         query = build_cost_and_usage_query(
             start_date=request.start_date.isoformat(),
