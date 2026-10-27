@@ -102,7 +102,7 @@ class DiscoveredInventoryResource:
     attributes: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
-        provider = normalize_provider(self.provider).value
+        provider = normalize_provider(self.provider)
         resource_id = str(self.resource_id or "").strip()
         resource_type = str(self.resource_type or "").strip()
         lifecycle_status = str(self.lifecycle_status or "unknown").strip() or "unknown"
