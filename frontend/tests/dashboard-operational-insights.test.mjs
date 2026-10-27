@@ -62,7 +62,7 @@ test("insight revalidates independently without accelerating the executive summa
 
 test("operational insight uses Aven semantic components and tokenized responsive flow", () => {
   assert.match(componentSource, /<Section/);
-  assert.match(componentSource, /aria-labelledby="dashboard-operational-insight-title"/);
+  assert.match(componentSource, /aria-label="Atenção operacional"/);
   assert.match(componentSource, /<Alert[\s\S]*variant="warning"/);
   assert.match(componentSource, /<StatusIndicator status="danger" label="Falha"/);
   assert.match(componentSource, /<ProviderBadge provider=\{item\.provider\}/);
