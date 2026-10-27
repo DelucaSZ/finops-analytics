@@ -17,6 +17,12 @@ function positiveInt(value, fallback) {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function optionalNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+}
+
 export function parseRdsReservationSearchParams(input) {
   const params = input instanceof URLSearchParams ? input : new URLSearchParams(input || "");
   const tab = one(params, "tab");
@@ -141,7 +147,7 @@ export function coverageDisplayModel(item) {
   return {
     status,
     label: coverageStatusLabel(status),
-    percentage: clampPercentage(item?.coverage_percentage || 0),
+    percentage: optionalNumber(item?.coverage_percentage),
     capacity: `${formatNu(covered)} / ${formatNu(required)}`,
     uncovered: formatNu(Math.max(0, required - covered)),
     tone: status === "FULL" ? "positive" : status === "PARTIAL" ? "warning" : status === "UNCOVERED" ? "critical" : "neutral",
@@ -153,7 +159,7 @@ export function reservationUtilizationDisplay(item) {
   const allocated = Number(item?.allocated_capacity || 0);
   const unused = Number(item?.unused_capacity || 0);
   return {
-    percentage: clampPercentage(item?.utilization_percentage || 0),
+    percentage: optionalNumber(item?.utilization_percentage),
     capacity: `${formatNu(allocated)} / ${formatNu(total)}`,
     unused: formatNu(unused),
   };
