@@ -23,6 +23,7 @@ from app.models.finops_ledger import (
     FinOpsLedgerPeriodicity,
     FinOpsLedgerSource,
 )
+from app.models.inventory import InventoryResource, InventoryResourceObservation
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
 from app.models.opportunity_archive_history import (
     OpportunityArchiveAction,
@@ -99,6 +100,8 @@ __all__ = [
     "FinOpsLedgerEntryType",
     "FinOpsLedgerPeriodicity",
     "FinOpsLedgerSource",
+    "InventoryResource",
+    "InventoryResourceObservation",
     "OpportunityArchiveAction",
     "OpportunityArchiveHistory",
     "OpportunityArchiveReason",
