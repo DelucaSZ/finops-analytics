@@ -3,7 +3,11 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const DEFAULT_TARGETS = [path.join(ROOT, "components", "ui"), path.join(ROOT, "app", "dev", "ui")];
+const DEFAULT_TARGETS = [
+  path.join(ROOT, "components", "ui"),
+  path.join(ROOT, "components", "aven"),
+  path.join(ROOT, "app", "dev", "ui"),
+];
 const SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
 
 function stripComments(source) {
