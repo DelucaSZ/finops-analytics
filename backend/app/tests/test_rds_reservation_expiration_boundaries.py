@@ -29,9 +29,7 @@ def test_expiring_within_30_days_boundary(days: int, expected: bool) -> None:
     delta = opportunities._expiration_delta(reservation, now=NOW)
     within_warning_window = opportunities._active_for_expiration(
         reservation, now=NOW
-    ) and timedelta(0) <= delta <= timedelta(
-        days=settings.rds_reservation_expiration_warning_days
-    )
+    ) and timedelta(0) <= delta <= timedelta(days=settings.rds_reservation_expiration_warning_days)
 
     assert opportunities._days_until_expiration(reservation, now=NOW) == days
     assert within_warning_window is expected
