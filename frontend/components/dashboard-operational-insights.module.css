@@ -26,7 +26,7 @@
 }
 
 .item {
-  border-block-start: var(--border-width-subtle) solid var(--border-subtle);
+  border-block-start: 1px solid var(--border-subtle);
   padding-block-start: var(--space-4);
 }
 
