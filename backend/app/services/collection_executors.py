@@ -7,19 +7,23 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.cloud import CloudProvider, normalize_provider
+from app.core.inventory import InventoryDiscoveryResult
 from app.models.account import AwsAccount, CloudAccount, OciAccountConfiguration
 from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
+from app.services.aws_inventory_discovery import AwsInventoryDiscoveryService
 from app.services.collection_errors import classify_collection_error
 from app.services.collector_types import CollectedFinding
 from app.services.collectors import run_collectors
+from app.services.inventory_persistence import InventoryPersistenceService
 from app.services.oci_analyzers import OciAnalysisService, OciAnalyzerRegistry
 from app.services.oci_auth import OciConnectionError
 from app.services.oci_cloud_advisor import OciCloudAdvisorService
 from app.services.oci_correlation import correlate_oci_datasets
 from app.services.oci_credentials import resolve_oci_signing_credentials
 from app.services.oci_discovery import OciDiscoveryService
+from app.services.oci_inventory_adapter import adapt_oci_inventory
 from app.services.oci_monitoring import OciMonitoringService
 from app.services.oci_usage import OciUsageService
 from app.services.policies import list_effective_policies
@@ -139,6 +143,66 @@ def _log_stage(
 
 def _elapsed_ms(started: float) -> int:
     return max(0, int((time.monotonic() - started) * 1000))
+
+
+def _persist_inventory_discovery(
+    db: Session,
+    account: CloudAccount,
+    scan: Scan,
+    discovery: InventoryDiscoveryResult,
+) -> int:
+    """Persist one provider discovery result against the same CollectionRun.
+
+    Some focused executor unit tests invoke an executor without the worker-created
+    CollectionRun. Those calls still return a real observed-resource count but skip DB
+    persistence; the production collection pipeline always supplies the run first.
+    """
+
+    run_id = _run_id(db, scan)
+    if run_id == "missing":
+        return discovery.resources_analyzed
+    collection_run = db.get(CollectionRun, run_id)
+    if collection_run is None:
+        return discovery.resources_analyzed
+
+    started = time.monotonic()
+    _log_stage(db, account, scan, event="collection_stage_started", stage="inventory_persistence")
+    persistence = InventoryPersistenceService()
+    observed_at = collection_run.started_at
+    persistence.persist_observations(
+        db,
+        cloud_account=account,
+        collection_run=collection_run,
+        resources=discovery.resources,
+        observed_at=observed_at,
+    )
+    missing_count = persistence.reconcile_complete_scopes(
+        db,
+        cloud_account=account,
+        collection_run=collection_run,
+        resources=discovery.resources,
+        coverage=discovery.coverage,
+        observed_at=observed_at,
+    )
+    _log_stage(
+        db,
+        account,
+        scan,
+        event="collection_stage_completed",
+        stage="inventory_persistence",
+        duration_ms=_elapsed_ms(started),
+        resource_count=discovery.resources_analyzed,
+        warning_count=len(discovery.warnings) + len(discovery.errors),
+    )
+    logger.info(
+        "event=inventory_missing_reconciled provider=%s cloud_account_id=%s "
+        "collection_run_id=%s resource_count=%s",
+        account.provider,
+        account.id,
+        collection_run.id,
+        missing_count,
+    )
+    return discovery.resources_analyzed
 
 
 class CollectionExecutor(Protocol):
@@ -275,6 +339,49 @@ class AwsCollectionExecutor:
             duration_ms=_elapsed_ms(auth_started),
         )
 
+        inventory_started = time.monotonic()
+        _log_stage(db, account, scan, event="collection_stage_started", stage="inventory_discovery")
+        try:
+            inventory_discovery = AwsInventoryDiscoveryService().discover(
+                aws_session,
+                cloud_account_id=account.id,
+                regions=regions,
+            )
+        except Exception as exc:
+            info = classify_collection_error(exc)
+            _log_stage(
+                db,
+                account,
+                scan,
+                event="collection_stage_failed",
+                stage="inventory_discovery",
+                duration_ms=_elapsed_ms(inventory_started),
+                error=exc,
+            )
+            raise ProviderExecutionError(
+                self.provider,
+                RuntimeError("AWS Inventory discovery failed"),
+                connection_failure=False,
+                stage="inventory_discovery",
+                category=info.category,
+                retryable=info.retryable,
+            ) from exc
+        inventory_issue_count = len(inventory_discovery.warnings) + len(inventory_discovery.errors)
+        _log_stage(
+            db,
+            account,
+            scan,
+            event=(
+                "collection_stage_partial"
+                if inventory_issue_count
+                else "collection_stage_completed"
+            ),
+            stage="inventory_discovery",
+            duration_ms=_elapsed_ms(inventory_started),
+            resource_count=inventory_discovery.resources_analyzed,
+            warning_count=inventory_issue_count,
+        )
+
         collectors_started = time.monotonic()
         _log_stage(db, account, scan, event="collection_stage_started", stage="collectors")
         try:
@@ -302,6 +409,8 @@ class AwsCollectionExecutor:
             ) from exc
 
         collector_errors = list(collector_errors)
+        collector_errors.extend(inventory_discovery.warnings)
+        collector_errors.extend(inventory_discovery.errors)
         _log_stage(
             db,
             account,
@@ -318,12 +427,33 @@ class AwsCollectionExecutor:
         # to scheduling or other code that continues using these same instances.
         db.add(account)
         db.add(scan)
+        try:
+            resources_analyzed = _persist_inventory_discovery(
+                db, account, scan, inventory_discovery
+            )
+        except Exception as exc:
+            info = classify_collection_error(exc)
+            _log_stage(
+                db,
+                account,
+                scan,
+                event="collection_stage_failed",
+                stage="inventory_persistence",
+                error=exc,
+            )
+            raise ProviderExecutionError(
+                self.provider,
+                RuntimeError("AWS Inventory persistence failed"),
+                connection_failure=False,
+                stage="inventory_persistence",
+                category=info.category,
+                retryable=False,
+            ) from exc
         return CollectionExecutionResult(
             findings=findings,
             active_rule_keys=active_rule_keys,
             collector_errors=collector_errors,
-            # The current AWS collectors do not expose the total evaluated resources.
-            resources_analyzed=0,
+            resources_analyzed=resources_analyzed,
         )
 
     def mark_connection_success(self, account: CloudAccount) -> None:
@@ -551,6 +681,7 @@ class OciCollectionExecutor:
 
         current_stage = "discovery"
         stage_started = time.monotonic()
+        inventory_discovery: InventoryDiscoveryResult | None = None
         try:
             _log_stage(db, account, scan, event="collection_stage_started", stage=current_stage)
             discovery_service = OciDiscoveryService(credential_resolver=cached_credentials)
@@ -578,6 +709,13 @@ class OciCollectionExecutor:
                     category="authentication" if connection_failure else info.category,
                     retryable=info.retryable,
                 )
+
+            # Pure adapter: the same in-memory discovery dataset continues to feed all
+            # OCI analyzers below. No second provider discovery is introduced.
+            inventory_discovery = adapt_oci_inventory(
+                discovery,
+                cloud_account_id=account.id,
+            )
 
             current_stage = "cloud_advisor"
             stage_started = time.monotonic()
@@ -684,11 +822,36 @@ class OciCollectionExecutor:
         # so leaving them detached would silently drop subsequent persisted changes.
         db.add(account)
         db.add(scan)
+        try:
+            resources_analyzed = _persist_inventory_discovery(
+                db,
+                account,
+                scan,
+                inventory_discovery or InventoryDiscoveryResult(),
+            )
+        except Exception as exc:
+            info = classify_collection_error(exc)
+            _log_stage(
+                db,
+                account,
+                scan,
+                event="collection_stage_failed",
+                stage="inventory_persistence",
+                error=exc,
+            )
+            raise ProviderExecutionError(
+                self.provider,
+                RuntimeError("OCI Inventory persistence failed"),
+                connection_failure=False,
+                stage="inventory_persistence",
+                category=info.category,
+                retryable=False,
+            ) from exc
         return CollectionExecutionResult(
             findings=findings,
             active_rule_keys=list(registry.rule_keys),
             collector_errors=self._issues(discovery, advisor, usage, monitoring),
-            resources_analyzed=len(discovery.resources),
+            resources_analyzed=resources_analyzed,
         )
 
     def mark_connection_success(self, account: CloudAccount) -> None:
