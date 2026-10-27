@@ -1,0 +1,34 @@
+name: Task 24.8 Ruff format fix
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'task/24.8-aven-technical-rebrand'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install 'ruff==0.17.3'
+      - run: ruff format backend/app/services/opportunity_evidence.py
+      - name: Commit formatter output when needed
+        shell: bash
+        run: |
+          if git diff --quiet; then
+            echo "No formatter changes required."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/app/services/opportunity_evidence.py
+          git commit -m "Task 24.8 — Apply Ruff formatting"
+          git push origin HEAD:${{ github.event.pull_request.head.ref }}
