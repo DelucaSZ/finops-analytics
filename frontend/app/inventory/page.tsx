@@ -111,8 +111,18 @@ function presenceTone(status: string) {
   return "neutral" as const;
 }
 
-function selectOptions(values?: string[]) {
-  return (values ?? []).map((value) => ({ value, label: humanize(value) }));
+function rawOptions(values: string[] | undefined, allLabel: string) {
+  return [
+    { value: "", label: allLabel },
+    ...(values ?? []).map((value) => ({ value, label: value })),
+  ];
+}
+
+function humanizedOptions(values: string[] | undefined, allLabel: string) {
+  return [
+    { value: "", label: allLabel },
+    ...(values ?? []).map((value) => ({ value, label: humanize(value) })),
+  ];
 }
 
 function accountOptions(options?: InventoryOptions, provider?: string) {
@@ -226,10 +236,10 @@ function ResourceRow({ resource }: { resource: InventoryResource }) {
       </TableCell>
       <TableCell>
         {resource.account_name || resource.native_account_id}
-        <span className={styles.secondary}>{resource.native_account_id}</span>
+        {resource.account_name ? <span className={styles.secondary}>{resource.native_account_id}</span> : null}
       </TableCell>
       <TableCell>
-        {resource.region || "Global / unavailable"}
+        {resource.region || "Region unavailable"}
         <span className={styles.secondary}>{resource.availability_zone || "No availability zone"}</span>
       </TableCell>
       <TableCell>
@@ -314,34 +324,26 @@ function InventoryFilters({
         label="Region"
         value={state.region}
         onChange={(event) => onChange({ region: event.target.value, page: 1 })}
-        options={selectOptions(contextualOptions?.regions)}
-      >
-        <option value="">All regions</option>
-      </Select>
+        options={rawOptions(contextualOptions?.regions, "All regions")}
+      />
       <Select
         label="Resource type"
         value={state.resourceType}
         onChange={(event) => onChange({ resourceType: event.target.value, page: 1 })}
-        options={selectOptions(contextualOptions?.resource_types)}
-      >
-        <option value="">All resource types</option>
-      </Select>
+        options={humanizedOptions(contextualOptions?.resource_types, "All resource types")}
+      />
       <Select
         label="Service"
         value={state.service}
         onChange={(event) => onChange({ service: event.target.value, page: 1 })}
-        options={selectOptions(contextualOptions?.services)}
-      >
-        <option value="">All services</option>
-      </Select>
+        options={rawOptions(contextualOptions?.services, "All services")}
+      />
       <Select
         label="Lifecycle"
         value={state.lifecycleStatus}
         onChange={(event) => onChange({ lifecycleStatus: event.target.value, page: 1 })}
-        options={selectOptions(contextualOptions?.lifecycle_statuses)}
-      >
-        <option value="">All lifecycle states</option>
-      </Select>
+        options={humanizedOptions(contextualOptions?.lifecycle_statuses, "All lifecycle states")}
+      />
       <Select
         label="Presence"
         value={state.presenceStatus}
