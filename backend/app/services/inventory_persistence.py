@@ -1,7 +1,8 @@
-"""Inventory persistence with batch-oriented current-state upsert semantics."""
+"""Inventory persistence with batch-oriented current-state and safe reconciliation semantics."""
 
 from __future__ import annotations
 
+from collections import defaultdict
 from collections.abc import Iterable, Sequence
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
@@ -12,6 +13,8 @@ from sqlalchemy.orm import Session
 from app.core.cloud import normalize_provider
 from app.core.inventory import (
     DiscoveredInventoryResource,
+    InventoryCoverage,
+    InventoryCoverageStatus,
     InventoryPresenceStatus,
     prepare_inventory_metadata,
 )
@@ -38,7 +41,7 @@ def _utc_comparable(value: datetime) -> datetime:
 
 
 class InventoryPersistenceService:
-    """Persist normalized resource observations without owning transaction commit."""
+    """Persist normalized observations and reconcile only proven-complete scopes."""
 
     @staticmethod
     def _validate_context(cloud_account: CloudAccount, collection_run: CollectionRun) -> str:
@@ -231,3 +234,75 @@ class InventoryPersistenceService:
         if new_observations:
             db.add_all(new_observations)
         return result
+
+    def reconcile_complete_scopes(
+        self,
+        db: Session,
+        *,
+        cloud_account: CloudAccount,
+        collection_run: CollectionRun,
+        resources: Sequence[DiscoveredInventoryResource],
+        coverage: Sequence[InventoryCoverage],
+        observed_at: datetime | None = None,
+    ) -> int:
+        """Mark absent resources missing only where all evidence for a scope is complete.
+
+        The 24.13B providers currently reconcile account + region + resource type scopes.
+        Additional scope dimensions are intentionally not collapsed into a broader scope;
+        they are skipped until persistence can compare them deterministically.
+        """
+
+        provider = self._validate_context(cloud_account, collection_run)
+        observed_at = observed_at or utcnow()
+
+        statuses_by_scope: dict[
+            tuple[str, str | None], set[InventoryCoverageStatus]
+        ] = defaultdict(set)
+        for item in coverage:
+            if normalize_provider(item.provider) != provider:
+                raise ValueError("Coverage provider does not match CloudAccount provider")
+            if item.cloud_account_id != cloud_account.id:
+                raise ValueError("Coverage cloud_account_id does not match CloudAccount")
+            # Never broaden a compartment or future provider-specific scope to region scope.
+            if item.scope:
+                continue
+            statuses_by_scope[(item.resource_type, item.region)].add(item.status)
+
+        complete_scopes = {
+            key
+            for key, statuses in statuses_by_scope.items()
+            if statuses == {InventoryCoverageStatus.COMPLETE}
+        }
+        if not complete_scopes:
+            return 0
+
+        observed_identities = {
+            (resource.resource_type, resource.region, resource.resource_id)
+            for resource in resources
+            if normalize_provider(resource.provider) == provider
+        }
+        resource_types = {resource_type for resource_type, _region in complete_scopes}
+        candidates = db.scalars(
+            select(InventoryResource).where(
+                InventoryResource.provider == provider,
+                InventoryResource.cloud_account_id == cloud_account.id,
+                InventoryResource.presence_status == InventoryPresenceStatus.ACTIVE.value,
+                InventoryResource.resource_type.in_(resource_types),
+            )
+        ).all()
+
+        reconciled = 0
+        for current in candidates:
+            scope_key = (current.resource_type, current.region)
+            if scope_key not in complete_scopes:
+                continue
+            if (current.resource_type, current.region, current.resource_id) in observed_identities:
+                continue
+            # A delayed/older CollectionRun cannot hide a resource observed by a newer run.
+            if _utc_comparable(current.last_seen_at) > _utc_comparable(observed_at):
+                continue
+            current.presence_status = InventoryPresenceStatus.MISSING.value
+            # last_seen_at and last_seen_collection_run_id deliberately remain untouched:
+            # reconciliation is evidence of absence, not a positive observation.
+            reconciled += 1
+        return reconciled
