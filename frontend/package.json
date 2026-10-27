@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint --dir components/ui --dir components/aven --dir components/brand --dir components/app-shell --dir app/dev/ui",
+    "lint": "next lint --dir components/ui --dir components/aven --dir components/brand --dir components/app-shell --dir components/auth --file components/mfa-settings.tsx --file components/access-form.tsx --dir app/login --dir app/mfa-setup --dir app/dev/ui",
     "lint:brand": "node scripts/check-brand.mjs",
     "lint:design-system": "node scripts/check-design-system.mjs",
     "typecheck": "tsc --noEmit",
