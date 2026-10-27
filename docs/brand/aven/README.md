@@ -9,7 +9,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 3. `docs/brand/aven/AVEN_DESIGN_TOKENS.md`
 4. `docs/brand/aven/AVEN_THEME_ENGINE.md`
 5. `docs/brand/aven/AVEN_FOUNDATIONS.md`
-6. the applicable assets and visual references under this directory
+6. `docs/brand/aven/AVEN_UI_PRIMITIVES.md`
+7. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -23,14 +24,17 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.4 establish the official token, theme-runtime and visual-foundation architecture:
+Tasks 24.2–24.5 establish the official token, theme-runtime, visual-foundation and UI primitive architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
-- `AVEN_FOUNDATIONS.md` — typography, spacing, radius, elevation, iconography, density, focus/hit-target and Task 24.5 usage contract;
+- `AVEN_FOUNDATIONS.md` — typography, spacing, radius, elevation, iconography, density, focus/hit-target and primitive usage contract;
+- `AVEN_UI_PRIMITIVES.md` — official generic component APIs, accessibility, hardcode gate, composition and migration rules;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
-- `frontend/lib/iconography.ts` — token-backed React geometry API for `lucide-react`.
+- `frontend/lib/iconography.ts` — token-backed React geometry API for `lucide-react`;
+- `frontend/components/ui/` — canonical Aven UI primitive implementation;
+- `frontend/app/dev/ui/` — technical primitive preview using the real Theme Engine.
 
 The product pipeline is:
 
@@ -43,7 +47,7 @@ Theme Engine
 ↓
 Visual Foundations
 ↓
-UI Primitives
+Aven UI Primitives
 ↓
 Product Components
 ↓
@@ -90,6 +94,15 @@ font-size: var(--font-size-md);
 
 Shadows and icon geometry should likewise use the shared foundation contracts whenever they represent reusable design decisions.
 
+Task 24.5 enforces this with:
+
+```bash
+cd frontend
+npm run lint:design-system
+```
+
+The gate initially covers the official primitive library and its technical preview instead of failing on historical page debt that is scheduled for progressive migration.
+
 ## Implementation principles
 
 - Treat this directory as the authoritative brand source. Do not recreate the Aven wordmark using text.
@@ -103,6 +116,7 @@ Shadows and icon geometry should likewise use the shared foundation contracts wh
 - Institutional gradients/glow are atmospheric and controlled, not neon or pervasive.
 - Data visualization uses dedicated semantic chart tokens rather than raw brand colors.
 - Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
+- New generic interaction patterns should consume `frontend/components/ui/` instead of recreating button, field, card, table, overlay, feedback, or loading styling page by page.
 
 ## Repository note
 
@@ -112,4 +126,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.4 now provide the complete foundation required for Task 24.5 — Aven UI Primitives.
+Tasks 24.2–24.5 provide the complete generic UI foundation required for Task 24.6 — Aven Product Components.

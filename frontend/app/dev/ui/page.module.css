@@ -1,0 +1,79 @@
+.preview {
+  display: grid;
+  gap: var(--space-8);
+  padding: var(--space-6);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.title {
+  color: var(--text-primary);
+  font-family: var(--type-heading-xl-family);
+  font-size: var(--type-heading-xl-size);
+  font-weight: var(--type-heading-xl-weight);
+  line-height: var(--type-heading-xl-line-height);
+  margin: var(--space-0);
+}
+
+.lead {
+  color: var(--text-secondary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  margin: var(--space-0);
+}
+
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sectionTitle {
+  color: var(--text-primary);
+  font-family: var(--type-heading-lg-family);
+  font-size: var(--type-heading-lg-size);
+  font-weight: var(--type-heading-lg-weight);
+  line-height: var(--type-heading-lg-line-height);
+  margin: var(--space-0);
+}
+
+.row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.grid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: 1fr;
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.skeletonStack {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.themeState {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}

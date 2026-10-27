@@ -28,14 +28,19 @@
   --dialog-radius: var(--radius-dialog);
   --dialog-padding: var(--space-6);
   --dialog-shadow: var(--elevation-3-shadow);
+  --dialog-safe-margin: var(--space-8);
+  --dialog-max-inline-size: 42rem;
+  --drawer-inline-size: 26rem;
 
   --popover-background: var(--elevation-2-surface);
   --popover-border: var(--elevation-2-border);
   --popover-radius: var(--radius-card);
   --popover-shadow: var(--elevation-2-shadow);
+  --popover-min-inline-size: 12rem;
 
   --tooltip-background: var(--chart-tooltip-bg);
   --tooltip-text: var(--chart-tooltip-text);
+  --tooltip-max-inline-size: 20rem;
 
   --icon-button-size: var(--control-height-default);
   --icon-button-icon-size: var(--icon-size-lg);
@@ -43,4 +48,32 @@
   --form-field-gap: var(--space-2);
   --table-cell-padding-block: var(--space-3);
   --table-cell-padding-inline: var(--space-4);
+  --textarea-min-block-size: calc(var(--control-height-comfortable) + var(--control-height-comfortable) + var(--control-height-comfortable));
+
+  --switch-inline-size: var(--space-12);
+  --switch-thumb-size: var(--space-5);
+  --switch-thumb-translate: var(--space-5);
+
+  --avatar-size-sm: var(--space-6);
+  --avatar-size-md: var(--space-8);
+  --avatar-size-lg: var(--space-10);
+
+  --skeleton-text-block-size: var(--space-3);
+  --skeleton-rect-block-size: var(--space-16);
+  --skeleton-circle-size: var(--space-10);
+  --skeleton-opacity-low: 0.48;
+  --skeleton-opacity-high: 0.86;
+
+  --empty-state-icon-box: var(--space-12);
+  --empty-state-copy-max-inline-size: 36rem;
+  --toast-inline-size: 24rem;
+
+  /* Overlay ordering shared by primitives. Native dialog/drawer also use the top layer. */
+  --z-index-base: 0;
+  --z-index-sticky: 10;
+  --z-index-dropdown: 100;
+  --z-index-popover: 200;
+  --z-index-overlay: 300;
+  --z-index-modal: 400;
+  --z-index-toast: 500;
 }

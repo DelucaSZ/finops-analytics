@@ -25,6 +25,11 @@ html[data-theme="light"] {
   --status-neutral-bg: var(--aven-color-neutral-100);
   --status-neutral-border: var(--aven-color-neutral-200);
   --status-neutral-text: var(--aven-color-neutral-700);
+
+  --action-danger: var(--aven-color-red-600);
+  --action-danger-hover: var(--aven-color-red-700);
+  --action-danger-active: var(--aven-color-red-800);
+  --action-danger-text: var(--aven-color-neutral-0);
 }
 
 html[data-theme="dark"] {
@@ -52,4 +57,9 @@ html[data-theme="dark"] {
   --status-neutral-bg: var(--aven-color-neutral-800);
   --status-neutral-border: var(--aven-color-neutral-700);
   --status-neutral-text: var(--aven-color-neutral-200);
+
+  --action-danger: var(--aven-color-red-600);
+  --action-danger-hover: var(--aven-color-red-700);
+  --action-danger-active: var(--aven-color-red-800);
+  --action-danger-text: var(--aven-color-neutral-0);
 }
