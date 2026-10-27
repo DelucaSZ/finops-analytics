@@ -13,7 +13,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 7. `docs/brand/aven/AVEN_PRODUCT_COMPONENTS.md`
 8. `docs/brand/aven/AVEN_APPLICATION_SHELL.md`
 9. `docs/brand/aven/AVEN_TECHNICAL_REBRAND.md`
-10. the applicable assets and visual references under this directory
+10. `docs/brand/aven/AVEN_LOGIN_EXPERIENCE.md`
+11. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -27,7 +28,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.8 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell and technical rebrand architecture:
+Tasks 24.2–24.9 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand and Login Experience architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -36,6 +37,7 @@ Tasks 24.2–24.8 establish the official token, theme-runtime, visual-foundation
 - `AVEN_PRODUCT_COMPONENTS.md` — reusable FinOps/product composition APIs and page-migration contract;
 - `AVEN_APPLICATION_SHELL.md` — authenticated shell hierarchy, Sidebar, Topbar, shared navigation, responsive/mobile behavior, scroll model and legacy compatibility;
 - `AVEN_TECHNICAL_REBRAND.md` — public identity, runtime assets, metadata, legacy classification/compatibility, brand lint and raster status;
+- `AVEN_LOGIN_EXPERIENCE.md` — public Login composition, auth preservation, MFA, responsive/theme behavior and Login-specific gates;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -44,6 +46,7 @@ Tasks 24.2–24.8 establish the official token, theme-runtime, visual-foundation
 - `frontend/components/aven/` — canonical Aven Product Component implementation;
 - `frontend/components/brand/` — runtime brand/logo abstraction;
 - `frontend/components/app-shell/` — canonical persistent authenticated shell implementation;
+- `frontend/components/auth/` — reusable Aven authentication-layout composition;
 - `frontend/app/dev/ui/` — technical preview using the real Theme Engine.
 
 The product pipeline is:
@@ -64,6 +67,8 @@ Aven Product Components
 Aven Application Shell
 ↓
 Technical Rebrand
+↓
+Aven Login Experience
 ↓
 Feature Experiences
 ```
@@ -107,6 +112,24 @@ ApplicationShell
 └── main page scroll/content frame
 ```
 
+## Aven Login Experience
+
+Task 24.9 replaces the legacy Login visual layer with a tokenized Aven authentication experience while preserving the existing `/auth/login`, MFA challenge, enrollment redirect, password-reset link and session behavior.
+
+The Login composition is intentionally layered:
+
+```text
+Login Page
+↓
+AuthLayout
+↓
+Aven UI Primitives
+↓
+Tokens / Theme Engine
+```
+
+`frontend/components/auth/` owns only institutional/auth layout composition. Authentication logic remains in the page/service/session layers. The Login uses official `Card`, `Input`, `Button`, `IconButton` and `Alert` primitives and is included in both the normal lint scope and the Aven hardcode gate.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -139,17 +162,17 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
 The supported dependency direction is:
 
 ```text
-Page → Application Shell / Product Component → UI Primitive → Token
+Page → Application Shell / Auth Layout / Product Component → UI Primitive → Token
 ```
 
-The shell is persistent composition, not a domain layer. `frontend/components/ui/` may not import `frontend/components/aven/`. Product Components may know reusable product concepts such as account, provider, environment, cost, savings, resource, status and recommendation, but they may not own feature-specific fetching/routing/business rules.
+The shell and Auth Layout are composition layers, not domain layers. `frontend/components/ui/` may not import `frontend/components/aven/` or feature/login layers. Product Components may know reusable product concepts such as account, provider, environment, cost, savings, resource, status and recommendation, but they may not own feature-specific fetching/routing/business rules. Auth Layout may own brand/form composition but not authentication logic.
 
 ## Implementation principles
 
@@ -166,6 +189,7 @@ The shell is persistent composition, not a domain layer. `frontend/components/ui
 - Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
 - New generic interaction patterns consume `frontend/components/ui/`; reusable FinOps/product patterns consume `frontend/components/aven/`.
 - Persistent authenticated navigation/chrome consumes `frontend/components/app-shell/`.
+- Authentication layout composition consumes `frontend/components/auth/` while auth state/API behavior stays in the existing page/service/session layers.
 - Feature pages own APIs, query params, routing, permissions, feature state and business rules.
 
 ## Repository note
@@ -176,4 +200,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.8 provide the complete design-system, product-composition, persistent-shell and technical-brand foundation required for Task 24.9 — Aven Login Experience and the progressive feature-page redesign tasks.
+Tasks 24.2–24.9 provide the complete design-system, product-composition, persistent-shell, technical-brand and Login foundation required for Task 24.10 — Aven Dashboard / Visão Geral and the progressive feature-page redesign tasks.
