@@ -96,9 +96,7 @@ class InventoryQueryService:
         return select(CloudAccount.id)
 
     def _predicates(self, user: User, query: InventoryQuery):
-        predicates = [
-            InventoryResource.cloud_account_id.in_(self._authorized_account_ids(user))
-        ]
+        predicates = [InventoryResource.cloud_account_id.in_(self._authorized_account_ids(user))]
         if query.provider is not None:
             predicates.append(InventoryResource.provider == query.provider)
         if query.account_id is not None:
@@ -132,10 +130,7 @@ class InventoryQueryService:
     def list_resources(self, db: Session, *, user: User, query: InventoryQuery) -> InventoryPage:
         predicates = self._predicates(user, query)
         total = int(
-            db.scalar(
-                select(func.count()).select_from(InventoryResource).where(*predicates)
-            )
-            or 0
+            db.scalar(select(func.count()).select_from(InventoryResource).where(*predicates)) or 0
         )
 
         sort_column = self.SORT_COLUMNS[query.sort]
@@ -149,9 +144,7 @@ class InventoryQueryService:
             .limit(query.page_size)
         )
         rows = db.execute(statement).all()
-        items = tuple(
-            InventoryResourceView(resource=row[0], account_name=row[1]) for row in rows
-        )
+        items = tuple(InventoryResourceView(resource=row[0], account_name=row[1]) for row in rows)
         total_pages = (total + query.page_size - 1) // query.page_size if total else 0
         return InventoryPage(
             items=items,
