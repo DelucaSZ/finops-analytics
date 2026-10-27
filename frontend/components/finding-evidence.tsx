@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/api";
+import { PRODUCT_NAME } from "@/lib/brand";
 import type {
   EvidenceCriterion,
   EvidenceMetric,
@@ -83,7 +84,7 @@ export function FindingEvidence({
   if (!evidence) {
     return (
       <section className="finding-evidence" aria-label="Explicação da oportunidade">
-        <h3>Por que o DeepOps chegou nessa conclusão?</h3>
+        <h3>Por que o {PRODUCT_NAME} chegou nessa conclusão?</h3>
         <p>Detalhes adicionais não disponíveis para esta análise.</p>
       </section>
     );
@@ -93,7 +94,7 @@ export function FindingEvidence({
     <section className="finding-evidence" aria-label="Explicação da oportunidade">
       <div className="evidence-heading">
         <div>
-          <h3>Por que o DeepOps chegou nessa conclusão?</h3>
+          <h3>Por que o {PRODUCT_NAME} chegou nessa conclusão?</h3>
           {observedAt && <span>Evidência observada em {formatDate(observedAt)}</span>}
         </div>
         <span className="evidence-rule-name">{evidence.rule.name}</span>

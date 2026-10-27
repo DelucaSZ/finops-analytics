@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/api";
+import { PRODUCT_NAME } from "@/lib/brand";
 import { SCHEDULE_INTERVAL_OPTIONS } from "@/lib/account-scheduling.mjs";
 
 type CollectionScheduleFieldsProps = {
@@ -46,7 +47,7 @@ export function CollectionScheduleFields({
           Ativar coleta automática
         </label>
         <p className="span-2 account-form-note">
-          Quando ativado, o DeepOps executará automaticamente a coleta desta conta no intervalo selecionado.
+          Quando ativado, o {PRODUCT_NAME} executará automaticamente a coleta desta conta no intervalo selecionado.
         </p>
         <label>
           Intervalo de coleta
