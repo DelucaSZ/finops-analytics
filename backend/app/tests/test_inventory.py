@@ -254,7 +254,7 @@ def test_same_run_is_idempotent_and_does_not_mutate_snapshot(db):
     assert len(observations) == 1
     assert observations[0].name == "first"
     assert current.name == "first"
-    assert current.last_seen_at == observed_at
+    assert current.last_seen_at.replace(tzinfo=UTC) == observed_at
 
 
 def test_reappearance_reactivates_without_changing_first_seen(db):
