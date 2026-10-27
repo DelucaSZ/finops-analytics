@@ -60,9 +60,11 @@ class InventoryPersistenceService:
         current: InventoryResource,
         resource: DiscoveredInventoryResource,
         *,
+        native_account_id: str,
         collection_run_id: str,
         observed_at: datetime,
     ) -> None:
+        current.native_account_id = native_account_id
         current.native_resource_type = resource.native_resource_type
         current.service = resource.service
         current.name = resource.name
@@ -71,7 +73,9 @@ class InventoryPersistenceService:
         current.lifecycle_status = resource.lifecycle_status
         current.native_status = resource.native_status
         current.tags = prepare_inventory_metadata(resource.tags, field_name="tags")
-        current.attributes = prepare_inventory_metadata(resource.attributes, field_name="attributes")
+        current.attributes = prepare_inventory_metadata(
+            resource.attributes, field_name="attributes"
+        )
         current.presence_status = InventoryPresenceStatus.ACTIVE.value
         current.last_seen_at = observed_at
         current.last_seen_collection_run_id = collection_run_id
@@ -113,7 +117,9 @@ class InventoryPersistenceService:
         ordered_identities: list[tuple[str, str]] = []
         for resource in resources:
             if normalize_provider(resource.provider).value != provider:
-                raise ValueError("Discovered resource provider does not match CloudAccount provider")
+                raise ValueError(
+                    "Discovered resource provider does not match CloudAccount provider"
+                )
             identity = (resource.resource_type, resource.resource_id)
             if identity in input_by_identity:
                 raise ValueError(f"Duplicate Inventory resource in one batch: {identity!r}")
@@ -135,7 +141,7 @@ class InventoryPersistenceService:
                 {(row.resource_type, row.resource_id): row for row in rows}
             )
 
-        new_rows: list[InventoryResource] = []
+        new_identities: set[tuple[str, str]] = set()
         for identity in ordered_identities:
             if identity in current_by_identity:
                 continue
@@ -154,7 +160,9 @@ class InventoryPersistenceService:
                 lifecycle_status=resource.lifecycle_status,
                 native_status=resource.native_status,
                 tags=prepare_inventory_metadata(resource.tags, field_name="tags"),
-                attributes=prepare_inventory_metadata(resource.attributes, field_name="attributes"),
+                attributes=prepare_inventory_metadata(
+                    resource.attributes, field_name="attributes"
+                ),
                 presence_status=InventoryPresenceStatus.ACTIVE.value,
                 first_seen_at=observed_at,
                 last_seen_at=observed_at,
@@ -162,12 +170,12 @@ class InventoryPersistenceService:
                 last_seen_collection_run_id=collection_run.id,
             )
             db.add(row)
-            new_rows.append(row)
+            new_identities.add(identity)
             current_by_identity[identity] = row
 
         # A single flush is required only when new current-state rows need primary keys
         # for their observations. The caller still owns commit/rollback.
-        if new_rows:
+        if new_identities:
             db.flush()
 
         resource_ids = [current_by_identity[identity].id for identity in ordered_identities]
@@ -194,10 +202,14 @@ class InventoryPersistenceService:
             # Historical observations are always appended for a new run. Current state
             # only moves forward in observation time, preventing delayed runs from
             # rolling back the latest known metadata or presence.
-            if current in new_rows or _utc_comparable(observed_at) >= _utc_comparable(current.last_seen_at):
+            should_update_current = identity in new_identities or _utc_comparable(
+                observed_at
+            ) >= _utc_comparable(current.last_seen_at)
+            if should_update_current:
                 self._apply_current_state(
                     current,
                     resource,
+                    native_account_id=cloud_account.native_account_id,
                     collection_run_id=collection_run.id,
                     observed_at=observed_at,
                 )
@@ -215,7 +227,9 @@ class InventoryPersistenceService:
                     lifecycle_status=resource.lifecycle_status,
                     native_status=resource.native_status,
                     tags=prepare_inventory_metadata(resource.tags, field_name="tags"),
-                    attributes=prepare_inventory_metadata(resource.attributes, field_name="attributes"),
+                    attributes=prepare_inventory_metadata(
+                        resource.attributes, field_name="attributes"
+                    ),
                 )
             )
 
