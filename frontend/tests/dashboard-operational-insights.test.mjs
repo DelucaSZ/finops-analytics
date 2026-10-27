@@ -19,7 +19,7 @@ const queryKeysSource = readFileSync(
   "utf8",
 );
 const styleSource = readFileSync(
-  new URL("../app/dashboard-operational-insights.css", import.meta.url),
+  new URL("../components/dashboard-operational-insights.module.css", import.meta.url),
   "utf8",
 );
 
@@ -41,7 +41,7 @@ test("healthy loading and endpoint-error states do not render a permanent card",
 });
 
 test("multiple failures are expandable and every item deep-links to its failed run", () => {
-  assert.match(componentSource, /<details className="dashboard-insight-details">/);
+  assert.match(componentSource, /<details className=\{styles\.details\}>/);
   assert.match(componentSource, /<summary>/);
   assert.match(
     componentSource,
@@ -60,10 +60,14 @@ test("insight revalidates independently without accelerating the executive summa
   assert.match(serverStateSource, /document\.visibilityState !== "visible"/);
 });
 
-test("operational insight has semantic status markup and mobile stacking", () => {
-  assert.match(componentSource, /role="status"/);
+test("operational insight uses Aven semantic components and tokenized responsive flow", () => {
+  assert.match(componentSource, /<Section/);
   assert.match(componentSource, /aria-labelledby="dashboard-operational-insight-title"/);
-  assert.match(componentSource, /aria-label=\{`Ver coleta com falha de \$\{accountLabel\}`\}/);
-  assert.match(styleSource, /@media \(max-width: 720px\)/);
-  assert.match(styleSource, /flex-direction: column/);
+  assert.match(componentSource, /<Alert[\s\S]*variant="warning"/);
+  assert.match(componentSource, /<StatusIndicator status="danger" label="Falha"/);
+  assert.match(componentSource, /<ProviderBadge provider=\{item\.provider\}/);
+  assert.match(styleSource, /display: flex/);
+  assert.match(styleSource, /flex-wrap: wrap/);
+  assert.match(styleSource, /gap: var\(--space-2\)/);
+  assert.doesNotMatch(styleSource, /#[0-9a-f]{3,8}/i);
 });
