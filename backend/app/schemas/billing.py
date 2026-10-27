@@ -79,7 +79,7 @@ AWS_RECORD_TYPES = frozenset(
 
 def _validate_account_ids(value: list[int]) -> list[int]:
     if any(account_id <= 0 for account_id in value):
-        raise ValueError("account_ids must contain positive DeepOps account IDs")
+        raise ValueError("account_ids must contain positive Aven account IDs")
     if len(value) != len(set(value)):
         raise ValueError("account_ids must not contain duplicates")
     return value

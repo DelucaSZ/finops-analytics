@@ -708,7 +708,7 @@ def process_once() -> bool:
 
 def main() -> None:
     wait_for_database(engine)
-    logger.info("NuvemIQ worker started")
+    logger.info("Aven worker started")
     while True:
         worked = process_once()
         if not worked:

@@ -1,4 +1,4 @@
-"""OCI pricing formulas backed by the persistent DeepOps Pricing Catalog.
+"""OCI pricing formulas backed by the persistent Aven Pricing Catalog.
 
 The approved OCI commercial rates are no longer embedded in application code.
 Task 23.7 migrates those values to ``pricing_catalog_items`` and this module keeps

@@ -181,7 +181,7 @@ def _unused_severity(unused_units: Decimal, utilization_percentage: Decimal) -> 
 
 
 def _expiration_severity(days: int) -> str:
-    # DeepOps' global severity taxonomy is high / medium / low.
+    # Aven' global severity taxonomy is high / medium / low.
     return "high" if days <= settings.rds_reservation_expiration_high_days else "medium"
 
 

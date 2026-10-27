@@ -193,7 +193,7 @@ def _period_value(row, granularity: CloudWatchCostGranularity | None) -> str | N
 
 
 class CloudWatchCostEngine:
-    """Estimate DeepOps CloudWatch cost from raw telemetry and versioned public pricing."""
+    """Estimate Aven CloudWatch cost from raw telemetry and versioned public pricing."""
 
     def __init__(self, db: Session):
         self._db = db
@@ -403,7 +403,7 @@ class CloudWatchCostEngine:
             "pricing_sources": pricing_sources,
             "pricing_verified_at": pricing_verified_at,
             "estimation_basis": (
-                "Gross operational estimate from DeepOps-observed CloudWatch usage and "
+                "Gross operational estimate from Aven-observed CloudWatch usage and "
                 "effective-dated public AWS pricing. Shared AWS Free Tier, private pricing, "
                 "taxes, credits, discounts, and FX are not applied. Failed requests are "
                 "included because current AWS pricing documentation does not state an "

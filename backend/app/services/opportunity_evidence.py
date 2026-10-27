@@ -121,7 +121,7 @@ def _rule_info(rule_key: str, policy: dict[str, Any] | None) -> dict[str, str]:
         "name": str((policy or {}).get("name") or (definition.name if definition else rule_key)),
         "description": str(
             (policy or {}).get("description")
-            or (definition.description if definition else "Regra determinística do DeepOps.")
+            or (definition.description if definition else "Regra determinística do Aven.")
         ),
     }
 
@@ -292,7 +292,7 @@ def build_evidence(
         )
         notes.append(
             "A idade disponível é a idade do volume desde a criação; "
-            "o DeepOps não possui a data de desanexação."
+            "o Aven não possui a data de desanexação."
         )
 
     elif rule_key == "eip_unassociated":
@@ -575,7 +575,7 @@ def build_evidence(
         )
         if datapoints == 0:
             notes.append(
-                "Sem datapoints do CloudWatch, o DeepOps não trata tráfego zero "
+                "Sem datapoints do CloudWatch, o Aven não trata tráfego zero "
                 "como fato comprovado."
             )
 

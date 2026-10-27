@@ -357,7 +357,7 @@ def main() -> None:
     wait_for_database(engine)
     scheduler = DailyOpportunityRetentionScheduler(engine)
     automation_scheduler = OpportunityAutomationScheduler()
-    logger.info("NuvemIQ worker started")
+    logger.info("Aven worker started")
     try:
         while True:
             worked = process_runtime_once(scheduler, automation_scheduler)

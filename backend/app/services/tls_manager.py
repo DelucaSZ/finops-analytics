@@ -875,7 +875,7 @@ https://{domain} {{{tls_line}
                     "trusted": None,
                     "trust_error": None,
                     "certificate": None,
-                    "message": "TLS local ainda não foi configurado pelo DeepOps.",
+                    "message": "TLS local ainda não foi configurado pelo Aven.",
                 },
                 "dns": self._empty_dns(),
                 "endpoint_validation": {
@@ -888,7 +888,7 @@ https://{domain} {{{tls_line}
                 "trust": None,
                 "applied_at": None,
                 "last_validated_at": None,
-                "message": "HTTPS ainda não foi configurado pelo DeepOps.",
+                "message": "HTTPS ainda não foi configurado pelo Aven.",
             }
         return self._status_from_state(state)
 

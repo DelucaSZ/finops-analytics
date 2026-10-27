@@ -69,7 +69,7 @@ def _normalize_service(value: str | None) -> str | None:
 
 
 class OciUsageService:
-    """Read-only OCI Usage API acquisition layer. It never creates DeepOps findings."""
+    """Read-only OCI Usage API acquisition layer. It never creates Aven findings."""
 
     def __init__(
         self,
