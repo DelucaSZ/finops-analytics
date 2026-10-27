@@ -19,7 +19,11 @@ from app.schemas.inventory import (
     InventorySortDirection,
     InventorySortField,
 )
-from app.services.inventory_query import InventoryQuery, InventoryQueryService, InventoryResourceView
+from app.services.inventory_query import (
+    InventoryQuery,
+    InventoryQueryService,
+    InventoryResourceView,
+)
 
 router = APIRouter(
     prefix="/inventory",
