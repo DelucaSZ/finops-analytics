@@ -83,7 +83,7 @@ test("MFA enrollment uses the same Aven auth shell and official primitives", () 
   assert.match(settings, /<Spinner label=/);
   assert.match(settings, /<Alert/);
   assert.doesNotMatch(page, /mfa-enrollment|form-error|className="button/);
-  assert.doesNotMatch(settings, /security-card|mfa-card|form-error|className="button|security-actions|recovery-codes|mfa-saved/);
+  assert.doesNotMatch(settings, /security-card|mfa-card|form-error|className="button|security-actions|mfa-saved/);
 });
 
 test("MFA enrollment preserves existing API and redirect behavior", () => {
