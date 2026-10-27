@@ -23,6 +23,7 @@ import {
   MetricCard,
   PageHeader,
   ProviderBadge,
+  ProviderSelector,
   RecommendationCard,
   Section,
   StatusIndicator,
@@ -130,6 +131,15 @@ export function DashboardBoot() {
         description="Potencial de otimização e saúde operacional do ambiente em um único lugar."
       />
       <FilterBar aria-label="Carregando filtros do Dashboard">
+        <ProviderSelector
+          label="Cloud"
+          options={[]}
+          value=""
+          onChange={noop}
+          loading
+          clearable={false}
+          searchable={false}
+        />
         <AccountSelector
           label="Conta"
           options={[]}
@@ -268,11 +278,15 @@ export function ExecutiveDashboard() {
           ) : null
         }
       >
-        <ProviderSelectorField
+        <ProviderSelector
+          label="Cloud"
+          placeholder="Todas as clouds"
           options={providerOptions}
           value={state.provider}
           loading={optionsLoading}
           onChange={(provider) => updateScope({ provider: provider || null, account_id: null })}
+          clearable={false}
+          searchable={false}
         />
         <AccountSelector
           label="Conta"
@@ -408,32 +422,31 @@ export function ExecutiveDashboard() {
                 title="Estado das oportunidades"
                 description="Lifecycle atual do mesmo escopo executivo."
               >
-                <div className={styles.lifecycleList}>
-                  <LifecycleItem
-                    icon={<Activity {...iconDefaults} />}
-                    label="Em aberto"
-                    value={summary?.opportunities.open}
-                    loading={summaryLoading}
-                    href={opportunityHref({ status: "open" })}
-                    status="info"
-                  />
-                  <LifecycleItem
-                    icon={<CheckCircle2 {...iconDefaults} />}
-                    label="Tratadas"
-                    value={summary?.opportunities.treated}
-                    loading={summaryLoading}
-                    href={opportunityHref({ status: "treated" })}
-                    status="success"
-                  />
-                  <LifecycleItem
-                    icon={<XCircle {...iconDefaults} />}
-                    label="Rejeitadas"
-                    value={summary?.opportunities.rejected}
-                    loading={summaryLoading}
-                    href={opportunityHref({ status: "rejected" })}
-                    status="neutral"
-                  />
-                </div>
+                <DataState loading={summaryLoading}>
+                  <div className={styles.lifecycleList}>
+                    <LifecycleItem
+                      icon={<Activity {...iconDefaults} />}
+                      label="Em aberto"
+                      value={summary?.opportunities.open}
+                      href={opportunityHref({ status: "open" })}
+                      status="info"
+                    />
+                    <LifecycleItem
+                      icon={<CheckCircle2 {...iconDefaults} />}
+                      label="Tratadas"
+                      value={summary?.opportunities.treated}
+                      href={opportunityHref({ status: "treated" })}
+                      status="success"
+                    />
+                    <LifecycleItem
+                      icon={<XCircle {...iconDefaults} />}
+                      label="Rejeitadas"
+                      value={summary?.opportunities.rejected}
+                      href={opportunityHref({ status: "rejected" })}
+                      status="neutral"
+                    />
+                  </div>
+                </DataState>
               </Section>
             </div>
           </Section>
@@ -472,32 +485,6 @@ export function ExecutiveDashboard() {
 
 export function DashboardOperationalInsights() {
   return <CollectionFailureOperationalInsights />;
-}
-
-function ProviderSelectorField({
-  options,
-  value,
-  loading,
-  onChange,
-}: {
-  options: Array<{ value: string; label: string }>;
-  value: string;
-  loading: boolean;
-  onChange: (value: string) => void;
-}) {
-  const { ProviderSelector } = require("@/components/aven") as typeof import("@/components/aven");
-  return (
-    <ProviderSelector
-      label="Cloud"
-      placeholder="Todas as clouds"
-      options={options}
-      value={value}
-      loading={loading}
-      onChange={onChange}
-      clearable={false}
-      searchable={false}
-    />
-  );
 }
 
 function MetricSupport({ text, href }: { text: ReactNode; href?: string }) {
@@ -584,25 +571,23 @@ function LifecycleItem({
   icon,
   label,
   value,
-  loading,
   href,
   status,
 }: {
   icon: ReactNode;
   label: string;
   value: number | undefined;
-  loading: boolean;
   href: string;
   status: "neutral" | "info" | "success";
 }) {
   return (
-    <Link className={styles.lifecycleItem} href={href} aria-label={`${label}: ${value ?? "carregando"}`}>
+    <Link className={styles.lifecycleItem} href={href} aria-label={`${label}: ${value ?? "sem valor"}`}>
       <span className={styles.lifecycleIcon} aria-hidden="true">{icon}</span>
       <span className={styles.lifecycleCopy}>
         <span>{label}</span>
-        <strong>{loading ? "—" : value ?? "—"}</strong>
+        <strong>{value ?? "—"}</strong>
       </span>
-      <StatusIndicator status={status} label={loading ? "Carregando" : "Ver detalhe"} />
+      <StatusIndicator status={status} label="Ver detalhe" />
     </Link>
   );
 }
@@ -658,10 +643,9 @@ function TopOpportunities({
 }) {
   if (loading) {
     return (
-      <div className={styles.opportunityGrid}>
-        <RecommendationCard title="Carregando oportunidade" />
-        <RecommendationCard title="Carregando oportunidade" />
-      </div>
+      <DataState loading>
+        <span />
+      </DataState>
     );
   }
   if (!summary?.top_opportunities.length) {
