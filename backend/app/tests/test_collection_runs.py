@@ -5,6 +5,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.orm import Session
 
 from app import worker
+from app.core.inventory import InventoryDiscoveryResult
 from app.db.base import Base
 from app.models.account import AwsAccount
 from app.models.collection_run import CollectionRun, CollectionRunStatus
@@ -44,6 +45,14 @@ def queued_scan(db: Session) -> Scan:
     db.add(scan)
     db.commit()
     return scan
+
+
+def _mock_empty_inventory_discovery(monkeypatch) -> None:
+    monkeypatch.setattr(
+        collection_executors.AwsInventoryDiscoveryService,
+        "discover",
+        lambda *_args, **_kwargs: InventoryDiscoveryResult(),
+    )
 
 
 def test_scheduler_aws_scan_populates_both_account_identifiers(db):
@@ -93,6 +102,7 @@ def test_successful_scan_finishes_collection_run(db, monkeypatch):
         "list_effective_policies",
         lambda *_: [{"rule_key": "test_rule", "enabled": True, "implemented": True}],
     )
+    _mock_empty_inventory_discovery(monkeypatch)
     finding = CollectedFinding(
         rule_key="test_rule",
         service="EC2",
@@ -136,6 +146,7 @@ def test_summary_failure_does_not_rewrite_successful_collection(db, monkeypatch)
         lambda _: type("Identity", (), {"account_id": "123456789012"})(),
     )
     monkeypatch.setattr(collection_executors, "list_effective_policies", lambda *_: [])
+    _mock_empty_inventory_discovery(monkeypatch)
     monkeypatch.setattr(collection_executors, "run_collectors", lambda *_: ([], [], set()))
 
     def fail_summary(*_args, **_kwargs):
@@ -191,6 +202,7 @@ def test_cloud_io_does_not_hold_database_transaction(db, monkeypatch):
 
     monkeypatch.setattr(collection_executors, "assume_account_session", assume)
     monkeypatch.setattr(collection_executors, "get_caller_identity", identity)
+    _mock_empty_inventory_discovery(monkeypatch)
     monkeypatch.setattr(collection_executors, "run_collectors", collect)
     worker.execute_scan(db, claimed)
     assert stages == ["sts", "identity", "collect"]
