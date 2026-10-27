@@ -1,7 +1,7 @@
 export const PRODUCT_NAME = "Aven";
 export const PRODUCT_TAGLINE = "Clarity. Flow. Control.";
 export const PRODUCT_DESCRIPTION =
-  "Plataforma FinOps para visibilidade, otimização, governança e controle de custos em cloud.";
+  "Plataforma FinOps Multi-Cloud para visibilidade, otimização, governança e controle de custos em cloud.";
 
 export const brand = Object.freeze({
   name: PRODUCT_NAME,

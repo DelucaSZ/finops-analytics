@@ -48,5 +48,5 @@ test("technical rebrand documentation records raster and next-task readiness", (
   const docs = read("docs/brand/aven/AVEN_TECHNICAL_REBRAND.md");
   assert.match(docs, /Technical rebrand: COMPLETE/);
   assert.match(docs, /Raster-dependent runtime branding: PARTIAL/);
-  assert.match(docs, /Is Task 24\.9 ready to start\? \*\*YES\*\*/);
+  assert.match(docs, /Is Task 24\.9 ready to start\? YES/);
 });
