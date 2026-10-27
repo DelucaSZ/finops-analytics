@@ -9,6 +9,8 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "brand"),
   path.join(ROOT, "components", "app-shell.tsx"),
   path.join(ROOT, "components", "app-shell"),
+  path.join(ROOT, "components", "auth"),
+  path.join(ROOT, "app", "login"),
   path.join(ROOT, "app", "dev", "ui"),
 ];
 const SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
