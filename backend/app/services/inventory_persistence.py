@@ -42,8 +42,8 @@ class InventoryPersistenceService:
 
     @staticmethod
     def _validate_context(cloud_account: CloudAccount, collection_run: CollectionRun) -> str:
-        account_provider = normalize_provider(cloud_account.provider).value
-        run_provider = normalize_provider(collection_run.provider).value
+        account_provider = normalize_provider(cloud_account.provider)
+        run_provider = normalize_provider(collection_run.provider)
         if account_provider != run_provider:
             raise ValueError("CollectionRun provider does not match CloudAccount provider")
         if collection_run.account_id != cloud_account.native_account_id:
@@ -115,7 +115,7 @@ class InventoryPersistenceService:
         input_by_identity: dict[tuple[str, str], DiscoveredInventoryResource] = {}
         ordered_identities: list[tuple[str, str]] = []
         for resource in resources:
-            if normalize_provider(resource.provider).value != provider:
+            if normalize_provider(resource.provider) != provider:
                 raise ValueError(
                     "Discovered resource provider does not match CloudAccount provider"
                 )
