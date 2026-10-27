@@ -68,9 +68,7 @@ def _issue_matches_scope(issue, resource_type: str, region: str | None) -> bool:
         return False
     if issue_region and region and str(issue_region) != region:
         return False
-    if issue_region and region is None:
-        return False
-    return True
+    return not (issue_region and region is None)
 
 
 def adapt_oci_inventory(
