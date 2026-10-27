@@ -97,7 +97,7 @@ Runtime shell assets are copied from the versioned Brand Kit fallbacks:
 /public/brand/aven/aven-icon-gradient.svg
 ```
 
-The shell never recreates the Aven wordmark with Inter/Sora text. A centralized `--shell-brand-wordmark-filter` token provides a dark-theme fallback until final runtime assets are supplied. Final raster/runtime asset selection and global technical rebrand remain Task 24.8.
+The shell never recreates the Aven wordmark with Inter/Sora text. A single `--shell-brand-wordmark-filter-dark` component token provides the dark-theme fallback treatment until final runtime assets are supplied; it is consumed only by the dark theme selector and is not redeclared across theme scopes. Final raster/runtime asset selection and global technical rebrand remain Task 24.8.
 
 ## Theme Integration
 
