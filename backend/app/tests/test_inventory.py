@@ -101,27 +101,42 @@ def test_natural_identity_allows_same_resource_id_across_account_provider_and_ty
     aws_a, run_a = add_context(db, suffix="1")
     aws_b, run_b = add_context(db, native_account_id="999999999999", suffix="2")
     oci, run_oci = add_context(
-        db, provider="oci", native_account_id="ocid1.tenancy.oc1..inventory", suffix="3"
+        db,
+        provider="oci",
+        native_account_id="ocid1.tenancy.oc1..inventory",
+        suffix="3",
     )
     service = InventoryPersistenceService()
-    t = datetime(2026, 10, 27, 14, tzinfo=UTC)
+    observed_at = datetime(2026, 10, 27, 14, tzinfo=UTC)
 
-    service.persist_observation(db, cloud_account=aws_a, collection_run=run_a, resource=resource(), observed_at=t)
-    service.persist_observation(db, cloud_account=aws_b, collection_run=run_b, resource=resource(), observed_at=t)
+    service.persist_observation(
+        db,
+        cloud_account=aws_a,
+        collection_run=run_a,
+        resource=resource(),
+        observed_at=observed_at,
+    )
+    service.persist_observation(
+        db,
+        cloud_account=aws_b,
+        collection_run=run_b,
+        resource=resource(),
+        observed_at=observed_at,
+    )
     service.persist_observation(
         db,
         cloud_account=oci,
         collection_run=run_oci,
         resource=resource(provider="oci", native_resource_type="Instance", service="Compute"),
-        observed_at=t,
+        observed_at=observed_at,
     )
     other_type_run = CollectionRun(
         id="00000000-0000-0000-0000-000000000004",
         provider="aws",
         account_id=aws_a.native_account_id,
         scope={},
-        started_at=t,
-        finished_at=t,
+        started_at=observed_at,
+        finished_at=observed_at,
         status=CollectionRunStatus.SUCCESS,
         resources_analyzed=0,
         opportunities_found=0,
@@ -133,7 +148,7 @@ def test_natural_identity_allows_same_resource_id_across_account_provider_and_ty
         cloud_account=aws_a,
         collection_run=other_type_run,
         resource=resource(resource_type="public_ip"),
-        observed_at=t + timedelta(minutes=1),
+        observed_at=observed_at + timedelta(minutes=1),
     )
     db.flush()
 
@@ -149,8 +164,8 @@ def test_natural_identity_allows_same_resource_id_across_account_provider_and_ty
         tags={},
         attributes={},
         presence_status="active",
-        first_seen_at=t,
-        last_seen_at=t,
+        first_seen_at=observed_at,
+        last_seen_at=observed_at,
     )
     db.add(duplicate)
     with pytest.raises(IntegrityError):
@@ -161,13 +176,13 @@ def test_natural_identity_allows_same_resource_id_across_account_provider_and_ty
 def test_first_and_second_observation_update_current_but_preserve_history(db):
     account, run1 = add_context(db, suffix="1")
     service = InventoryPersistenceService()
-    t1 = datetime(2026, 10, 27, 13, tzinfo=UTC)
+    first_observed_at = datetime(2026, 10, 27, 13, tzinfo=UTC)
     current = service.persist_observation(
         db,
         cloud_account=account,
         collection_run=run1,
         resource=resource(name="old", attributes={"instance_type": "m5.large"}),
-        observed_at=t1,
+        observed_at=first_observed_at,
     )
     db.flush()
     first_id = current.id
@@ -179,8 +194,8 @@ def test_first_and_second_observation_update_current_but_preserve_history(db):
         provider="aws",
         account_id=account.native_account_id,
         scope={},
-        started_at=t1 + timedelta(hours=1),
-        finished_at=t1 + timedelta(hours=1, minutes=1),
+        started_at=first_observed_at + timedelta(hours=1),
+        finished_at=first_observed_at + timedelta(hours=1, minutes=1),
         status=CollectionRunStatus.SUCCESS,
         resources_analyzed=0,
         opportunities_found=0,
@@ -192,7 +207,7 @@ def test_first_and_second_observation_update_current_but_preserve_history(db):
         cloud_account=account,
         collection_run=run2,
         resource=resource(name="new", attributes={"instance_type": "m6i.large"}),
-        observed_at=t1 + timedelta(hours=1),
+        observed_at=first_observed_at + timedelta(hours=1),
     )
     db.flush()
 
@@ -216,13 +231,13 @@ def test_first_and_second_observation_update_current_but_preserve_history(db):
 def test_same_run_is_idempotent_and_does_not_mutate_snapshot(db):
     account, run = add_context(db)
     service = InventoryPersistenceService()
-    t = datetime(2026, 10, 27, 13, tzinfo=UTC)
+    observed_at = datetime(2026, 10, 27, 13, tzinfo=UTC)
     service.persist_observation(
         db,
         cloud_account=account,
         collection_run=run,
         resource=resource(name="first"),
-        observed_at=t,
+        observed_at=observed_at,
     )
     db.flush()
     service.persist_observation(
@@ -230,7 +245,7 @@ def test_same_run_is_idempotent_and_does_not_mutate_snapshot(db):
         cloud_account=account,
         collection_run=run,
         resource=resource(name="reprocessed"),
-        observed_at=t + timedelta(minutes=5),
+        observed_at=observed_at + timedelta(minutes=5),
     )
     db.flush()
 
@@ -239,15 +254,19 @@ def test_same_run_is_idempotent_and_does_not_mutate_snapshot(db):
     assert len(observations) == 1
     assert observations[0].name == "first"
     assert current.name == "first"
-    assert current.last_seen_at == t
+    assert current.last_seen_at == observed_at
 
 
 def test_reappearance_reactivates_without_changing_first_seen(db):
     account, run1 = add_context(db, suffix="1")
     service = InventoryPersistenceService()
-    t1 = datetime(2026, 10, 27, 13, tzinfo=UTC)
+    first_observed_at = datetime(2026, 10, 27, 13, tzinfo=UTC)
     current = service.persist_observation(
-        db, cloud_account=account, collection_run=run1, resource=resource(), observed_at=t1
+        db,
+        cloud_account=account,
+        collection_run=run1,
+        resource=resource(),
+        observed_at=first_observed_at,
     )
     db.flush()
     current.presence_status = InventoryPresenceStatus.MISSING.value
@@ -259,8 +278,8 @@ def test_reappearance_reactivates_without_changing_first_seen(db):
         provider="aws",
         account_id=account.native_account_id,
         scope={},
-        started_at=t1 + timedelta(days=1),
-        finished_at=t1 + timedelta(days=1, minutes=1),
+        started_at=first_observed_at + timedelta(days=1),
+        finished_at=first_observed_at + timedelta(days=1, minutes=1),
         status=CollectionRunStatus.SUCCESS,
         resources_analyzed=0,
         opportunities_found=0,
@@ -272,7 +291,7 @@ def test_reappearance_reactivates_without_changing_first_seen(db):
         cloud_account=account,
         collection_run=run2,
         resource=resource(name="back"),
-        observed_at=t1 + timedelta(days=1),
+        observed_at=first_observed_at + timedelta(days=1),
     )
     db.flush()
 
@@ -306,7 +325,12 @@ def test_absence_from_new_run_never_marks_resource_missing(db):
     db.add(run2)
     db.flush()
 
-    service.persist_observations(db, cloud_account=account, collection_run=run2, resources=[])
+    service.persist_observations(
+        db,
+        cloud_account=account,
+        collection_run=run2,
+        resources=[],
+    )
     db.flush()
 
     current = db.scalar(select(InventoryResource))
@@ -326,7 +350,8 @@ def test_batch_path_avoids_select_per_resource(db):
             statements.append(statement)
 
     resources = [
-        resource(resource_id=f"i-{index:010d}", name=f"instance-{index}") for index in range(100)
+        resource(resource_id=f"i-{index:010d}", name=f"instance-{index}")
+        for index in range(100)
     ]
     service.persist_observations(
         db,
@@ -353,4 +378,9 @@ def test_context_must_match_provider_and_native_account(db):
     service = InventoryPersistenceService()
     run.account_id = "000000000000"
     with pytest.raises(ValueError, match="native identity"):
-        service.persist_observation(db, cloud_account=account, collection_run=run, resource=resource())
+        service.persist_observation(
+            db,
+            cloud_account=account,
+            collection_run=run,
+            resource=resource(),
+        )
