@@ -78,13 +78,15 @@ test("global shell is provider-neutral and exposes accessible persistent collaps
 });
 
 test("authentication and metadata use provider-neutral Aven identity", async () => {
-  const [login, layout, brand] = await Promise.all([
+  const [login, authLayout, layout, brand] = await Promise.all([
     readFile(new URL("../app/login/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/auth/auth-layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/layout.tsx", import.meta.url), "utf8"),
     readFile(new URL("../lib/brand.ts", import.meta.url), "utf8"),
   ]);
-  assert.ok(!login.includes("AWS FINOPS INTELLIGENCE"));
-  assert.ok(login.includes("FINOPS MULTI-CLOUD"));
+  const authExperience = `${login}\n${authLayout}`;
+  assert.ok(!authExperience.includes("AWS FINOPS INTELLIGENCE"));
+  assert.ok(authLayout.includes("FINOPS MULTI-CLOUD"));
   assert.ok(!layout.includes("ambientes AWS"));
   assert.ok(layout.includes("brand.description"));
   assert.ok(brand.includes("FinOps Multi-Cloud"));
