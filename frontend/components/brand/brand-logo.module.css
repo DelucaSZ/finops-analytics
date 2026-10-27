@@ -19,22 +19,20 @@
   object-fit: contain;
 }
 
+.auto .wordmark,
 .symbolOnly .wordmark {
   display: none;
 }
 
+.auto .symbol,
 .symbolOnly .symbol {
+  display: block;
+}
+
+.wordmarkOnly .wordmark {
   display: block;
 }
 
 .wordmarkOnly .symbol {
   display: none;
-}
-
-:global(html[data-theme="dark"]) .auto .wordmark {
-  display: none;
-}
-
-:global(html[data-theme="dark"]) .auto .symbol {
-  display: block;
 }

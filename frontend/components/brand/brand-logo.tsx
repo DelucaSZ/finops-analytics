@@ -27,11 +27,9 @@ export function BrandLogo({
       aria-label={decorative ? undefined : brand.name}
       aria-hidden={decorative || undefined}
     >
-      {/* Official repository wordmark fallback. Approved production PNG remains the visual master. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Repository wordmark fallback remains available for explicit institutional use only. */}
       <img className={styles.wordmark} src={brand.assets.wordmarkFallback} alt="" />
-      {/* Official gradient symbol is the safe dark/runtime fallback while raster masters are pending. */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
+      {/* Official gradient symbol is the runtime-safe asset while approved raster masters are pending. */}
       <img className={styles.symbol} src={brand.assets.symbolGradient} alt="" />
     </span>
   );
