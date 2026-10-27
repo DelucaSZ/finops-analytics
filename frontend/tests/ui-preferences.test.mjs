@@ -55,19 +55,26 @@ test("theme selector delegates preference state and mutation to useTheme", async
 });
 
 test("global shell is provider-neutral and exposes accessible persistent collapse behavior", async () => {
-  const shell = await readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8");
-  assert.ok(shell.includes('label: "Dashboard"'));
-  assert.ok(shell.includes("FINOPS MULTI-CLOUD"));
-  assert.ok(!shell.includes("Ambiente protegido"));
-  assert.ok(!shell.includes("AWS FinOps"));
-  assert.ok(shell.includes("Recolher navegação"));
-  assert.ok(shell.includes("Expandir navegação"));
-  assert.ok(shell.includes('className="sidebar-tooltip"'));
-  assert.ok(shell.includes("serializeSidebarCollapsed"));
-  assert.ok(shell.includes('aria-label={mobileOpen ? "Fechar navegação" : "Abrir navegação"}'));
-  assert.ok(shell.includes('event.key === "Escape"'));
-  assert.ok(!shell.includes("resolveThemePreference"));
-  assert.ok(!shell.includes("deepops:theme-change"));
+  const [rootShell, visualShell, navigation] = await Promise.all([
+    readFile(new URL("../components/app-shell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app-shell/application-shell.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../components/app-shell/navigation.ts", import.meta.url), "utf8"),
+  ]);
+  const shellContract = `${visualShell}\n${navigation}`;
+
+  assert.ok(navigation.includes('label: "Dashboard"'));
+  assert.ok(navigation.includes('label: "Fluxo"'));
+  assert.ok(!shellContract.includes("Ambiente protegido"));
+  assert.ok(!shellContract.includes("AWS FinOps"));
+  assert.ok(visualShell.includes("Recolher navegação"));
+  assert.ok(visualShell.includes("Expandir navegação"));
+  assert.ok(visualShell.includes("<Tooltip"));
+  assert.ok(visualShell.includes("serializeSidebarCollapsed"));
+  assert.ok(visualShell.includes('aria-label="Abrir navegação"'));
+  assert.ok(visualShell.includes("<Drawer open={mobileOpen}"));
+  assert.ok(visualShell.includes("onOpenChange={setMobileOpen}"));
+  assert.ok(!rootShell.includes("resolveThemePreference"));
+  assert.ok(!rootShell.includes("deepops:theme-change"));
 });
 
 test("authentication and metadata no longer present DeepOps as AWS-only", async () => {
