@@ -71,9 +71,7 @@ def upgrade() -> None:
     op.create_index(
         "ix_inventory_resources_resource_type", "inventory_resources", ["resource_type"]
     )
-    op.create_index(
-        "ix_inventory_resources_last_seen_at", "inventory_resources", ["last_seen_at"]
-    )
+    op.create_index("ix_inventory_resources_last_seen_at", "inventory_resources", ["last_seen_at"])
     op.create_index(
         "ix_inventory_resources_account_presence_type",
         "inventory_resources",
