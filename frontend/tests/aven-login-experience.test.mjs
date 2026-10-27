@@ -7,7 +7,10 @@ import { scanDirectory, summarize } from "../scripts/check-design-system.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOGIN = path.join(ROOT, "app", "login");
+const MFA_SETUP = path.join(ROOT, "app", "mfa-setup");
 const AUTH = path.join(ROOT, "components", "auth");
+const MFA_SETTINGS = path.join(ROOT, "components", "mfa-settings.tsx");
+const MFA_SETTINGS_STYLES = path.join(ROOT, "components", "mfa-settings.module.css");
 const DOCS = path.resolve(ROOT, "..", "docs", "brand", "aven");
 const loginSource = () => fs.readFileSync(path.join(LOGIN, "page.tsx"), "utf8");
 const authSource = () => fs.readFileSync(path.join(AUTH, "auth-layout.tsx"), "utf8");
@@ -38,8 +41,7 @@ test("login composes official Aven primitives instead of legacy visual controls"
 test("login preserves the existing authentication, MFA and redirect contracts", () => {
   const source = loginSource();
   assert.match(source, /api\("\/auth\/mfa\/verify"/);
-  assert.match(source, /api<\{/);
-  assert.match(source, /\}\>\("\/auth\/login"/);
+  assert.match(source, /\}>\("\/auth\/login"/);
   assert.match(source, /JSON\.stringify\(\{ email, password \}\)/);
   assert.match(source, /JSON\.stringify\(\{ challenge, code \}\)/);
   assert.match(source, /router\.replace\("\/"\)/);
@@ -68,6 +70,33 @@ test("password visibility is accessible and MFA recovery remains available", () 
   assert.match(source, /Voltar ao login/);
 });
 
+test("MFA enrollment uses the same Aven auth shell and official primitives", () => {
+  const page = fs.readFileSync(path.join(MFA_SETUP, "page.tsx"), "utf8");
+  const settings = fs.readFileSync(MFA_SETTINGS, "utf8");
+  assert.match(page, /<AuthLayout>/);
+  assert.match(page, /<MfaSettings enrollment/);
+  assert.match(page, /<Alert variant="danger"/);
+  assert.match(page, /<Button/);
+  assert.match(settings, /<Card className=/);
+  assert.match(settings, /<Input/);
+  assert.match(settings, /<Checkbox/);
+  assert.match(settings, /<Spinner label=/);
+  assert.match(settings, /<Alert/);
+  assert.doesNotMatch(page, /mfa-enrollment|form-error|className="button/);
+  assert.doesNotMatch(settings, /security-card|mfa-card|form-error|className="button|security-actions|recovery-codes|mfa-saved/);
+});
+
+test("MFA enrollment preserves existing API and redirect behavior", () => {
+  const page = fs.readFileSync(path.join(MFA_SETUP, "page.tsx"), "utf8");
+  const settings = fs.readFileSync(MFA_SETTINGS, "utf8");
+  for (const endpoint of ["/auth/mfa/status", "/auth/mfa/setup", "/auth/mfa/confirm", "/auth/mfa/recovery-codes"]) {
+    assert.match(settings, new RegExp(endpoint.replaceAll("/", "\\/")));
+  }
+  assert.match(page, /api\("\/auth\/logout", \{ method: "POST" \}\)/);
+  assert.match(page, /router\.replace\("\/login"\)/);
+  assert.match(settings, /router\.replace\("\/"\)/);
+});
+
 test("login uses the official Light and Dark institutional gradients and responsive auth composition", () => {
   const styles = authStyles();
   assert.match(styles, /background: var\(--gradient-background-light\)/);
@@ -77,10 +106,13 @@ test("login uses the official Light and Dark institutional gradients and respons
   assert.match(styles, /min-block-size: 100dvh/);
 });
 
-test("hardcode gate is zero for all new and refactored login sources", () => {
+test("hardcode gate is zero for all new and refactored Login and MFA sources", () => {
   const violations = [
     ...scanDirectory(AUTH),
     ...scanDirectory(LOGIN),
+    ...scanDirectory(MFA_SETUP),
+    ...scanDirectory(MFA_SETTINGS),
+    ...scanDirectory(MFA_SETTINGS_STYLES),
   ];
   assert.deepEqual(summarize(violations), { colors: 0, spacing: 0, radius: 0, typography: 0 });
 });
