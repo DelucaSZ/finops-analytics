@@ -207,14 +207,17 @@ def test_empty_successful_discovery_is_complete_and_reconciles(db):
     )
     run2 = _run(db, account, 2, NOW + timedelta(hours=1))
 
-    assert service.reconcile_complete_scopes(
-        db,
-        cloud_account=account,
-        collection_run=run2,
-        resources=[],
-        coverage=[_coverage(account, "compute_instance", "us-east-1", "complete")],
-        observed_at=run2.started_at,
-    ) == 1
+    assert (
+        service.reconcile_complete_scopes(
+            db,
+            cloud_account=account,
+            collection_run=run2,
+            resources=[],
+            coverage=[_coverage(account, "compute_instance", "us-east-1", "complete")],
+            observed_at=run2.started_at,
+        )
+        == 1
+    )
     assert _current(db, account, "i-empty").presence_status == "missing"
 
 
@@ -335,14 +338,17 @@ def test_conflicting_or_provider_specific_coverage_is_not_broadened_to_complete(
             status="complete",
         ),
     ]
-    assert service.reconcile_complete_scopes(
-        db,
-        cloud_account=account,
-        collection_run=run2,
-        resources=[],
-        coverage=conflicting,
-        observed_at=run2.started_at,
-    ) == 0
+    assert (
+        service.reconcile_complete_scopes(
+            db,
+            cloud_account=account,
+            collection_run=run2,
+            resources=[],
+            coverage=conflicting,
+            observed_at=run2.started_at,
+        )
+        == 0
+    )
     assert _current(db, account, "i-safe").presence_status == "active"
 
 
@@ -359,14 +365,17 @@ def test_delayed_older_run_cannot_mark_newer_observation_missing(db):
     )
     older = _run(db, account, 1, NOW + timedelta(hours=1))
 
-    assert service.reconcile_complete_scopes(
-        db,
-        cloud_account=account,
-        collection_run=older,
-        resources=[],
-        coverage=[_coverage(account, "compute_instance", "us-east-1", "complete")],
-        observed_at=older.started_at,
-    ) == 0
+    assert (
+        service.reconcile_complete_scopes(
+            db,
+            cloud_account=account,
+            collection_run=older,
+            resources=[],
+            coverage=[_coverage(account, "compute_instance", "us-east-1", "complete")],
+            observed_at=older.started_at,
+        )
+        == 0
+    )
     assert _current(db, account, "i-newer").presence_status == "active"
 
 
