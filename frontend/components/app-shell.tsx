@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { ApplicationShell, type ShellUser } from "@/components/app-shell/application-shell";
 import { Button, Spinner } from "@/components/ui";
 import { api, ApiError } from "@/lib/api";
@@ -16,7 +16,7 @@ const publicRoutes = [
   "/accept-invitation",
 ];
 
-export function AppShell({ children }: { children: React.ReactNode }) {
+export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [ready, setReady] = useState(false);

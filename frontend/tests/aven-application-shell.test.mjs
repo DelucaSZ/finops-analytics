@@ -132,6 +132,7 @@ test("shell geometry and surfaces are tokenized in the shared component-token la
     "--shell-page-gutter",
     "--topbar-background",
     "--topbar-border",
+    "--shell-brand-wordmark-filter",
   ]) assert.match(tokens, new RegExp(token));
 });
 

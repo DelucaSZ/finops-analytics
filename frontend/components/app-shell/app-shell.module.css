@@ -70,6 +70,7 @@
 .brandWordmark img,
 .brandWordmarkMobile img {
   display: block;
+  filter: var(--shell-brand-wordmark-filter);
   height: auto;
   inline-size: 100%;
 }

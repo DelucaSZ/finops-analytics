@@ -93,7 +93,7 @@ ApplicationShell
 └── main page scroll/content frame
 ```
 
-The Sidebar collapse preference remains independent from theme. The Topbar delegates Light/Dark/System to the existing Theme Engine, and mobile navigation consumes the same navigation configuration as desktop.
+The Sidebar collapse preference remains independent from theme. The Topbar delegates Light/Dark/System to the existing Theme Engine, mobile navigation consumes the same navigation configuration as desktop, and the fallback wordmark has centralized theme-aware treatment until Task 24.8 replaces final runtime assets.
 
 Task 24.8 may replace global product naming, metadata, favicon, manifest and final runtime brand assets without rebuilding the shell.
 
