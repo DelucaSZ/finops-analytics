@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo } from "react";
+import { useMemo, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Clock3 } from "lucide-react";
 import { ProviderBadge, Section, StatusIndicator } from "@/components/aven";
@@ -45,7 +45,7 @@ type OperationalInsightsResponse = {
 
 const INSIGHT_REFRESH_INTERVAL = 45_000;
 
-function InsightLink({ href, children }: { href: string; children: React.ReactNode }) {
+function InsightLink({ href, children }: { href: string; children: ReactNode }) {
   return (
     <Link className={styles.link} href={href}>
       <span>{children}</span>
