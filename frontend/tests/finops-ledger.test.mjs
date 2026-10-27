@@ -12,7 +12,7 @@ import {
 
 const flowUrl = new URL("../app/flow/page.tsx", import.meta.url);
 const legacyUrl = new URL("../app/finops/ledger/page.tsx", import.meta.url);
-const shellUrl = new URL("../components/app-shell.tsx", import.meta.url);
+const navigationUrl = new URL("../components/app-shell/navigation.ts", import.meta.url);
 
 test("manual entry semantics keep direction and provider currency defaults explicit", () => {
   assert.equal(directionForEntryType("SAVING"), "CREDIT");
@@ -92,9 +92,9 @@ test("Flow reuses ledger mutations and exposes provenance, opportunity links and
 });
 
 test("main navigation uses product Flow route and legacy ledger route redirects", async () => {
-  const shell = await readFile(shellUrl, "utf8");
+  const navigation = await readFile(navigationUrl, "utf8");
   const legacy = await readFile(legacyUrl, "utf8");
-  assert.ok(shell.includes('{ href: "/flow", label: "Fluxo"'));
-  assert.ok(shell.includes('{ href: "/opportunities", label: "Oportunidades"'));
+  assert.ok(navigation.includes('{ href: "/flow", label: "Fluxo"'));
+  assert.ok(navigation.includes('{ href: "/opportunities", label: "Oportunidades"'));
   assert.ok(legacy.includes('redirect("/flow")'));
 });
