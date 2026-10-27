@@ -29,9 +29,10 @@ test("Aven token runtime is loaded before the transitional UI compatibility laye
   assert.ok(tokenImport < uiSystemImport, "Aven tokens must be available before transitional UI CSS");
 });
 
-test("Aven token layers expose the essential semantic contract", async () => {
-  const [primitives, light, dark, status, visualization, components, legacy, index] = await Promise.all([
+test("Aven token layers expose the essential semantic and foundation contract", async () => {
+  const [primitives, foundations, light, dark, status, visualization, components, legacy, index] = await Promise.all([
     readTokenFile("primitives.css"),
+    readTokenFile("foundations.css"),
     readTokenFile("semantic-light.css"),
     readTokenFile("semantic-dark.css"),
     readTokenFile("status.css"),
@@ -43,6 +44,7 @@ test("Aven token layers expose the essential semantic contract", async () => {
 
   for (const requiredImport of [
     "primitives.css",
+    "foundations.css",
     "semantic-light.css",
     "semantic-dark.css",
     "status.css",
@@ -60,14 +62,38 @@ test("Aven token layers expose the essential semantic contract", async () => {
     "--aven-color-neutral-950",
     "--gradient-brand",
     "--space-6",
+    "--radius-xs",
     "--radius-control",
     "--radius-card",
     "--font-family-ui",
+    "--font-family-display",
     "--font-weight-semibold",
     "--font-size-sm",
-    "--shadow-md",
+    "--font-size-5xl",
+    "--line-height-none",
+    "--line-height-snug",
+    "--letter-spacing-tight",
+    "--icon-size-md",
+    "--icon-stroke-default",
+    "--shadow-none",
+    "--hit-target-min",
   ]) {
     assert.ok(primitives.includes(`${token}:`), `missing primitive ${token}`);
+  }
+
+  for (const token of [
+    "--type-display-lg-family",
+    "--type-heading-lg-size",
+    "--type-body-md-size",
+    "--type-label-sm-weight",
+    "--type-caption-size",
+    "--type-kpi-lg-size",
+    "--type-table-header-size",
+    "--type-code-family",
+    "--font-variant-numeric-tabular",
+    "--control-height-default",
+  ]) {
+    assert.ok(foundations.includes(`${token}:`), `missing foundation ${token}`);
   }
 
   for (const semantic of [
@@ -85,6 +111,10 @@ test("Aven token layers expose the essential semantic contract", async () => {
     "--focus-ring",
     "--state-selected-bg",
     "--overlay-backdrop",
+    "--shadow-xs",
+    "--shadow-md",
+    "--elevation-1-shadow",
+    "--elevation-3-surface",
   ]) {
     assert.ok(light.includes(`${semantic}:`), `light theme is missing ${semantic}`);
     assert.ok(dark.includes(`${semantic}:`), `dark theme is missing ${semantic}`);
@@ -104,26 +134,28 @@ test("Aven token layers expose the essential semantic contract", async () => {
     assert.ok(visualization.includes(`${token}:`), `missing visualization token ${token}`);
   }
 
-  assert.ok(components.includes("--sidebar-background: var(--surface-primary);"));
-  assert.ok(components.includes("--card-border: var(--border-subtle);"));
+  assert.ok(components.includes("--card-radius: var(--radius-card);"));
+  assert.ok(components.includes("--control-radius: var(--radius-control);"));
+  assert.ok(components.includes("--dialog-shadow: var(--elevation-3-shadow);"));
   assert.ok(legacy.includes("--aven-blue: var(--aven-color-blue-500);"));
 });
 
 test("token definition files do not contain accidental duplicate declarations within a layer", async () => {
-  for (const fileName of ["primitives.css", "semantic-light.css", "semantic-dark.css", "components.css", "legacy.css"]) {
+  for (const fileName of ["primitives.css", "foundations.css", "semantic-light.css", "semantic-dark.css", "components.css", "legacy.css"]) {
     assertNoDuplicateDeclarations(await readTokenFile(fileName), fileName);
   }
 });
 
-test("new Aven semantic/component layers do not expose page-specific token names", async () => {
-  const [light, dark, status, visualization, components] = await Promise.all([
+test("new Aven foundation/semantic/component layers do not expose page-specific token names", async () => {
+  const [foundations, light, dark, status, visualization, components] = await Promise.all([
+    readTokenFile("foundations.css"),
     readTokenFile("semantic-light.css"),
     readTokenFile("semantic-dark.css"),
     readTokenFile("status.css"),
     readTokenFile("visualization.css"),
     readTokenFile("components.css"),
   ]);
-  const contract = [light, dark, status, visualization, components].join("\n");
+  const contract = [foundations, light, dark, status, visualization, components].join("\n");
 
   for (const forbiddenPrefix of ["--billing-", "--dashboard-", "--reservation-", "--opportunities-", "--flow-"]) {
     assert.doesNotMatch(contract, new RegExp(forbiddenPrefix));

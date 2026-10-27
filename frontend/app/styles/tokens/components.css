@@ -1,6 +1,6 @@
 /*
- * Minimal structural component tokens.
- * Keep this layer small: component tokens must derive from semantic tokens and
+ * Minimal reusable component composition tokens.
+ * Keep this layer small: values derive from semantic/foundation tokens and
  * must never be page-specific.
  */
 :root {
@@ -8,12 +8,39 @@
   --sidebar-border: var(--border-subtle);
   --header-background: var(--surface-primary);
   --header-border: var(--border-subtle);
-  --card-background: var(--surface-primary);
-  --card-border: var(--border-subtle);
+
+  --card-background: var(--elevation-1-surface);
+  --card-border: var(--elevation-1-border);
+  --card-radius: var(--radius-card);
+  --card-padding: var(--space-6);
+  --card-shadow: var(--elevation-1-shadow);
+
   --control-background: var(--surface-primary);
   --control-border: var(--border-default);
-  --dialog-background: var(--surface-elevated);
-  --dialog-border: var(--border-subtle);
+  --control-radius: var(--radius-control);
+  --control-padding-inline-compact: var(--space-3);
+  --control-padding-inline-default: var(--space-4);
+  --control-padding-inline-comfortable: var(--space-5);
+  --control-gap: var(--space-2);
+
+  --dialog-background: var(--elevation-3-surface);
+  --dialog-border: var(--elevation-3-border);
+  --dialog-radius: var(--radius-dialog);
+  --dialog-padding: var(--space-6);
+  --dialog-shadow: var(--elevation-3-shadow);
+
+  --popover-background: var(--elevation-2-surface);
+  --popover-border: var(--elevation-2-border);
+  --popover-radius: var(--radius-card);
+  --popover-shadow: var(--elevation-2-shadow);
+
   --tooltip-background: var(--chart-tooltip-bg);
   --tooltip-text: var(--chart-tooltip-text);
+
+  --icon-button-size: var(--control-height-default);
+  --icon-button-icon-size: var(--icon-size-lg);
+
+  --form-field-gap: var(--space-2);
+  --table-cell-padding-block: var(--space-3);
+  --table-cell-padding-inline: var(--space-4);
 }

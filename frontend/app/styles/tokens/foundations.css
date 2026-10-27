@@ -1,0 +1,136 @@
+/*
+ * Aven Design System — Visual Foundations
+ *
+ * Shared visual roles derived from primitive scales. These are intentionally
+ * product-wide and must not encode page-specific decisions.
+ */
+:root {
+  /* Display */
+  --type-display-lg-family: var(--font-family-display);
+  --type-display-lg-size: var(--font-size-5xl);
+  --type-display-lg-weight: var(--font-weight-bold);
+  --type-display-lg-line-height: var(--line-height-tight);
+  --type-display-lg-letter-spacing: var(--letter-spacing-tight);
+
+  --type-display-md-family: var(--font-family-display);
+  --type-display-md-size: var(--font-size-4xl);
+  --type-display-md-weight: var(--font-weight-bold);
+  --type-display-md-line-height: var(--line-height-tight);
+  --type-display-md-letter-spacing: var(--letter-spacing-tight);
+
+  /* Headings */
+  --type-heading-xl-family: var(--font-family-display);
+  --type-heading-xl-size: var(--font-size-3xl);
+  --type-heading-xl-weight: var(--font-weight-bold);
+  --type-heading-xl-line-height: var(--line-height-tight);
+  --type-heading-xl-letter-spacing: var(--letter-spacing-tight);
+
+  --type-heading-lg-family: var(--font-family-display);
+  --type-heading-lg-size: var(--font-size-2xl);
+  --type-heading-lg-weight: var(--font-weight-semibold);
+  --type-heading-lg-line-height: var(--line-height-snug);
+  --type-heading-lg-letter-spacing: var(--letter-spacing-tight);
+
+  --type-heading-md-family: var(--font-family-ui);
+  --type-heading-md-size: var(--font-size-xl);
+  --type-heading-md-weight: var(--font-weight-semibold);
+  --type-heading-md-line-height: var(--line-height-snug);
+  --type-heading-md-letter-spacing: var(--letter-spacing-normal);
+
+  --type-heading-sm-family: var(--font-family-ui);
+  --type-heading-sm-size: var(--font-size-lg);
+  --type-heading-sm-weight: var(--font-weight-semibold);
+  --type-heading-sm-line-height: var(--line-height-snug);
+  --type-heading-sm-letter-spacing: var(--letter-spacing-normal);
+
+  /* Body */
+  --type-body-lg-family: var(--font-family-ui);
+  --type-body-lg-size: var(--font-size-lg);
+  --type-body-lg-weight: var(--font-weight-regular);
+  --type-body-lg-line-height: var(--line-height-normal);
+
+  --type-body-md-family: var(--font-family-ui);
+  --type-body-md-size: var(--font-size-md);
+  --type-body-md-weight: var(--font-weight-regular);
+  --type-body-md-line-height: var(--line-height-normal);
+
+  --type-body-sm-family: var(--font-family-ui);
+  --type-body-sm-size: var(--font-size-sm);
+  --type-body-sm-weight: var(--font-weight-regular);
+  --type-body-sm-line-height: var(--line-height-normal);
+
+  /* Labels / controls / metadata */
+  --type-label-md-family: var(--font-family-ui);
+  --type-label-md-size: var(--font-size-md);
+  --type-label-md-weight: var(--font-weight-medium);
+  --type-label-md-line-height: var(--line-height-snug);
+
+  --type-label-sm-family: var(--font-family-ui);
+  --type-label-sm-size: var(--font-size-sm);
+  --type-label-sm-weight: var(--font-weight-medium);
+  --type-label-sm-line-height: var(--line-height-snug);
+
+  --type-caption-family: var(--font-family-ui);
+  --type-caption-size: var(--font-size-xs);
+  --type-caption-weight: var(--font-weight-regular);
+  --type-caption-line-height: var(--line-height-normal);
+
+  --type-button-family: var(--font-family-ui);
+  --type-button-size: var(--font-size-md);
+  --type-button-weight: var(--font-weight-semibold);
+  --type-button-line-height: var(--line-height-none);
+
+  /* Operational data */
+  --type-kpi-lg-family: var(--font-family-display);
+  --type-kpi-lg-size: var(--font-size-4xl);
+  --type-kpi-lg-weight: var(--font-weight-bold);
+  --type-kpi-lg-line-height: var(--line-height-tight);
+  --type-kpi-lg-letter-spacing: var(--letter-spacing-tight);
+
+  --type-kpi-md-family: var(--font-family-display);
+  --type-kpi-md-size: var(--font-size-3xl);
+  --type-kpi-md-weight: var(--font-weight-bold);
+  --type-kpi-md-line-height: var(--line-height-tight);
+  --type-kpi-md-letter-spacing: var(--letter-spacing-tight);
+
+  --type-table-header-family: var(--font-family-ui);
+  --type-table-header-size: var(--font-size-sm);
+  --type-table-header-weight: var(--font-weight-semibold);
+  --type-table-header-line-height: var(--line-height-snug);
+
+  --type-table-body-family: var(--font-family-ui);
+  --type-table-body-size: var(--font-size-md);
+  --type-table-body-weight: var(--font-weight-regular);
+  --type-table-body-line-height: var(--line-height-normal);
+
+  --type-code-family: var(--font-family-mono);
+  --type-code-size: var(--font-size-sm);
+  --type-code-weight: var(--font-weight-regular);
+  --type-code-line-height: var(--line-height-normal);
+
+  --font-variant-numeric-tabular: tabular-nums;
+
+  /* Density and interaction geometry for future primitives. */
+  --control-height-compact: 36px;
+  --control-height-default: 40px;
+  --control-height-comfortable: 44px;
+}
+
+/* Deliver the official UI family without rewriting legacy page typography. */
+body {
+  font-family: var(--font-family-ui);
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-family-mono);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-spinner-duration: 1ms;
+    --motion-spinner-iteration-count: 1;
+  }
+}

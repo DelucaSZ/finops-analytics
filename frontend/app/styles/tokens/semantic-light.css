@@ -57,4 +57,27 @@ html[data-theme="light"] {
 
   --overlay-backdrop: rgba(10, 10, 15, 0.44);
   --overlay-backdrop-strong: rgba(10, 10, 15, 0.64);
+
+  /* Restrained Light elevation. */
+  --shadow-xs: 0 1px 2px rgba(10, 10, 15, 0.05);
+  --shadow-sm: 0 2px 8px rgba(10, 10, 15, 0.07);
+  --shadow-md: 0 8px 24px rgba(10, 10, 15, 0.09);
+  --shadow-lg: 0 16px 40px rgba(10, 10, 15, 0.11);
+  --shadow-xl: 0 24px 64px rgba(10, 10, 15, 0.14);
+
+  --elevation-0-surface: var(--background-primary);
+  --elevation-0-border: transparent;
+  --elevation-0-shadow: var(--shadow-none);
+  --elevation-1-surface: var(--surface-primary);
+  --elevation-1-border: var(--border-subtle);
+  --elevation-1-shadow: var(--shadow-xs);
+  --elevation-2-surface: var(--surface-elevated);
+  --elevation-2-border: var(--border-subtle);
+  --elevation-2-shadow: var(--shadow-sm);
+  --elevation-3-surface: var(--surface-overlay);
+  --elevation-3-border: var(--border-default);
+  --elevation-3-shadow: var(--shadow-md);
+  --elevation-4-surface: var(--surface-overlay);
+  --elevation-4-border: var(--border-strong);
+  --elevation-4-shadow: var(--shadow-lg);
 }

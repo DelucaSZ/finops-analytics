@@ -8,7 +8,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 2. `docs/brand/aven/AVEN_BRAND_GUIDE.txt`
 3. `docs/brand/aven/AVEN_DESIGN_TOKENS.md`
 4. `docs/brand/aven/AVEN_THEME_ENGINE.md`
-5. the applicable assets and visual references under this directory
+5. `docs/brand/aven/AVEN_FOUNDATIONS.md`
+6. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -18,27 +19,35 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 - Brand principle: **Complexity underneath. Clarity above.**
 - Product direction: premium, technological, secure, controlled, minimal, elegant
 
-The approved visual references in the Brand Kit v1 are the golden references for the product redesign, especially the light and dark dashboard references.
+The approved visual references in Brand Kit v1 are the golden references for the product redesign, especially the Light and Dark dashboard references.
 
 ## Aven Design System foundation
 
-Tasks 24.2 and 24.3 establish the official design-token and theme-runtime architecture documented in:
+Tasks 24.2–24.4 establish the official token, theme-runtime and visual-foundation architecture:
 
-- `docs/brand/aven/AVEN_DESIGN_TOKENS.md` — architecture, usage rules, theme mapping and migration policy;
-- `docs/brand/aven/AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
-- `docs/brand/aven/aven-semantic-tokens.json` — tooling-oriented token-name index;
-- `frontend/app/styles/tokens/` — canonical product-token source and runtime CSS Custom Properties.
+- `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
+- `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
+- `AVEN_FOUNDATIONS.md` — typography, spacing, radius, elevation, iconography, density, focus/hit-target and Task 24.5 usage contract;
+- `aven-semantic-tokens.json` — tooling-oriented token-name index;
+- `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
+- `frontend/lib/iconography.ts` — token-backed React geometry API for `lucide-react`.
 
 The product pipeline is:
 
 ```text
-Brand
+Aven Brand
 ↓
 Design Tokens
 ↓
 Theme Engine
 ↓
-Components
+Visual Foundations
+↓
+UI Primitives
+↓
+Product Components
+↓
+Pages
 ```
 
 The runtime token contract remains:
@@ -46,28 +55,20 @@ The runtime token contract remains:
 ```text
 Component
 ↓
-Semantic / Component Token
+Semantic / Foundation / Component Token
 ↓
 Theme Mapping
 ↓
 Primitive Token
 ```
 
-New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, not raw brand colors. Components should not implement independent Light/Dark variants when semantic tokens already express the visual role.
+New Aven UI should use semantic tokens such as `--surface-primary`, `--text-primary` and `--action-primary`, plus foundation roles for typography/spacing/radius/elevation/iconography. Components should not implement independent Light/Dark variants when semantic tokens already express the visual role.
 
 ## Mandatory engineering rule — Task 24.5 onward
 
-Starting with **Task 24.5**, no new visual component may hardcode:
+> A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
 
-- colors;
-- border radius;
-- spacing;
-- font family;
-- font size;
-- font weight;
-- line height.
-
-All such values must originate from the Aven design system and its semantic tokens.
+This includes color/background/border-color, structural spacing/padding/margin/gap, border radius, font family, font size, font weight and line height.
 
 ### Forbidden
 
@@ -84,29 +85,31 @@ font-size: 14px;
 color: var(--action-primary);
 border-radius: var(--radius-control);
 padding: var(--space-4);
-font-size: var(--font-size-sm);
+font-size: var(--font-size-md);
 ```
 
-This rule applies to all new visual components and to components migrated into the Aven design system from Task 24.5 onward.
+Shadows and icon geometry should likewise use the shared foundation contracts whenever they represent reusable design decisions.
 
 ## Implementation principles
 
 - Treat this directory as the authoritative brand source. Do not recreate the Aven wordmark using text.
-- Prefer the approved production PNGs for the wordmark. SVG wordmark assets are fallback approximations, as specified in the guide.
-- Light and dark modes must be designed as first-class themes; dark mode must not be a simple color inversion.
-- `system` is a user preference that resolves dynamically to Light or Dark; it must not be replaced by the current resolved value.
+- Prefer approved production assets for the wordmark; the fallback SVG remains an approximation where documented.
+- Inter is the UI family and Sora is the display family delivered through the framework-native font loader; neither is the Aven wordmark.
+- `lucide-react` is the canonical functional icon library. Aven/provider marks remain separate assets.
+- Light and Dark are first-class themes; Dark is not a color inversion and uses surface/border contrast before shadow.
+- `system` is a durable user preference that resolves dynamically to Light or Dark.
 - Purple is a premium accent, not the default color for every component.
-- Semantic states such as success, warning, error and information must remain recognizable.
-- Institutional gradients should be atmospheric and controlled, not neon or pervasive.
-- Data visualization must use dedicated semantic chart tokens rather than raw brand colors.
+- Semantic success/warning/danger/info states remain recognizable and are not replaced by purple.
+- Institutional gradients/glow are atmospheric and controlled, not neon or pervasive.
+- Data visualization uses dedicated semantic chart tokens rather than raw brand colors.
 - Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
 
 ## Repository note
 
-The textual specifications, tokens and vector fallbacks are stored directly under this directory so every Task/PR can inspect them without external context. The production raster pack supplied in Aven Brand Kit v1 remains the visual master for PNG wordmarks, favicons and 4K references.
+Textual specifications, tokens and vector fallbacks are versioned here so every Task/PR can inspect them without external context. Production raster assets supplied in Aven Brand Kit v1 remain the visual master where the guide says raster output is authoritative.
 
 ## Version
 
 Brand Kit: **v1**
 
-The identity, product-token foundation and Light/Dark/System runtime contract are now versioned. Task 24.4 can refine typography/spacing/radius/shadows/iconography, and Task 24.5 can build theme-aware primitives on top of the stable token/theme foundation.
+Tasks 24.2–24.4 now provide the complete foundation required for Task 24.5 — Aven UI Primitives.
