@@ -136,9 +136,7 @@ class InventoryPersistenceService:
                     ),
                 )
             ).all()
-            current_by_identity.update(
-                {(row.resource_type, row.resource_id): row for row in rows}
-            )
+            current_by_identity.update({(row.resource_type, row.resource_id): row for row in rows})
 
         new_identities: set[tuple[str, str]] = set()
         for identity in ordered_identities:
@@ -159,9 +157,7 @@ class InventoryPersistenceService:
                 lifecycle_status=resource.lifecycle_status,
                 native_status=resource.native_status,
                 tags=prepare_inventory_metadata(resource.tags, field_name="tags"),
-                attributes=prepare_inventory_metadata(
-                    resource.attributes, field_name="attributes"
-                ),
+                attributes=prepare_inventory_metadata(resource.attributes, field_name="attributes"),
                 presence_status=InventoryPresenceStatus.ACTIVE.value,
                 first_seen_at=observed_at,
                 last_seen_at=observed_at,
