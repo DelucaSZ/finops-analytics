@@ -70,9 +70,14 @@
 .brandWordmark img,
 .brandWordmarkMobile img {
   display: block;
-  filter: var(--shell-brand-wordmark-filter);
+  filter: none;
   height: auto;
   inline-size: 100%;
+}
+
+:global(html[data-theme="dark"]) .brandWordmark img,
+:global(html[data-theme="dark"]) .brandWordmarkMobile img {
+  filter: var(--shell-brand-wordmark-filter-dark);
 }
 
 .brandMark {
