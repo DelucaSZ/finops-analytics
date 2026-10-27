@@ -84,4 +84,14 @@ export const queryKeys = {
       String(targetId || ""),
     ],
   },
+  inventory: {
+    all: ["inventory"],
+    list: (query) => ["inventory", "list", String(query || "")],
+    options: (provider, accountId) => [
+      "inventory",
+      "options",
+      { provider: normalize(provider), account_id: normalize(accountId) },
+    ],
+    detail: (id) => ["inventory", "detail", String(id || "")],
+  },
 };
