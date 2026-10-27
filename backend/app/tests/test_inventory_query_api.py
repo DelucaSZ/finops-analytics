@@ -216,9 +216,7 @@ def test_inventory_filters_cover_aws_oci_missing_types_and_native_account_search
     _seed_inventory(engine)
     auth = headers(tokens)
 
-    aws = client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"provider": "aws"}
-    ).json()
+    aws = client.get("/api/v1/inventory/resources", headers=auth, params={"provider": "aws"}).json()
     assert aws["total"] == 5
     assert {item["provider"] for item in aws["items"]} == {"aws"}
 
@@ -258,21 +256,36 @@ def test_inventory_validation_sorting_and_bounds(auth_env):
     _seed_inventory(engine)
     auth = headers(tokens)
 
-    assert client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"provider": "nope"}
-    ).status_code == 422
-    assert client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"sort": "drop table"}
-    ).status_code == 422
-    assert client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"direction": "sideways"}
-    ).status_code == 422
-    assert client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"page_size": 101}
-    ).status_code == 422
-    assert client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"search": "x" * 257}
-    ).status_code == 422
+    assert (
+        client.get(
+            "/api/v1/inventory/resources", headers=auth, params={"provider": "nope"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get(
+            "/api/v1/inventory/resources", headers=auth, params={"sort": "drop table"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get(
+            "/api/v1/inventory/resources", headers=auth, params={"direction": "sideways"}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get(
+            "/api/v1/inventory/resources", headers=auth, params={"page_size": 101}
+        ).status_code
+        == 422
+    )
+    assert (
+        client.get(
+            "/api/v1/inventory/resources", headers=auth, params={"search": "x" * 257}
+        ).status_code
+        == 422
+    )
 
     for sort_field in ("name", "last_seen_at", "region", "resource_type"):
         for direction in ("asc", "desc"):
@@ -288,9 +301,7 @@ def test_inventory_validation_sorting_and_bounds(auth_env):
             )
             assert len(sorted_response.json()["items"]) == 7
 
-    empty = client.get(
-        "/api/v1/inventory/resources", headers=auth, params={"provider": "gcp"}
-    )
+    empty = client.get("/api/v1/inventory/resources", headers=auth, params={"provider": "gcp"})
     assert empty.status_code == 200
     assert empty.json() == {
         "items": [],
@@ -301,9 +312,7 @@ def test_inventory_validation_sorting_and_bounds(auth_env):
     }
 
     for term in ("does-not-exist", "%", "_", "' OR 1=1 --"):
-        searched = client.get(
-            "/api/v1/inventory/resources", headers=auth, params={"search": term}
-        )
+        searched = client.get("/api/v1/inventory/resources", headers=auth, params={"search": term})
         assert searched.status_code == 200
         if term == "does-not-exist":
             assert searched.json()["total"] == 0
