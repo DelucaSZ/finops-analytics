@@ -13,7 +13,7 @@ const alertIcons = {
   danger: AlertCircle,
 } as const;
 
-export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
+export interface AlertProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
   variant?: AlertVariant;
   title?: ReactNode;
   description?: ReactNode;
