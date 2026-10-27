@@ -21,7 +21,7 @@
   --shell-brand-wordmark-inline-size: calc(var(--space-16) + var(--space-16));
   --shell-brand-wordmark-block-size: var(--space-6);
   --shell-brand-mark-size: var(--space-8);
-  --shell-brand-wordmark-filter: none;
+  --shell-brand-wordmark-filter-dark: brightness(0) invert(1);
   --shell-user-trigger-max-inline-size: calc(var(--space-16) + var(--space-16) + var(--space-16));
 
   --card-background: var(--elevation-1-surface);
@@ -91,8 +91,4 @@
   --z-index-overlay: 300;
   --z-index-modal: 400;
   --z-index-toast: 500;
-}
-
-html[data-theme="dark"] {
-  --shell-brand-wordmark-filter: brightness(0) invert(1);
 }
