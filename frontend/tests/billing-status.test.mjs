@@ -7,7 +7,6 @@ import {
   mapBillingTimeSeriesToChartData,
 } from "../lib/billing-dashboard.mjs";
 
-
 test("billing status labels keep actual estimated partial and forecast distinct", () => {
   assert.equal(billingStatusLabel("ACTUAL"), "Realizado");
   assert.equal(billingStatusLabel("ESTIMATED"), "Estimado");
@@ -16,7 +15,6 @@ test("billing status labels keep actual estimated partial and forecast distinct"
   assert.equal(billingStatusLabel("INCLUDES_FORECAST"), "Inclui forecast");
 });
 
-
 test("status aggregation does not turn one provisional bucket into a fully estimated period", () => {
   assert.equal(
     aggregateBillingStatuses(["ACTUAL", "ACTUAL", "ESTIMATED"]),
@@ -24,7 +22,6 @@ test("status aggregation does not turn one provisional bucket into a fully estim
   );
   assert.equal(aggregateBillingStatuses(["ACTUAL", "ACTUAL"]), "ACTUAL");
 });
-
 
 test("chart mapper preserves each daily bucket status", () => {
   const [dataset] = mapBillingTimeSeriesToChartData([
@@ -67,7 +64,6 @@ test("chart mapper preserves each daily bucket status", () => {
   assert.equal(dataset.periods[2].estimated, true);
 });
 
-
 test("forecast remains explicit and is not exposed through the legacy estimated flag", () => {
   const [dataset] = mapBillingTimeSeriesToChartData([
     {
@@ -87,14 +83,35 @@ test("forecast remains explicit and is not exposed through the legacy estimated 
   assert.equal(dataset.periods[0].series[0].status, "FORECAST");
 });
 
-
-test("Billing UI renders canonical status in summary breakdown and daily tooltip", async () => {
+test("Billing UI renders canonical status without marking all data as estimated", async () => {
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
 
   assert.ok(page.includes("billingStatusLabel(item.status)"));
   assert.ok(page.includes("billingStatusLabel(total.status)"));
+  assert.ok(page.includes("<StatusIndicator"));
   assert.ok(chart.includes("billingStatusLabel(hoveredPeriod.status)"));
   assert.ok(chart.includes("fillOpacity={statusOpacity(item.status)}"));
-  assert.ok(chart.includes('strokeDasharray={hasForecast ? "4 3" : undefined}'));
+  assert.ok(chart.includes('stroke={hasForecast ? "var(--chart-forecast)" : undefined}'));
+  assert.ok(chart.includes("somente buckets estimados ou parcialmente estimados"));
+  assert.ok(!page.includes("TODOS OS DADOS SÃO ESTIMADOS"));
+  assert.ok(!page.includes("Todos os dados são estimados"));
+});
+
+test("fully actual datasets do not render estimated or forecast notes", () => {
+  const [dataset] = mapBillingTimeSeriesToChartData([
+    {
+      start_date: "2026-10-21",
+      end_date: "2026-10-22",
+      amount: "10",
+      currency: "USD",
+      status: "ACTUAL",
+      estimated: false,
+      groups: [],
+    },
+  ], "NONE");
+
+  assert.equal(dataset.status, "ACTUAL");
+  assert.equal(dataset.estimated, false);
+  assert.equal(dataset.periods.every((period) => period.status === "ACTUAL"), true);
 });

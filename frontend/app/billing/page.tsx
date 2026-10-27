@@ -3,7 +3,37 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, RotateCcw, Settings2 } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import {
+  AccountSelector,
+  ChartCard,
+  CurrencyDisplay,
+  DataState,
+  DateRangePicker,
+  FilterBar,
+  MetricCard,
+  PageHeader,
+  PercentageDisplay,
+  ProviderBadge,
+  Section,
+  StatusIndicator,
+  type DateRangeValue,
+  type ProductStatus,
+} from "@/components/aven";
+import {
+  Alert,
+  Badge,
+  Button,
+  Checkbox,
+  EmptyState,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui";
+import { iconDefaults } from "@/lib/iconography";
 import { ApiError, api } from "@/lib/api";
 import {
   getAwsBillingBreakdown,
@@ -15,6 +45,7 @@ import type {
   AwsBillingRequest,
   BillingBreakdownItem,
   BillingBreakdownResponse,
+  BillingDataStatus,
   BillingGranularity,
   BillingGroupBy,
   BillingMetric,
@@ -24,15 +55,13 @@ import type {
 } from "@/lib/billing";
 import {
   BILLING_PERIOD_PRESETS,
-  areAllBillingAccountsSelected,
-  billingAccountIdsForSelectAll,
   billingQuerySignature,
   billingStatusLabel,
   billingVariation,
-  formatBillingMoney,
   formatBillingRange,
   groupBillingByCurrency,
   hasBillingAccountSelection,
+  inclusiveEndDate,
   mapBillingTimeSeriesToChartData,
   parseBillingAccountIds,
   previousEquivalentPeriod,
@@ -159,27 +188,50 @@ function buildRequest(
   return request;
 }
 
-function formatVariation(current: string, previous: string) {
-  const variation = billingVariation(current, previous);
-  if (variation.kind === "new") return "Novo custo no período";
-  if (variation.kind === "unavailable" || variation.percent === null) return "Variação não aplicável";
-  const prefix = variation.percent > 0 ? "+" : "";
-  return `${prefix}${variation.percent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`;
+function statusSemantic(status: BillingDataStatus): ProductStatus {
+  switch (status) {
+    case "ACTUAL":
+      return "success";
+    case "FORECAST":
+    case "INCLUDES_FORECAST":
+      return "info";
+    case "ESTIMATED":
+    case "PARTIALLY_ESTIMATED":
+    default:
+      return "warning";
+  }
 }
 
-function SectionStatus({ loading, error, empty, emptyText }: {
-  loading: boolean;
-  error: string;
-  empty: boolean;
-  emptyText: string;
-}) {
-  if (loading) return <div className={styles.sectionState} role="status">Carregando dados de Billing…</div>;
-  if (error) return <div className={styles.sectionError} role="alert">{error}</div>;
-  if (empty) return <div className={styles.sectionState}>{emptyText}</div>;
+function numericAmount(value: string) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function variationTrend(current: string, previous: string) {
+  const variation = billingVariation(current, previous);
+  if (variation.kind !== "percent" || variation.percent === null) return null;
+  const direction = variation.percent > 0 ? "up" : variation.percent < 0 ? "down" : "flat";
+  const sentiment = variation.percent > 0 ? "negative" : variation.percent < 0 ? "positive" : "neutral";
+  return {
+    value: variation.percent,
+    direction,
+    sentiment,
+    label: "Variação vs período anterior",
+    locale: "pt-BR",
+  } as const;
+}
+
+function variationSupportingText(current: string, previous: string) {
+  const variation = billingVariation(current, previous);
+  if (variation.kind === "new") return "Novo custo em relação ao período anterior.";
+  if (variation.kind === "unavailable") return "Variação não aplicável para esta comparação.";
   return null;
 }
 
-function BreakdownTable({ items, kind }: {
+function BreakdownTable({
+  items,
+  kind,
+}: {
   items: BillingBreakdownItem[];
   kind: "service" | "account";
 }) {
@@ -188,36 +240,63 @@ function BreakdownTable({ items, kind }: {
     <div className={styles.breakdownGroups}>
       {groups.map(([currency, currencyItems]) => {
         const topItems = topBillingItems(currencyItems, 10);
+        const absoluteTotal = currencyItems.reduce((sum, item) => sum + Math.abs(Number(item.amount) || 0), 0);
         return (
           <div key={currency} className={styles.breakdownGroup}>
             <div className={styles.currencyHeading}>
               <strong>{currency}</strong>
               <span>Top {Math.min(10, currencyItems.length)} de {currencyItems.length}</span>
             </div>
-            <div className="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>{kind === "service" ? "Serviço" : "Conta"}</th>
-                    {kind === "account" && <th>AWS Account ID</th>}
-                    <th>Valor</th>
-                    <th>Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {topItems.map((item) => (
-                    <tr key={`${currency}-${item.key}`}>
-                      <td>
+            <Table>
+              <TableHeader>
+                <TableRow staticRow>
+                  <TableHead>{kind === "service" ? "Serviço" : "Conta"}</TableHead>
+                  {kind === "account" && <TableHead>AWS Account ID</TableHead>}
+                  <TableHead numeric>Participação</TableHead>
+                  <TableHead numeric>Valor</TableHead>
+                  <TableHead>Estado</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {topItems.map((item) => {
+                  const amount = numericAmount(item.amount);
+                  const share = amount === null || absoluteTotal === 0
+                    ? null
+                    : (Math.abs(amount) / absoluteTotal) * 100;
+                  return (
+                    <TableRow key={`${currency}-${item.key}`}>
+                      <TableCell>
                         <strong>{kind === "account" ? (item.display_name || item.label || item.key) : (item.label || item.key)}</strong>
-                      </td>
-                      {kind === "account" && <td><code>{item.aws_account_id || item.key}</code></td>}
-                      <td>{formatBillingMoney(item.amount, item.currency)}</td>
-                      <td><span className={styles.estimatedBadge}>{billingStatusLabel(item.status)}</span></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                      </TableCell>
+                      {kind === "account" && (
+                        <TableCell>
+                          <code className={styles.accountId}>{item.aws_account_id || item.key}</code>
+                        </TableCell>
+                      )}
+                      <TableCell numeric>
+                        <PercentageDisplay value={share} locale="pt-BR" maximumFractionDigits={1} />
+                      </TableCell>
+                      <TableCell numeric>
+                        <CurrencyDisplay
+                          value={amount}
+                          currency={item.currency}
+                          locale="pt-BR"
+                          currencyDisplay="code"
+                          minimumFractionDigits={2}
+                          maximumFractionDigits={2}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        <StatusIndicator
+                          status={statusSemantic(item.status)}
+                          label={billingStatusLabel(item.status)}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
           </div>
         );
       })}
@@ -263,10 +342,6 @@ export default function BillingPage() {
     [period, periodPreset],
   );
   const hasAccountSelection = hasBillingAccountSelection(selectedAccountIds);
-  const allAccountsSelected = areAllBillingAccountsSelected(
-    accounts.map((account) => account.id),
-    selectedAccountIds,
-  );
   const hasOverrides = Boolean(
     selectedProfile
     && (
@@ -296,6 +371,17 @@ export default function BillingPage() {
       ? mapBillingTimeSeriesToChartData(timeseries.data.points, timeseries.data.group_by)
       : [],
     [timeseries.data],
+  );
+
+  const accountOptions = useMemo(
+    () => accounts.map((account) => ({
+      value: String(account.id),
+      label: account.name || "Conta AWS",
+      accountId: account.native_account_id || undefined,
+      provider: account.provider,
+      searchTerms: [account.native_account_id || "", account.name || ""],
+    })),
+    [accounts],
   );
 
   useEffect(() => {
@@ -453,32 +539,42 @@ export default function BillingPage() {
     getAwsBillingSummary(currentRequest, controller.signal)
       .then((data) => { if (active()) setSummary({ data, loading: false, error: "" }); })
       .catch((error) => {
-        if (active() && !isAbort(error)) setSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo do período.") });
+        if (active() && !isAbort(error)) {
+          setSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo do período.") });
+        }
       });
 
     getAwsBillingSummary(comparisonRequest, controller.signal)
       .then((data) => { if (active()) setPreviousSummary({ data, loading: false, error: "" }); })
       .catch((error) => {
-        if (active() && !isAbort(error)) setPreviousSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o período anterior.") });
+        if (active() && !isAbort(error)) {
+          setPreviousSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o período anterior.") });
+        }
       });
 
     getAwsBillingTimeSeries(currentRequest, controller.signal)
       .then((data) => { if (active()) setTimeseries({ data, loading: false, error: "" }); })
       .catch((error) => {
-        if (active() && !isAbort(error)) setTimeseries({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar a evolução de custos.") });
+        if (active() && !isAbort(error)) {
+          setTimeseries({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar a evolução de custos.") });
+        }
       });
 
     getAwsBillingBreakdown({ ...currentRequest, group_by: "SERVICE" }, controller.signal)
       .then((data) => { if (active()) setServiceBreakdown({ data, loading: false, error: "" }); })
       .catch((error) => {
-        if (active() && !isAbort(error)) setServiceBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por serviço.") });
+        if (active() && !isAbort(error)) {
+          setServiceBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por serviço.") });
+        }
       });
 
     if (selectedAccountIds.length > 1) {
       getAwsBillingBreakdown({ ...currentRequest, group_by: "ACCOUNT" }, controller.signal)
         .then((data) => { if (active()) setAccountBreakdown({ data, loading: false, error: "" }); })
         .catch((error) => {
-          if (active() && !isAbort(error)) setAccountBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por conta.") });
+          if (active() && !isAbort(error)) {
+            setAccountBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por conta.") });
+          }
         });
     }
 
@@ -503,13 +599,6 @@ export default function BillingPage() {
     setExcludeRecordTypes(selectedProfile.exclude_record_types);
   }
 
-  function toggleAccount(accountId: number, checked: boolean) {
-    setSelectedAccountIds((current) => {
-      if (checked) return Array.from(new Set([...current, accountId])).sort((a, b) => a - b);
-      return current.filter((value) => value !== accountId);
-    });
-  }
-
   function toggleRecordType(recordType: string, checked: boolean) {
     setExcludeRecordTypes((current) => {
       if (checked) return Array.from(new Set([...current, recordType])).sort();
@@ -517,233 +606,325 @@ export default function BillingPage() {
     });
   }
 
+  function setAccountValues(values: string[]) {
+    const allowed = new Set(accounts.map((account) => account.id));
+    const next = values
+      .map((value) => Number(value))
+      .filter((value) => Number.isInteger(value) && allowed.has(value))
+      .sort((left, right) => left - right);
+    setSelectedAccountIds(Array.from(new Set(next)));
+  }
+
+  function setDateRange(value: DateRangeValue) {
+    setPeriodPreset("custom");
+    setCustomFrom(value.startDate || "");
+    setCustomTo(value.endDate || "");
+  }
+
   const queryMetadata = hasAccountSelection && selectedProfile && period
     ? `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta" : "contas"} · ${formatBillingRange(period)} · ${GRANULARITY_LABELS[granularity]} · ${GROUP_BY_LABELS[groupBy]} · ${METRIC_LABELS[metric]} · ${excludeRecordTypes.length ? `Exclui ${excludeRecordTypes.join(", ")}` : "Sem exclusões"}`
     : "";
   const anyLoading = summary.loading || previousSummary.loading || timeseries.loading || serviceBreakdown.loading || accountBreakdown.loading;
   const today = localTodayKey();
+  const dateRangeValue: DateRangeValue = periodPreset === "custom"
+    ? { startDate: customFrom || null, endDate: customTo || null }
+    : {
+        startDate: period?.start_date || null,
+        endDate: period ? inclusiveEndDate(period.end_date) : null,
+      };
 
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader
-        eyebrow="BILLING · AWS"
-        title="Billing"
-        description="Consulte custos do AWS Cost Explorer por período, conta, metodologia e perfil. Valores atuais podem estar estimados e não são apresentados como fatura final."
-        actions={
+        title="Uso e custos"
+        description="Analise custos do AWS Cost Explorer por conta, período, serviço e metodologia."
+        metadata={(
+          <div className={styles.headerMetadata}>
+            <ProviderBadge provider="aws" />
+            <span>
+              {selectedAccountIds.length === 0
+                ? "Nenhuma conta selecionada"
+                : `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta selecionada" : "contas selecionadas"}`}
+            </span>
+          </div>
+        )}
+        actions={(
           <>
             {role === "admin" && (
-              <Link className="button ghost" href="/settings/billing/profiles">
-                <Settings2 size={16} /> Gerenciar perfis
+              <Link className={styles.actionLink} href="/settings/billing/profiles">
+                <Settings2 {...iconDefaults} aria-hidden="true" />
+                <span>Gerenciar perfis</span>
               </Link>
             )}
-            <button
-              className="button ghost"
-              type="button"
+            <Button
+              variant="outline"
+              size="sm"
+              leadingIcon={<RefreshCw {...iconDefaults} />}
               disabled={!initialized || !hasAccountSelection || !period || anyLoading}
+              loading={anyLoading && hasAccountSelection}
               onClick={() => setRefreshRevision((value) => value + 1)}
             >
-              <RefreshCw size={16} /> Atualizar
-            </button>
+              Atualizar
+            </Button>
           </>
-        }
+        )}
       />
 
-      {bootstrapError && <div className="alert error" role="alert">{bootstrapError}</div>}
+      {bootstrapError && (
+        <Alert variant="danger" title="Não foi possível preparar o Billing" description={bootstrapError} />
+      )}
 
-      <section className={`panel ${styles.filtersPanel}`} aria-labelledby="billing-filters-title">
-        <div className="panel-heading">
-          <div>
-            <div className="eyebrow">CONSULTA</div>
-            <h2 id="billing-filters-title">Filtros de Billing</h2>
-          </div>
-          {hasOverrides && (
-            <button className="button ghost small" type="button" onClick={restoreProfile}>
-              <RotateCcw size={15} /> Restaurar perfil
-            </button>
+      <Section
+        title="Contas"
+        description="Selecione explicitamente uma ou mais contas. Sem seleção, nenhuma consulta de custo é executada."
+      >
+        <div className={styles.accountContext}>
+          <AccountSelector
+            label="Contas AWS"
+            options={accountOptions}
+            multiple
+            value={selectedAccountIds.map(String)}
+            onChange={setAccountValues}
+            selectAll
+            selectAllLabel="Selecionar todas"
+            clearLabel="Limpar seleção"
+            searchPlaceholder="Buscar contas"
+            emptyLabel="Nenhuma conta AWS disponível"
+            disabled={!initialized}
+          />
+          {initialized && accounts.length > 0 && !hasAccountSelection && (
+            <div className={styles.accountHint} role="status">
+              Selecione ao menos uma conta para consultar os custos.
+            </div>
           )}
         </div>
-        <div className={styles.filtersBody}>
-          <div className={styles.primaryFilters}>
-            <label className={styles.field}>
-              <span>Perfil</span>
-              <select value={profileId} disabled={!initialized || !profiles.length} onChange={(event) => chooseProfile(event.target.value)}>
-                {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.name}{profile.is_default ? " · padrão" : ""}</option>)}
-              </select>
-            </label>
+      </Section>
 
-            <label className={styles.field}>
-              <span>Período</span>
-              <select value={periodPreset} onChange={(event) => setPeriodPreset(event.target.value as BillingPeriodPreset)}>
-                {BILLING_PERIOD_PRESETS.map((preset) => <option key={preset.value} value={preset.value}>{preset.label}</option>)}
-              </select>
-            </label>
+      <Section
+        title="Filtros"
+        description="Refine período, perfil e metodologia para o escopo de contas selecionado."
+      >
+        <FilterBar
+          actions={hasOverrides ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<RotateCcw {...iconDefaults} />}
+              onClick={restoreProfile}
+            >
+              Restaurar perfil
+            </Button>
+          ) : undefined}
+        >
+          <Select
+            label="Perfil"
+            value={profileId}
+            disabled={!initialized || profiles.length === 0}
+            options={profiles.map((profile) => ({
+              value: profile.id,
+              label: `${profile.name}${profile.is_default ? " · padrão" : ""}`,
+            }))}
+            onChange={(event) => chooseProfile(event.target.value)}
+            controlSize="sm"
+          />
+          <DateRangePicker
+            value={dateRangeValue}
+            onChange={setDateRange}
+            presets={BILLING_PERIOD_PRESETS.map((preset) => ({ value: preset.value, label: preset.label }))}
+            presetValue={periodPreset}
+            onPresetChange={(nextPreset) => {
+              if (VALID_PRESETS.has(nextPreset as BillingPeriodPreset)) {
+                setPeriodPreset(nextPreset as BillingPeriodPreset);
+              } else {
+                setPeriodPreset("custom");
+              }
+            }}
+            presetLabel="Período"
+            presetPlaceholder="Escolha um período"
+            startLabel="Data inicial"
+            endLabel="Data final"
+            clearLabel="Limpar datas"
+            maxDate={today}
+            clearable={periodPreset === "custom"}
+          />
+          <Select
+            label="Métrica"
+            value={metric}
+            options={(Object.keys(METRIC_LABELS) as BillingMetric[]).map((value) => ({
+              value,
+              label: METRIC_LABELS[value],
+            }))}
+            onChange={(event) => setMetric(event.target.value as BillingMetric)}
+            controlSize="sm"
+          />
+          <Select
+            label="Granularidade"
+            value={granularity}
+            options={(Object.keys(GRANULARITY_LABELS) as BillingGranularity[]).map((value) => ({
+              value,
+              label: GRANULARITY_LABELS[value],
+            }))}
+            onChange={(event) => setGranularity(event.target.value as BillingGranularity)}
+            controlSize="sm"
+          />
+          <Select
+            label="Agrupamento"
+            value={groupBy}
+            options={(Object.keys(GROUP_BY_LABELS) as BillingGroupBy[]).map((value) => ({
+              value,
+              label: GROUP_BY_LABELS[value],
+            }))}
+            onChange={(event) => setGroupBy(event.target.value as BillingGroupBy)}
+            controlSize="sm"
+          />
+        </FilterBar>
 
-            <label className={styles.field}>
-              <span>Métrica {selectedProfile?.metric !== metric && <em>Sobrescrito</em>}</span>
-              <select value={metric} onChange={(event) => setMetric(event.target.value as BillingMetric)}>
-                {(Object.keys(METRIC_LABELS) as BillingMetric[]).map((value) => <option key={value} value={value}>{METRIC_LABELS[value]}</option>)}
-              </select>
-            </label>
+        {periodPreset === "custom" && !period && (
+          <Alert
+            variant="warning"
+            title="Período personalizado incompleto"
+            description="Informe um intervalo válido, sem datas futuras."
+          />
+        )}
 
-            <label className={styles.field}>
-              <span>Granularidade {selectedProfile?.granularity !== granularity && <em>Sobrescrito</em>}</span>
-              <select value={granularity} onChange={(event) => setGranularity(event.target.value as BillingGranularity)}>
-                {(Object.keys(GRANULARITY_LABELS) as BillingGranularity[]).map((value) => <option key={value} value={value}>{GRANULARITY_LABELS[value]}</option>)}
-              </select>
-            </label>
-
-            <label className={styles.field}>
-              <span>Agrupamento {selectedProfile?.group_by !== groupBy && <em>Sobrescrito</em>}</span>
-              <select value={groupBy} onChange={(event) => setGroupBy(event.target.value as BillingGroupBy)}>
-                {(Object.keys(GROUP_BY_LABELS) as BillingGroupBy[]).map((value) => <option key={value} value={value}>{GROUP_BY_LABELS[value]}</option>)}
-              </select>
-            </label>
+        {selectedProfile && (
+          <div className={styles.profileContext}>
+            <div>
+              <span>Perfil aplicado</span>
+              <strong>{selectedProfile.name}{selectedProfile.is_default ? " · padrão" : ""}</strong>
+            </div>
+            <p>{profileSummary(selectedProfile)}</p>
+            {hasOverrides && <Badge variant="warning">Consulta com override temporário</Badge>}
           </div>
+        )}
 
-          {periodPreset === "custom" && (
-            <div className={styles.customDates}>
-              <label className={styles.field}>
-                <span>Data inicial</span>
-                <input type="date" value={customFrom} max={today} onChange={(event) => setCustomFrom(event.target.value)} />
-              </label>
-              <label className={styles.field}>
-                <span>Data final</span>
-                <input type="date" value={customTo} max={today} onChange={(event) => setCustomTo(event.target.value)} />
-              </label>
-              {!period && <p className={styles.validationMessage}>Informe um intervalo válido, sem datas futuras.</p>}
+        <details className={styles.advancedFilters}>
+          <summary>Mais filtros</summary>
+          <div className={styles.advancedContent}>
+            <div className={styles.advancedHeading}>
+              <strong>Excluir tipos de registro</strong>
+              {!sameStringSet(excludeRecordTypes, selectedProfile?.exclude_record_types || []) && (
+                <Badge variant="warning">Sobrescrito</Badge>
+              )}
             </div>
-          )}
-
-          {selectedProfile && (
-            <div className={styles.profileContext}>
-              <div><span>Perfil aplicado</span><strong>{selectedProfile.name}{selectedProfile.is_default ? " · padrão" : ""}</strong></div>
-              <p>{profileSummary(selectedProfile)}</p>
-              {hasOverrides && <span className={styles.overrideBadge}>Consulta com override temporário</span>}
-            </div>
-          )}
-
-          <fieldset className={styles.accountPicker}>
-            <legend>Contas AWS</legend>
-            <label className={styles.allAccounts}>
-              <input
-                type="checkbox"
-                checked={allAccountsSelected}
-                disabled={!accounts.length}
-                onChange={(event) => setSelectedAccountIds(
-                  billingAccountIdsForSelectAll(
-                    event.target.checked,
-                    accounts.map((account) => account.id),
-                  ),
-                )}
-              />
-              <span><strong>Todas as contas</strong><small>Todas as contas AWS cadastradas e disponíveis ao usuário atual.</small></span>
-            </label>
-            <div className={styles.accountGrid}>
-              {accounts.map((account) => (
-                <label key={account.id} className={styles.accountOption}>
-                  <input
-                    type="checkbox"
-                    checked={selectedAccountIds.includes(account.id)}
-                    onChange={(event) => toggleAccount(account.id, event.target.checked)}
-                  />
-                  <span><strong>{account.name || "Conta AWS"}</strong><small>{account.native_account_id}</small></span>
-                </label>
+            <div className={styles.recordTypeGrid}>
+              {AWS_RECORD_TYPES.map((recordType) => (
+                <Checkbox
+                  key={recordType}
+                  checked={excludeRecordTypes.includes(recordType)}
+                  onChange={(event) => toggleRecordType(recordType, event.target.checked)}
+                  label={recordType}
+                />
               ))}
             </div>
-            {!accounts.length && initialized && <p className={styles.validationMessage}>Nenhuma conta AWS cadastrada está disponível para Billing.</p>}
-            {accounts.length > 0 && !hasAccountSelection && <p className={styles.validationMessage}>Selecione ao menos uma conta.</p>}
-          </fieldset>
+          </div>
+        </details>
+      </Section>
 
-          <details className={styles.advancedFilters}>
-            <summary>Mais filtros</summary>
-            <div>
-              <div className={styles.advancedHeading}>
-                <strong>Excluir tipos de registro</strong>
-                {!sameStringSet(excludeRecordTypes, selectedProfile?.exclude_record_types || []) && <span className={styles.overrideBadge}>Sobrescrito</span>}
-              </div>
-              <div className={styles.recordTypeGrid}>
-                {AWS_RECORD_TYPES.map((recordType) => (
-                  <label key={recordType}>
-                    <input type="checkbox" checked={excludeRecordTypes.includes(recordType)} onChange={(event) => toggleRecordType(recordType, event.target.checked)} />
-                    {recordType}
-                  </label>
-                ))}
-              </div>
-            </div>
-          </details>
+      {queryMetadata && (
+        <div className={styles.queryMetadata}>
+          <strong>Consulta atual:</strong>
+          <span>{queryMetadata}</span>
         </div>
-      </section>
-
-      {queryMetadata && <div className={styles.queryMetadata}><strong>Consulta:</strong> {queryMetadata}</div>}
+      )}
 
       {!hasAccountSelection ? (
-        <section className={`panel ${styles.dataPanel}`} aria-live="polite">
-          <div className={styles.panelBody}>
-            <div className={styles.sectionState}>Selecione ao menos uma conta para consultar os custos.</div>
-          </div>
-        </section>
+        <Section appearance="card">
+          <DataState
+            empty
+            emptyTitle="Selecione uma ou mais contas"
+            emptyDescription="Selecione ao menos uma conta para consultar os custos. Nenhuma consulta ao Cost Explorer é executada enquanto a seleção estiver vazia."
+          >
+            <span />
+          </DataState>
+        </Section>
       ) : (
-        <>
-          <section aria-labelledby="billing-summary-title">
-            <div className={styles.sectionHeading}>
-              <div><span className="eyebrow">RESUMO</span><h2 id="billing-summary-title">Custo do período</h2></div>
-              {period && previousPeriod && <span>Comparação: {formatBillingRange(previousPeriod)} → {formatBillingRange(period)}</span>}
-            </div>
-            <SectionStatus
-              loading={summary.loading}
-              error={summary.error}
-              empty={!summary.loading && !summary.error && Boolean(summary.data) && summary.data!.totals.length === 0}
-              emptyText="Nenhum custo encontrado para o período e filtros selecionados."
-            />
-            {summary.data?.totals.length ? (
-              <div className={styles.kpiGrid}>
+        <div className={styles.analysis}>
+          <Section
+            title="Resumo financeiro"
+            description={period && previousPeriod
+              ? `Comparação: ${formatBillingRange(previousPeriod)} → ${formatBillingRange(period)}`
+              : "Resumo do período selecionado."}
+          >
+            {summary.loading ? (
+              <div className={styles.metricGrid}>
+                <MetricCard label="Custo do período" value={null} loading />
+                <MetricCard label="Custo do período" value={null} loading />
+                <MetricCard label="Custo do período" value={null} loading />
+              </div>
+            ) : summary.error ? (
+              <Alert variant="danger" title="Falha ao carregar o resumo financeiro" description={summary.error} />
+            ) : summary.data?.totals.length ? (
+              <div className={styles.metricGrid}>
                 {summary.data.totals.map((total) => {
                   const previous = previousSummary.data?.totals.find((item) => item.currency === total.currency);
+                  const trend = previous ? variationTrend(total.amount, previous.amount) : null;
+                  const comparisonText = previousSummary.loading
+                    ? "Carregando comparação com o período anterior…"
+                    : previousSummary.error
+                      ? "Comparação com o período anterior indisponível."
+                      : previous
+                        ? (
+                            <>
+                              Anterior:{" "}
+                              <CurrencyDisplay
+                                value={numericAmount(previous.amount)}
+                                currency={previous.currency}
+                                locale="pt-BR"
+                                currencyDisplay="code"
+                                minimumFractionDigits={2}
+                                maximumFractionDigits={2}
+                              />
+                            </>
+                          )
+                        : "Período anterior sem valor na mesma moeda/unidade.";
+                  const variationText = previous ? variationSupportingText(total.amount, previous.amount) : null;
                   return (
-                    <article key={total.currency} className={styles.kpiCard}>
-                      <div className={styles.kpiHeading}>
-                        <span>Custo do período · {total.currency}</span>
-                        <span className={styles.estimatedBadge}>{billingStatusLabel(total.status)}</span>
-                      </div>
-                      <strong>{formatBillingMoney(total.amount, total.currency)}</strong>
-                      <div className={styles.comparisonBlock}>
-                        {previousSummary.loading ? (
-                          <span>Carregando comparação…</span>
-                        ) : previousSummary.error ? (
-                          <span>Comparação indisponível</span>
-                        ) : previous ? (
-                          <>
-                            <span>Anterior: {formatBillingMoney(previous.amount, previous.currency)} · {billingStatusLabel(previous.status).toLocaleLowerCase("pt-BR")}</span>
-                            <b>{formatVariation(total.amount, previous.amount)}</b>
-                          </>
-                        ) : (
-                          <span>Período anterior sem valor na mesma moeda/unidade.</span>
-                        )}
-                      </div>
-                      {total.estimated && <small>Inclui dados estimados pelo AWS Cost Explorer.</small>}
-                    </article>
+                    <MetricCard
+                      key={total.currency}
+                      label={`Custo do período · ${total.currency}`}
+                      value={(
+                        <CurrencyDisplay
+                          value={numericAmount(total.amount)}
+                          currency={total.currency}
+                          locale="pt-BR"
+                          currencyDisplay="code"
+                          minimumFractionDigits={2}
+                          maximumFractionDigits={2}
+                        />
+                      )}
+                      trend={trend || undefined}
+                      status={(
+                        <StatusIndicator
+                          status={statusSemantic(total.status)}
+                          label={billingStatusLabel(total.status)}
+                        />
+                      )}
+                      supportingText={variationText || comparisonText}
+                    />
                   );
                 })}
               </div>
-            ) : null}
-          </section>
-
-          <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-timeseries-title">
-            <div className="panel-heading">
-              <div><div className="eyebrow">TENDÊNCIA</div><h2 id="billing-timeseries-title">Evolução de custos</h2></div>
-              {timeseries.data && (
-                <span className={styles.panelMeta}>
-                  {GRANULARITY_LABELS[timeseries.data.granularity]} · {GROUP_BY_LABELS[timeseries.data.group_by]}
-                </span>
-              )}
-            </div>
-            <div className={styles.panelBody}>
-              <SectionStatus
-                loading={timeseries.loading}
-                error={timeseries.error}
-                empty={!timeseries.loading && !timeseries.error && Boolean(timeseries.data) && timeseries.data!.points.length === 0}
-                emptyText="Nenhum custo encontrado para o período e filtros selecionados."
+            ) : (
+              <EmptyState
+                title="Nenhum custo encontrado"
+                description="Nenhum custo foi retornado para o período e os filtros selecionados."
               />
+            )}
+          </Section>
+
+          <ChartCard
+            title="Evolução de custos"
+            description={timeseries.data
+              ? `${GRANULARITY_LABELS[timeseries.data.granularity]} · ${GROUP_BY_LABELS[timeseries.data.group_by]}`
+              : "Acompanhe a evolução temporal e a composição do custo."}
+            loading={timeseries.loading}
+            error={timeseries.error || undefined}
+            empty={Boolean(timeseries.data) && timeseries.data!.points.length === 0}
+            emptyTitle="Nenhum custo no período"
+            emptyDescription="Não há pontos de custo para os filtros selecionados."
+          >
+            <div className={styles.chartStack}>
               {timeseries.data && chartDatasets.map((dataset) => (
                 <BillingCostChart
                   key={dataset.currency}
@@ -753,43 +934,53 @@ export default function BillingPage() {
                 />
               ))}
             </div>
-          </section>
+          </ChartCard>
 
           <div className={styles.breakdownLayout}>
-            <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-service-title">
-              <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-service-title">Custo por serviço</h2></div></div>
-              <div className={styles.panelBody}>
-                <SectionStatus
-                  loading={serviceBreakdown.loading}
-                  error={serviceBreakdown.error}
-                  empty={!serviceBreakdown.loading && !serviceBreakdown.error && Boolean(serviceBreakdown.data) && serviceBreakdown.data!.items.length === 0}
-                  emptyText="Nenhum serviço com custo foi retornado para esta consulta."
-                />
-                {serviceBreakdown.data?.items.length ? <BreakdownTable items={serviceBreakdown.data.items} kind="service" /> : null}
-              </div>
-            </section>
+            <Section
+              title="Custo por serviço"
+              description="Detalhamento preciso dos serviços com maior impacto no período."
+              appearance="card"
+            >
+              <DataState
+                loading={serviceBreakdown.loading}
+                error={serviceBreakdown.error || undefined}
+                empty={Boolean(serviceBreakdown.data) && serviceBreakdown.data!.items.length === 0}
+                emptyTitle="Nenhum serviço com custo"
+                emptyDescription="Nenhum serviço com custo foi retornado para esta consulta."
+              >
+                {serviceBreakdown.data?.items.length
+                  ? <BreakdownTable items={serviceBreakdown.data.items} kind="service" />
+                  : <span />}
+              </DataState>
+            </Section>
 
             {selectedAccountIds.length > 1 && (
-              <section className={`panel ${styles.dataPanel}`} aria-labelledby="billing-account-title">
-                <div className="panel-heading"><div><div className="eyebrow">BREAKDOWN</div><h2 id="billing-account-title">Custo por conta</h2></div></div>
-                <div className={styles.panelBody}>
-                  <SectionStatus
-                    loading={accountBreakdown.loading}
-                    error={accountBreakdown.error}
-                    empty={!accountBreakdown.loading && !accountBreakdown.error && Boolean(accountBreakdown.data) && accountBreakdown.data!.items.length === 0}
-                    emptyText="Nenhum custo por conta foi retornado para esta consulta."
-                  />
-                  {accountBreakdown.data?.items.length ? <BreakdownTable items={accountBreakdown.data.items} kind="account" /> : null}
-                </div>
-              </section>
+              <Section
+                title="Custo por conta"
+                description="Compare a concentração do custo entre as contas selecionadas."
+                appearance="card"
+              >
+                <DataState
+                  loading={accountBreakdown.loading}
+                  error={accountBreakdown.error || undefined}
+                  empty={Boolean(accountBreakdown.data) && accountBreakdown.data!.items.length === 0}
+                  emptyTitle="Nenhum custo por conta"
+                  emptyDescription="Nenhum custo por conta foi retornado para esta consulta."
+                >
+                  {accountBreakdown.data?.items.length
+                    ? <BreakdownTable items={accountBreakdown.data.items} kind="account" />
+                    : <span />}
+                </DataState>
+              </Section>
             )}
           </div>
-        </>
+        </div>
       )}
 
       <p className={styles.disclaimer}>
-        Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Billing e Fluxo permanecem domínios independentes.
+        Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Forecast e estimativas são identificados apenas quando informados pelo contrato de dados.
       </p>
-    </>
+    </div>
   );
 }

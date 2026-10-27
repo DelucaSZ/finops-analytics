@@ -74,13 +74,16 @@ test("Trend direction and sentiment are independent contracts", () => {
   assert.match(source, /flat: Minus/);
 });
 
-test("selectors support single, multi, search, clear, and explicit select-all without implicit all", () => {
+test("selectors support single, multi, search, clear, localized actions, and explicit select-all without implicit all", () => {
   const source = read("selectors.tsx");
   assert.match(source, /multiple\?: false/);
   assert.match(source, /multiple: true/);
   assert.match(source, /searchable/);
   assert.match(source, /selection\.onChange\(\[\]\)/);
-  assert.match(source, />\s*Select all\s*</);
+  assert.match(source, /selectAllLabel = "Select all"/);
+  assert.match(source, /clearLabel = "Clear"/);
+  assert.match(source, /\{selectAllLabel\}/);
+  assert.match(source, /\{clearLabel\}/);
   assert.doesNotMatch(source, /value\.length === 0.*all/i);
 });
 
@@ -89,6 +92,8 @@ test("DateRangePicker uses viewport-managed native date inputs and caller-config
   assert.match(source, /type="date"/);
   assert.match(source, /presets\.map/);
   assert.match(source, /startDate: null, endDate: null/);
+  assert.match(source, /maxDate\?: string/);
+  assert.match(source, /presetPlaceholder\?: string/);
   assert.doesNotMatch(source, /createPortal|position:\s*absolute/);
 });
 

@@ -15,7 +15,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 9. `docs/brand/aven/AVEN_TECHNICAL_REBRAND.md`
 10. `docs/brand/aven/AVEN_LOGIN_EXPERIENCE.md`
 11. `docs/brand/aven/AVEN_DASHBOARD.md`
-12. the applicable assets and visual references under this directory
+12. `docs/brand/aven/AVEN_BILLING.md`
+13. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -29,7 +30,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.10 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience and first operational-page composition architecture:
+Tasks 24.2–24.11 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference and high-density analytical-page architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -40,6 +41,7 @@ Tasks 24.2–24.10 establish the official token, theme-runtime, visual-foundatio
 - `AVEN_TECHNICAL_REBRAND.md` — public identity, runtime assets, metadata, legacy classification/compatibility, brand lint and raster status;
 - `AVEN_LOGIN_EXPERIENCE.md` — public Login composition, auth preservation, MFA, responsive/theme behavior and Login-specific gates;
 - `AVEN_DASHBOARD.md` — **Aven Page Composition Golden Reference** for authenticated operational pages;
+- `AVEN_BILLING.md` — **High-density analytical reference** for financial filters, metrics, stacked charts, tables and query-gated pages;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -73,6 +75,8 @@ Technical Rebrand
 Aven Login Experience
 ↓
 Aven Page Composition Golden Reference
+↓
+Aven High-density Analytical Reference
 ↓
 Feature Experiences
 ```
@@ -154,6 +158,26 @@ Light / Dark balance
 
 The Dashboard reference is intentionally based on real product contracts. It does not fabricate cost evolution, reservation coverage, resource counts or other metrics that are absent from `/dashboard/summary`. Page-specific domain content remains owned by each feature.
 
+## Aven Billing — High-density Analytical Reference
+
+Task 24.11 migrates Billing / Uso e custos and establishes `AVEN_BILLING.md` as the official reference for dense analytical experiences.
+
+Billing extends the Dashboard composition rules with:
+
+```text
+explicit account query gating
+dense FilterBar composition
+DateRangePicker
+financial MetricCard hierarchy
+stacked cost visualization
+actual / estimated / forecast semantics
+currency-safe presentation
+chart + precision-table composition
+responsive table containment
+```
+
+The critical Billing contract is `[] accounts != all accounts`: no account selection means no Cost Explorer query. The redesign preserves this data/operational rule while modernizing only presentation and composition.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -186,7 +210,7 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, migrated Billing and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
@@ -215,7 +239,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Persistent authenticated navigation/chrome consumes `frontend/components/app-shell/`.
 - Authentication layout composition consumes `frontend/components/auth/` while auth state/API behavior stays in the existing page/service/session layers.
 - Feature pages own APIs, query params, routing, permissions, feature state and business rules.
-- Authenticated feature pages use `AVEN_DASHBOARD.md` for page-level composition unless a documented domain constraint requires deviation.
+- Authenticated feature pages use `AVEN_DASHBOARD.md` for page-level composition; dense analytical pages additionally use `AVEN_BILLING.md` where its constraints apply.
 
 ## Repository note
 
@@ -225,4 +249,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.10 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login and page-composition foundation required for Task 24.11 — Aven Billing / Uso e Custos and the remaining progressive feature-page redesign tasks.
+Tasks 24.2–24.11 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference and high-density analytical foundation required for Task 24.12 — Aven Reservations and the remaining progressive feature-page redesign tasks.
