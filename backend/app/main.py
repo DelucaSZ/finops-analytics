@@ -19,6 +19,7 @@ from app.api.routes import (
     findings,
     finops_flow,
     finops_ledger,
+    inventory,
     mfa,
     opportunities,
     opportunity_discovery,
@@ -93,6 +94,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/opportunity-history",
             "/api/v1/settings/opportunity-policy",
             "/api/v1/rds",
+            "/api/v1/inventory",
         )
     ):
         response.headers["Cache-Control"] = "no-store"
@@ -133,6 +135,7 @@ app.include_router(billing.router, prefix="/api/v1")
 app.include_router(cloudwatch_usage.router, prefix="/api/v1")
 app.include_router(cloudwatch_cost.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
+app.include_router(inventory.router, prefix="/api/v1")
 
 
 @app.get("/health", tags=["system"])
