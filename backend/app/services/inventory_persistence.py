@@ -255,9 +255,9 @@ class InventoryPersistenceService:
         provider = self._validate_context(cloud_account, collection_run)
         observed_at = observed_at or utcnow()
 
-        statuses_by_scope: dict[
-            tuple[str, str | None], set[InventoryCoverageStatus]
-        ] = defaultdict(set)
+        statuses_by_scope: dict[tuple[str, str | None], set[InventoryCoverageStatus]] = defaultdict(
+            set
+        )
         for item in coverage:
             if normalize_provider(item.provider) != provider:
                 raise ValueError("Coverage provider does not match CloudAccount provider")
