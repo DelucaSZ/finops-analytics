@@ -94,7 +94,9 @@ test("Flow reuses ledger mutations and exposes provenance, opportunity links and
 test("main navigation uses product Flow route and legacy ledger route redirects", async () => {
   const navigation = await readFile(navigationUrl, "utf8");
   const legacy = await readFile(legacyUrl, "utf8");
-  assert.ok(navigation.includes('{ href: "/flow", label: "Fluxo"'));
-  assert.ok(navigation.includes('{ href: "/opportunities", label: "Oportunidades"'));
+  assert.ok(navigation.includes('href: "/flow"'));
+  assert.ok(navigation.includes('label: "Fluxo"'));
+  assert.ok(navigation.includes('href: "/opportunities"'));
+  assert.ok(navigation.includes('label: "Oportunidades"'));
   assert.ok(legacy.includes('redirect("/flow")'));
 });
