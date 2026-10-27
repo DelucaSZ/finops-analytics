@@ -102,14 +102,14 @@ export const legacyBrandAllowlist = Object.freeze([
   },
   {
     file: "backend/app/api/routes/accounts.py",
-    pattern: /nuvemiq-[a-z0-9-]+/i,
+    pattern: /nuvemiq-/i,
     classification: "API_CONTRACT",
     reason: "Generated AWS external IDs are security/integration identifiers rather than public branding.",
     futureMigration: "Change prefix only with an explicit IAM/external-ID compatibility plan.",
   },
   {
     file: "backend/app/api/routes/cloud_accounts.py",
-    pattern: /nuvemiq-[a-z0-9-]+/i,
+    pattern: /nuvemiq-/i,
     classification: "API_CONTRACT",
     reason: "Generated AWS external IDs are security/integration identifiers rather than public branding.",
     futureMigration: "Change prefix only with an explicit IAM/external-ID compatibility plan.",
