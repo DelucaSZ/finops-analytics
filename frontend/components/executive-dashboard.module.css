@@ -67,7 +67,7 @@
 }
 
 .comparisonContext {
-  border-block: var(--border-width-subtle) solid var(--border-subtle);
+  border-block: 1px solid var(--border-subtle);
   padding-block: var(--space-3);
 }
 
@@ -94,7 +94,7 @@
 }
 
 .chartRow + .chartRow {
-  border-block-start: var(--border-width-subtle) solid var(--border-subtle);
+  border-block-start: 1px solid var(--border-subtle);
 }
 
 .chartRowHeader {
@@ -143,7 +143,7 @@
 
 .lifecycleItem {
   align-items: center;
-  border-block-end: var(--border-width-subtle) solid var(--border-subtle);
+  border-block-end: 1px solid var(--border-subtle);
   color: var(--text-primary);
   display: grid;
   gap: var(--space-3);
