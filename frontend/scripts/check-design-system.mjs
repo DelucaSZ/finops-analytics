@@ -12,6 +12,8 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "auth"),
   path.join(ROOT, "components", "mfa-settings.tsx"),
   path.join(ROOT, "components", "mfa-settings.module.css"),
+  path.join(ROOT, "components", "access-form.tsx"),
+  path.join(ROOT, "components", "access-form.module.css"),
   path.join(ROOT, "app", "login"),
   path.join(ROOT, "app", "mfa-setup"),
   path.join(ROOT, "app", "dev", "ui"),
