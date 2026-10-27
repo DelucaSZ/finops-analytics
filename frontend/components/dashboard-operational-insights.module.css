@@ -1,0 +1,83 @@
+.link {
+  align-items: center;
+  color: var(--text-link);
+  display: inline-flex;
+  gap: var(--space-2);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--text-link-hover);
+  text-decoration: underline;
+}
+
+.link:focus-visible,
+.details > summary:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.item,
+.itemCopy,
+.details,
+.list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.item {
+  border-block-start: var(--border-width-subtle) solid var(--border-subtle);
+  padding-block-start: var(--space-4);
+}
+
+.itemHeader,
+.badges,
+.running,
+.details > summary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.itemHeader,
+.details > summary {
+  justify-content: space-between;
+}
+
+.itemCopy {
+  color: var(--text-secondary);
+  min-inline-size: 0;
+}
+
+.itemCopy > strong {
+  color: var(--text-primary);
+}
+
+.itemCopy > p,
+.truncated {
+  margin: var(--space-0);
+}
+
+.itemCopy > p {
+  overflow-wrap: anywhere;
+}
+
+.running {
+  color: var(--text-muted);
+}
+
+.details > summary {
+  color: var(--text-primary);
+  cursor: pointer;
+  padding-block: var(--space-2);
+}
+
+.details > summary > span:last-child,
+.truncated {
+  color: var(--text-muted);
+}
+
+.truncated {
+  padding-block-start: var(--space-3);
+}
