@@ -10,7 +10,7 @@ function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
 }
 
-export interface ResourceIdentifierProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
+export interface ResourceIdentifierProps extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "onCopy"> {
   primary: ReactNode;
   technicalId?: string | null;
   copyValue?: string;

@@ -15,7 +15,7 @@ function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
 }
 
-export interface RecommendationCardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title"> {
+export interface RecommendationCardProps extends Omit<HTMLAttributes<HTMLDivElement>, "title" | "resource"> {
   title: ReactNode;
   description?: ReactNode;
   resource?: ReactNode;
