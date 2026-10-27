@@ -60,9 +60,9 @@ class AwsInventoryDiscoveryService:
                     observed = adapter(session, region)
                 except _ScopeFailure as failure:
                     for resource in failure.resources:
-                        resources_by_identity[(
-                            resource.resource_type, resource.resource_id
-                        )] = resource
+                        resources_by_identity[(resource.resource_type, resource.resource_id)] = (
+                            resource
+                        )
                     status = (
                         InventoryCoverageStatus.PARTIAL
                         if failure.pages_seen > 0
