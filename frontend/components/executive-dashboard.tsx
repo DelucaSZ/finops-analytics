@@ -167,7 +167,7 @@ export function ExecutiveDashboard() {
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const state = useMemo<DashboardQueryState>(() => parseDashboardSearchParams(searchKey), [searchKey]);
-  const apiQuery = useMemo(() => buildDashboardApiQuery(state), [state.accountId, state.provider]);
+  const apiQuery = useMemo(() => buildDashboardApiQuery(state), [state]);
   const optionsQuery = useMemo(() => {
     const params = new URLSearchParams({ limit: "100" });
     if (state.provider) params.set("provider", state.provider);
@@ -534,7 +534,7 @@ function ServiceOpportunityChart({
   return (
     <div
       className={styles.serviceChart}
-      role="img"
+      role="group"
       aria-label="Distribuição das oportunidades em aberto por serviço"
     >
       {summary.by_service.map((item) => {
