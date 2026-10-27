@@ -9,6 +9,18 @@ function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
 }
 
+function earlierDate(left?: string | null, right?: string | null) {
+  if (!left) return right ?? undefined;
+  if (!right) return left;
+  return left < right ? left : right;
+}
+
+function laterDate(left?: string | null, right?: string | null) {
+  if (!left) return right ?? undefined;
+  if (!right) return left;
+  return left > right ? left : right;
+}
+
 export interface DateRangePickerProps extends Omit<HTMLAttributes<HTMLDivElement>, "onChange"> {
   value: DateRangeValue;
   onChange: (value: DateRangeValue) => void;
@@ -18,7 +30,10 @@ export interface DateRangePickerProps extends Omit<HTMLAttributes<HTMLDivElement
   startLabel?: string;
   endLabel?: string;
   presetLabel?: string;
+  presetPlaceholder?: string;
   clearLabel?: string;
+  minDate?: string;
+  maxDate?: string;
   disabled?: boolean;
   clearable?: boolean;
 }
@@ -32,7 +47,10 @@ export function DateRangePicker({
   startLabel = "Start date",
   endLabel = "End date",
   presetLabel = "Period",
+  presetPlaceholder = "Choose a period",
   clearLabel = "Clear dates",
+  minDate,
+  maxDate,
   disabled = false,
   clearable = true,
   className,
@@ -59,7 +77,7 @@ export function DateRangePicker({
       {presets.length > 0 && (
         <Select
           label={presetLabel}
-          placeholder="Choose a period"
+          placeholder={presetPlaceholder}
           options={presets.map((preset) => ({ value: preset.value, label: preset.label }))}
           value={activePreset}
           disabled={disabled}
@@ -72,7 +90,8 @@ export function DateRangePicker({
           type="date"
           label={startLabel}
           value={value.startDate ?? ""}
-          max={value.endDate ?? undefined}
+          min={minDate}
+          max={earlierDate(value.endDate, maxDate)}
           disabled={disabled}
           onChange={(event) => {
             if (presetValue == null) setInternalPreset("");
@@ -85,7 +104,8 @@ export function DateRangePicker({
           type="date"
           label={endLabel}
           value={value.endDate ?? ""}
-          min={value.startDate ?? undefined}
+          min={laterDate(value.startDate, minDate)}
+          max={maxDate}
           disabled={disabled}
           onChange={(event) => {
             if (presetValue == null) setInternalPreset("");

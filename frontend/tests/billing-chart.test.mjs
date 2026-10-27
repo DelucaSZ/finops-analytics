@@ -86,7 +86,7 @@ test("grouping participates in the Billing query signature", () => {
   );
 });
 
-test("Billing page exposes grouping and keeps the explicit account guard", async () => {
+test("Aven Billing keeps grouping, chart mapping and the explicit account guard", async () => {
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
 
@@ -94,35 +94,43 @@ test("Billing page exposes grouping and keeps the explicit account guard", async
   assert.ok(page.includes("mapBillingTimeSeriesToChartData"));
   assert.ok(page.includes("!hasBillingAccountSelection(selectedAccountIds)"));
   assert.ok(page.includes("Selecione ao menos uma conta para consultar os custos."));
+  assert.ok(page.includes("<ChartCard"));
   assert.ok(chart.includes("Total do período"));
   assert.ok(chart.includes("gridLine"));
   assert.ok(chart.includes("chartTooltip"));
 });
 
-test("service chart exposes percentages and consolidates minor services into Outros", async () => {
+test("service chart uses Aven visualization tokens and consolidates minor services into Outros", async () => {
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
 
   assert.ok(chart.includes("MAX_SERVICE_SERIES"));
   assert.ok(chart.includes("OTHER_SERIES_KEY"));
-  assert.ok(chart.includes("label: \"Outros\""));
-  assert.ok(chart.includes("formatShare(item.amount, hoveredPeriod.total)"));
+  assert.ok(chart.includes('label: "Outros"'));
+  assert.ok(chart.includes('"var(--chart-series-1)"'));
+  assert.ok(chart.includes('"var(--chart-series-6)"'));
+  assert.ok(chart.includes("seriesColor(item.key)"));
   assert.ok(chart.includes("Serviços de menor custo foram consolidados"));
+  assert.ok(!chart.includes("var(--accent)"));
+  assert.ok(!chart.includes("var(--blue)"));
 });
 
-test("account selector is visually ordered before Billing filters", async () => {
-  const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
+test("account context is composed before Billing filters", async () => {
+  const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
 
-  assert.match(css, /\.accountPicker\s*\{[^}]*order:\s*1;/s);
-  assert.match(css, /\.primaryFilters\s*\{[^}]*order:\s*2;/s);
-  assert.match(css, /\.advancedFilters\s*\{[^}]*order:\s*3;/s);
+  const accountSection = page.indexOf('title="Contas"');
+  const filterSection = page.indexOf('title="Filtros"');
+  assert.ok(accountSection >= 0);
+  assert.ok(filterSection > accountSection);
+  assert.ok(page.includes("<AccountSelector"));
+  assert.ok(page.includes("<FilterBar"));
 });
 
-test("Billing tooltip keeps hover while entering the interactive scroll area", async () => {
+test("Billing tooltip remains interactive and is keyboard reachable", async () => {
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
 
-  assert.match(chart, /className=\{styles\.chartCanvas\}[\s\S]*?onMouseLeave=\{\(\) => setHovered\(null\)\}[\s\S]*?<svg/);
-  assert.ok(chart.includes("tooltipAlignmentForPointer"));
+  assert.ok(chart.includes("tabIndex={0}"));
+  assert.ok(chart.includes("onFocus={() => setHovered"));
   assert.ok(chart.includes('role="tooltip"'));
   assert.ok(chart.includes("title={item.label}"));
   assert.match(css, /\.chartTooltip\s*\{[^}]*pointer-events:\s*auto;/s);
@@ -130,16 +138,25 @@ test("Billing tooltip keeps hover while entering the interactive scroll area", a
   assert.match(css, /\.tooltipSeries\s*\{[^}]*scrollbar-gutter:\s*stable;/s);
 });
 
-test("custom period dates stay in the filter flow next to the period column", async () => {
+test("custom period uses the official DateRangePicker and browser-native date controls", async () => {
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
+  const picker = await readFile(new URL("../components/aven/date-range-picker.tsx", import.meta.url), "utf8");
+
+  assert.ok(page.includes("<DateRangePicker"));
+  assert.ok(page.includes("maxDate={today}"));
+  assert.ok(page.includes('setPeriodPreset("custom")'));
+  assert.ok(!page.includes('<input type="date"'));
+  assert.ok(picker.includes('type="date"'));
+  assert.ok(picker.includes("maxDate"));
+  assert.ok(!picker.includes("position: absolute"));
+});
+
+test("primary chart is responsive and does not force a page-level horizontal scroller", async () => {
+  const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
   const css = await readFile(new URL("../app/billing/billing.module.css", import.meta.url), "utf8");
 
-  assert.ok(page.includes('periodPreset === "custom"'));
-  assert.ok(page.includes('<input type="date" value={customFrom}'));
-  assert.ok(page.includes('<input type="date" value={customTo}'));
-  assert.match(css, /\.customDates\s*\{[^}]*order:\s*2;/s);
-  assert.match(css, /\.customDates > \.field:first-child\s*\{[^}]*grid-column:\s*2;/s);
-  assert.match(css, /\.customDates > \.field:nth-child\(2\)\s*\{[^}]*grid-column:\s*3;/s);
-  assert.match(css, /@media \(max-width: 900px\)[\s\S]*?\.customDates > \.field:first-child\s*\{[^}]*grid-column:\s*1;/s);
-  assert.match(css, /@media \(max-width: 760px\)[\s\S]*?\.customDates,[\s\S]*?grid-template-columns:\s*1fr;/s);
+  assert.ok(chart.includes("viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}"));
+  assert.match(css, /\.chart\s*\{[^}]*inline-size:\s*100%;/s);
+  assert.ok(!css.includes(".chartScroll"));
+  assert.ok(!chart.includes("minWidth:"));
 });

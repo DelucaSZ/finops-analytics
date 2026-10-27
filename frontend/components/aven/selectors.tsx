@@ -16,6 +16,8 @@ interface SelectorCommonProps<T extends ProductSelectorOption> extends Omit<HTML
   searchable?: boolean;
   searchPlaceholder?: string;
   clearable?: boolean;
+  clearLabel?: string;
+  selectAllLabel?: string;
   disabled?: boolean;
   loading?: boolean;
   emptyLabel?: string;
@@ -45,6 +47,8 @@ function ProductSelector<T extends ProductSelectorOption>({
   searchable = false,
   searchPlaceholder = "Search",
   clearable = true,
+  clearLabel = "Clear",
+  selectAllLabel = "Select all",
   disabled = false,
   loading = false,
   emptyLabel = "No options available",
@@ -125,12 +129,12 @@ function ProductSelector<T extends ProductSelectorOption>({
         <div className={styles.selectorActions}>
           {selection.multiple && selection.selectAll && (
             <Button variant="ghost" size="sm" disabled={disabled || loading || options.length === 0} onClick={handleSelectAll}>
-              Select all
+              {selectAllLabel}
             </Button>
           )}
           {clearable && (
             <Button variant="ghost" size="sm" disabled={disabled || loading || !hasSelection} onClick={handleClear}>
-              Clear
+              {clearLabel}
             </Button>
           )}
         </div>
