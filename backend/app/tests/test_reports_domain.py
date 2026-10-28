@@ -6,7 +6,6 @@ from sqlalchemy.orm import Session
 from app.db.base import Base
 from app.db.migrations import migration_config
 from app.models.report import (
-    Report,
     ReportArtifact,
     ReportArtifactFormat,
     ReportExecution,
@@ -283,4 +282,5 @@ def test_foreign_keys_and_cascade_keep_report_graph_integral():
 def test_reports_migration_is_current_head():
     from alembic.script import ScriptDirectory
 
-    assert ScriptDirectory.from_config(migration_config()).get_current_head() == "0038_reports_domain"
+    script_directory = ScriptDirectory.from_config(migration_config())
+    assert script_directory.get_current_head() == "0038_reports_domain"
