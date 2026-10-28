@@ -265,8 +265,9 @@ test("workspace source exposes history without regressing operational semantics"
   assert.match(detail, /Histórico de decisões/);
   assert.match(detail, /OpportunityPresenceHistory/);
   assert.match(detail, /OpportunityArchiveHistory/);
-  assert.match(detail, /Status humano/);
-  assert.match(detail, /Presença técnica/);
+  assert.match(detail, /StatusIndicator status=\{statusTone\(detail\.status\)\} label=\{statusLabel\(detail\.status\)\}/);
+  assert.match(detail, /StatusIndicator status=\{statusTone\(detail\.presence_status\)\} label=\{statusLabel\(detail\.presence_status\)\}/);
+  assert.match(detail, /Decisão atual/);
   assert.match(detail, /Arquivada em/);
   assert.match(detail, /Desarquivar/);
   assert.match(detail, /Ver histórico completo/);
