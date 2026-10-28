@@ -7,6 +7,7 @@ import { scanDirectory, summarize } from "../scripts/check-design-system.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SHELL = path.join(ROOT, "components", "app-shell");
+const BRAND = path.join(ROOT, "components", "brand");
 const ROOT_SHELL = path.join(ROOT, "components", "app-shell.tsx");
 const read = (name) => fs.readFileSync(path.join(SHELL, name), "utf8");
 
@@ -21,6 +22,27 @@ test("Aven Application Shell exposes the required architecture", () => {
   assert.match(source, /<aside/);
   assert.match(source, /<header/);
   assert.match(source, /<main/);
+});
+
+test("sidebar branding uses the central BrandLogo contract for expanded and collapsed states", () => {
+  const shell = read("application-shell.tsx");
+  const styles = read("app-shell.module.css");
+  const brandLogo = fs.readFileSync(path.join(BRAND, "brand-logo.tsx"), "utf8");
+  const brandConfig = fs.readFileSync(path.join(ROOT, "lib", "brand.ts"), "utf8");
+
+  assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
+  assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
+  assert.match(shell, /aria-label=\{`\$\{brand\.name\} — Dashboard`\}/);
+  assert.doesNotMatch(shell, /\/brand\/aven\//);
+
+  assert.match(brandLogo, /brand\.assets\.wordmarkFallback/);
+  assert.match(brandLogo, /brand\.assets\.symbolGradient/);
+  assert.match(brandConfig, /wordmarkFallback: "\/brand\/aven\/aven-logo-horizontal-fallback\.svg"/);
+  assert.match(brandConfig, /symbolGradient: "\/brand\/aven\/aven-icon-gradient\.svg"/);
+
+  assert.match(styles, /html\[data-sidebar="collapsed"\][\s\S]*\.brandWordmark[\s\S]*display: none/);
+  assert.match(styles, /html\[data-sidebar="collapsed"\][\s\S]*\.brandMark[\s\S]*display: block/);
+  assert.doesNotMatch(styles, /brightness\(|invert\(|hue-rotate\(/);
 });
 
 test("navigation preserves the current product destinations in one shared configuration", () => {
@@ -113,6 +135,12 @@ test("shell owns the main scroll container and keeps persistent navigation outsi
   assert.match(styles, /\.mainContent[\s\S]*overflow: auto/);
   assert.match(styles, /\.navigation[\s\S]*overflow-y: auto/);
   assert.match(styles, /@media \(max-width: 850px\)/);
+});
+
+test("sidebar transition uses motion tokens and honors reduced motion", () => {
+  const styles = read("app-shell.module.css");
+  assert.match(styles, /transition: grid-template-columns var\(--motion-duration-normal\) var\(--motion-ease-standard\)/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.shell[\s\S]*transition: none/);
 });
 
 test("hardcode gate is zero for all new and refactored shell sources", () => {

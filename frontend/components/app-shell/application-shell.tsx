@@ -70,7 +70,7 @@ function AvenBrand({ compact = false }: { compact?: boolean }) {
   return (
     <Link className={styles.brandLink} href="/" aria-label={`${brand.name} — Dashboard`}>
       <span className={compact ? styles.brandWordmarkMobile : styles.brandWordmark} aria-hidden="true">
-        <BrandLogo decorative />
+        <BrandLogo variant="wordmark" decorative />
       </span>
       {!compact && (
         <span className={styles.brandMark} aria-hidden="true">
