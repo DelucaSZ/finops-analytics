@@ -77,21 +77,23 @@ test("Reports preserves server-side filters, sorting and pagination", () => {
   assert.equal(patched.get("page"), "1");
 });
 
-test("Report generation UI preserves the existing async scan mutation without fabricating file completion", async () => {
+test("Reports keeps the existing manual collection mutation explicit instead of inventing report-file generation", async () => {
   const launcher = await source("../components/manual-collection-launcher.tsx");
   for (const component of ["Dialog", "DialogTrigger", "DialogContent", "Select", "Button", "Alert", "useToast"]) {
-    assert.ok(launcher.includes(component), `expected ${component} in generation flow`);
+    assert.ok(launcher.includes(component), `expected ${component} in manual collection flow`);
   }
   assert.ok(launcher.includes('`/cloud-accounts/${selected.id}/scans`'));
   assert.ok(launcher.includes('method: "POST"'));
   assert.ok(launcher.includes("if (submitting || !cloudAccountId) return;"));
-  assert.ok(launcher.includes("Relatório enviado para processamento"));
+  assert.ok(launcher.includes("Iniciar coleta"));
+  assert.ok(launcher.includes("Coleta enviada para processamento"));
+  assert.ok(!launcher.includes("Gerar relatório"));
   assert.ok(!launcher.includes("Relatório gerado com sucesso"));
   assert.ok(!launcher.includes("download"));
   assert.ok(!launcher.includes("signed"));
 });
 
-test("Aven AccountSelector supports remote option search for report account filters", async () => {
+test("Aven AccountSelector supports remote option search for asynchronous-history filters", async () => {
   const selectors = await source("../components/aven/selectors.tsx");
   assert.ok(selectors.includes("onSearchChange?: (value: string) => void"));
   assert.ok(selectors.includes("onSearchChange?.(value)"));
@@ -154,6 +156,8 @@ test("Reports documentation records real architecture and unavailable file-expor
     "Polling / Refresh",
     "Download",
     "Generated file formats: N/A",
+    "Report generation preserved?",
+    "N/A — no report-file generation contract exists",
     "RUNNING",
     "SUCCESS",
     "FAILED",
