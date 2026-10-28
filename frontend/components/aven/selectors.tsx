@@ -15,6 +15,7 @@ interface SelectorCommonProps<T extends ProductSelectorOption> extends Omit<HTML
   placeholder?: string;
   searchable?: boolean;
   searchPlaceholder?: string;
+  onSearchChange?: (value: string) => void;
   clearable?: boolean;
   clearLabel?: string;
   selectAllLabel?: string;
@@ -46,6 +47,7 @@ function ProductSelector<T extends ProductSelectorOption>({
   placeholder = "Select",
   searchable = false,
   searchPlaceholder = "Search",
+  onSearchChange,
   clearable = true,
   clearLabel = "Clear",
   selectAllLabel = "Select all",
@@ -105,7 +107,11 @@ function ProductSelector<T extends ProductSelectorOption>({
           placeholder={searchPlaceholder}
           value={search}
           disabled={disabled || loading}
-          onChange={(event) => setSearch(event.target.value)}
+          onChange={(event) => {
+            const value = event.target.value;
+            setSearch(value);
+            onSearchChange?.(value);
+          }}
           controlSize="sm"
         />
       )}
