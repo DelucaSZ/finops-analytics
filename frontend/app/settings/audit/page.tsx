@@ -280,6 +280,7 @@ function UserAutocomplete({
               type="button"
               key={option.id}
               role="option"
+              aria-selected={option.id === selectedId}
               className="button"
               style={{ width: "100%", textAlign: "left", marginBottom: "var(--space-1)" }}
               onClick={() => {
