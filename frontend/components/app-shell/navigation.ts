@@ -1,5 +1,6 @@
 import {
   Activity,
+  Boxes,
   Database,
   History,
   LayoutDashboard,
@@ -28,6 +29,7 @@ export const navigation = [
     activePrefixes: ["/opportunities/collection/"],
   },
   { href: "/opportunities/history-cycles", label: "Histórico", icon: History },
+  { href: "/inventory", label: "Inventory", icon: Boxes },
   { href: "/flow", label: "Fluxo", icon: WalletCards },
   { href: "/billing", label: "Billing", icon: ReceiptText },
   { href: "/rds/reservations", label: "Reservas RDS", icon: Database },
