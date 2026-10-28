@@ -23,6 +23,9 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "opportunity-dialog.module.css"),
   path.join(ROOT, "components", "opportunity-detail.tsx"),
   path.join(ROOT, "components", "opportunity-detail.module.css"),
+  path.join(ROOT, "components", "page-header.tsx"),
+  path.join(ROOT, "components", "manual-collection-launcher.tsx"),
+  path.join(ROOT, "components", "manual-collection-launcher.module.css"),
   path.join(ROOT, "app", "login"),
   path.join(ROOT, "app", "mfa-setup"),
   path.join(ROOT, "app", "billing"),
@@ -37,6 +40,9 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "app", "settings", "security", "page.tsx"),
   path.join(ROOT, "app", "settings", "sessions", "page.tsx"),
   path.join(ROOT, "app", "settings", "billing", "profiles", "page.tsx"),
+  path.join(ROOT, "app", "flow"),
+  path.join(ROOT, "app", "collections"),
+  path.join(ROOT, "app", "scans"),
   path.join(ROOT, "app", "dev", "ui"),
 ];
 const SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
