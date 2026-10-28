@@ -30,7 +30,8 @@ _SENSITIVE_KEY_PARTS = (
     "token",
 )
 _CREDENTIAL_ASSIGNMENT = re.compile(
-    r"(?i)\b(access[_ -]?key|authorization|credential|password|private[_ -]?key|secret|token)\b\s*[:=]\s*\S+"
+    r"(?i)\b(access[_ -]?key|authorization|credential|password|private[_ -]?key|secret|token)\b"
+    r"\s*[:=]\s*\S+"
 )
 _ALLOWED_TRANSITIONS: dict[str, set[str]] = {
     ReportExecutionStatus.QUEUED.value: {ReportExecutionStatus.RUNNING.value},
