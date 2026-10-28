@@ -562,7 +562,7 @@ export function CollectionWorkspace({
               <CollectionTableState
                 loading={loading}
                 error={error}
-                empty={!loading && !error && Boolean(data) && data.items.length === 0}
+                empty={!loading && !error && data !== null && data.items.length === 0}
                 hasFilters={hasFilters}
                 page={state.page}
                 onRetry={() => void listRequest.refetch()}
