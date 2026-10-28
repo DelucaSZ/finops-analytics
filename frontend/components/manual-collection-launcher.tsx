@@ -2,7 +2,19 @@
 
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { Check, Play, X } from "lucide-react";
+import { Play } from "lucide-react";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Select,
+} from "@/components/ui";
+import { iconDefaults } from "@/lib/iconography";
 import styles from "@/components/manual-collection-launcher.module.css";
 import { ApiError, api } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
@@ -37,13 +49,13 @@ function manualCollectionError(error: unknown) {
 }
 
 export function ManualCollectionLauncher() {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  const openerRef = useRef<HTMLButtonElement>(null);
+  const messageTimer = useRef<number | null>(null);
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [role, setRole] = useState("");
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [open, setOpen] = useState(false);
   const [provider, setProvider] = useState("");
   const [cloudAccountId, setCloudAccountId] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -87,6 +99,7 @@ export function ManualCollectionLauncher() {
       });
     return () => {
       active = false;
+      if (messageTimer.current !== null) window.clearTimeout(messageTimer.current);
     };
   }, []);
 
@@ -119,12 +132,12 @@ export function ManualCollectionLauncher() {
     if (eligibleProviders.length === 1) {
       setProvider(eligibleProviders[0].provider);
     }
-    dialogRef.current?.showModal();
+    setOpen(true);
   }
 
   function closeDialog() {
     if (submitting) return;
-    dialogRef.current?.close();
+    setOpen(false);
     setError("");
   }
 
@@ -148,8 +161,9 @@ export function ManualCollectionLauncher() {
       invalidateApiQueries(queryKeys.dashboard.all);
       invalidateApiQueries(queryKeys.collections.all);
       setMessage(`Coleta de ${selected.name} solicitada com sucesso.`);
-      dialogRef.current?.close();
-      window.setTimeout(() => setMessage(""), 5000);
+      setOpen(false);
+      if (messageTimer.current !== null) window.clearTimeout(messageTimer.current);
+      messageTimer.current = window.setTimeout(() => setMessage(""), 5000);
     } catch (requestError) {
       setError(manualCollectionError(requestError));
     } finally {
@@ -161,144 +175,94 @@ export function ManualCollectionLauncher() {
 
   return (
     <>
-      <div className={`${styles.launcher} header-actions`}>
-        <button
-          ref={openerRef}
-          type="button"
-          className="button primary"
-          onClick={openDialog}
-        >
-          <Play size={16} aria-hidden="true" /> Executar coleta
-        </button>
+      <div className={styles.launcher}>
+        <Button leadingIcon={<Play {...iconDefaults} />} onClick={openDialog}>
+          Executar coleta
+        </Button>
       </div>
 
-      <div aria-live="polite">
-        {message && (
-          <div className={`alert success ${styles.feedback}`}>
-            <Check size={17} aria-hidden="true" /> {message}
-          </div>
-        )}
-      </div>
+      {message && <Alert className={styles.feedback} variant="success" description={message} />}
 
-      <dialog
-        ref={dialogRef}
-        aria-labelledby="manual-collection-title"
-        aria-describedby="manual-collection-description"
-        onClose={() => openerRef.current?.focus()}
-        onCancel={(event) => {
-          if (submitting) event.preventDefault();
+      <Dialog
+        open={open}
+        onOpenChange={(nextOpen) => {
+          if (!nextOpen) closeDialog();
+          else setOpen(true);
         }}
-        className={`panel ${styles.dialog}`}
       >
-        <form method="dialog" onSubmit={submit}>
-          <div className="panel-heading">
-            <div>
-              <span className="eyebrow">COLETA MANUAL</span>
-              <h2 id="manual-collection-title">Executar coleta</h2>
-            </div>
-            <button
-              type="button"
-              className="icon-button"
-              aria-label="Fechar"
-              onClick={closeDialog}
-              disabled={submitting}
-            >
-              <X size={18} aria-hidden="true" />
-            </button>
-          </div>
-
-          <div className={styles.body}>
-            <p id="manual-collection-description" className={styles.description}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Executar coleta</DialogTitle>
+            <DialogDescription>
               Selecione uma cloud e uma conta conectada. O escopo já configurado na conta será utilizado.
-            </p>
+            </DialogDescription>
+          </DialogHeader>
 
+          <form className={styles.form} onSubmit={submit}>
             {loadError ? (
-              <div className={`alert error ${styles.inlineAlert}`} role="alert">
-                {loadError}
-              </div>
+              <Alert variant="danger" description={loadError} />
             ) : eligibleProviders.length === 0 ? (
-              <div role="status">
-                <p>Nenhuma conta disponível para coleta manual.</p>
-                <Link href="/settings/accounts" className="button ghost" onClick={closeDialog}>
-                  Ir para Contas
-                </Link>
-              </div>
+              <Alert
+                variant="info"
+                title="Nenhuma conta disponível para coleta manual"
+                actions={(
+                  <Link href="/settings/accounts" className={styles.linkAction} onClick={closeDialog}>
+                    Ir para Contas
+                  </Link>
+                )}
+              />
             ) : (
               <>
-                <label className={styles.field}>
-                  Cloud
-                  <select
-                    aria-label="Cloud"
-                    value={provider}
-                    onChange={(event) => {
-                      setProvider(event.target.value);
-                      setCloudAccountId("");
-                      setError("");
-                    }}
-                    disabled={submitting}
-                    autoFocus
-                  >
-                    <option value="">Selecione</option>
-                    {eligibleProviders.map((item) => (
-                      <option key={item.provider} value={item.provider}>
-                        {item.label || providerLabel(item.provider)}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className={styles.field}>
-                  Conta
-                  <select
-                    aria-label="Conta"
-                    value={cloudAccountId}
-                    onChange={(event) => {
-                      setCloudAccountId(event.target.value);
-                      setError("");
-                    }}
-                    disabled={submitting || !provider}
-                  >
-                    <option value="">Selecione</option>
-                    {providerAccounts.map((account) => (
-                      <option key={account.id} value={String(account.id)}>
-                        {account.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                {provider && providerAccounts.length === 0 && (
-                  <p role="status">Nenhuma conta elegível para esta cloud.</p>
-                )}
+                <Select
+                  label="Cloud"
+                  value={provider}
+                  placeholder="Selecione"
+                  disabled={submitting}
+                  options={eligibleProviders.map((item) => ({
+                    value: item.provider,
+                    label: item.label || providerLabel(item.provider),
+                  }))}
+                  onChange={(event) => {
+                    setProvider(event.target.value);
+                    setCloudAccountId("");
+                    setError("");
+                  }}
+                />
+                <Select
+                  label="Conta"
+                  value={cloudAccountId}
+                  placeholder="Selecione"
+                  disabled={submitting || !provider}
+                  helperText={provider && providerAccounts.length === 0 ? "Nenhuma conta elegível para esta cloud." : undefined}
+                  options={providerAccounts.map((account) => ({
+                    value: String(account.id),
+                    label: account.name,
+                  }))}
+                  onChange={(event) => {
+                    setCloudAccountId(event.target.value);
+                    setError("");
+                  }}
+                />
               </>
             )}
 
-            {error && (
-              <div className={`alert error ${styles.inlineAlert}`} role="alert">
-                {error}
-              </div>
-            )}
+            {error && <Alert variant="danger" description={error} />}
 
-            <div className={styles.actions}>
-              <button
-                type="button"
-                className="button ghost"
-                onClick={closeDialog}
-                disabled={submitting}
-              >
+            <DialogFooter className={styles.actions}>
+              <Button variant="secondary" onClick={closeDialog} disabled={submitting}>
                 Cancelar
-              </button>
-              <button
+              </Button>
+              <Button
                 type="submit"
-                className="button primary"
-                disabled={submitting || !cloudAccountId || eligibleProviders.length === 0}
+                loading={submitting}
+                disabled={!cloudAccountId || eligibleProviders.length === 0}
               >
-                {submitting ? "Solicitando…" : "Executar coleta"}
-              </button>
-            </div>
-          </div>
-        </form>
-      </dialog>
+                Executar coleta
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
