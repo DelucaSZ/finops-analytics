@@ -7,7 +7,6 @@
 .pageHeaderMain,
 .sectionHeader,
 .cardHeaderRow,
-.filterBar,
 .recommendationActions {
   align-items: flex-start;
   display: flex;
@@ -124,23 +123,83 @@
   inline-size: 100%;
 }
 
-.filterPrimary {
+.filterBar {
   align-items: flex-end;
   display: flex;
-  flex: 1;
   flex-wrap: wrap;
-  gap: var(--space-3);
+  gap: var(--space-4);
+  justify-content: space-between;
   min-inline-size: 0;
 }
 
-.filterPrimary > * {
+.filterPrimary,
+.filterSecondary {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--filter-grid-gap);
+  min-inline-size: 0;
+}
+
+.filterPrimary {
   flex: 1 1 auto;
+}
+
+.filterSecondary {
+  flex-basis: 100%;
+}
+
+.filterPrimary > * {
+  flex: 0 1 var(--filter-field-default-inline-size);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
   max-inline-size: 100%;
-  min-inline-size: min(100%, var(--popover-min-inline-size));
+  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+}
+
+.filterSecondary > * {
+  flex: 0 1 var(--filter-field-default-inline-size);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
+  max-inline-size: 100%;
+  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+}
+
+.filterItem {
+  min-inline-size: 0;
+}
+
+.filterItem[data-size="compact"] {
+  flex-basis: var(--filter-field-compact-inline-size);
+  inline-size: min(100%, var(--filter-field-compact-inline-size));
+}
+
+.filterItem[data-size="default"] {
+  flex-basis: var(--filter-field-default-inline-size);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
+}
+
+.filterItem[data-size="wide"] {
+  flex-basis: var(--filter-field-wide-inline-size);
+  inline-size: min(100%, var(--filter-field-wide-inline-size));
+}
+
+.filterItem[data-size="fluid"] {
+  flex: 1 1 var(--filter-field-wide-inline-size);
+  inline-size: auto;
 }
 
 .filterActions {
+  flex: 0 0 auto;
   margin-inline-start: auto;
+}
+
+.filterSummary {
+  color: var(--text-muted);
+  flex-basis: 100%;
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+  min-inline-size: 0;
 }
 
 .filterSurfacePlain {
@@ -245,7 +304,9 @@
 }
 
 .multiSelect {
+  max-block-size: calc(var(--control-height-default) + var(--control-height-default) + var(--control-height-default) + var(--control-height-default) + var(--control-height-default));
   min-block-size: calc(var(--control-height-default) + var(--control-height-default) + var(--space-2));
+  overflow-y: auto;
 }
 
 .dateRangeFields {
@@ -334,7 +395,8 @@
   .sectionActions,
   .cardHeaderActions,
   .filterActions,
-  .filterPrimary {
+  .filterPrimary,
+  .filterSecondary {
     inline-size: 100%;
   }
 
@@ -347,8 +409,14 @@
     margin-inline-start: var(--space-0);
   }
 
-  .filterPrimary > * {
+  .filterPrimary > *,
+  .filterSecondary > *,
+  .filterItem[data-size="compact"],
+  .filterItem[data-size="default"],
+  .filterItem[data-size="wide"],
+  .filterItem[data-size="fluid"] {
     flex-basis: 100%;
+    inline-size: 100%;
   }
 
   .recommendationMetrics,

@@ -138,14 +138,33 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
     const updatePosition = () => {
       const trigger = triggerRef.current;
       const content = contentRef.current;
-      if (trigger && content) setPosition(positionDropdown(trigger.getBoundingClientRect(), content.getBoundingClientRect()));
+      if (!trigger || !content) return;
+      const nextPosition = positionDropdown(trigger.getBoundingClientRect(), content.getBoundingClientRect());
+      setPosition((current) => current
+        && current.top === nextPosition.top
+        && current.left === nextPosition.left
+        && current.maxBlockSize === nextPosition.maxBlockSize
+        && current.minInlineSize === nextPosition.minInlineSize
+        && current.side === nextPosition.side
+        ? current
+        : nextPosition);
     };
+
     updatePosition();
+    const resizeObserver = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(updatePosition);
+    if (triggerRef.current) resizeObserver?.observe(triggerRef.current);
+    if (contentRef.current) resizeObserver?.observe(contentRef.current);
+    const visualViewport = window.visualViewport;
     window.addEventListener("resize", updatePosition);
     window.addEventListener("scroll", updatePosition, true);
+    visualViewport?.addEventListener("resize", updatePosition);
+    visualViewport?.addEventListener("scroll", updatePosition);
     return () => {
+      resizeObserver?.disconnect();
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
+      visualViewport?.removeEventListener("resize", updatePosition);
+      visualViewport?.removeEventListener("scroll", updatePosition);
     };
   }, [children, contentRef, mounted, open, triggerRef]);
 
@@ -168,7 +187,12 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
       className={cx(styles.dropdownContent, className)}
       data-positioned={position ? "true" : "false"}
       data-side={position?.side}
-      style={position ? { top: position.top, left: position.left, maxBlockSize: position.maxBlockSize } : undefined}
+      style={position ? {
+        top: position.top,
+        left: position.left,
+        maxBlockSize: position.maxBlockSize,
+        minInlineSize: position.minInlineSize,
+      } : undefined}
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;

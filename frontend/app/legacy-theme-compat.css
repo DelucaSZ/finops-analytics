@@ -89,14 +89,40 @@ html[data-theme="dark"] {
   background: var(--success-soft);
 }
 
-.login-card input,
-.access-page input,
-.access-page select,
-.access-page textarea,
-.security-card input {
+.login-card input:not([data-aven-control-inner]),
+.access-page input:not([data-aven-control-inner]),
+.access-page select:not([data-aven-control-inner]),
+.access-page textarea:not([data-aven-control-inner]),
+.security-card input:not([data-aven-control-inner]) {
   color: var(--foreground);
   border-color: var(--border);
   background: var(--control-bg);
+}
+
+/*
+ * Aven primitives own the visual boundary. The native element is semantic and
+ * intentionally presentation-neutral so legacy page selectors cannot draw a
+ * second border/background/focus ring inside the shared control shell.
+ */
+input[data-aven-control-inner],
+select[data-aven-control-inner],
+textarea[data-aven-control-inner] {
+  background: transparent;
+  border: var(--space-0);
+  box-shadow: none;
+  color: inherit;
+  outline: var(--space-0);
+}
+
+input[data-aven-control-inner]:focus,
+input[data-aven-control-inner]:focus-visible,
+select[data-aven-control-inner]:focus,
+select[data-aven-control-inner]:focus-visible,
+textarea[data-aven-control-inner]:focus,
+textarea[data-aven-control-inner]:focus-visible {
+  border: var(--space-0);
+  box-shadow: none;
+  outline: var(--space-0);
 }
 
 .copy-inline,

@@ -58,6 +58,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           ref={ref}
           id={selectId}
           className={cx(styles.select, className)}
+          data-aven-control-inner=""
           disabled={disabled}
           multiple={multiple}
           aria-invalid={error ? true : undefined}

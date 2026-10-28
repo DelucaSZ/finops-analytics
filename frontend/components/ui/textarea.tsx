@@ -44,6 +44,7 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaProps>(function 
           ref={ref}
           id={textareaId}
           className={cx(styles.textarea, className)}
+          data-aven-control-inner=""
           data-resize={resize}
           disabled={disabled}
           readOnly={readOnly}
