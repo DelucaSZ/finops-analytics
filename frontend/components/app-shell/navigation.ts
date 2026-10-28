@@ -33,7 +33,7 @@ export const navigation = [
   { href: "/flow", label: "Fluxo", icon: WalletCards },
   { href: "/billing", label: "Billing", icon: ReceiptText },
   { href: "/rds/reservations", label: "Reservas RDS", icon: Database },
-  { href: "/collections", label: "Coletas", icon: Activity },
+  { href: "/collections", label: "Relatórios", icon: Activity },
   { href: "/settings", label: "Configurações", icon: Settings2 },
 ] satisfies readonly NavigationItem[];
 
