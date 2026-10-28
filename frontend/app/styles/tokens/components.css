@@ -35,9 +35,7 @@
   --auth-brand-max-inline-size: calc(var(--space-16) * 8);
   --auth-brand-copy-max-inline-size: calc(var(--space-16) * 7);
   --auth-brand-wordmark-inline-size: calc(var(--shell-brand-wordmark-inline-size) + var(--space-8));
-  --auth-brand-wordmark-block-size: var(--space-12);
   --auth-brand-wordmark-compact-inline-size: var(--shell-brand-wordmark-inline-size);
-  --auth-brand-wordmark-compact-block-size: var(--shell-brand-wordmark-block-size);
   --auth-form-max-inline-size: calc(var(--space-16) * 7);
   --auth-autofill-fill-size: calc(var(--control-height-comfortable) * 2);
 

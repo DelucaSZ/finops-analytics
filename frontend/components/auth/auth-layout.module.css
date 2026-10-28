@@ -27,12 +27,12 @@
 }
 
 .brandLogo img {
-  block-size: var(--auth-brand-wordmark-block-size);
+  block-size: auto;
   inline-size: var(--auth-brand-wordmark-inline-size);
 }
 
 .mobileLogo img {
-  block-size: var(--auth-brand-wordmark-compact-block-size);
+  block-size: auto;
   inline-size: var(--auth-brand-wordmark-compact-inline-size);
 }
 
