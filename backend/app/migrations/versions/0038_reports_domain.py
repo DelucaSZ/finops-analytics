@@ -33,12 +33,8 @@ def upgrade() -> None:
     )
     op.create_index("ix_reports_report_type", "reports", ["report_type"])
     op.create_index("ix_reports_created_by", "reports", ["created_by"])
-    op.create_index(
-        "ix_reports_created_by_created_at", "reports", ["created_by", "created_at"]
-    )
-    op.create_index(
-        "ix_reports_type_created_at", "reports", ["report_type", "created_at"]
-    )
+    op.create_index("ix_reports_created_by_created_at", "reports", ["created_by", "created_at"])
+    op.create_index("ix_reports_type_created_at", "reports", ["report_type", "created_at"])
 
     op.create_table(
         "report_executions",
@@ -74,9 +70,7 @@ def upgrade() -> None:
     )
     op.create_index("ix_report_executions_report_id", "report_executions", ["report_id"])
     op.create_index("ix_report_executions_status", "report_executions", ["status"])
-    op.create_index(
-        "ix_report_executions_requested_by", "report_executions", ["requested_by"]
-    )
+    op.create_index("ix_report_executions_requested_by", "report_executions", ["requested_by"])
     op.create_index(
         "ix_report_executions_report_created",
         "report_executions",
