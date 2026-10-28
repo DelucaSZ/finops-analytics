@@ -1,0 +1,214 @@
+.page {
+  display: grid;
+  gap: var(--space-8);
+  min-inline-size: 0;
+}
+
+.headerActions,
+.toolbar,
+.sectionActions,
+.paginationRow,
+.activeFilters,
+.detailActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.headerActions,
+.sectionActions {
+  justify-content: flex-end;
+}
+
+.pollingNote,
+.secondary,
+.tableMeta,
+.note,
+.technicalId {
+  color: var(--text-muted);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.filterForm {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.filterControls {
+  align-items: end;
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  min-inline-size: 0;
+  width: 100%;
+}
+
+.activeFilters {
+  align-items: flex-start;
+}
+
+.activeFilter {
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-control);
+  color: var(--text-secondary);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+  padding: var(--space-1) var(--space-2);
+}
+
+.summaryGrid,
+.metadataGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.summaryItem,
+.metadataItem {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.summaryItem dt,
+.metadataItem dt {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.summaryItem dd,
+.metadataItem dd {
+  color: var(--text-primary);
+  margin: 0;
+  min-inline-size: 0;
+}
+
+.tableMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+  margin-block-end: var(--space-3);
+}
+
+.reportCell,
+.scopeCell,
+.statusCell {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.reportLink {
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  text-decoration: none;
+}
+
+.reportLink:hover {
+  color: var(--action-primary);
+  text-decoration: underline;
+}
+
+.reportLink:focus-visible {
+  border-radius: var(--radius-control);
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.secondary,
+.technicalId {
+  display: block;
+}
+
+.technicalId {
+  font-family: var(--font-family-mono);
+  overflow-wrap: anywhere;
+}
+
+.scopePrimary {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.paginationRow {
+  align-items: flex-end;
+  border-block-start: 1px solid var(--border-subtle);
+  justify-content: space-between;
+  margin-block-start: var(--space-4);
+  padding-block-start: var(--space-4);
+}
+
+.detailHeader {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  justify-content: space-between;
+}
+
+.detailTitleGroup {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.detailTitle {
+  color: var(--text-primary);
+  font-family: var(--type-heading-md-family);
+  font-size: var(--type-heading-md-size);
+  font-weight: var(--type-heading-md-weight);
+  line-height: var(--type-heading-md-line-height);
+  margin: 0;
+}
+
+.detailStack {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.note {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .filterControls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .page {
+    gap: var(--space-6);
+  }
+
+  .filterControls,
+  .summaryGrid,
+  .metadataGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .headerActions,
+  .sectionActions,
+  .paginationRow,
+  .detailHeader {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
