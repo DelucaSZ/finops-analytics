@@ -2,9 +2,11 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { PageHeader, Section } from "@/components/aven";
+import { Alert, Button, Input } from "@/components/ui";
 import { MfaSettings, MfaStatus } from "@/components/mfa-settings";
-import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
+import styles from "../settings-layout.module.css";
 
 export default function SecurityPage() {
   const router = useRouter();
@@ -22,8 +24,9 @@ export default function SecurityPage() {
   async function load() {
     setMfa(await api<MfaStatus>("/auth/mfa/status"));
   }
+
   useEffect(() => {
-    load().catch((err) => setError(err.message));
+    load().catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar a segurança da conta."));
   }, []);
 
   async function action(run: () => Promise<void>) {
@@ -33,20 +36,19 @@ export default function SecurityPage() {
     try {
       await run();
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Não foi possível concluir.",
-      );
+      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
     } finally {
       setBusy(false);
     }
   }
+
   function changePassword(event: FormEvent) {
     event.preventDefault();
     if (next !== confirm) {
       setError("As senhas não conferem.");
       return;
     }
-    action(async () => {
+    void action(async () => {
       await api("/auth/change-password", {
         method: "POST",
         body: JSON.stringify({
@@ -66,88 +68,74 @@ export default function SecurityPage() {
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES"
         title="Minha segurança"
-        description="Gerencie sua senha e os acessos à sua conta."
+        description="Gerencie sua senha, autenticação multifator e autorização de ações sensíveis."
       />
-      {error && (
-        <p className="form-error" role="alert">
-          {error}
-        </p>
-      )}
-      {message && (
-        <p className="form-success" role="status">
-          {message}
-        </p>
-      )}
+
+      {error && <Alert variant="danger" title="Não foi possível concluir" description={error} />}
+      {message && <Alert variant="success" title="Alteração concluída" description={message} />}
+
       <MfaSettings onStatusChange={setMfa} />
-      <div className="security-grid">
-        <section className="security-card">
-          <h2>Alterar senha</h2>
-          <p>
-            Ao salvar, todas as suas sessões serão encerradas. Entre novamente
-            com a nova senha.
-          </p>
-          <form onSubmit={changePassword}>
-            <label>
-              Senha atual
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Nova senha
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                maxLength={128}
-                value={next}
-                onChange={(event) => setNext(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Confirmar nova senha
-              <input
-                type="password"
-                autoComplete="new-password"
-                minLength={12}
-                maxLength={128}
-                value={confirm}
-                onChange={(event) => setConfirm(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Código MFA ou de recuperação{!mfa?.enabled && " (se ativado)"}
-              <input
-                autoComplete="one-time-code"
-                maxLength={64}
-                value={passwordCode}
-                onChange={(e) => setPasswordCode(e.target.value)}
-                required={mfa?.enabled}
-              />
-            </label>
-            <button className="button primary" disabled={busy}>
-              Salvar senha
-            </button>
+
+      <div className={styles.sectionGrid}>
+        <Section
+          appearance="card"
+          title="Alterar senha"
+          description="Ao salvar, todas as suas sessões serão encerradas. Entre novamente com a nova senha."
+        >
+          <form onSubmit={changePassword} className={styles.formStack}>
+            <Input
+              label="Senha atual"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              required
+            />
+            <Input
+              label="Nova senha"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              value={next}
+              onChange={(event) => setNext(event.target.value)}
+              required
+            />
+            <Input
+              label="Confirmar nova senha"
+              type="password"
+              autoComplete="new-password"
+              minLength={12}
+              maxLength={128}
+              value={confirm}
+              onChange={(event) => setConfirm(event.target.value)}
+              required
+            />
+            <Input
+              label={`Código MFA ou de recuperação${!mfa?.enabled ? " (se ativado)" : ""}`}
+              autoComplete="one-time-code"
+              maxLength={64}
+              value={passwordCode}
+              onChange={(event) => setPasswordCode(event.target.value)}
+              required={mfa?.enabled}
+            />
+            <div className={styles.formActions}>
+              <Button type="submit" loading={busy}>Salvar senha</Button>
+            </div>
           </form>
-        </section>
-        <section className="security-card">
-          <h2>Confirmar identidade</h2>
-          <p>
-            Confirme sua senha e o segundo fator, quando ativado, para autorizar
-            ações administrativas sensíveis pelos próximos cinco minutos.
-          </p>
+        </Section>
+
+        <Section
+          appearance="card"
+          title="Confirmar identidade"
+          description="Confirme sua senha e o segundo fator, quando ativado, para autorizar ações administrativas sensíveis pelos próximos cinco minutos."
+        >
           <form
+            className={styles.formStack}
             onSubmit={(event) => {
               event.preventDefault();
-              action(async () => {
+              void action(async () => {
                 await api("/auth/reauthenticate", {
                   method: "POST",
                   body: JSON.stringify({ password: proof, code: proofCode }),
@@ -158,31 +146,27 @@ export default function SecurityPage() {
               });
             }}
           >
-            <label>
-              Sua senha
-              <input
-                type="password"
-                autoComplete="current-password"
-                value={proof}
-                onChange={(event) => setProof(event.target.value)}
-                required
-              />
-            </label>
-            <label>
-              Código MFA ou de recuperação{!mfa?.enabled && " (se ativado)"}
-              <input
-                autoComplete="one-time-code"
-                maxLength={64}
-                value={proofCode}
-                onChange={(e) => setProofCode(e.target.value)}
-                required={mfa?.enabled}
-              />
-            </label>
-            <button className="button" disabled={busy}>
-              Confirmar identidade
-            </button>
+            <Input
+              label="Sua senha"
+              type="password"
+              autoComplete="current-password"
+              value={proof}
+              onChange={(event) => setProof(event.target.value)}
+              required
+            />
+            <Input
+              label={`Código MFA ou de recuperação${!mfa?.enabled ? " (se ativado)" : ""}`}
+              autoComplete="one-time-code"
+              maxLength={64}
+              value={proofCode}
+              onChange={(event) => setProofCode(event.target.value)}
+              required={mfa?.enabled}
+            />
+            <div className={styles.formActions}>
+              <Button type="submit" variant="outline" loading={busy}>Confirmar identidade</Button>
+            </div>
           </form>
-        </section>
+        </Section>
       </div>
     </>
   );
