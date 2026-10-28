@@ -1,19 +1,19 @@
 .filters {
   display: grid;
   grid-template-columns: minmax(320px, 1fr) 220px 180px;
-  gap: 12px;
+  gap: var(--space-3);
   align-items: end;
-  padding: 16px;
-  margin-bottom: 18px;
+  padding: var(--space-4);
+  margin-bottom: var(--space-5);
 }
 
 .filters label,
 .form label {
   display: grid;
-  gap: 7px;
+  gap: var(--space-2);
   color: var(--muted);
-  font-size: .8125rem;
-  font-weight: 700;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
 }
 
 .filters input,
@@ -21,8 +21,8 @@
 .form input,
 .form select {
   width: 100%;
-  min-height: 40px;
-  padding: 0 11px;
+  min-height: var(--control-height-default);
+  padding: 0 var(--space-3);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   color: var(--text);
@@ -32,7 +32,7 @@
 .search {
   display: grid;
   grid-template-columns: minmax(220px, 1fr) auto;
-  gap: 10px;
+  gap: var(--space-3);
   align-items: end;
 }
 
@@ -42,13 +42,13 @@
 
 .searchInput svg {
   position: absolute;
-  left: 12px;
-  top: 12px;
+  left: var(--space-3);
+  top: var(--space-3);
   color: var(--muted-2);
 }
 
 .searchInput input {
-  padding-left: 38px;
+  padding-left: var(--space-10);
 }
 
 .catalog {
@@ -67,17 +67,17 @@
 
 .table th,
 .table td {
-  padding: 11px 13px;
+  padding: var(--space-3) var(--space-4);
   border-bottom: 1px solid var(--border);
   text-align: left;
   vertical-align: middle;
-  font-size: .8125rem;
+  font-size: var(--font-size-sm);
 }
 
 .table th {
   color: var(--muted-2);
-  font-size: .6875rem;
-  letter-spacing: .04em;
+  font-size: var(--font-size-xs);
+  letter-spacing: var(--letter-spacing-wide);
   text-transform: uppercase;
   background: var(--surface-muted);
 }
@@ -93,14 +93,14 @@
 
 .table td small {
   display: block;
-  margin-top: 2px;
+  margin-top: var(--space-1);
   color: var(--muted-2);
 }
 
 .rowActions {
   display: flex;
   justify-content: flex-end;
-  gap: 7px;
+  gap: var(--space-2);
   white-space: nowrap;
 }
 
@@ -109,23 +109,23 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  padding: 10px 14px;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
   color: var(--muted);
   background: var(--surface-muted);
-  font-size: .8125rem;
+  font-size: var(--font-size-sm);
 }
 
 .pagination > div {
   display: flex;
-  gap: 8px;
+  gap: var(--space-2);
 }
 
 .state {
   min-height: 220px;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: var(--space-6);
   color: var(--muted);
   text-align: center;
 }
@@ -136,16 +136,16 @@
   z-index: 50;
   display: grid;
   place-items: center;
-  padding: 24px;
+  padding: var(--space-6);
   background: var(--overlay);
   backdrop-filter: blur(5px);
 }
 
 .modal {
   width: min(780px, 100%);
-  max-height: calc(100vh - 48px);
+  max-height: calc(100vh - var(--space-12));
   overflow: auto;
-  padding: 20px;
+  padding: var(--space-5);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   background: var(--surface);
@@ -160,29 +160,29 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 18px;
-  margin-bottom: 18px;
+  gap: var(--space-5);
+  margin-bottom: var(--space-5);
 }
 
 .modalHeader h2 {
   margin: 0;
-  font-size: 1.25rem;
+  font-size: var(--font-size-2xl);
 }
 
 .form {
   display: grid;
-  gap: 16px;
+  gap: var(--space-4);
 }
 
 .formGrid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: var(--space-4);
 }
 
 .form label small {
   color: var(--muted-2);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
 }
 
 .fullField {
@@ -192,25 +192,25 @@
 .checkbox {
   display: flex !important;
   align-items: center;
-  gap: 9px !important;
-  min-height: 40px;
+  gap: var(--space-2) !important;
+  min-height: var(--control-height-default);
 }
 
 .checkbox input {
-  width: 18px !important;
-  min-height: 18px !important;
+  width: var(--icon-size-lg) !important;
+  min-height: var(--icon-size-lg) !important;
   accent-color: var(--accent);
 }
 
 .preview {
   display: grid;
-  gap: 5px;
-  padding: 13px;
+  gap: var(--space-1);
+  padding: var(--space-3);
   border: 1px solid var(--primary);
   border-radius: var(--radius-md);
   color: var(--muted);
   background: var(--success-soft);
-  font-size: .8125rem;
+  font-size: var(--font-size-sm);
 }
 
 .preview strong {
@@ -220,19 +220,19 @@
 .formActions {
   display: flex;
   justify-content: flex-end;
-  gap: 9px;
+  gap: var(--space-2);
 }
 
 .historyList {
   display: grid;
-  gap: 10px;
+  gap: var(--space-3);
 }
 
 .historyList article {
   display: grid;
   grid-template-columns: 1fr 1.4fr 1fr;
-  gap: 18px;
-  padding: 14px;
+  gap: var(--space-5);
+  padding: var(--space-4);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   background: var(--surface-muted);
@@ -240,20 +240,20 @@
 
 .historyList article > div {
   display: grid;
-  gap: 3px;
+  gap: var(--space-1);
 }
 
 .historyList strong {
   color: var(--text);
-  font-size: .875rem;
+  font-size: var(--font-size-md);
 }
 
 .historyList span {
   color: var(--muted);
-  font-size: .75rem;
+  font-size: var(--font-size-xs);
 }
 
-@media (max-width: 980px) {
+@media (max-width: 62rem) {
   .filters {
     grid-template-columns: 1fr 1fr;
   }
@@ -263,7 +263,7 @@
   }
 }
 
-@media (max-width: 680px) {
+@media (max-width: 48rem) {
   .filters,
   .formGrid {
     grid-template-columns: 1fr;

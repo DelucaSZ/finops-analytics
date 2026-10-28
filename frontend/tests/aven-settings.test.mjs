@@ -116,8 +116,9 @@ test("Settings migration is included in lint and design-system scopes", async ()
   assert.ok(packageJson.includes("--file app/settings/security/page.tsx"));
   assert.ok(packageJson.includes("--file app/settings/sessions/page.tsx"));
   assert.ok(packageJson.includes("--file app/settings/billing/profiles/page.tsx"));
-  assert.ok(gate.includes('path.join(ROOT, "app", "settings", "settings-layout.module.css")'));
-  assert.ok(gate.includes('path.join(ROOT, "app", "settings", "settings-page.module.css")'));
+  assert.ok(gate.includes('path.join(ROOT, "app", "settings")'));
+  assert.ok(!gate.includes('path.join(ROOT, "app", "settings", "settings-layout.module.css")'));
+  assert.ok(!gate.includes('path.join(ROOT, "app", "settings", "settings-page.module.css")'));
 });
 
 test("Settings documentation records the Functional Foundation and invented-feature gates", async () => {

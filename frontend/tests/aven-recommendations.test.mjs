@@ -146,8 +146,9 @@ test("Recommendations is included in normal lint and design-system scopes", asyn
   const packageJson = await source("../package.json");
   const gate = await source("../scripts/check-design-system.mjs");
   assert.ok(packageJson.includes("--dir app/opportunities"));
-  assert.ok(gate.includes('path.join(ROOT, "app", "opportunities", "page.tsx")'));
-  assert.ok(gate.includes('path.join(ROOT, "app", "opportunities", "opportunities.module.css")'));
+  assert.ok(gate.includes('path.join(ROOT, "app", "opportunities")'));
+  assert.ok(!gate.includes('path.join(ROOT, "app", "opportunities", "page.tsx")'));
+  assert.ok(!gate.includes('path.join(ROOT, "app", "opportunities", "opportunities.module.css")'));
 });
 
 test("Recommendations documentation records the decision-support contracts", async () => {
