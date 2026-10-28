@@ -23,7 +23,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 17. `docs/brand/aven/AVEN_FLOW_AND_SECONDARY_PAGES.md`
 18. `docs/brand/aven/AVEN_DATA_VISUALIZATION_SYSTEM.md`
 19. `docs/brand/aven/AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md`
-20. the applicable assets and visual references under this directory
+20. `docs/brand/aven/AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md`
+21. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -37,7 +38,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.18 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation, Settings, Flow/secondary-page, visualization and responsive-consistency architecture:
+Tasks 24.2–24.19 establish and close the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation, Settings, Flow/secondary-page, visualization, responsive-consistency and final QA architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -56,6 +57,7 @@ Tasks 24.2–24.18 establish the official token, theme-runtime, visual-foundatio
 - `AVEN_FLOW_AND_SECONDARY_PAGES.md` — **Flow and existing-secondary-page reference** for functional-foundation auditing, preserved ledger/collection contracts, route classification, test baseline/integrity and scoped legacy migration;
 - `AVEN_DATA_VISUALIZATION_SYSTEM.md` — **Visualization-system reference** for chart semantic roles, categorical series, accessible chart behavior and Light/Dark chart tokens;
 - `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md` — **Cross-page responsive/consistency reference** for shell/page rhythm, shared breakpoints, tables, overlays, scroll ownership, accessibility and viewport audit rules;
+- `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md` — **Phase 24 closure reference** for route coverage, Light/Dark/System QA, regression gates, brand/hardcode audit, proof-before-delete legacy cleanup and preserved compatibility contracts;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -105,6 +107,8 @@ Aven Flow & Existing Secondary Pages Reference
 Aven Data Visualization System
 ↓
 Aven Responsive & UI Consistency
+↓
+Aven Visual QA & Legacy Cleanup
 ↓
 Feature Experiences
 ```
@@ -244,6 +248,20 @@ Task 24.17 standardizes existing analytical visualizations without introducing n
 
 Task 24.18 applies a cross-page responsive and consistency pass without changing product capability. `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md` defines the shared composition thresholds, 1366×768 baseline, page rhythm, overflow strategy, overlay collision handling, scroll ownership, responsive accessibility expectations, test strategy and cross-page audit matrix.
 
+## Aven Visual QA & Legacy Cleanup
+
+Task 24.19 closes Phase 24 with a router-derived route inventory, final Light/Dark/System and responsive QA, functional-regression gates, public-brand and hardcode scans, accessibility/overlay/scroll checks and proof-before-delete legacy cleanup. `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md` is the authoritative closure record and explicitly documents compatibility identifiers and visual migration infrastructure that must remain until a separately planned migration can retire them safely.
+
+The closure rule is deliberately stricter than a textual rename:
+
+```text
+zero active legacy visual experience
++
+zero visible old branding
++
+zero unsafe cleanup
+```
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -276,7 +294,7 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, Recommendations, refactored Settings surfaces, Flow, existing secondary pages and `/dev/ui` preview instead of failing on historical debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, complete Recommendations and Settings route families, Flow, existing secondary pages and `/dev/ui` preview instead of failing on unrelated historical debt.
 
 ## Layer dependency rule
 
@@ -312,6 +330,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Settings and future secondary-page migrations use `AVEN_SETTINGS.md` to enforce the Functional Foundation Gate and prohibit invented capabilities during visual redesign.
 - Flow and remaining existing-secondary-page migrations use `AVEN_FLOW_AND_SECONDARY_PAGES.md` to preserve real contracts, route classification, test integrity and scoped legacy cleanup.
 - Existing charts use `AVEN_DATA_VISUALIZATION_SYSTEM.md`; responsive/cross-page changes use `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md`.
+- Final route/theme/brand/legacy closure work uses `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md` and must preserve technical compatibility contracts unless their removal is independently proven safe.
 
 ## Repository note
 
@@ -321,4 +340,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.18 provide the design-system, product-composition, persistent-shell, technical-brand, Login, page, visualization and responsive-consistency foundations required for Task 24.19 — Visual QA Light/Dark + Legacy UI Cleanup.
+Tasks 24.2–24.19 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login, page, visualization, responsive-consistency and final visual-QA foundations for the Aven Phase 24 transformation. The final closure status is recorded in `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md` and is valid only when its CI and browser-evidence gates are green.
