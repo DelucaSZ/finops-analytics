@@ -1,6 +1,6 @@
 .page {
   display: grid;
-  gap: var(--space-8);
+  gap: var(--space-6);
   min-inline-size: 0;
 }
 
@@ -146,7 +146,7 @@
   padding-block-start: var(--space-4);
 }
 
-@media (max-width: 1100px) {
+@media (max-width: 78rem) {
   .metricsGrid,
   .advancedGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -157,22 +157,14 @@
   }
 }
 
-@media (max-width: 700px) {
-  .page {
-    gap: var(--space-6);
-  }
-
+@media (max-width: 48rem) {
   .metricsGrid,
   .advancedGrid {
     grid-template-columns: minmax(0, 1fr);
   }
 
   .selectionBar,
-  .paginationRow {
-    align-items: stretch;
-    flex-direction: column;
-  }
-
+  .paginationRow,
   .sortControls {
     align-items: stretch;
     flex-direction: column;
