@@ -1,0 +1,107 @@
+name: Task 24.18 visual evidence
+
+on:
+  pull_request:
+    branches:
+      - task/24.18-aven-responsive-consistency
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  visual-evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare isolated validation environment
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp .env.example .env
+          {
+            echo "POSTGRES_DB=nuvemiq"
+            echo "POSTGRES_USER=nuvemiq"
+            echo "POSTGRES_PASSWORD=stage21-ci-postgres-password"
+            echo "DATABASE_URL=postgresql+psycopg://nuvemiq:stage21-ci-postgres-password@db:5432/nuvemiq"
+            echo "NUVEMIQ_ENVIRONMENT=development"
+            echo "NUVEMIQ_SECRET_KEY=stage21-ci-secret-key-with-at-least-32-characters"
+            echo "NUVEMIQ_ADMIN_EMAIL=stage21-admin@example.com"
+            echo "NUVEMIQ_ADMIN_PASSWORD=Stage21-test-password-482!"
+            echo "NUVEMIQ_MFA_REQUIRED=false"
+            echo "NUVEMIQ_OCI_CREDENTIALS_KEY=$(python3 -c 'import base64, os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())')"
+            echo "NUVEMIQ_OCI_CREDENTIALS_KEY_VERSION=stage21-ci"
+            echo "NEXT_PUBLIC_API_URL=/api/v1"
+          } >> .env
+
+      - name: Build and start isolated application stack
+        run: |
+          docker compose -p aven-24-18-visual build
+          docker compose -p aven-24-18-visual up -d
+
+      - name: Wait for application readiness
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in $(seq 1 75); do
+            api_ready=false
+            web_ready=false
+            if curl --fail --silent http://127.0.0.1/health >/dev/null 2>&1; then
+              api_ready=true
+            fi
+            if curl --fail --silent http://127.0.0.1/ >/dev/null 2>&1; then
+              web_ready=true
+            fi
+            if [ "$api_ready" = true ] && [ "$web_ready" = true ]; then
+              exit 0
+            fi
+            sleep 2
+          done
+          docker compose -p aven-24-18-visual ps
+          docker compose -p aven-24-18-visual logs --no-color
+          exit 1
+
+      - name: Install browser validation runtime
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false playwright
+          npx playwright install --with-deps chromium
+
+      - name: Run viewport and theme evidence matrix
+        working-directory: frontend
+        env:
+          AVEN_VISUAL_BASE_URL: http://127.0.0.1
+          AVEN_VISUAL_EMAIL: stage21-admin@example.com
+          AVEN_VISUAL_PASSWORD: Stage21-test-password-482!
+        run: node scripts/aven-visual-validation.mjs
+
+      - name: Upload visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aven-24-18-visual-evidence
+          path: frontend/visual-evidence
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Capture stack logs
+        if: always()
+        run: docker compose -p aven-24-18-visual logs --no-color > aven-24-18-visual-stack.log 2>&1 || true
+
+      - name: Upload stack logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aven-24-18-visual-stack-logs
+          path: aven-24-18-visual-stack.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Tear down isolated stack
+        if: always()
+        run: docker compose -p aven-24-18-visual down -v --remove-orphans
