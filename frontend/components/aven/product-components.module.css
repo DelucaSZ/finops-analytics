@@ -149,7 +149,13 @@
   flex-basis: 100%;
 }
 
-.filterPrimary > *,
+.filterPrimary > * {
+  flex: 0 1 var(--filter-field-default-inline-size);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
+  max-inline-size: 100%;
+  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+}
+
 .filterSecondary > * {
   flex: 0 1 var(--filter-field-default-inline-size);
   inline-size: min(100%, var(--filter-field-default-inline-size));
