@@ -21,8 +21,8 @@ function clampInlinePosition(preferredLeft: number, overlayWidth: number, inset:
 
 export function positionDropdown(trigger: DOMRect, overlay: DOMRect): DropdownPosition {
   const inset = readViewportInset();
-  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - inset);
-  const availableAbove = Math.max(0, trigger.top - inset);
+  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - inset - inset);
+  const availableAbove = Math.max(0, trigger.top - inset - inset);
   const side = overlay.height > availableBelow && availableAbove > availableBelow ? "top" : "bottom";
   const maxBlockSize = side === "top" ? availableAbove : availableBelow;
   const visibleHeight = Math.min(overlay.height, maxBlockSize);
@@ -40,8 +40,8 @@ export function positionDropdown(trigger: DOMRect, overlay: DOMRect): DropdownPo
 
 export function positionTooltip(trigger: DOMRect, overlay: DOMRect): OverlayPosition {
   const inset = readViewportInset();
-  const availableAbove = Math.max(0, trigger.top - inset);
-  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - inset);
+  const availableAbove = Math.max(0, trigger.top - inset - inset);
+  const availableBelow = Math.max(0, window.innerHeight - trigger.bottom - inset - inset);
   const placeAbove = overlay.height <= availableAbove || availableAbove >= availableBelow;
   const preferredTop = placeAbove
     ? trigger.top - inset - overlay.height
