@@ -19,7 +19,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 13. `docs/brand/aven/AVEN_RESERVATIONS.md`
 14. `docs/brand/aven/AVEN_INVENTORY.md`
 15. `docs/brand/aven/AVEN_RECOMMENDATIONS.md`
-16. the applicable assets and visual references under this directory
+16. `docs/brand/aven/AVEN_REPORTS.md`
+17. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -33,7 +34,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.14 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory and recommendation decision-support architecture:
+Tasks 24.2–24.15 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation decision-support and asynchronous report/history architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -48,6 +49,7 @@ Tasks 24.2–24.14 establish the official token, theme-runtime, visual-foundatio
 - `AVEN_RESERVATIONS.md` — **Operational reservations reference** for coverage, utilization, expirations, RDS opportunity semantics and backend-owned matching;
 - `AVEN_INVENTORY.md` — **Cloud resource exploration reference** for persisted inventory, technical identifiers, provider context and dense tables;
 - `AVEN_RECOMMENDATIONS.md` — **FinOps decision-support reference** for optimization opportunities, potential savings, impact, confidence and action-oriented workflows;
+- `AVEN_REPORTS.md` — **Asynchronous reports/history reference** for background processing, terminal status, conditional polling, report history and future generated-file/download workflows;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -89,6 +91,8 @@ Aven Reservations Operational Reference
 Aven Inventory Resource Reference
 ↓
 Aven Recommendations Decision-support Reference
+↓
+Aven Reports Async/History Reference
 ↓
 Feature Experiences
 ```
@@ -210,6 +214,14 @@ Recommendations preserves the backend recommendation engine, lifecycle actions a
 
 The page uses `RecommendationCard` for small curated result sets and Table primitives for larger result sets/history, preserving analytical density instead of turning the backlog into a wall of oversized cards.
 
+## Aven Reports — Asynchronous Reports / History Reference
+
+Task 24.15 migrates the real asynchronous history surface behind `/collections` into the Aven Reports experience and establishes `AVEN_REPORTS.md` as the reference for background processing, status-oriented history and future generated-file/download workflows.
+
+The audit found no independent report-file engine or `/reports` API. The migration therefore preserves `CollectionRun` as the real history record, preserves the existing manual scan/collection submit flow, server-side filters/sorting/pagination and conditional polling, and deliberately does not invent PDF/CSV/XLSX, signed URLs, download, retry, cancel or delete actions that the backend does not support.
+
+Reports uses the official `PageHeader`, `FilterBar`, provider/account selectors, `StatusIndicator`, `Table`, `Pagination`, `Dialog`, `Alert`, `Skeleton`, `EmptyState` and `Toast` contracts. `RUNNING`, `SUCCESS` and `FAILED` remain the only CollectionRun statuses. Polling remains active only while a run is `RUNNING` and the tab is visible.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -242,7 +254,7 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, Recommendations and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, Recommendations, Reports and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
@@ -275,6 +287,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Operational reservation pages use `AVEN_RESERVATIONS.md` for coverage/utilization/expiration/opportunity semantics.
 - Resource-exploration pages use `AVEN_INVENTORY.md` for persisted inventory, technical identifiers and provider/resource table semantics.
 - Decision-support and optimization pages use `AVEN_RECOMMENDATIONS.md` for savings, impact, confidence, resource context, workflow status and action semantics.
+- Asynchronous/history pages use `AVEN_REPORTS.md` for terminal/non-terminal status, conditional polling, history tables and generated-file actions only when backed by a real API contract.
 
 ## Repository note
 
@@ -284,4 +297,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.14 provide the design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference, analytical, Reservations, Inventory and Recommendations foundations required for Task 24.15 — Aven Reports and the remaining progressive feature-page redesign tasks.
+Tasks 24.2–24.15 provide the design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference, analytical, Reservations, Inventory, Recommendations and Reports foundations required for Task 24.16 — Aven Settings / Configurações and the remaining progressive feature-page redesign tasks.
