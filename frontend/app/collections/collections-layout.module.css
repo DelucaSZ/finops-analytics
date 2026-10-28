@@ -239,14 +239,14 @@
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 1000px) {
+@media (max-width: 62rem) {
   .scope :global(.opportunity-filter-grid),
   .scope :global(.collection-metadata) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 48rem) {
   .scope :global(.opportunity-filter-grid),
   .scope :global(.collection-metadata) {
     grid-template-columns: minmax(0, 1fr);

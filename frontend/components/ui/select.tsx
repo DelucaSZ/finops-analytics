@@ -32,6 +32,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     controlSize = "md",
     className,
     disabled,
+    multiple,
     "aria-describedby": ariaDescribedBy,
     ...props
   },
@@ -49,6 +50,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       <div
         className={styles.selectShell}
         data-size={controlSize}
+        data-multiple={multiple || undefined}
         data-disabled={disabled || undefined}
         data-error={Boolean(error) || undefined}
       >
@@ -57,6 +59,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           id={selectId}
           className={cx(styles.select, className)}
           disabled={disabled}
+          multiple={multiple}
           aria-invalid={error ? true : undefined}
           aria-describedby={describedBy}
           {...props}
