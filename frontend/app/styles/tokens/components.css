@@ -28,6 +28,17 @@
   --shell-brand-wordmark-filter-dark: none;
   --shell-user-trigger-max-inline-size: calc(var(--space-16) + var(--space-16) + var(--space-16));
 
+  /* Shared authentication composition. */
+  --auth-layout-padding: var(--space-12);
+  --auth-layout-padding-medium: var(--space-8);
+  --auth-layout-padding-compact: var(--space-4);
+  --auth-brand-max-inline-size: calc(var(--space-16) * 8);
+  --auth-brand-copy-max-inline-size: calc(var(--space-16) * 7);
+  --auth-brand-wordmark-inline-size: calc(var(--shell-brand-wordmark-inline-size) + var(--space-8));
+  --auth-brand-wordmark-compact-inline-size: var(--shell-brand-wordmark-inline-size);
+  --auth-form-max-inline-size: calc(var(--space-16) * 7);
+  --auth-autofill-fill-size: calc(var(--control-height-comfortable) * 2);
+
   --card-background: var(--elevation-1-surface);
   --card-border: var(--elevation-1-border);
   --card-radius: var(--radius-card);
