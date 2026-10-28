@@ -4,36 +4,32 @@
 
 Task 24.15 establishes the Aven reference for asynchronous operational history, status-oriented processing and report-like execution results without inventing a file-generation subsystem that does not exist in the product.
 
-The user-facing Reports experience is exposed through the existing `/collections` route. The route is preserved for compatibility; the Application Shell label and page title are now **Relatórios**.
-
-The design goal is:
+The user-facing Reports experience is exposed through the existing `/collections` route. The route remains unchanged for compatibility; the Application Shell label and page title are **Relatórios**.
 
 ```text
 Aven Application Shell
 ↓
 PageHeader
 ↓
-Generate / process action
+Supported operational action
 ↓
 FilterBar
 ↓
-Report history
+Report History
 ↓
-Status / result
+Status / Result
 ↓
 Supported action
 ```
 
-The central product rule remains: **Complexity underneath. Clarity above.**
-
 ## Existing Report Architecture
 
-The pre-24.15 audit found **no independent Reports domain, `/reports` frontend route, `/reports` backend route, file-generation queue, signed-download endpoint or generated-file storage contract**.
+The audit found **no independent Reports domain, `/reports` frontend route, `/reports` backend route, report-file generation queue, signed-download endpoint or generated-file storage contract**.
 
-The real asynchronous reporting/history architecture already present in the product is:
+The real asynchronous history architecture is:
 
 ```text
-Manual action
+Manual collection action
 ↓
 POST /cloud-accounts/{cloud_account_id}/scans
 ↓
@@ -47,57 +43,55 @@ GET /collections/{collection_id}
 Persisted status, scope, timings and opportunity totals
 ```
 
-`CollectionRun` is therefore the current report/history record. Task 24.15 modernizes that real architecture rather than fabricating a parallel report engine.
+`CollectionRun` is therefore the current history/result record surfaced by Reports. Task 24.15 modernizes that real architecture rather than creating a parallel report engine.
 
-The related `/scans` endpoint remains a lower-level execution record. The Reports experience uses the richer `CollectionRun` query/detail contract because it already provides provider/account context, server-side filters, server-side pagination, sorting, retained-detail semantics and conditional polling.
+The lower-level `/scans` endpoint is preserved. Reports uses the richer CollectionRun contract because it already provides provider/account context, server-side filters, pagination, sorting, retained-detail semantics and efficient conditional polling.
 
 ## Page Composition
 
-The Reports page follows the authenticated Aven Golden Reference:
+The page follows the Aven Golden Reference:
 
-1. `PageHeader`
-2. primary action and refresh
-3. `FilterBar`
-4. optional account context
-5. `Section` containing Report History
-6. official `Table`
-7. official `Pagination`
-8. detail `Section` for a selected `CollectionRun`
+1. `PageHeader`;
+2. supported primary action and refresh;
+3. `FilterBar`;
+4. optional account context;
+5. `Section` containing Report History;
+6. official `Table`;
+7. official `Pagination`;
+8. detail `Section` for a selected `CollectionRun`.
 
 The page owns orchestration and URL state. Visual contracts come from `frontend/components/aven/` and `frontend/components/ui/`.
 
-No Reports-specific button, badge, table system or theme branch is introduced.
-
 ## Report Generation
 
-There is no generated-file report engine today.
+Report-file generation is **N/A** in the current product architecture.
 
-The only existing manual generation-like action is the existing cloud analysis mutation:
+The existing manual action is **Iniciar coleta**, not “Gerar relatório”. It preserves the real mutation:
 
 ```text
 POST /cloud-accounts/{id}/scans
 ```
 
-Task 24.15 preserves that action, permissions, provider capability checks, duplicate-submit protection and query invalidation. It is presented through the official Aven `Dialog`, `Select`, `Button`, `Alert` and `Toast` primitives.
+Task 24.15 preserves its permissions, provider capability checks, duplicate-submit protection and query invalidation while migrating presentation to the official `Dialog`, `Select`, `Button`, `Alert` and `Toast` primitives.
 
-The success copy is intentionally asynchronous:
+The asynchronous success feedback is:
 
-> Relatório enviado para processamento
+> Coleta enviada para processamento
 
-The UI does not claim that a file has already been generated.
+The UI never claims that a report file was generated.
 
 ## Report Parameters
 
-The manual action preserves the parameters actually supported by the backend:
+There is no report-file generation form and therefore no file-format parameter contract.
+
+The existing manual collection action preserves only parameters actually accepted by its flow:
 
 - provider/cloud;
 - connected cloud account.
 
-The account's existing configured scope remains authoritative.
+The account's configured scope remains authoritative.
 
-No report type, PDF/CSV/XLSX/JSON format, environment, arbitrary date range or file-retention parameter is added to the submit mutation because those parameters do not exist in the current backend contract.
-
-The history query preserves the existing real filters:
+The history query preserves the real filters:
 
 - provider;
 - native account ID;
@@ -106,36 +100,23 @@ The history query preserves the existing real filters:
 - `date_to`;
 - analyzer version.
 
+No report type, PDF/CSV/XLSX/JSON format, environment, file-retention option or unsupported submit parameter is invented.
+
 ## Report History
 
-Report History is backed by:
-
-```text
-GET /collections
-```
-
-The page preserves:
+Report History is backed by `GET /collections` and preserves:
 
 - server-side filtering;
 - server-side sorting;
 - server-side pagination;
-- `page_size` values of 25, 50 and 100;
-- default ordering by `started_at desc`;
+- page sizes 25 / 50 / 100;
+- default `started_at desc` ordering;
 - `opportunities_found` as the existing alternate sort field;
 - URL-owned filter/sort/page state;
-- previous-data behavior while a new page/filter request is fetching;
+- previous-data behavior while fetching;
 - detail prefetch on row interaction.
 
-The table prioritizes:
-
-- Report / execution time + technical ID;
-- scope (provider + account);
-- status;
-- duration;
-- resources analyzed;
-- opportunities found.
-
-This keeps the 1366×768 information horizon useful without adding columns for data the backend does not expose.
+The table prioritizes Report/execution time, scope, status, duration, resources and opportunities so 1366×768 remains useful without adding unsupported columns.
 
 ## Status Model
 
@@ -147,79 +128,67 @@ The real CollectionRun status contract is exactly:
 | `SUCCESS` | Success / Concluída | Yes |
 | `FAILED` | Danger / Falhou | Yes |
 
-A successful run with persisted warnings is presented as a warning-oriented completed state rather than inventing a fourth backend status.
+A `SUCCESS` run with persisted warnings is presented with warning semantics without inventing another backend status.
 
-Status is never color-only: `StatusIndicator` supplies label and icon semantics.
-
-A failed CollectionRun remains a valid history row. It is business/process state, not a page-load failure.
+A failed CollectionRun remains a valid history row. It is process state, not a page-load failure. Status never depends only on color because `StatusIndicator` provides text and icon semantics.
 
 ## Polling / Refresh
 
-The existing efficient polling lifecycle is preserved:
+The existing polling lifecycle is preserved:
 
 ```text
-poll interval: 15 seconds
-only while at least one visible CollectionRun is RUNNING
+interval: 15 seconds
+only while at least one CollectionRun is RUNNING
 only while document.visibilityState === "visible"
-stop automatically when no RUNNING item remains
+stop when no RUNNING item remains
 clear interval on dependency change/unmount
 ```
 
-Detail polling follows the same rule for a selected `CollectionRun`.
+Detail polling follows the same rule. Manual refresh remains available.
 
-Manual refresh remains available.
-
-Theme preference is not part of the query key or polling lifecycle. Switching Light/Dark/System therefore does not start a new timer, reset filters, reset pagination or cause a report refetch by design.
+Theme preference is not part of the query key or timer lifecycle, so Light/Dark/System changes do not create report refetches, new timers, filter resets or pagination resets.
 
 ## Download
 
 Download behavior: **N/A**.
 
-The audit found no generated report file, download endpoint, signed URL, file path or file-availability field in the current report/history architecture.
+The audit found no generated report file, download endpoint, signed URL, file path or file-availability field. Task 24.15 therefore renders no fake or disabled Download action and generates no files in the frontend.
 
-Task 24.15 therefore does **not** render a disabled or fake Download action and does not generate files in the frontend.
-
-When a future backend adds a real generated-file contract, the action must be enabled only from backend-confirmed file availability and should use the official Button/IconButton patterns.
+A future download action must be backed by a real backend file-availability contract before it can appear.
 
 ## Actions
 
-Current supported actions are:
+Supported actions:
 
-- generate/start a new manual execution, when the current user role and provider/account capabilities allow it;
+- start a manual collection when role/provider/account capabilities allow it;
 - refresh history/detail;
-- open a CollectionRun detail;
+- open CollectionRun detail;
 - inspect comparison data while detailed observations are retained;
 - open opportunities associated with a retained CollectionRun.
 
-Current unsupported actions are intentionally absent:
+Unsupported and intentionally absent:
 
 - file download;
-- retry failed job;
-- regenerate same parameters as a distinct backend report action;
+- retry failed report job;
+- regenerate report file;
 - cancel;
 - delete.
 
 ### Status/action matrix
 
-| Status | View detail | View retained opportunities/comparison | Download | Retry | Cancel | Delete |
+| Status | View detail | Retained opportunities/comparison | Download | Retry | Cancel | Delete |
 |---|---|---|---|---|---|---|
-| `RUNNING` | Yes | Backend retention dependent | N/A | No | No | No |
-| `SUCCESS` | Yes | Backend retention dependent | N/A | No | No | No |
-| `FAILED` | Yes | Backend retention dependent | N/A | No | No | No |
-
-No unsupported action is synthesized in the frontend.
+| `RUNNING` | Yes | Retention dependent | N/A | No | No | No |
+| `SUCCESS` | Yes | Retention dependent | N/A | No | No | No |
+| `FAILED` | Yes | Retention dependent | N/A | No | No | No |
 
 ## Filters
 
-`FilterBar` preserves the existing filters and submit semantics.
+`FilterBar` preserves the existing submit semantics.
 
-Provider uses the official `ProviderSelector`.
+Provider uses `ProviderSelector`. Account uses `AccountSelector` for available account options. The reusable selector now supports an optional `onSearchChange` hook for server-backed option-search integrations without creating a Reports-only selector.
 
-Account uses the official `AccountSelector` for available account options. Task 24.15 extends the reusable selector with an optional `onSearchChange` hook so report pages can drive server-backed option search without inventing a Reports-only control.
-
-The backend period contract is datetime-based and applies `[date_from, date_to)` to `started_at`. The current official `DateRangePicker` is date-only, so Task 24.15 deliberately keeps official `Input type="datetime-local"` controls rather than silently losing time-of-day/timezone boundary semantics.
-
-This is an applicability decision, not a new date picker implementation.
+The backend period contract is datetime-based and applies `[date_from, date_to)` to `started_at`. The current official `DateRangePicker` is date-only, so Reports deliberately keeps official `Input type="datetime-local"` controls rather than silently dropping time-of-day/timezone boundaries.
 
 ## Sorting
 
@@ -228,164 +197,125 @@ Sorting remains server-side and limited to the existing allowlist:
 - `started_at`;
 - `opportunities_found`.
 
-Direction remains `asc` / `desc`.
-
-No client-side re-sort is introduced over a paginated sample.
+Direction remains `asc` / `desc`. No client-side re-sort over a paginated sample is introduced.
 
 ## Pagination
 
-Pagination remains server-side. The page uses the official Aven `Pagination` primitive and preserves page-size options 25 / 50 / 100.
-
-Filtering or sorting resets the page through the existing `patchCollectionQuery()` contract.
-
-The page never loads an unbounded report history.
+Pagination remains server-side through the official `Pagination` primitive. Filtering/sorting resets to page 1 through the existing `patchCollectionQuery()` contract. History is never loaded unbounded.
 
 ## Loading
 
-Initial list/detail loads use structural Aven `Skeleton` states.
-
-A polling refresh does not replace already rendered rows with skeletons. Existing content remains visible while status/data refreshes, with a small `StatusIndicator` for the updating state.
+Initial list/detail loads use structural `Skeleton` states. Polling refresh keeps existing rows visible and updates status/data in place instead of replacing the table with skeletons.
 
 ## Empty
 
 The page distinguishes:
 
-- no reports processed yet;
-- no reports matching current filters;
+- no report-like executions processed yet;
+- no results for current filters;
 - an empty later page.
 
-Filtered empty state offers a clear-filters action.
+Filtered empty state offers clear-filters behavior.
 
 ## Error
 
-Page/query failures use official `Alert` presentation and offer retry where useful.
+Load failures use `Alert` and retry where appropriate. CollectionRun `FAILED` is not confused with an API-load failure.
 
-CollectionRun `FAILED` is not treated as a history API failure.
-
-Failure details only use the sanitized/persisted backend `error_detail`; the page does not expose credentials, tokens, internal bucket paths or raw stack traces by adding new frontend diagnostics.
-
-Option-loading failures remain isolated from the report-history query.
+The page only surfaces persisted/safe error detail already provided by the backend; it does not add raw stack traces, credentials, tokens or storage internals.
 
 ## File Formats
 
 Generated file formats: N/A.
 
-No PDF, CSV, XLSX or JSON generation contract exists in the audited runtime architecture.
-
-Task 24.15 does not promise or emulate those formats.
+No PDF, CSV, XLSX or JSON generation contract exists in the audited architecture, and Task 24.15 does not emulate one.
 
 ## Report Branding
 
-The migrated experience uses Aven public branding through the existing Application Shell and Aven Design System.
+The migrated experience uses Aven public branding through Application Shell and the Aven Design System.
 
-Generated PDF branding: N/A because there is no generated PDF engine in the current contract.
+Generated PDF branding: N/A.
 
-CSV/XLSX branding: N/A because those generated formats do not exist in the current contract.
+CSV/XLSX branding: N/A.
 
 No visible DeepOps or NuvemIQ branding is introduced in the migrated Reports experience.
 
 ## Light Theme
 
-Light theme uses the same semantic surface/text/action/status tokens as the Aven Golden Reference. There is no Reports-specific palette.
+Light uses the Golden Reference semantic surface, text, action and status tokens. No Reports-specific palette is introduced.
 
 ## Dark Theme
 
-Dark theme uses semantic token remapping from the Theme Engine. Status, table, filter and dialog readability do not depend on a page-local dark override, glow or hardcoded color.
+Dark uses Theme Engine semantic remapping. Table, filters, statuses and dialog remain legible without local dark branches, neon or glow.
 
 ## Responsive Behavior
 
-Reports remains inside Application Shell scroll ownership.
+The page remains inside Application Shell scroll ownership and targets 1280 / 1366 / 1440 / 1600 / 1920 / 2560 plus narrower layouts.
 
-The composition is designed for:
-
-- 1280;
-- 1366;
-- 1440;
-- 1600;
-- 1920;
-- 2560;
-- narrower layouts.
-
-At lower widths:
-
-- filters reduce from three columns to two and then one;
-- metadata grids stack;
-- header/section actions stack when needed;
-- the official Table wrapper owns horizontal containment;
-- the page does not introduce global `overflow-x` or a second viewport-height scroll owner.
+At smaller widths filters reduce from three columns to two and then one, metadata grids stack, header/section actions stack, and the official Table wrapper owns horizontal containment. No global page overflow or second viewport-height scroll owner is introduced.
 
 ## Accessibility
 
-The migrated experience uses:
-
-- semantic `PageHeader`/section heading hierarchy;
-- real form labels through `Input`, `Select`, `ProviderSelector` and `AccountSelector`;
-- semantic table primitives;
-- text + icon status semantics;
-- native Aven `Dialog` focus/cancel behavior;
-- official Button loading state for duplicate-submit protection;
-- `Alert` for load/process failures;
-- accessible Pagination controls;
-- focus-visible behavior from the Aven primitives.
+The migrated experience uses semantic heading composition, real form labels, semantic tables, text + icon status semantics, official Dialog focus behavior, Button loading state, Alerts, accessible Pagination and primitive focus-visible behavior.
 
 Status never relies only on color.
 
 ## Performance
 
-Task 24.15 does not add a report endpoint or extra polling family.
+Task 24.15 adds no report endpoint and no new polling family.
 
-Preserved request behavior:
+Preserved behavior:
 
 - list query remains server-side;
 - options query remains metadata-scoped;
-- account option search stays debounced/server-backed where used;
+- existing option lookup stays bounded/debounced where used;
 - polling occurs only while `RUNNING` exists;
 - hidden tabs do not poll;
-- terminal histories do not keep a timer alive;
+- terminal histories keep no timer alive;
 - manual mutation invalidates existing dashboard/collection query families;
-- no theme-dependent query key is introduced.
+- theme is absent from report query keys.
 
 ## Legacy Migration
 
-Removed/replaced from the migrated Reports surfaces:
+Removed/replaced on the migrated Reports surfaces:
 
-- legacy `PageHeader` consumption;
-- legacy `StatusBadge`/collection status CSS presentation;
+- legacy PageHeader consumption;
+- legacy collection status presentation;
 - legacy panel/table/button composition in CollectionWorkspace;
-- custom native-dialog visual implementation in the manual launcher;
+- custom native-dialog styling in the manual launcher;
 - hardcoded launcher spacing/radius/colors/typography;
-- absolute-positioned primary action outside the official PageHeader.
+- absolute-positioned primary action outside PageHeader.
 
-The underlying `/collections` route, CollectionRun backend model, scan mutation, query contracts and comparison behavior remain intact.
+Preserved:
 
-Legacy styles used by unrelated collection-comparison screens are not deleted solely for visual cleanup.
+- `/collections` route;
+- CollectionRun model and API contracts;
+- manual scan mutation;
+- permissions/capability checks;
+- query/filter/sort/pagination behavior;
+- comparison behavior;
+- conditional polling lifecycle.
+
+Legacy styles still used by unrelated comparison surfaces are not deleted only for cleanup.
 
 ## Golden Reference Alignment
 
 Task 24.15 reuses:
 
-- Task 24.10: PageHeader, Section hierarchy, page rhythm, loading/empty/error composition;
-- Task 24.11: FilterBar and high-density table behavior;
-- Task 24.13: provider/account technical context, Table and Pagination patterns;
-- Task 24.14: status/action prioritization and decision-oriented feedback.
+- Task 24.10: PageHeader, Section hierarchy, loading/empty/error composition;
+- Task 24.11: FilterBar and dense-table behavior;
+- Task 24.13: provider/account context, Table and Pagination;
+- Task 24.14: status/action prioritization and clear feedback.
 
-Reports becomes the Aven reference for:
-
-- asynchronous status;
-- background processing history;
-- terminal vs non-terminal state;
-- conditional polling;
-- generation-like submit feedback;
-- future generated-file/download workflows once a real backend contract exists.
+Reports becomes the Aven reference for asynchronous status, background processing history, terminal/non-terminal state, conditional polling, and future generated-file/download workflows only after a real backend contract exists.
 
 ## Functional Regression Gate
 
 ```text
 Report generation preserved?
-YES — existing manual scan/collection submission preserved; generated-file engine N/A.
+N/A — no report-file generation contract exists; existing manual collection submission remains preserved.
 
 Report parameters preserved?
-YES — real provider/account submission and history filters preserved.
+N/A for report-file generation; YES for existing manual collection parameters and history filters.
 
 Report history preserved?
 YES
@@ -419,8 +349,6 @@ NO
 
 Migrated Reports files are included in `lint:design-system`.
 
-Expected result:
-
 ```text
 Hardcoded colors: 0
 Hardcoded structural spacing: 0
@@ -428,7 +356,7 @@ Hardcoded border radius: 0
 Hardcoded typography: 0
 ```
 
-`lint:brand` remains authoritative for visible DeepOps/NuvemIQ references.
+`lint:brand` remains authoritative for visible legacy branding.
 
 ## Task 24.16 Readiness
 
