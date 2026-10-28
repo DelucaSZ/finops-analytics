@@ -21,7 +21,9 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 15. `docs/brand/aven/AVEN_RECOMMENDATIONS.md`
 16. `docs/brand/aven/AVEN_SETTINGS.md`
 17. `docs/brand/aven/AVEN_FLOW_AND_SECONDARY_PAGES.md`
-18. the applicable assets and visual references under this directory
+18. `docs/brand/aven/AVEN_DATA_VISUALIZATION_SYSTEM.md`
+19. `docs/brand/aven/AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md`
+20. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -35,7 +37,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.16 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation, Settings, Flow and existing-secondary-page architecture:
+Tasks 24.2–24.18 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation, Settings, Flow/secondary-page, visualization and responsive-consistency architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -52,6 +54,8 @@ Tasks 24.2–24.16 establish the official token, theme-runtime, visual-foundatio
 - `AVEN_RECOMMENDATIONS.md` — **FinOps decision-support reference** for optimization opportunities, potential savings, impact, confidence and action-oriented workflows;
 - `AVEN_SETTINGS.md` — **Settings migration reference** for the Functional Foundation Gate, route-based configuration navigation, forms, persistence, permissions, secrets and no-invented-feature rule;
 - `AVEN_FLOW_AND_SECONDARY_PAGES.md` — **Flow and existing-secondary-page reference** for functional-foundation auditing, preserved ledger/collection contracts, route classification, test baseline/integrity and scoped legacy migration;
+- `AVEN_DATA_VISUALIZATION_SYSTEM.md` — **Visualization-system reference** for chart semantic roles, categorical series, accessible chart behavior and Light/Dark chart tokens;
+- `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md` — **Cross-page responsive/consistency reference** for shell/page rhythm, shared breakpoints, tables, overlays, scroll ownership, accessibility and viewport audit rules;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -97,6 +101,10 @@ Aven Recommendations Decision-support Reference
 Aven Settings Functional Foundation Reference
 ↓
 Aven Flow & Existing Secondary Pages Reference
+↓
+Aven Data Visualization System
+↓
+Aven Responsive & UI Consistency
 ↓
 Feature Experiences
 ```
@@ -228,6 +236,14 @@ Flow continues to represent the existing FinOps ledger and does not become a new
 
 Legacy aliases `/finops/ledger` and `/security` remain redirects instead of receiving duplicate UI. No nonexistent route or backend capability is created to complete navigation.
 
+## Aven Data Visualization System
+
+Task 24.17 standardizes existing analytical visualizations without introducing new analytics. `AVEN_DATA_VISUALIZATION_SYSTEM.md` defines semantic chart series/structure roles, theme mapping, accessible interaction and the canonical `ChartCard` state-container contract.
+
+## Aven Responsive & UI Consistency
+
+Task 24.18 applies a cross-page responsive and consistency pass without changing product capability. `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md` defines the shared composition thresholds, 1366×768 baseline, page rhythm, overflow strategy, overlay collision handling, scroll ownership, responsive accessibility expectations, test strategy and cross-page audit matrix.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -295,6 +311,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Decision-support and optimization pages use `AVEN_RECOMMENDATIONS.md` for savings, impact, confidence, resource context, workflow status and action semantics.
 - Settings and future secondary-page migrations use `AVEN_SETTINGS.md` to enforce the Functional Foundation Gate and prohibit invented capabilities during visual redesign.
 - Flow and remaining existing-secondary-page migrations use `AVEN_FLOW_AND_SECONDARY_PAGES.md` to preserve real contracts, route classification, test integrity and scoped legacy cleanup.
+- Existing charts use `AVEN_DATA_VISUALIZATION_SYSTEM.md`; responsive/cross-page changes use `AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md`.
 
 ## Repository note
 
@@ -304,4 +321,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.16 provide the design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference, analytical, Reservations, Inventory, Recommendations, Settings, Flow and existing-secondary-page foundations required for Task 24.17 — Aven Data Visualization System.
+Tasks 24.2–24.18 provide the design-system, product-composition, persistent-shell, technical-brand, Login, page, visualization and responsive-consistency foundations required for Task 24.19 — Visual QA Light/Dark + Legacy UI Cleanup.
