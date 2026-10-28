@@ -23,7 +23,7 @@
   --shell-page-gutter-compact: var(--space-4);
   --shell-navigation-row-block-size: var(--control-height-comfortable);
   --shell-brand-wordmark-inline-size: calc(var(--space-16) + var(--space-16));
-  --shell-brand-wordmark-block-size: var(--space-6);
+  --shell-brand-wordmark-block-size: var(--space-10);
   --shell-brand-mark-size: var(--space-8);
   --shell-brand-wordmark-filter-dark: none;
   --shell-user-trigger-max-inline-size: calc(var(--space-16) + var(--space-16) + var(--space-16));
