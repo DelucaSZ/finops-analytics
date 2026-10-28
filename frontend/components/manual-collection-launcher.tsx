@@ -149,7 +149,7 @@ export function ManualCollectionLauncher() {
       setOpen(false);
       toast({
         variant: "success",
-        title: "Relatório enviado para processamento",
+        title: "Coleta enviada para processamento",
         description: `A execução de ${selected.name} foi solicitada e aparecerá no histórico conforme o processamento avançar.`,
       });
     } catch (requestError) {
@@ -183,12 +183,12 @@ export function ManualCollectionLauncher() {
       }}
     >
       <DialogTrigger leadingIcon={<Play {...iconDefaults} />}>
-        Gerar relatório
+        Iniciar coleta
       </DialogTrigger>
       <DialogContent>
         <form className={styles.form} onSubmit={submit}>
           <DialogHeader>
-            <DialogTitle>Gerar relatório</DialogTitle>
+            <DialogTitle>Iniciar coleta manual</DialogTitle>
             <DialogDescription>
               Selecione uma cloud e uma conta conectada. O escopo configurado na conta será usado para iniciar uma nova execução assíncrona.
             </DialogDescription>
@@ -241,7 +241,7 @@ export function ManualCollectionLauncher() {
               loading={submitting}
               disabled={!cloudAccountId || eligibleProviders.length === 0}
             >
-              Enviar para processamento
+              Iniciar processamento
             </Button>
           </DialogFooter>
         </form>
