@@ -29,6 +29,7 @@ import { queryKeys } from "@/lib/query-keys.mjs";
 import { invalidateApiQueries } from "@/lib/server-state";
 import { canRunCloudAnalysis } from "@/lib/settings-navigation.mjs";
 import type { CloudAccount, ProviderCapabilities, Scan } from "@/lib/types";
+import styles from "./manual-collection-launcher.module.css";
 
 type CurrentUser = { role: string };
 
@@ -185,7 +186,7 @@ export function ManualCollectionLauncher() {
         Gerar relatório
       </DialogTrigger>
       <DialogContent>
-        <form onSubmit={submit}>
+        <form className={styles.form} onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>Gerar relatório</DialogTitle>
             <DialogDescription>
