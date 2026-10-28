@@ -1,15 +1,36 @@
 "use client";
 
 import Link from "next/link";
-import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { RefreshCw } from "lucide-react";
+import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
+import {
+  AccountSelector,
+  FilterBar,
+  PageHeader,
+  ProviderBadge,
+  ProviderSelector,
+  Section,
+  StatusIndicator,
+} from "@/components/aven";
+import {
+  Alert,
+  Button,
+  EmptyState,
+  Input,
+  Pagination,
+  Select,
+  Skeleton,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui";
 import { ApiError, formatDate } from "@/lib/api";
 import { formatAccountLabel, formatNumber, providerLabel } from "@/lib/cloud.mjs";
-import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
-import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import {
   COLLECTION_STATUSES,
   buildCollectionQuery,
@@ -19,33 +40,37 @@ import {
   parseCollectionQuery,
   patchCollectionQuery,
 } from "@/lib/collection-query.mjs";
+import { iconDefaults } from "@/lib/iconography";
+import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
+import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import type {
   CollectionDetail,
   CollectionItem,
   CollectionOptions,
   CollectionPage,
 } from "@/lib/types";
+import styles from "./collection-workspace.module.css";
 
 const number = (value: number) => formatNumber(value);
+
 function preciseDate(value: string | null) {
   return value ? new Date(value).toLocaleString("pt-BR") : "—";
 }
 
+function runStatusTone(run: CollectionItem) {
+  if (run.status === "SUCCESS") return run.has_warnings ? "warning" as const : "success" as const;
+  if (run.status === "FAILED") return "danger" as const;
+  if (run.status === "RUNNING") return "pending" as const;
+  return "neutral" as const;
+}
+
 function RunStatus({ run }: { run: CollectionItem }) {
-  const Icon =
-    run.status === "SUCCESS"
-      ? CheckCircle2
-      : run.status === "FAILED"
-        ? CircleAlert
-        : Clock3;
+  const label = COLLECTION_STATUSES[run.status] || run.status;
   return (
-    <span
-      className={`collection-status collection-${run.status.toLowerCase()}`}
-    >
-      <Icon size={16} aria-hidden="true" />
-      {COLLECTION_STATUSES[run.status] || run.status}
-      {run.has_warnings ? " · com avisos" : ""}
-    </span>
+    <StatusIndicator
+      status={runStatusTone(run)}
+      label={run.has_warnings && run.status === "SUCCESS" ? `${label} · com avisos` : label}
+    />
   );
 }
 
@@ -57,18 +82,100 @@ function RunLink({
   href: (id: string) => string;
 }) {
   return run ? (
-    <Link href={href(run.id)}>
-      <RunStatus run={run} /> · {formatDate(run.started_at)}
-    </Link>
+    <span className={styles.statusCell}>
+      <Link className={styles.reportLink} href={href(run.id)}>
+        {formatDate(run.started_at)}
+      </Link>
+      <RunStatus run={run} />
+    </span>
   ) : (
-    <span>Nenhuma registrada</span>
+    <span className={styles.secondary}>Nenhuma registrada</span>
   );
+}
+
+function CollectionTableState({
+  loading,
+  error,
+  empty,
+  hasFilters,
+  page,
+  onRetry,
+  onClear,
+}: {
+  loading: boolean;
+  error: string;
+  empty: boolean;
+  hasFilters: boolean;
+  page: number;
+  onRetry: () => void;
+  onClear: () => void;
+}) {
+  if (loading) {
+    return (
+      <TableBody>
+        {Array.from({ length: 5 }, (_, row) => (
+          <TableRow key={row} staticRow>
+            {Array.from({ length: 6 }, (_, cell) => (
+              <TableCell key={cell}><Skeleton /></TableCell>
+            ))}
+          </TableRow>
+        ))}
+      </TableBody>
+    );
+  }
+
+  if (error) {
+    return (
+      <TableBody>
+        <TableRow staticRow>
+          <TableCell colSpan={6}>
+            <Alert
+              variant="danger"
+              title="Não foi possível carregar os relatórios"
+              description={error}
+              actions={<Button variant="outline" size="sm" onClick={onRetry}>Tentar novamente</Button>}
+            />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  if (empty) {
+    const title = hasFilters
+      ? "Nenhum relatório corresponde aos filtros atuais"
+      : page > 1
+        ? "Nenhum relatório nesta página"
+        : "Nenhum relatório foi processado ainda";
+    const description = hasFilters
+      ? "Ajuste o escopo, o status, o período ou a versão dos analyzers."
+      : page > 1
+        ? "Volte para uma página anterior para consultar o histórico disponível."
+        : "As execuções concluídas e em andamento aparecerão aqui.";
+    return (
+      <TableBody>
+        <TableRow staticRow>
+          <TableCell colSpan={6}>
+            <EmptyState
+              title={title}
+              description={description}
+              primaryAction={hasFilters ? <Button variant="outline" size="sm" onClick={onClear}>Limpar filtros</Button> : undefined}
+            />
+          </TableCell>
+        </TableRow>
+      </TableBody>
+    );
+  }
+
+  return null;
 }
 
 export function CollectionWorkspace({
   collectionId,
+  headerAction,
 }: {
   collectionId?: string;
+  headerAction?: ReactNode;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,12 +191,8 @@ export function CollectionWorkspace({
   });
 
   const listPlaceholderIdentity = useMemo(
-    () =>
-      buildCollectionQuery({
-        ...state,
-        page: 1,
-      }),
-    [search],
+    () => buildCollectionQuery({ ...state, page: 1 }),
+    [state],
   );
   const optionQuery = useMemo(() => {
     const params = new URLSearchParams({ limit: "50" });
@@ -113,11 +216,7 @@ export function CollectionWorkspace({
     ...cachePolicy.detail,
   });
   const optionsRequest = useApiQuery<CollectionOptions>({
-    key: queryKeys.collections.options(
-      optionScope.provider,
-      optionScope.search,
-      50,
-    ),
+    key: queryKeys.collections.options(optionScope.provider, optionScope.search, 50),
     path: `/collections/options?${optionQuery}`,
     enabled: !collectionId,
     ...cachePolicy.metadata,
@@ -130,20 +229,17 @@ export function CollectionWorkspace({
     accounts: [],
     has_more_accounts: false,
   };
-  const optionsError = Boolean(optionsRequest.error);
-  const loading = collectionId
-    ? detailRequest.isLoading
-    : listRequest.isLoading;
+  const loading = collectionId ? detailRequest.isLoading : listRequest.isLoading;
   const refreshing = collectionId
     ? detailRequest.isFetching && !detailRequest.isLoading
     : listRequest.isFetching && !listRequest.isLoading;
   const requestError = collectionId ? detailRequest.error : listRequest.error;
   const error = requestError
     ? requestError instanceof ApiError && requestError.status === 404
-      ? "Coleta não encontrada."
+      ? "Relatório não encontrado."
       : collectionId
-        ? "Não foi possível carregar a coleta."
-        : "Não foi possível carregar as coletas."
+        ? "Não foi possível carregar este relatório."
+        : "Não foi possível carregar o histórico de relatórios."
     : "";
 
   const hasFilters = Boolean(
@@ -165,12 +261,11 @@ export function CollectionWorkspace({
     state.date_from ? `A partir de: ${preciseDate(state.date_from)}` : "",
     state.date_to ? `Até: ${preciseDate(state.date_to)}` : "",
   ].filter(Boolean);
-  const detailHref = (id: string) =>
-    `/collections/${encodeURIComponent(id)}?${query}`;
+  const detailHref = (id: string) => `/collections/${encodeURIComponent(id)}?${query}`;
   const change = (patch: Record<string, string | number>) =>
-    router.push(`${pathname}?${patchCollectionQuery(search, patch)}`, {
-      scroll: false,
-    });
+    router.push(`${pathname}?${patchCollectionQuery(search, patch)}`, { scroll: false });
+  const clearFilters = () => router.push("/collections", { scroll: false });
+
   useEffect(() => {
     setDraft(state);
     setValidation("");
@@ -179,10 +274,7 @@ export function CollectionWorkspace({
   useEffect(() => {
     if (collectionId) return;
     const timer = window.setTimeout(() => {
-      setOptionScope({
-        provider: draft.provider,
-        search: draft.account_id,
-      });
+      setOptionScope({ provider: draft.provider, search: draft.account_id });
     }, 250);
     return () => window.clearTimeout(timer);
   }, [collectionId, draft.provider, draft.account_id]);
@@ -202,47 +294,68 @@ export function CollectionWorkspace({
     return () => window.clearInterval(timer);
   }, [collectionId, detailRequest.refetch, hasRunning, listRequest.refetch]);
 
-  const statusOptions = Object.entries(COLLECTION_STATUSES);
+  const refresh = () => {
+    if (collectionId) void detailRequest.refetch();
+    else {
+      void listRequest.refetch();
+      void optionsRequest.refetch();
+    }
+  };
+
+  const headerActions = (
+    <div className={styles.headerActions}>
+      {collectionId ? (
+        <Button variant="outline" onClick={() => router.push(`/collections?${query}`)}>
+          Voltar ao histórico
+        </Button>
+      ) : headerAction}
+      <Button
+        variant="outline"
+        leadingIcon={<RefreshCw {...iconDefaults} />}
+        loading={refreshing}
+        disabled={loading}
+        onClick={refresh}
+      >
+        Atualizar
+      </Button>
+    </div>
+  );
+
+  const providerOptions = options.providers.map((provider) => ({
+    value: provider,
+    label: providerLabel(provider),
+  }));
+  const accountOptions = options.accounts
+    .filter((account) => !draft.provider || account.provider === draft.provider)
+    .map((account) => ({
+      value: account.account_id,
+      label: account.account_name || account.account_id,
+      accountId: account.account_id,
+      provider: providerLabel(account.provider),
+      searchTerms: [account.account_id, account.provider],
+    }));
+  const statusOptions = [
+    { value: "", label: "Todos os status" },
+    ...Object.entries(COLLECTION_STATUSES).map(([value, label]) => ({ value, label })),
+  ];
+
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader
-        eyebrow="OPERAÇÃO CLOUD"
-        title={collectionId ? `Coleta #${collectionId.slice(0, 8)}` : "Coletas"}
-        description="Execuções por cloud e conta, com histórico, resultados e falhas."
+        title={collectionId ? `Relatório #${collectionId.slice(0, 8)}` : "Relatórios"}
+        description={collectionId
+          ? "Consulte o escopo, o processamento e os resultados persistidos desta execução."
+          : "Acompanhe execuções por cloud e conta, consulte o histórico e entenda o status de processamento."}
+        metadata={<span className={styles.pollingNote}>Atualização automática a cada 15 s somente durante execuções em andamento e com a aba visível.</span>}
+        actions={headerActions}
       />
-      <div className="collection-toolbar">
-        {collectionId && (
-          <Link className="button ghost" href={`/collections?${query}`}>
-            ← Voltar às coletas
-          </Link>
-        )}
-        <span>
-          Horários no fuso local do navegador · atualização a cada 15s apenas durante coletas em andamento
-        </span>
-        <button
-          className="button ghost"
-          disabled={loading || refreshing}
-          onClick={() => {
-            if (collectionId) void detailRequest.refetch();
-            else {
-              void listRequest.refetch();
-              void optionsRequest.refetch();
-            }
-          }}
-        >
-          <RefreshCw size={16} /> Atualizar
-        </button>
-      </div>
-      {!collectionId && (
+
+      {!collectionId ? (
         <form
-          className="panel opportunity-filter-panel"
+          className={styles.filterForm}
           onSubmit={(event) => {
             event.preventDefault();
-            if (
-              draft.date_from &&
-              draft.date_to &&
-              new Date(draft.date_from) >= new Date(draft.date_to)
-            ) {
+            if (draft.date_from && draft.date_to && new Date(draft.date_from) >= new Date(draft.date_to)) {
               setValidation("O início deve ser anterior ao fim do período.");
               return;
             }
@@ -250,524 +363,364 @@ export function CollectionWorkspace({
             change({ ...draft, page: 1 });
           }}
         >
-          <div className="opportunity-filter-heading">
-            <strong>Filtros de coletas</strong>
-            {hasFilters && (
-              <button
-                type="button"
-                className="filter-clear"
-                onClick={() => router.push("/collections")}
-              >
-                Limpar filtros
-              </button>
-            )}
-          </div>
-          {activeFilters.length > 0 && (
-            <div className="active-filter-summary" aria-label="Filtros ativos">
-              {activeFilters.map((label) => <span key={label}>{label}</span>)}
-            </div>
-          )}
-          <div className="opportunity-filter-grid">
-            <label className="opportunity-filter">
-              <span>Cloud</span>
-              <div>
-                <input
-                  list="collection-providers"
-                  placeholder="Todas as clouds"
-                  value={draft.provider}
-                  onChange={(event) =>
-                    setDraft({
+          <FilterBar
+            aria-label="Filtros de relatórios"
+            clearAction={hasFilters ? <Button variant="ghost" size="sm" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+            actions={(
+              <div className={styles.toolbar}>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const end = new Date();
+                    const start = new Date(end);
+                    start.setDate(start.getDate() - 30);
+                    change({
                       ...draft,
-                      provider: event.target.value,
-                      account_id: "",
-                    })
-                  }
-                />
-              </div>
-              <datalist id="collection-providers">
-                {options.providers.map((provider) => (
-                  <option key={provider} value={provider}>
-                    {providerLabel(provider)}
-                  </option>
-                ))}
-              </datalist>
-            </label>
-            <label className="opportunity-filter account-filter">
-              <span>Conta · nome ou identificador</span>
-              <div>
-                <input
-                  list="collection-accounts"
-                  placeholder="Busque e selecione ou informe o ID"
-                  value={draft.account_id}
-                  onChange={(event) =>
-                    setDraft({ ...draft, account_id: event.target.value })
-                  }
-                />
-              </div>
-              <datalist id="collection-accounts">
-                {options.accounts.map((account) => (
-                  <option
-                    key={`${account.provider}:${account.account_id}`}
-                    value={account.account_id}
-                  >
-                    {account.account_name || account.account_id} ·{" "}
-                    {providerLabel(account.provider)} · {account.account_id}
-                  </option>
-                ))}
-              </datalist>
-              {options.has_more_accounts && (
-                <small>Digite para buscar mais contas.</small>
-              )}
-            </label>
-            <label className="opportunity-filter">
-              <span>Status</span>
-              <div>
-                <select
-                  aria-label="Status"
-                  value={draft.status}
-                  onChange={(event) =>
-                    setDraft({ ...draft, status: event.target.value })
-                  }
+                      date_from: start.toISOString(),
+                      date_to: end.toISOString(),
+                      page: 1,
+                    });
+                  }}
                 >
-                  <option value="">Todos</option>
-                  {statusOptions.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
+                  Últimos 30 dias
+                </Button>
+                <Button type="submit" size="sm">Aplicar filtros</Button>
               </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Início do período (inclusivo)</span>
-              <div>
-                <input
-                  type="datetime-local"
-                  value={localDateTime(draft.date_from)}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      date_from: event.target.value
-                        ? new Date(event.target.value).toISOString()
-                        : "",
-                    })
-                  }
-                />
-              </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Fim do período (exclusivo)</span>
-              <div>
-                <input
-                  type="datetime-local"
-                  value={localDateTime(draft.date_to)}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      date_to: event.target.value
-                        ? new Date(event.target.value).toISOString()
-                        : "",
-                    })
-                  }
-                />
-              </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Versão dos analyzers</span>
-              <div>
-                <input
-                  placeholder="Todas as versões"
-                  value={draft.analyzer_version}
-                  onChange={(event) =>
-                    setDraft({ ...draft, analyzer_version: event.target.value })
-                  }
-                />
-              </div>
-            </label>
-          </div>
-          {optionsError && (
-            <p role="status">
-              Não foi possível carregar sugestões. Você ainda pode informar a
-              cloud e o ID da conta.
-            </p>
-          )}
-          {validation && (
-            <p className="form-error" role="alert">
-              {validation}
-            </p>
-          )}
-          <div className="collection-toolbar">
-            <button type="submit" className="button primary">
-              Aplicar filtros
-            </button>
-            <button
-              type="button"
-              className="button ghost"
-              onClick={() => {
-                const end = new Date();
-                const start = new Date(end);
-                start.setDate(start.getDate() - 30);
-                change({
+            )}
+          >
+            <div className={styles.filterControls}>
+              <ProviderSelector
+                label="Cloud"
+                value={draft.provider}
+                onChange={(provider) => setDraft({ ...draft, provider, account_id: "" })}
+                options={providerOptions}
+                loading={optionsRequest.isLoading}
+                placeholder="Todas as clouds"
+                clearLabel="Todas as clouds"
+                searchable={false}
+              />
+              <AccountSelector
+                label="Conta"
+                value={draft.account_id}
+                onChange={(account_id) => setDraft({ ...draft, account_id })}
+                options={accountOptions}
+                loading={optionsRequest.isLoading}
+                placeholder="Todas as contas"
+                clearLabel="Todas as contas"
+              />
+              <Select
+                label="Status"
+                value={draft.status}
+                options={statusOptions}
+                onChange={(event) => setDraft({ ...draft, status: event.target.value })}
+              />
+              <Input
+                type="datetime-local"
+                label="Início do período"
+                helperText="Inclusivo, no fuso local do navegador."
+                value={localDateTime(draft.date_from)}
+                onChange={(event) => setDraft({
                   ...draft,
-                  date_from: start.toISOString(),
-                  date_to: end.toISOString(),
-                  page: 1,
-                });
-              }}
-            >
-              Últimos 30 dias
-            </button>
-          </div>
-        </form>
-      )}
-      {error && (
-        <div className="alert error" role="alert">
-          {error}{" "}
-          <button
-            className="button ghost"
-            onClick={() => {
-              if (collectionId) void detailRequest.refetch();
-              else void listRequest.refetch();
-            }}
-          >
-            Tentar novamente
-          </button>
-        </div>
-      )}
-      {(loading || refreshing) && (
-        <p role="status">
-          {loading ? "Carregando coletas…" : "Atualizando coletas…"}
-        </p>
-      )}
-      {!collectionId && data?.account_summary && (
-        <section
-          className="panel collection-account-summary"
-          aria-label="Últimas coletas da conta"
-        >
-          <p>
-            Contexto da conta/cloud selecionada, considerando todo o histórico.
-          </p>
-          <p>
-            <strong>Última execução: </strong>
-            <RunLink run={data.account_summary.latest_run} href={detailHref} />
-          </p>
-          <p>
-            <strong>Última conclusão com sucesso: </strong>
-            <RunLink
-              run={data.account_summary.latest_success}
-              href={detailHref}
+                  date_from: event.target.value ? new Date(event.target.value).toISOString() : "",
+                })}
+              />
+              <Input
+                type="datetime-local"
+                label="Fim do período"
+                helperText="Exclusivo, no fuso local do navegador."
+                value={localDateTime(draft.date_to)}
+                onChange={(event) => setDraft({
+                  ...draft,
+                  date_to: event.target.value ? new Date(event.target.value).toISOString() : "",
+                })}
+              />
+              <Input
+                label="Versão dos analyzers"
+                placeholder="Todas as versões"
+                value={draft.analyzer_version}
+                onChange={(event) => setDraft({ ...draft, analyzer_version: event.target.value })}
+              />
+            </div>
+          </FilterBar>
+
+          {activeFilters.length > 0 ? (
+            <div className={styles.activeFilters} aria-label="Filtros ativos">
+              {activeFilters.map((label) => <span className={styles.activeFilter} key={label}>{label}</span>)}
+            </div>
+          ) : null}
+          {options.has_more_accounts ? <p className={styles.note}>Digite o identificador da conta para buscar além das primeiras opções carregadas.</p> : null}
+          {optionsRequest.error ? (
+            <Alert
+              variant="warning"
+              title="Sugestões de filtro indisponíveis"
+              description="Você ainda pode informar a cloud e o identificador da conta manualmente."
             />
-          </p>
-          <small>Sucesso com avisos pode conter resultados incompletos.</small>
-        </section>
-      )}
-      {!collectionId && (
-        <section
-          className="panel table-panel"
-          aria-label="Histórico de coletas"
-          aria-busy={loading}
+          ) : null}
+          {validation ? <Alert variant="danger" title="Período inválido" description={validation} /> : null}
+        </form>
+      ) : null}
+
+      {!collectionId && data?.account_summary ? (
+        <Section
+          appearance="card"
+          title="Contexto da conta"
+          description="Últimas execuções considerando todo o histórico da conta e cloud selecionadas."
         >
-          <div className="panel-heading collection-toolbar">
-            <h2>{data ? `${number(data.total)} coleta(s)` : "Histórico"}</h2>
-            <label>
-              Ordenar por{" "}
-              <select
-                aria-label="Ordenar por"
-                value={state.sort}
-                onChange={(event) => change({ sort: event.target.value })}
-              >
-                <option value="started_at">Início</option>
-                <option value="opportunities_found">
-                  Oportunidades encontradas
-                </option>
-              </select>
-            </label>
-            <label>
-              Direção{" "}
-              <select
-                aria-label="Direção"
-                value={state.order}
-                onChange={(event) => change({ order: event.target.value })}
-              >
-                <option value="desc">Decrescente</option>
-                <option value="asc">Crescente</option>
-              </select>
-            </label>
-          </div>
-          <div
-            className="data-table-wrap"
-            tabIndex={0}
-            role="region"
-            aria-label="Tabela de coletas"
-          >
-            <table className="data-table collection-table">
-              <thead>
-                <tr>
-                  {[
-                    "Início / fim",
-                    "Cloud",
-                    "Conta",
-                    "Status",
-                    "Duração",
-                    "Recursos",
-                    "Oportunidades encontradas",
-                  ].map((label) => (
-                    <th scope="col" key={label}>
-                      {label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {!data &&
-                  loading &&
-                  Array.from({ length: 5 }, (_, row) => (
-                    <tr key={row} aria-hidden="true">
-                      {Array.from({ length: 7 }, (_, cell) => (
-                        <td key={cell}>
-                          <span className="skeleton-box skeleton-line" />
-                        </td>
-                      ))}
-                    </tr>
-                  ))}
-                {data?.items.map((run) => (
-                  <tr key={run.id}>
-                    <td>
-                      <Link
-                        className="collection-link"
-                        href={detailHref(run.id)}
-                        onMouseEnter={() => {
-                          void prefetchApiQuery({
-                            key: queryKeys.collections.detail(run.id),
-                            path: `/collections/${encodeURIComponent(run.id)}`,
-                            ...cachePolicy.detail,
-                          }).catch(() => undefined);
-                        }}
-                      >
-                        {formatDate(run.started_at)}
-                      </Link>
-                      <span>Fim: {formatDate(run.finished_at)}</span>
-                      <code>{run.id.slice(0, 8)}</code>
-                    </td>
-                    <td>{providerLabel(run.provider)}</td>
-                    <td>
-                      <strong>{run.account_name || run.account_id}</strong>
-                      {run.account_name && <span>{run.account_id}</span>}
-                    </td>
-                    <td>
-                      <RunStatus run={run} />
-                    </td>
-                    <td>{durationLabel(run, now)}</td>
-                    <td>
-                      {run.resources_analyzed_available
-                        ? number(run.resources_analyzed)
-                        : "Não disponível"}
-                    </td>
-                    <td>
-                      {run.status === "RUNNING"
-                        ? "Aguardando conclusão"
-                        : number(run.opportunities_found)}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          {!loading && !error && data && !data.items.length && (
-            <div className="empty-table">
-              <p>
-                {hasFilters
-                  ? "Nenhuma coleta encontrada para estes filtros."
-                  : state.page > 1
-                    ? "Nenhuma coleta nesta página."
-                    : "Ainda não existem coletas."}
-              </p>
-              {hasFilters && (
-                <button
-                  className="button ghost"
-                  onClick={() => router.push("/collections")}
-                >
-                  Limpar filtros
-                </button>
-              )}
+          <dl className={styles.summaryGrid}>
+            <div className={styles.summaryItem}>
+              <dt>Última execução</dt>
+              <dd><RunLink run={data.account_summary.latest_run} href={detailHref} /></dd>
             </div>
-          )}
-          <div className="collection-toolbar collection-pagination">
-            <label>
-              Por página{" "}
-              <select
-                aria-label="Por página"
-                value={state.page_size}
-                onChange={(event) =>
-                  change({ page_size: Number(event.target.value) })
-                }
-              >
-                {[25, 50, 100].map((size) => (
-                  <option key={size}>{size}</option>
-                ))}
-              </select>
-            </label>
-            <span>
-              Página {state.page} de {data?.total_pages || 1}
-            </span>
-            <button
-              className="button ghost"
-              disabled={loading || state.page <= 1}
-              onClick={() => change({ page: state.page - 1 })}
-            >
-              Anterior
-            </button>
-            <button
-              className="button ghost"
-              disabled={loading || !data || state.page >= data.total_pages}
-              onClick={() => change({ page: state.page + 1 })}
-            >
-              Próxima
-            </button>
-          </div>
-          <p className="collection-note">
-            Recursos: o coletor atual ainda não informa esse total.
-            Oportunidades encontradas: total persistido ao concluir; confira as
-            observações no detalhe.
-          </p>
-        </section>
-      )}
-      {collectionId && detail && (
-        <section className="panel collection-detail" aria-busy={loading}>
-          <div className="collection-toolbar">
-            <h2>CollectionRun</h2>
-            <RunStatus run={detail} />
-          </div>
-          <code className="collection-id">{detail.id}</code>
-          {detail.detailed_observations_available ? (
-            <CollectionComparisonActions run={detail} />
-          ) : (
-            <div className="alert" role="status">
-              <strong>Detalhes históricos expirados.</strong>
-              <p>
-                O resumo desta CollectionRun foi preservado, mas as observações detalhadas
-                já não estão disponíveis pela política de retenção.
-              </p>
-            </div>
-          )}
-          {detail.status === "FAILED" && (
-            <div className="alert error" role="alert">
-              <strong>Falha durante a coleta</strong>
-              <p>
-                {detail.error_detail || "O motivo da falha não foi registrado."}
-              </p>
-            </div>
-          )}
-          {detail.has_warnings && (
-            <div className="alert" role="status">
-              <strong>
-                Concluída com avisos: resultados podem estar incompletos.
-              </strong>
-              <p>
-                {detail.warning_detail ||
-                  "Um ou mais analyzers não concluíram a coleta."}
-              </p>
-            </div>
-          )}
-          {detail.status === "RUNNING" && (
-            <p role="status">
-              {durationLabel(detail, now)}. As métricas finais ainda não estão
-              disponíveis.
-            </p>
-          )}
-          <dl className="collection-metadata">
-            <div>
-              <dt>Cloud</dt>
-              <dd>{providerLabel(detail.provider)}</dd>
-            </div>
-            <div>
-              <dt>Conta</dt>
-              <dd>
-                {detail.account_name || detail.account_id}
-                {detail.account_name && <small>{detail.account_id}</small>}
-              </dd>
-            </div>
-            <div>
-              <dt>Início</dt>
-              <dd>{preciseDate(detail.started_at)}</dd>
-            </div>
-            <div>
-              <dt>Fim</dt>
-              <dd>{preciseDate(detail.finished_at)}</dd>
-            </div>
-            <div>
-              <dt>Duração</dt>
-              <dd>{durationLabel(detail, now)}</dd>
-            </div>
-            <div>
-              <dt>Versão dos analyzers</dt>
-              <dd>{detail.analyzer_version || "Não registrada"}</dd>
-            </div>
-            {detail.trigger && (
-              <div>
-                <dt>Gatilho</dt>
-                <dd>
-                  {detail.trigger === "manual"
-                    ? "Manual"
-                    : detail.trigger === "scheduled"
-                      ? "Agendada"
-                      : detail.trigger}
-                </dd>
-              </div>
-            )}
-            {detail.scan_id && (
-              <div>
-                <dt>Scan de origem</dt>
-                <dd>
-                  <code>{detail.scan_id}</code>
-                </dd>
-              </div>
-            )}
-            <div>
-              <dt>Recursos analisados</dt>
-              <dd>
-                {detail.resources_analyzed_available
-                  ? number(detail.resources_analyzed)
-                  : "Não disponível"}
-              </dd>
-            </div>
-            <div>
-              <dt>Oportunidades encontradas</dt>
-              <dd>
-                {detail.status === "RUNNING"
-                  ? "Aguardando conclusão"
-                  : number(detail.opportunities_found)}
-              </dd>
-            </div>
-            <div>
-              <dt>Detalhes de observação retidos</dt>
-              <dd>{number(detail.opportunities_observed)}</dd>
+            <div className={styles.summaryItem}>
+              <dt>Última conclusão com sucesso</dt>
+              <dd><RunLink run={data.account_summary.latest_success} href={detailHref} /></dd>
             </div>
           </dl>
-          <p>
-            O total encontrado é persistido na CollectionRun. A contagem de detalhes
-            retidos representa apenas observations ainda disponíveis no banco; o total
-            de recursos ainda não é medido pelo coletor atual.
-          </p>
-          {detail.detailed_observations_available ? (
-            <>
-              <Link className="button primary" href={collectionOpportunitiesUrl(detail.id)}>
-                Ver oportunidades desta coleta
-              </Link>
-              <p className="collection-note">
-                A tela abre na aba Abertas. Use também Tratadas e Rejeitadas; o
-                filtro desta coleta permanece aplicado. As evidências históricas
-                estão no detalhe de cada oportunidade.
-              </p>
-            </>
-          ) : (
-            <p className="collection-note">
-              A listagem detalhada desta coleta não é exibida porque a ausência de
-              observations expiradas não significa que a coleta encontrou zero oportunidades.
-            </p>
+          <p className={styles.note}>Uma conclusão com avisos pode conter resultados incompletos.</p>
+        </Section>
+      ) : null}
+
+      {!collectionId ? (
+        <Section
+          title="Histórico de relatórios"
+          description="Execuções persistidas por cloud e conta. O histórico mais recente aparece primeiro por padrão."
+          actions={(
+            <div className={styles.sectionActions}>
+              {refreshing ? <StatusIndicator status="pending" label="Atualizando" /> : null}
+              <Select
+                label="Ordenar por"
+                controlSize="sm"
+                value={state.sort}
+                onChange={(event) => change({ sort: event.target.value })}
+                options={[
+                  { value: "started_at", label: "Início" },
+                  { value: "opportunities_found", label: "Oportunidades encontradas" },
+                ]}
+              />
+              <Select
+                label="Direção"
+                controlSize="sm"
+                value={state.order}
+                onChange={(event) => change({ order: event.target.value })}
+                options={[
+                  { value: "desc", label: "Decrescente" },
+                  { value: "asc", label: "Crescente" },
+                ]}
+              />
+            </div>
           )}
-        </section>
-      )}
-    </>
+        >
+          <div className={styles.tableMeta}>
+            <span>{data ? `${number(data.total)} relatório(s)` : "Contagem indisponível"}</span>
+            <span>Período aplicado ao início da execução.</span>
+          </div>
+          <Table aria-label="Histórico de relatórios" aria-busy={loading || refreshing}>
+            <TableHeader>
+              <TableRow staticRow>
+                <TableHead>Relatório</TableHead>
+                <TableHead>Escopo</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Duração</TableHead>
+                <TableHead numeric>Recursos</TableHead>
+                <TableHead numeric>Oportunidades</TableHead>
+              </TableRow>
+            </TableHeader>
+            {loading || error || !data?.items.length ? (
+              <CollectionTableState
+                loading={loading}
+                error={error}
+                empty={!loading && !error && Boolean(data) && data.items.length === 0}
+                hasFilters={hasFilters}
+                page={state.page}
+                onRetry={() => void listRequest.refetch()}
+                onClear={clearFilters}
+              />
+            ) : (
+              <TableBody>
+                {data.items.map((run) => (
+                  <TableRow key={run.id}>
+                    <TableCell>
+                      <div className={styles.reportCell}>
+                        <Link
+                          className={styles.reportLink}
+                          href={detailHref(run.id)}
+                          onMouseEnter={() => {
+                            void prefetchApiQuery({
+                              key: queryKeys.collections.detail(run.id),
+                              path: `/collections/${encodeURIComponent(run.id)}`,
+                              ...cachePolicy.detail,
+                            }).catch(() => undefined);
+                          }}
+                        >
+                          {formatDate(run.started_at)}
+                        </Link>
+                        <span className={styles.secondary}>Fim: {formatDate(run.finished_at)}</span>
+                        <span className={styles.technicalId}>{run.id.slice(0, 8)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className={styles.scopeCell}>
+                        <div className={styles.scopePrimary}>
+                          <ProviderBadge provider={run.provider} />
+                          <strong>{run.account_name || run.account_id}</strong>
+                        </div>
+                        {run.account_name ? <span className={styles.secondary}>{run.account_id}</span> : null}
+                      </div>
+                    </TableCell>
+                    <TableCell><RunStatus run={run} /></TableCell>
+                    <TableCell>{durationLabel(run, now)}</TableCell>
+                    <TableCell numeric>
+                      {run.resources_analyzed_available ? number(run.resources_analyzed) : "Não disponível"}
+                    </TableCell>
+                    <TableCell numeric>
+                      {run.status === "RUNNING" ? "Aguardando conclusão" : number(run.opportunities_found)}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            )}
+          </Table>
+
+          {data ? (
+            <div className={styles.paginationRow}>
+              <Select
+                label="Linhas por página"
+                controlSize="sm"
+                value={String(state.page_size)}
+                onChange={(event) => change({ page_size: Number(event.target.value), page: 1 })}
+                options={[25, 50, 100].map((size) => ({ value: String(size), label: String(size) }))}
+              />
+              {data.total_pages > 1 ? (
+                <Pagination page={state.page} pageCount={data.total_pages} onPageChange={(page) => change({ page })} />
+              ) : null}
+            </div>
+          ) : null}
+          <p className={styles.note}>Recursos analisados podem estar indisponíveis em execuções históricas. O total de oportunidades é persistido quando a execução termina.</p>
+        </Section>
+      ) : null}
+
+      {collectionId && error ? (
+        <Alert
+          variant="danger"
+          title="Não foi possível carregar o relatório"
+          description={error}
+          actions={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>Tentar novamente</Button>}
+        />
+      ) : null}
+
+      {collectionId && loading ? (
+        <Section title="Carregando relatório"><Skeleton /><Skeleton /><Skeleton /></Section>
+      ) : null}
+
+      {collectionId && detail ? (
+        <Section
+          appearance="card"
+          title="Detalhes da execução"
+          description="Estado funcional e metadados persistidos da CollectionRun."
+          actions={<RunStatus run={detail} />}
+        >
+          <div className={styles.detailStack}>
+            <div className={styles.detailHeader}>
+              <div className={styles.detailTitleGroup}>
+                <h3 className={styles.detailTitle}>CollectionRun</h3>
+                <span className={styles.technicalId}>{detail.id}</span>
+              </div>
+              <div className={styles.detailActions}>
+                {detail.detailed_observations_available ? (
+                  <Button onClick={() => router.push(collectionOpportunitiesUrl(detail.id))}>
+                    Ver oportunidades desta coleta
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+
+            {!detail.detailed_observations_available ? (
+              <Alert
+                variant="warning"
+                title="Detalhes históricos expirados"
+                description="O resumo desta CollectionRun foi preservado, mas as observações detalhadas não estão mais disponíveis pela política de retenção."
+              />
+            ) : null}
+            {detail.status === "FAILED" ? (
+              <Alert
+                variant="danger"
+                title="Falha durante o processamento"
+                description={detail.error_detail || "O motivo da falha não foi registrado."}
+              />
+            ) : null}
+            {detail.has_warnings ? (
+              <Alert
+                variant="warning"
+                title="Concluída com avisos"
+                description={detail.warning_detail || "Um ou mais analyzers não concluíram a coleta; os resultados podem estar incompletos."}
+              />
+            ) : null}
+            {detail.status === "RUNNING" ? (
+              <Alert
+                variant="info"
+                title="Processamento em andamento"
+                description={`${durationLabel(detail, now)}. As métricas finais ainda não estão disponíveis.`}
+              />
+            ) : null}
+
+            {detail.detailed_observations_available ? <CollectionComparisonActions run={detail} /> : null}
+
+            <dl className={styles.metadataGrid}>
+              <div className={styles.metadataItem}>
+                <dt>Cloud</dt>
+                <dd><ProviderBadge provider={detail.provider} /></dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Conta</dt>
+                <dd>{detail.account_name || detail.account_id}{detail.account_name ? <span className={styles.secondary}>{detail.account_id}</span> : null}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Início</dt>
+                <dd>{preciseDate(detail.started_at)}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Fim</dt>
+                <dd>{preciseDate(detail.finished_at)}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Duração</dt>
+                <dd>{durationLabel(detail, now)}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Versão dos analyzers</dt>
+                <dd>{detail.analyzer_version || "Não registrada"}</dd>
+              </div>
+              {detail.trigger ? (
+                <div className={styles.metadataItem}>
+                  <dt>Gatilho</dt>
+                  <dd>{detail.trigger === "manual" ? "Manual" : detail.trigger === "scheduled" ? "Agendada" : detail.trigger}</dd>
+                </div>
+              ) : null}
+              {detail.scan_id ? (
+                <div className={styles.metadataItem}>
+                  <dt>Scan de origem</dt>
+                  <dd><span className={styles.technicalId}>{detail.scan_id}</span></dd>
+                </div>
+              ) : null}
+              <div className={styles.metadataItem}>
+                <dt>Recursos analisados</dt>
+                <dd>{detail.resources_analyzed_available ? number(detail.resources_analyzed) : "Não disponível"}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Oportunidades encontradas</dt>
+                <dd>{detail.status === "RUNNING" ? "Aguardando conclusão" : number(detail.opportunities_found)}</dd>
+              </div>
+              <div className={styles.metadataItem}>
+                <dt>Detalhes de observação retidos</dt>
+                <dd>{number(detail.opportunities_observed)}</dd>
+              </div>
+            </dl>
+
+            <p className={styles.note}>O total encontrado é persistido na CollectionRun. A contagem de detalhes retidos representa somente observations ainda disponíveis no banco.</p>
+          </div>
+        </Section>
+      ) : null}
+    </div>
   );
 }
