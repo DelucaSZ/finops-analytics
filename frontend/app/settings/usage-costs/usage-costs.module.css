@@ -283,9 +283,9 @@
 
 .axisLabel {
   fill: var(--chart-label);
-  font-family: var(--type-body-xs-family);
-  font-size: var(--type-body-xs-size);
-  font-weight: var(--type-body-xs-weight);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
 }
 
 .usageGrid {
