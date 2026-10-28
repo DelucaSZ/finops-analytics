@@ -32,7 +32,7 @@ test("Application Shell keeps one page scroll owner and does not override shared
   assert.doesNotMatch(source, /\.themeMenu,\s*\.userMenu\s*\{[^}]*transform:/s);
 });
 
-test("Dropdown and Tooltip share viewport-aware collision positioning", () => {
+test("Dropdown and Tooltip share viewport-aware collision positioning and robust Escape handling", () => {
   const positioning = read("components/ui/viewport-position.ts");
   const dropdown = read("components/ui/dropdown.tsx");
   const tooltip = read("components/ui/tooltip.tsx");
@@ -44,6 +44,9 @@ test("Dropdown and Tooltip share viewport-aware collision positioning", () => {
   assert.match(positioning, /side:\s*"top"\s*\|\s*"bottom"/);
   assert.match(dropdown, /positionDropdown/);
   assert.match(dropdown, /maxBlockSize:\s*position\.maxBlockSize/);
+  assert.match(dropdown, /document\.addEventListener\("keydown", handleKeyDown\)/);
+  assert.match(dropdown, /event\.key !== "Escape" \|\| event\.defaultPrevented/);
+  assert.match(dropdown, /triggerRef\.current\?\.focus\(\)/);
   assert.match(tooltip, /positionTooltip/);
   assert.match(block(overlays, ".dropdownContent"), /overflow-y:\s*auto/);
   assert.match(block(overlays, ".dropdownContent"), /max-inline-size:\s*calc\(100vw - var\(--space-4\)\)/);
