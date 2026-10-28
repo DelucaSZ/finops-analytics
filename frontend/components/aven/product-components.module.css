@@ -1,6 +1,7 @@
 .pageHeader {
   display: grid;
   gap: var(--space-3);
+  min-inline-size: 0;
 }
 
 .pageHeaderMain,
@@ -13,6 +14,7 @@
   flex-wrap: wrap;
   gap: var(--space-4);
   justify-content: space-between;
+  min-inline-size: 0;
 }
 
 .pageHeaderCopy,
@@ -31,6 +33,10 @@
 .sectionCopy,
 .cardHeaderCopy {
   min-inline-size: 0;
+}
+
+.pageHeaderCopy {
+  flex: 1 1 auto;
 }
 
 .pageTitle,
@@ -81,11 +87,18 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  max-inline-size: 100%;
+}
+
+.pageActions {
+  flex: 0 1 auto;
+  justify-content: flex-end;
 }
 
 .section {
   display: grid;
   gap: var(--space-4);
+  min-inline-size: 0;
 }
 
 .sectionTitle {
@@ -122,6 +135,7 @@
 
 .filterPrimary > * {
   flex: 1 1 auto;
+  max-inline-size: 100%;
   min-inline-size: min(100%, var(--popover-min-inline-size));
 }
 
@@ -140,6 +154,10 @@
 .sectionCard,
 .filterSurface {
   min-inline-size: 0;
+}
+
+.metricCard {
+  block-size: 100%;
 }
 
 .metricHeader {
@@ -301,15 +319,31 @@
 @media (max-width: 48rem) {
   .pageHeaderMain,
   .sectionHeader,
-  .cardHeaderRow {
+  .cardHeaderRow,
+  .filterBar {
     align-items: stretch;
     flex-direction: column;
   }
 
   .pageActions,
   .sectionActions,
-  .cardHeaderActions {
+  .cardHeaderActions,
+  .filterActions,
+  .filterPrimary {
     inline-size: 100%;
+  }
+
+  .pageActions,
+  .filterActions {
+    justify-content: flex-start;
+  }
+
+  .filterActions {
+    margin-inline-start: var(--space-0);
+  }
+
+  .filterPrimary > * {
+    flex-basis: 100%;
   }
 
   .recommendationMetrics,
