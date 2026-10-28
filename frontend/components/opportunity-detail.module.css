@@ -1,0 +1,210 @@
+.body {
+  display: grid;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.statusLine,
+.metadataLine,
+.actions,
+.historyActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.description,
+.secondary {
+  color: var(--text-secondary);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.overview,
+.section {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.section {
+  border-block-start: 1px solid var(--border-subtle);
+  padding-block-start: var(--space-5);
+}
+
+.sectionHeader {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.sectionHeader h3 {
+  color: var(--text-primary);
+  font-family: var(--type-heading-sm-family);
+  font-size: var(--type-heading-sm-size);
+  font-weight: var(--type-heading-sm-weight);
+  line-height: var(--type-heading-sm-line-height);
+  margin: var(--space-0);
+}
+
+.sectionHeader p {
+  color: var(--text-secondary);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+  margin: var(--space-1) var(--space-0) var(--space-0);
+}
+
+.detailGrid,
+.decisionGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detailGrid > div,
+.decisionGrid > div {
+  border-block-end: 1px solid var(--border-subtle);
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+}
+
+.detailGrid dt,
+.decisionGrid dt {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.detailGrid dd,
+.decisionGrid dd {
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  margin: var(--space-0);
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.decisionNote {
+  grid-column: 1 / -1;
+}
+
+.historyList,
+.decisionHistory {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.historyItem,
+.decisionItem {
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-card);
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.historyItem[data-selected="true"] {
+  border-color: var(--border-interactive);
+  background: var(--surface-selected);
+}
+
+.historyTop {
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.historyMetric {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.historyMetric strong {
+  font-variant-numeric: var(--font-variant-numeric-tabular);
+}
+
+.aiResult,
+.historicalBanner {
+  border-inline-start: 1px solid var(--border-interactive);
+  color: var(--text-secondary);
+  display: grid;
+  gap: var(--space-2);
+  padding-inline-start: var(--space-4);
+}
+
+.technicalDetails {
+  border-block-start: 1px solid var(--border-subtle);
+  padding-block-start: var(--space-4);
+}
+
+.technicalDetails summary {
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+}
+
+.technicalGrid {
+  display: grid;
+  gap: var(--space-3);
+  margin-block-start: var(--space-4);
+}
+
+.technicalGrid > div {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.technicalGrid dt {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.technicalGrid dd {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-0);
+  min-inline-size: 0;
+}
+
+.technicalGrid code,
+.technicalGrid pre {
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line-height);
+  margin: var(--space-0);
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+@media (max-width: 700px) {
+  .detailGrid,
+  .decisionGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .decisionNote {
+    grid-column: auto;
+  }
+}

@@ -1,15 +1,40 @@
 "use client";
 
 import Link from "next/link";
-
-import { useEffect, useMemo, useRef, useState } from "react";
-import { BrainCircuit, Clock3, Copy, History, RotateCcw, X } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { BrainCircuit, Copy, RotateCcw } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { OpportunityArchiveHistory } from "@/components/opportunity-archive-history";
 import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
-import { StatusBadge } from "@/components/status-badge";
+import type { OpportunityDecisionAction } from "@/components/opportunity-decision-dialog";
+import {
+  CurrencyDisplay,
+  ProviderBadge,
+  ResourceIdentifier,
+  StatusIndicator,
+} from "@/components/aven";
+import type { ProductStatus } from "@/components/aven";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerFooter,
+  DrawerHeader,
+  DrawerTitle,
+  Pagination,
+  Skeleton,
+} from "@/components/ui";
 import { api, formatDate } from "@/lib/api";
-import { formatAccountLabel, formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { formatAccountLabel } from "@/lib/cloud.mjs";
+import { iconDefaults } from "@/lib/iconography";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { invalidateApiQueries, useApiQuery } from "@/lib/server-state";
 import type {
@@ -18,7 +43,7 @@ import type {
   OpportunityObservationPage,
   OpportunityStatusHistoryPage,
 } from "@/lib/types";
-import type { OpportunityDecisionAction } from "@/components/opportunity-decision-dialog";
+import styles from "./opportunity-detail.module.css";
 
 const rejectionReasonLabels: Record<string, string> = {
   FALSE_POSITIVE: "Falso positivo",
@@ -43,18 +68,67 @@ type HistoricalOpportunityDetail = OpportunityDetailType & {
   last_seen_collection_run_id: string | null;
 };
 
-function monthlySavings(item: OpportunityDetailType) {
-  return item.rule_key === "cost_growth_anomaly"
-    ? "Não estimada"
-    : `${formatMoney(item.estimated_monthly_savings, item.currency)}/mês`;
-}
-
 type Props = {
   opportunityId: string;
   onClose: () => void;
   onAction: (action: OpportunityDecisionAction, id: string) => void;
   onArchive: (id: string) => void;
 };
+
+function numericValue(value: string | number | null | undefined) {
+  if (value == null || value === "") return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function statusLabel(value: string) {
+  if (value === "open") return "Aberta";
+  if (value === "treated") return "Tratada";
+  if (value === "rejected") return "Rejeitada";
+  if (value === "active") return "Ativa";
+  if (value === "missing") return "Ausente";
+  if (value === "resolved_externally") return "Resolvida externamente";
+  return value;
+}
+
+function statusTone(value: string): ProductStatus {
+  if (value === "treated" || value === "active" || value === "resolved_externally") return "success";
+  if (value === "rejected") return "danger";
+  if (value === "missing") return "warning";
+  if (value === "open") return "info";
+  return "neutral";
+}
+
+function severityTone(value: string): ProductStatus {
+  if (value === "high") return "danger";
+  if (value === "medium") return "warning";
+  if (value === "low") return "info";
+  return "neutral";
+}
+
+function confidenceTone(value: string): ProductStatus {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "high") return "success";
+  if (normalized === "medium") return "info";
+  if (normalized === "low") return "warning";
+  return "neutral";
+}
+
+function humanize(value?: string | null) {
+  if (!value) return "—";
+  return value.split("_").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
+}
+
+function MoneyValue({ value, currency }: { value: string | number | null | undefined; currency: string }) {
+  const amount = numericValue(value);
+  if (!currency || amount == null) return <span>—</span>;
+  return <CurrencyDisplay value={amount} currency={currency} locale="pt-BR" maximumFractionDigits={2} />;
+}
+
+function MonthlySavings({ detail }: { detail: OpportunityDetailType }) {
+  if (detail.rule_key === "cost_growth_anomaly") return <span>Não estimada</span>;
+  return <><MoneyValue value={detail.estimated_monthly_savings} currency={detail.currency} />/mês</>;
+}
 
 export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive }: Props) {
   const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
@@ -64,19 +138,16 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   const [aiInsight, setAiInsight] = useState("");
   const [aiLoading, setAiLoading] = useState(false);
   const [unarchiveSaving, setUnarchiveSaving] = useState(false);
-  const closeRef = useRef<HTMLButtonElement>(null);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const historyPageSize = historyExpanded ? 50 : 8;
+
   const detailRequest = useApiQuery<HistoricalOpportunityDetail>({
     key: queryKeys.opportunities.detail(opportunityId),
     path: `/opportunities/${opportunityId}`,
     ...cachePolicy.detail,
   });
   const observationRequest = useApiQuery<OpportunityObservationPage>({
-    key: queryKeys.opportunities.history(
-      opportunityId,
-      historyPage,
-      historyPageSize,
-    ),
+    key: queryKeys.opportunities.history(opportunityId, historyPage, historyPageSize),
     path: `/opportunities/${opportunityId}/history?page=${historyPage}&page_size=${historyPageSize}`,
     ...cachePolicy.detail,
     keepPreviousData: true,
@@ -93,25 +164,16 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   const decisions = decisionRequest.data ?? null;
   const loading = detailRequest.isLoading;
   const detailError = detailRequest.error?.message || "";
-  const observationError = observationRequest.error
-    ? "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível."
-    : "";
-  const decisionError = decisionRequest.error
-    ? "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível."
-    : "";
+  const observationError = observationRequest.error ? "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível." : "";
+  const decisionError = decisionRequest.error ? "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível." : "";
   const error = actionError || detailError || observationError || decisionError;
 
   useEffect(() => {
-    closeRef.current?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose]);
-
-  useEffect(() => {
     setSelectedObservation(null);
+    setHistoryPage(1);
+    setHistoryExpanded(false);
+    setAiInsight("");
+    setActionError("");
   }, [opportunityId]);
 
   const currentDecision = useMemo(() => {
@@ -137,308 +199,220 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   async function restoreArchivedCurrent() {
     if (!detail?.archived || unarchiveSaving) return;
     const isRejected = detail.status === "rejected";
-    const confirmed = window.confirm(
-      isRejected
-        ? "Esta oportunidade foi rejeitada anteriormente. Reabri-la removerá a decisão de rejeição e a devolverá ao backlog operacional. Deseja continuar?"
-        : "Desarquivar esta oportunidade? Ela voltará para a aba operacional correspondente sem alterar o status humano nem a presença técnica.",
-    );
-    if (!confirmed) return;
     setUnarchiveSaving(true);
     setActionError("");
     try {
       if (isRejected) {
-        await api(`/opportunities/${detail.id}/reopen`, {
-          method: "POST",
-          body: JSON.stringify({}),
-        });
+        await api(`/opportunities/${detail.id}/reopen`, { method: "POST", body: JSON.stringify({}) });
       } else {
         await api(`/opportunities/${detail.id}/unarchive`, { method: "POST" });
       }
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
+      setRestoreOpen(false);
       onClose();
     } catch (err) {
-      setActionError(
-        err instanceof Error
-          ? err.message
-          : isRejected
-            ? "Não foi possível reabrir a oportunidade."
-            : "Não foi possível desarquivar a oportunidade.",
-      );
+      setActionError(err instanceof Error ? err.message : isRejected ? "Não foi possível reabrir a oportunidade." : "Não foi possível desarquivar a oportunidade.");
     } finally {
       setUnarchiveSaving(false);
     }
   }
 
   return (
-    <div className="drawer-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget) onClose();
-    }}>
-      <aside className="opportunity-drawer" role="dialog" aria-modal="true" aria-labelledby="opportunity-detail-title">
-        <header className="drawer-heading">
-          <div>
-            <span className="eyebrow">DETALHE DA OPORTUNIDADE</span>
-            <h2 id="opportunity-detail-title">{detail?.title || "Carregando oportunidade…"}</h2>
-            {detail && <p>{detail.resource_name || detail.resource_id}</p>}
-          </div>
-          <button ref={closeRef} className="icon-button" type="button" aria-label="Fechar detalhe" onClick={onClose}>
-            <X size={18} />
-          </button>
-        </header>
+    <>
+      <Drawer open onOpenChange={(open) => { if (!open) onClose(); }}>
+        <DrawerContent side="right">
+          <DrawerHeader>
+            <DrawerTitle>{detail?.title || "Carregando oportunidade…"}</DrawerTitle>
+            <DrawerDescription>{detail ? detail.description : "Carregando contexto, evidências e histórico."}</DrawerDescription>
+          </DrawerHeader>
 
-        {error && <div className="alert error" role="alert">{error}</div>}
-        {loading && !detail ? (
-          <div className="drawer-loading" role="status">Carregando contexto e histórico…</div>
-        ) : detail ? (
-          <div className="drawer-content">
-            <section className="detail-overview" aria-label="Resumo da oportunidade">
-              <div className="detail-status-line">
-                <StatusBadge value={detail.status} />
-                <StatusBadge value={detail.presence_status} />
-                <StatusBadge value={detail.severity} />
-                {detail.archived && <span className="review-flag">Arquivada</span>}
-                {detail.needs_review && <span className="review-flag">Detectada novamente após tratamento</span>}
-              </div>
-              <p className="detail-description">{detail.description}</p>
-              {detail.status === "rejected" && detail.archived && detail.presence_status === "active" && (
-                <div className="alert" role="status">
-                  Esta oportunidade continua sendo observada tecnicamente, mas permanece suprimida pela decisão de rejeição.
-                </div>
-              )}
-              <dl className="detail-grid">
-                <div><dt>Cloud</dt><dd>{providerLabel(detail.provider)}</dd></div>
-                <div><dt>Conta</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
-                <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
-                <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
-                <div><dt>Recurso</dt><dd>{detail.resource_id}</dd></div>
-                {detail.resource_type && <div><dt>Tipo de recurso</dt><dd>{detail.resource_type}</dd></div>}
-                <div>
-                  <dt>Regra</dt>
-                  <dd>
-                    {detail.rule.name}
-                    <span>{detail.rule.description}</span>
-                  </dd>
-                </div>
-                <div><dt>Status humano</dt><dd><StatusBadge value={detail.status} /></dd></div>
-                <div><dt>Presença técnica</dt><dd><StatusBadge value={detail.presence_status} /></dd></div>
-                <div><dt>Economia potencial</dt><dd className="detail-money">{monthlySavings(detail)}</dd></div>
-                <div><dt>Custo mensal atual</dt><dd>{formatMoney(detail.current_monthly_cost, detail.currency)}</dd></div>
-                <div>
-                  <dt>Primeira identificação</dt>
-                  <dd>
-                    {formatDate(detail.first_seen_at)}
-                    {detail.first_seen_collection_run_id && (
-                      <Link className="collection-link" href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>
-                        Primeira coleta {detail.first_seen_collection_run_id.slice(0, 8)}
-                      </Link>
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Última detecção</dt>
-                  <dd>
-                    {formatDate(detail.last_seen_at)}
-                    {detail.last_seen_collection_run_id && (
-                      <Link className="collection-link" href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>
-                        Última coleta {detail.last_seen_collection_run_id.slice(0, 8)}
-                      </Link>
-                    )}
-                  </dd>
-                </div>
-                {detail.treated_at && <div><dt>Tratada em</dt><dd>{formatDate(detail.treated_at)}</dd></div>}
-                {detail.rejected_at && <div><dt>Rejeitada em</dt><dd>{formatDate(detail.rejected_at)}</dd></div>}
-                {detail.resolved_externally_at && <div><dt>Resolvida externamente em</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div>}
-                {detail.archived && <div><dt>Arquivada em</dt><dd>{formatDate(detail.archived_at)}</dd></div>}
-                {detail.archived && <div><dt>Motivo do arquivamento</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div>}
-                <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
-                <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
-                <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
-              </dl>
-            </section>
+          <div className={styles.body}>
+            {error ? <Alert variant="danger" title="Não foi possível carregar ou atualizar todo o contexto" description={error} /> : null}
+            {loading && !detail ? <><Skeleton /><Skeleton /><Skeleton /></> : null}
 
-            {(detail.status === "treated" || detail.status === "rejected") && (
-              <section className="detail-section decision-summary" aria-labelledby="decision-summary-title">
-                <div className="section-heading-inline">
-                  <h3 id="decision-summary-title">Decisão atual</h3>
-                  <StatusBadge value={detail.status} />
-                </div>
-                <dl className="decision-grid">
-                  <div><dt>Decidido por</dt><dd>{currentDecision?.changed_by_name || "Não registrado"}</dd></div>
-                  <div><dt>Data</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null)}</dd></div>
-                  {detail.status === "rejected" && <div><dt>Motivo</dt><dd>{rejectionReasonLabels[detail.rejection_reason || ""] || detail.rejection_reason || "Não registrado"}</dd></div>}
-                  <div className="decision-note"><dt>Observação</dt><dd>{currentDecision?.note || (detail.status === "treated" ? detail.treatment_note : detail.rejection_note) || "Sem observação registrada."}</dd></div>
-                </dl>
-              </section>
-            )}
-
-            <section className="detail-section evidence-section">
-              {selectedObservation && (
-                <div className="historical-evidence-banner">
-                  <div>
-                    <strong>Evidência histórica</strong>
-                    <span>Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.</span>
+            {detail ? (
+              <>
+                <section className={styles.overview} aria-label="Resumo da oportunidade">
+                  <div className={styles.statusLine}>
+                    <ProviderBadge provider={detail.provider} />
+                    <StatusIndicator status={statusTone(detail.status)} label={statusLabel(detail.status)} />
+                    <StatusIndicator status={statusTone(detail.presence_status)} label={statusLabel(detail.presence_status)} />
+                    <StatusIndicator status={severityTone(detail.severity)} label={`Impacto: ${humanize(detail.severity)}`} />
+                    {detail.confidence ? <StatusIndicator status={confidenceTone(detail.confidence)} label={`Confiança: ${humanize(detail.confidence)}`} /> : null}
+                    {detail.archived ? <StatusIndicator status="neutral" label="Arquivada" /> : null}
+                    {detail.needs_review ? <StatusIndicator status="warning" label="Detectada novamente após tratamento" /> : null}
                   </div>
-                  <button className="button ghost" type="button" onClick={() => setSelectedObservation(null)}>
-                    Voltar à evidência mais recente
-                  </button>
-                </div>
-              )}
-              <FindingEvidence
-                evidence={selectedObservation?.evidence ?? detail.latest_evidence}
-                observedAt={
-                  selectedObservation?.observed_at ??
-                  detail.latest_observation?.observed_at ??
-                  detail.last_seen_at
-                }
-                collectionRunId={
-                  selectedObservation?.collection_run_id ??
-                  detail.latest_observation?.collection_run_id ??
-                  null
-                }
-              />
-              <div className="ai-detail-action">
-                <button className="button ghost" type="button" disabled={aiLoading} onClick={() => void explain()}>
-                  <BrainCircuit size={17} /> {aiLoading ? "Analisando…" : "Aprofundar com IA"}
-                </button>
-              </div>
-              {aiInsight && <div className="ai-insight-body ai-detail-result">{aiInsight}</div>}
-            </section>
 
-            <section className="detail-section" aria-labelledby="detection-history-title">
-              <div className="section-heading-inline">
-                <div>
-                  <h3 id="detection-history-title"><Clock3 size={18} /> Histórico de detecção</h3>
-                  <p>Observações factuais registradas pelas coletas. A mais recente aparece primeiro.</p>
-                </div>
-                {observations && (
-                  <span>
-                    {observations.retained_total} detalhe(s) retido(s) de{" "}
-                    {observations.total_occurrence_count} ocorrência(s)
-                  </span>
-                )}
-              </div>
-              {observations && !observations.history_complete && (
-                <div className="alert" role="status">
-                  <strong>Histórico detalhado parcialmente expirado.</strong>
-                  <p>
-                    A configuração atual retém observações por {observations.retention_days} dias.
-                    Evidências intermediárias fora dessa janela podem ter sido removidas; primeira
-                    e última detecção, identidade da oportunidade e decisões humanas permanecem
-                    preservadas.
-                  </p>
-                </div>
-              )}
-              {observations?.items.length ? (
-                <div className="history-list">
-                  {observations.items.map((item) => (
-                    <article key={item.id} className={`history-item${selectedObservation?.id === item.id ? " selected" : ""}`}>
-                      <div>
-                        <strong>{formatDate(item.observed_at)}</strong>
-                        <span>{providerLabel(item.collection_provider)} · {item.collection_account_id}</span>
-                      </div>
-                      <div><StatusBadge value={item.severity} /></div>
-                      <div>
-                        <strong>{formatMoney(item.estimated_monthly_savings, item.currency)}/mês</strong>
-                        <span>economia estimada</span>
-                      </div>
-                      <div>
-                        <span>Coleta <StatusBadge value={item.collection_status} /></span>
-                        <Link className="collection-link" href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Link>
-                      </div>
-                      <p className="history-evidence-summary">{item.evidence.summary}</p>
-                      <button className="button ghost history-evidence-button" type="button" onClick={() => setSelectedObservation(item)}>
-                        Ver evidência desta coleta
-                      </button>
-                    </article>
-                  ))}
+                  <ResourceIdentifier
+                    primary={detail.resource_name || detail.resource_id}
+                    technicalId={detail.resource_name ? detail.resource_id : undefined}
+                    copyValue={detail.resource_id}
+                  />
+
+                  {detail.status === "rejected" && detail.archived && detail.presence_status === "active" ? (
+                    <Alert variant="warning" title="Oportunidade rejeitada ainda observada" description="A presença técnica continua ativa, mas a recomendação permanece suprimida pela decisão humana registrada." />
+                  ) : null}
+
+                  <dl className={styles.detailGrid}>
+                    <div><dt>Conta</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
+                    <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
+                    <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
+                    {detail.resource_type ? <div><dt>Tipo de recurso</dt><dd>{detail.resource_type}</dd></div> : null}
+                    <div><dt>Regra</dt><dd>{detail.rule.name}<span className={styles.secondary}>{detail.rule.description}</span></dd></div>
+                    <div><dt>Economia potencial</dt><dd><MonthlySavings detail={detail} /></dd></div>
+                    <div><dt>Custo mensal atual</dt><dd><MoneyValue value={detail.current_monthly_cost} currency={detail.currency} /></dd></div>
+                    <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
+                    <div><dt>Primeira identificação</dt><dd>{formatDate(detail.first_seen_at)}{detail.first_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>Abrir primeira coleta {detail.first_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}{detail.last_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>Abrir última coleta {detail.last_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    {detail.treated_at ? <div><dt>Tratada em</dt><dd>{formatDate(detail.treated_at)}</dd></div> : null}
+                    {detail.rejected_at ? <div><dt>Rejeitada em</dt><dd>{formatDate(detail.rejected_at)}</dd></div> : null}
+                    {detail.resolved_externally_at ? <div><dt>Resolvida externamente em</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div> : null}
+                    {detail.archived ? <div><dt>Arquivada em</dt><dd>{formatDate(detail.archived_at)}</dd></div> : null}
+                    {detail.archived ? <div><dt>Motivo do arquivamento</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div> : null}
+                    <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
+                    <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
+                  </dl>
+                </section>
+
+                {(detail.status === "treated" || detail.status === "rejected") ? (
+                  <section className={styles.section} aria-labelledby="decision-summary-title">
+                    <div className={styles.sectionHeader}>
+                      <div><h3 id="decision-summary-title">Decisão atual</h3><p>Estado humano e contexto de auditoria registrados.</p></div>
+                      <StatusIndicator status={statusTone(detail.status)} label={statusLabel(detail.status)} />
+                    </div>
+                    <dl className={styles.decisionGrid}>
+                      <div><dt>Decidido por</dt><dd>{currentDecision?.changed_by_name || "Não registrado"}</dd></div>
+                      <div><dt>Data</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null)}</dd></div>
+                      {detail.status === "rejected" ? <div><dt>Motivo</dt><dd>{rejectionReasonLabels[detail.rejection_reason || ""] || detail.rejection_reason || "Não registrado"}</dd></div> : null}
+                      <div className={styles.decisionNote}><dt>Observação</dt><dd>{currentDecision?.note || (detail.status === "treated" ? detail.treatment_note : detail.rejection_note) || "Sem observação registrada."}</dd></div>
+                    </dl>
+                  </section>
+                ) : null}
+
+                <section className={styles.section} aria-labelledby="evidence-title">
+                  <div className={styles.sectionHeader}><div><h3 id="evidence-title">Evidências</h3><p>Métricas e fatos persistidos pela recomendação; nenhum valor é recalculado na interface.</p></div></div>
+                  {selectedObservation ? (
+                    <div className={styles.historicalBanner}>
+                      <strong>Evidência histórica</strong>
+                      <span>Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.</span>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(null)}>Voltar à evidência mais recente</Button>
+                    </div>
+                  ) : null}
+                  <FindingEvidence
+                    evidence={selectedObservation?.evidence ?? detail.latest_evidence}
+                    observedAt={selectedObservation?.observed_at ?? detail.latest_observation?.observed_at ?? detail.last_seen_at}
+                    collectionRunId={selectedObservation?.collection_run_id ?? detail.latest_observation?.collection_run_id ?? null}
+                  />
+                  <div className={styles.actions}>
+                    <Button variant="outline" size="sm" leadingIcon={<BrainCircuit {...iconDefaults} />} loading={aiLoading} onClick={() => void explain()}>Aprofundar com IA</Button>
+                  </div>
+                  {aiInsight ? <div className={styles.aiResult}>{aiInsight}</div> : null}
+                </section>
+
+                <section className={styles.section} aria-labelledby="detection-history-title">
+                  <div className={styles.sectionHeader}>
+                    <div><h3 id="detection-history-title">Histórico de detecção</h3><p>Observações factuais registradas pelas coletas, da mais recente para a mais antiga.</p></div>
+                    {observations ? <span className={styles.secondary}>{observations.retained_total} detalhe(s) retido(s) de {observations.total_occurrence_count} ocorrência(s)</span> : null}
+                  </div>
+                  {observations && !observations.history_complete ? <Alert variant="warning" title="Histórico detalhado parcialmente expirado" description={`A configuração atual retém observações por ${observations.retention_days} dias. Identidade, primeira/última detecção e decisões humanas continuam preservadas.`} /> : null}
+                  {observationRequest.isLoading ? <Skeleton /> : observations?.items.length ? (
+                    <div className={styles.historyList}>
+                      {observations.items.map((item) => (
+                        <article key={item.id} className={styles.historyItem} data-selected={selectedObservation?.id === item.id || undefined}>
+                          <div className={styles.historyTop}>
+                            <div className={styles.historyMetric}><strong>{formatDate(item.observed_at)}</strong><span className={styles.secondary}>{item.collection_provider} · {item.collection_account_id}</span></div>
+                            <StatusIndicator status={severityTone(item.severity)} label={`Impacto: ${humanize(item.severity)}`} />
+                            <div className={styles.historyMetric}><strong><MoneyValue value={item.estimated_monthly_savings} currency={item.currency} />/mês</strong><span className={styles.secondary}>economia estimada</span></div>
+                          </div>
+                          <p className={styles.secondary}>{item.evidence.summary}</p>
+                          <div className={styles.historyActions}>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(item)}>Ver evidência desta coleta</Button>
+                            <Button variant="ghost" size="sm" onClick={() => { window.location.href = `/collections/${encodeURIComponent(item.collection_run_id)}`; }}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Button>
+                          </div>
+                        </article>
+                      ))}
+                    </div>
+                  ) : <p className={styles.secondary}>{observations && !observations.history_complete ? "Nenhuma observação detalhada permanece na janela atualmente retida." : "Nenhuma observação histórica disponível."}</p>}
+                  {observations && !historyExpanded && observations.retained_total > 8 ? <Button variant="ghost" size="sm" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</Button> : null}
+                  {observations && historyExpanded && observations.total_pages > 1 ? <Pagination page={observations.page} pageCount={observations.total_pages} onPageChange={setHistoryPage} /> : null}
+                </section>
+
+                <OpportunityPresenceHistory opportunityId={opportunityId} />
+                <OpportunityArchiveHistory opportunityId={opportunityId} />
+
+                <section className={styles.section} aria-labelledby="decision-history-title">
+                  <div className={styles.sectionHeader}><div><h3 id="decision-history-title">Histórico de decisões</h3><p>Transições manuais de estado, separadas das detecções técnicas.</p></div>{decisions ? <span className={styles.secondary}>{decisions.total} decisão(ões)</span> : null}</div>
+                  {decisionRequest.isLoading ? <Skeleton /> : decisions?.items.length ? (
+                    <div className={styles.decisionHistory}>
+                      {decisions.items.map((item) => (
+                        <article key={item.id} className={styles.decisionItem}>
+                          <strong>{formatDate(item.changed_at)} · {item.changed_by_name || "Usuário não registrado"}</strong>
+                          <div className={styles.metadataLine}><StatusIndicator status={statusTone(item.from_status)} label={statusLabel(item.from_status)} /><span aria-hidden="true">→</span><StatusIndicator status={statusTone(item.to_status)} label={statusLabel(item.to_status)} /></div>
+                          {item.reason ? <span className={styles.secondary}>Motivo: {rejectionReasonLabels[item.reason] || item.reason}</span> : null}
+                          {item.note ? <p className={styles.secondary}>{item.note}</p> : null}
+                        </article>
+                      ))}
+                    </div>
+                  ) : <p className={styles.secondary}>Nenhuma decisão manual registrada.</p>}
+                </section>
+
+                <details className={styles.technicalDetails}>
+                  <summary>Informações técnicas</summary>
+                  <dl className={styles.technicalGrid}>
+                    <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code><Button variant="ghost" size="sm" leadingIcon={<Copy {...iconDefaults} />} onClick={() => void navigator.clipboard.writeText(detail.id)}>Copiar</Button></dd></div>
+                    <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code><Button variant="ghost" size="sm" leadingIcon={<Copy {...iconDefaults} />} onClick={() => void navigator.clipboard.writeText(detail.fingerprint)}>Copiar</Button></dd></div>
+                    <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
+                    <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
+                    <div><dt>Primeira CollectionRun</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
+                    <div><dt>Última CollectionRun</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
+                    {Object.keys(detail.provider_metadata || {}).length > 0 ? <div><dt>Metadata do provider</dt><dd><pre>{JSON.stringify(detail.provider_metadata, null, 2)}</pre></dd></div> : null}
+                  </dl>
+                </details>
+              </>
+            ) : null}
+          </div>
+
+          {detail ? (
+            <DrawerFooter>
+              {detail.archived ? (
+                <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => setRestoreOpen(true)}>{detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar"}</Button>
+              ) : detail.status === "open" ? (
+                <div className={styles.actions}>
+                  <Button variant="outline" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</Button>
+                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>Arquivar</Button>
+                  <Button variant="danger" onClick={() => onAction("reject", detail.id)}>Rejeitar</Button>
                 </div>
               ) : (
-                <p className="muted-copy">
-                  {observations && !observations.history_complete
-                    ? "Nenhuma observação detalhada permanece na janela atualmente retida."
-                    : "Nenhuma observação histórica disponível."}
-                </p>
-              )}
-              {observations && !historyExpanded && observations.retained_total > 8 && (
-                <button className="button ghost history-more" type="button" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</button>
-              )}
-              {observations && historyExpanded && observations.total_pages > 1 && (
-                <div className="history-pagination" aria-label="Paginação do histórico de detecção">
-                  <button className="button ghost" type="button" disabled={historyPage <= 1} onClick={() => setHistoryPage((page) => Math.max(1, page - 1))}>Anterior</button>
-                  <span>Página {observations.page} de {observations.total_pages}</span>
-                  <button className="button ghost" type="button" disabled={historyPage >= observations.total_pages} onClick={() => setHistoryPage((page) => page + 1)}>Próxima</button>
+                <div className={styles.actions}>
+                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>Arquivar</Button>
+                  <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => onAction("reopen", detail.id)}>Reabrir</Button>
                 </div>
               )}
-            </section>
+            </DrawerFooter>
+          ) : null}
+        </DrawerContent>
+      </Drawer>
 
-            <OpportunityPresenceHistory opportunityId={opportunityId} />
-            <OpportunityArchiveHistory opportunityId={opportunityId} />
-
-            <section className="detail-section" aria-labelledby="decision-history-title">
-              <div className="section-heading-inline">
-                <div>
-                  <h3 id="decision-history-title"><History size={18} /> Histórico de decisões</h3>
-                  <p>Transições manuais de estado, separadas das detecções técnicas.</p>
-                </div>
-                {decisions && <span>{decisions.total} decisão(ões)</span>}
-              </div>
-              {decisions?.items.length ? (
-                <div className="decision-history">
-                  {decisions.items.map((item) => (
-                    <article key={item.id}>
-                      <div className="decision-marker" />
-                      <div>
-                        <strong>{formatDate(item.changed_at)} · {item.changed_by_name || "Usuário não registrado"}</strong>
-                        <p><StatusBadge value={item.from_status} /> <span aria-hidden="true">→</span> <StatusBadge value={item.to_status} /></p>
-                        {item.reason && <span>Motivo: {rejectionReasonLabels[item.reason] || item.reason}</span>}
-                        {item.note && <blockquote>{item.note}</blockquote>}
-                      </div>
-                    </article>
-                  ))}
-                </div>
-              ) : <p className="muted-copy">Nenhuma decisão manual registrada.</p>}
-            </section>
-
-            <details className="technical-details">
-              <summary>Informações técnicas</summary>
-              <dl>
-                <div><dt>ID da oportunidade</dt><dd className="technical-copy"><code>{detail.id}</code><button type="button" className="copy-inline" title="Copiar ID da oportunidade" aria-label="Copiar ID da oportunidade" onClick={() => void navigator.clipboard.writeText(detail.id)}><Copy size={14} /></button></dd></div>
-                <div><dt>Fingerprint</dt><dd className="technical-copy"><code>{detail.fingerprint}</code><button type="button" className="copy-inline" title="Copiar fingerprint" aria-label="Copiar fingerprint" onClick={() => void navigator.clipboard.writeText(detail.fingerprint)}><Copy size={14} /></button></dd></div>
-                <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
-                <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
-                <div><dt>Primeira CollectionRun</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
-                <div><dt>Última CollectionRun</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
-                {Object.keys(detail.provider_metadata || {}).length > 0 && (
-                  <div><dt>Metadata do provider</dt><dd><pre>{JSON.stringify(detail.provider_metadata, null, 2)}</pre></dd></div>
-                )}
-              </dl>
-            </details>
-          </div>
-        ) : null}
-
-        {detail && (
-          <footer className="drawer-actions">
-            {detail.archived ? (
-              <button className="button primary" type="button" disabled={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>
-                <RotateCcw size={17} /> {unarchiveSaving
-                  ? (detail.status === "rejected" ? "Reabrindo…" : "Desarquivando…")
-                  : (detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar")}
-              </button>
-            ) : detail.status === "open" ? (
-              <>
-                <button className="button ghost" type="button" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</button>
-                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}>Arquivar</button>
-                <button className="button primary" type="button" onClick={() => onAction("reject", detail.id)}>Rejeitar</button>
-              </>
-            ) : (
-              <>
-                <button className="button ghost" type="button" onClick={() => onArchive(detail.id)}>Arquivar</button>
-                <button className="button primary" type="button" onClick={() => onAction("reopen", detail.id)}><RotateCcw size={17} /> Reabrir</button>
-              </>
-            )}
-          </footer>
-        )}
-      </aside>
-    </div>
+      {detail?.archived ? (
+        <Dialog open={restoreOpen} onOpenChange={(open) => { if (!unarchiveSaving) setRestoreOpen(open); }}>
+          <DialogContent onCancel={(event) => { if (unarchiveSaving) event.preventDefault(); }}>
+            <DialogHeader>
+              <DialogTitle>{detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar oportunidade"}</DialogTitle>
+              <DialogDescription>
+                {detail.status === "rejected"
+                  ? "A decisão de rejeição será removida e a oportunidade voltará ao backlog operacional. O histórico permanecerá registrado."
+                  : "A oportunidade voltará para a visão operacional correspondente sem alterar status humano ou presença técnica."}
+              </DialogDescription>
+            </DialogHeader>
+            {actionError ? <Alert variant="danger" title="Não foi possível restaurar" description={actionError} /> : null}
+            <DialogFooter>
+              <Button variant="secondary" disabled={unarchiveSaving} onClick={() => setRestoreOpen(false)}>Cancelar</Button>
+              <Button variant="primary" loading={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>{detail.status === "rejected" ? "Reabrir" : "Desarquivar"}</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
+    </>
   );
 }

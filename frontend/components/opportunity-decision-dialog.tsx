@@ -1,9 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 import type { FormEvent } from "react";
-import { X } from "lucide-react";
+import {
+  Alert,
+  Button,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  Select,
+  Textarea,
+} from "@/components/ui";
 import { rejectionRequiresNote } from "@/lib/opportunity-query.mjs";
+import styles from "./opportunity-dialog.module.css";
 
 export type OpportunityDecisionAction = "treat" | "reject" | "reopen";
 
@@ -47,17 +59,7 @@ export function OpportunityDecisionDialog({ action, count, saving, error, onClos
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [validation, setValidation] = useState("");
-  const closeRef = useRef<HTMLButtonElement>(null);
   const text = copy[action];
-
-  useEffect(() => {
-    closeRef.current?.focus();
-    const handleKey = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !saving) onClose();
-    };
-    window.addEventListener("keydown", handleKey);
-    return () => window.removeEventListener("keydown", handleKey);
-  }, [onClose, saving]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -74,48 +76,48 @@ export function OpportunityDecisionDialog({ action, count, saving, error, onClos
   }
 
   return (
-    <div className="dialog-backdrop" role="presentation" onMouseDown={(event) => {
-      if (event.target === event.currentTarget && !saving) onClose();
-    }}>
-      <section className="decision-dialog" role="dialog" aria-modal="true" aria-labelledby="decision-dialog-title">
-        <div className="dialog-heading">
-          <div>
-            <span className="eyebrow">DECISÃO OPERACIONAL</span>
-            <h2 id="decision-dialog-title">{text.title}</h2>
-            <p>{count > 1 ? `${count} oportunidades selecionadas. ` : ""}{text.hint}</p>
-          </div>
-          <button ref={closeRef} className="icon-button" type="button" aria-label="Fechar" disabled={saving} onClick={onClose}>
-            <X size={18} />
-          </button>
-        </div>
-        <form onSubmit={submit}>
-          {action === "reject" && (
-            <label className="dialog-field">
-              Motivo
-              <select value={reason} disabled={saving} onChange={(event) => setReason(event.target.value)} required>
-                <option value="">Selecione um motivo</option>
-                {rejectionReasons.map(([value, label]) => <option value={value} key={value}>{label}</option>)}
-              </select>
-            </label>
-          )}
-          <label className="dialog-field">
-            Observação {action === "reject" && rejectionRequiresNote(reason) ? "*" : "(opcional)"}
-            <textarea
-              value={note}
+    <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
+      <DialogContent onCancel={(event) => { if (saving) event.preventDefault(); }}>
+        <form className={styles.form} onSubmit={submit}>
+          <DialogHeader>
+            <DialogTitle>{text.title}</DialogTitle>
+            <DialogDescription>
+              {count > 1 ? `${count} oportunidades selecionadas. ` : ""}{text.hint}
+            </DialogDescription>
+          </DialogHeader>
+
+          {action === "reject" ? (
+            <Select
+              label="Motivo"
+              value={reason}
               disabled={saving}
-              rows={5}
-              maxLength={4000}
-              placeholder={action === "reopen" ? "Contexto da reabertura" : "Contexto para auditoria"}
-              onChange={(event) => setNote(event.target.value)}
+              required
+              placeholder="Selecione um motivo"
+              options={rejectionReasons.map(([value, label]) => ({ value, label }))}
+              onChange={(event) => setReason(event.target.value)}
             />
-          </label>
-          {(validation || error) && <p className="dialog-error" role="alert">{validation || error}</p>}
-          <div className="dialog-actions">
-            <button className="button ghost" type="button" disabled={saving} onClick={onClose}>Cancelar</button>
-            <button className="button primary" type="submit" disabled={saving}>{saving ? "Aplicando…" : text.submit}</button>
-          </div>
+          ) : null}
+
+          <Textarea
+            label={`Observação ${action === "reject" && rejectionRequiresNote(reason) ? "*" : "(opcional)"}`}
+            value={note}
+            disabled={saving}
+            rows={5}
+            maxLength={4000}
+            placeholder={action === "reopen" ? "Contexto da reabertura" : "Contexto para auditoria"}
+            onChange={(event) => setNote(event.target.value)}
+          />
+
+          {validation || error ? <Alert variant="danger" title="Não foi possível concluir a decisão" description={validation || error} /> : null}
+
+          <DialogFooter>
+            <Button variant="secondary" type="button" disabled={saving} onClick={onClose}>Cancelar</Button>
+            <Button variant={action === "reject" ? "danger" : "primary"} type="submit" loading={saving}>
+              {text.submit}
+            </Button>
+          </DialogFooter>
         </form>
-      </section>
-    </div>
+      </DialogContent>
+    </Dialog>
   );
 }
