@@ -1,7 +1,9 @@
 "use client";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+import { PageHeader } from "@/components/aven";
+import { Alert, Button, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { api } from "@/lib/api";
 import {
   isAdminOnlySettingsPath,
@@ -10,71 +12,99 @@ import {
 } from "@/lib/settings-navigation.mjs";
 import styles from "./settings-layout.module.css";
 
-export default function SettingsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+type CurrentUser = { role: string };
+
+export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
   const [role, setRole] = useState("");
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
+
   useEffect(() => {
     let active = true;
-    setRole("");
     setError("");
-    api<{ role: string }>("/auth/me")
+    api<CurrentUser>("/auth/me")
       .then((user) => {
         if (active) setRole(user.role);
       })
       .catch((err) => {
-        if (active) setError(err.message);
+        if (active) setError(err instanceof Error ? err.message : "Não foi possível carregar as permissões de Configurações.");
       });
     return () => {
       active = false;
     };
-  }, [path, retry]);
-  if (error)
+  }, [retry]);
+
+  const tabs = useMemo(() => settingsTabsForRole(role), [role]);
+  const activeTab = useMemo(
+    () => tabs.find((tab) => isSettingsTabActive(path, tab.href))?.href ?? tabs[0]?.href ?? path,
+    [path, tabs],
+  );
+
+  if (error) {
     return (
-      <section className="security-card">
-        <p role="alert">{error}</p>
-        <button className="button" onClick={() => setRetry((n) => n + 1)}>
-          Tentar novamente
-        </button>
-      </section>
+      <div className={styles.statePage}>
+        <PageHeader
+          title="Configurações"
+          description="Gerencie as configurações disponíveis da plataforma."
+        />
+        <Alert
+          variant="danger"
+          title="Não foi possível carregar Configurações"
+          description={error}
+          actions={
+            <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
+              Tentar novamente
+            </Button>
+          }
+        />
+      </div>
     );
-  if (!role) return <p role="status">Carregando configurações…</p>;
-  const tabs = settingsTabsForRole(role);
+  }
+
+  if (!role) {
+    return (
+      <div className={styles.statePage} aria-busy="true" aria-label="Carregando configurações">
+        <Skeleton className={styles.headerSkeleton} />
+        <Skeleton className={styles.navigationSkeleton} />
+        <Skeleton className={styles.contentSkeleton} />
+      </div>
+    );
+  }
+
   const adminOnly = isAdminOnlySettingsPath(path);
+
   return (
     <div className={styles.page}>
-      <nav
-        className={`settings-tabs ${styles.tabs}`}
-        aria-label="Configurações"
+      <Tabs
+        value={activeTab}
+        defaultValue={activeTab}
+        onValueChange={(href) => {
+          if (href !== path) router.push(href);
+        }}
       >
-        {tabs.map((tab) => {
-          const active = isSettingsTabActive(path, tab.href);
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              aria-current={active ? "page" : undefined}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
-      <div className={styles.content}>
-        {adminOnly && role !== "admin" ? (
-          <section className="security-card">
-            <h1>Acesso restrito</h1>
-            <p>Esta área está disponível apenas para administradores.</p>
-          </section>
-        ) : (
-          children
-        )}
-      </div>
+        <div className={styles.navigationViewport}>
+          <TabsList className={styles.tabs} aria-label="Áreas de Configurações">
+            {tabs.map((tab) => (
+              <TabsTrigger key={tab.href} value={tab.href}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+        <TabsContent value={activeTab} className={styles.content}>
+          {adminOnly && role !== "admin" ? (
+            <Alert
+              variant="warning"
+              title="Acesso restrito"
+              description="Esta área está disponível apenas para administradores."
+            />
+          ) : (
+            children
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
