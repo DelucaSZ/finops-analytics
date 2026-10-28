@@ -1,8 +1,22 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Check, Pencil, Plus, Star, XCircle } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { PageHeader, Section, StatusIndicator } from "@/components/aven";
+import {
+  Alert,
+  Badge,
+  Button,
+  Checkbox,
+  Input,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableState,
+} from "@/components/ui";
 import {
   BillingGranularity,
   BillingGroupBy,
@@ -15,6 +29,7 @@ import {
   setDefaultBillingProfile,
   updateBillingProfile,
 } from "@/lib/billing";
+import styles from "../../settings-page.module.css";
 
 const RECORD_TYPES = [
   "Credit",
@@ -161,178 +176,157 @@ export default function BillingProfilesPage() {
   }
 
   return (
-    <div className="billing-profiles-page">
+    <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES · BILLING"
         title="Perfis de Billing"
         description="Salve metodologias reutilizáveis para consultas ao AWS Cost Explorer. Período e contas continuam sendo escolhidos na consulta."
-        actions={
-          <button className="button primary" onClick={() => setForm({ ...emptyForm })}>
-            <Plus size={16} /> Novo perfil
-          </button>
-        }
+        actions={<Button onClick={() => setForm({ ...emptyForm })}>Novo perfil</Button>}
       />
 
-      {error && <div className="alert error" role="alert">{error}</div>}
-      {success && <div className="alert success"><Check size={17} />{success}</div>}
+      {error && <Alert variant="danger" title="Falha em Billing Profiles" description={error} />}
+      {success && <Alert variant="success" title="Alteração persistida" description={success} />}
 
       {form && (
-        <section className="panel billing-profile-form-panel">
-          <h2>{form.id ? "Editar perfil" : "Novo perfil"}</h2>
-          <form onSubmit={submit} className="form-grid">
-            <label>
-              <span>Nome</span>
-              <input
+        <Section
+          appearance="card"
+          title={form.id ? "Editar perfil" : "Novo perfil"}
+          description="A configuração é persistida somente após salvar."
+        >
+          <form onSubmit={submit} className={styles.formStack}>
+            <div className={styles.formGrid}>
+              <Input
+                label="Nome"
                 required
                 maxLength={120}
                 value={form.name}
                 onChange={(event) => setForm({ ...form, name: event.target.value })}
               />
-            </label>
-            <label>
-              <span>Descrição</span>
-              <input
+              <Input
+                label="Descrição"
                 maxLength={1000}
                 value={form.description ?? ""}
                 onChange={(event) => setForm({ ...form, description: event.target.value })}
               />
-            </label>
-            <label>
-              <span>Métrica</span>
-              <select
+              <Select
+                label="Métrica"
                 value={form.metric}
                 onChange={(event) => setForm({ ...form, metric: event.target.value as BillingMetric })}
-              >
-                {Object.entries(metricLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Granularidade</span>
-              <select
+                options={Object.entries(metricLabels).map(([value, label]) => ({ value, label }))}
+              />
+              <Select
+                label="Granularidade"
                 value={form.granularity}
                 onChange={(event) => setForm({ ...form, granularity: event.target.value as BillingGranularity })}
-              >
-                {Object.entries(granularityLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </label>
-            <label>
-              <span>Agrupamento padrão</span>
-              <select
+                options={Object.entries(granularityLabels).map(([value, label]) => ({ value, label }))}
+              />
+              <Select
+                label="Agrupamento padrão"
                 value={form.group_by}
                 onChange={(event) => setForm({ ...form, group_by: event.target.value as BillingGroupBy })}
-              >
-                {Object.entries(groupingLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-              </select>
-            </label>
-            {!form.id && (
-              <label>
-                <span>Padrão</span>
-                <input
-                  type="checkbox"
+                options={Object.entries(groupingLabels).map(([value, label]) => ({ value, label }))}
+              />
+              {!form.id && (
+                <Checkbox
+                  label="Definir como padrão"
                   checked={Boolean(form.is_default)}
                   onChange={(event) => setForm({ ...form, is_default: event.target.checked })}
-                /> Definir como padrão
-              </label>
-            )}
-            <fieldset>
+                />
+              )}
+            </div>
+
+            <fieldset className={styles.formStack}>
               <legend>Excluir tipos de registro</legend>
-              <div className="checkbox-list">
+              <div className={styles.checkboxGrid}>
                 {RECORD_TYPES.map((recordType) => {
                   const checked = form.exclude_record_types.includes(recordType);
                   return (
-                    <label key={recordType}>
-                      <input
-                        type="checkbox"
-                        checked={checked}
-                        onChange={(event) => {
-                          const next = event.target.checked
-                            ? [...form.exclude_record_types, recordType]
-                            : form.exclude_record_types.filter((item) => item !== recordType);
-                          setForm({ ...form, exclude_record_types: next });
-                        }}
-                      />
-                      {recordType}
-                    </label>
+                    <Checkbox
+                      key={recordType}
+                      label={recordType}
+                      checked={checked}
+                      onChange={(event) => {
+                        const next = event.target.checked
+                          ? [...form.exclude_record_types, recordType]
+                          : form.exclude_record_types.filter((item) => item !== recordType);
+                        setForm({ ...form, exclude_record_types: next });
+                      }}
+                    />
                   );
                 })}
               </div>
             </fieldset>
-            <div className="actions">
-              <button className="button primary" type="submit" disabled={saving}>
-                {saving ? "Salvando…" : "Salvar"}
-              </button>
-              <button className="button ghost" type="button" onClick={() => setForm(null)} disabled={saving}>
-                Cancelar
-              </button>
+
+            <div className={styles.formActions}>
+              <Button type="submit" loading={saving}>Salvar</Button>
+              <Button variant="ghost" onClick={() => setForm(null)} disabled={saving}>Cancelar</Button>
             </div>
           </form>
-        </section>
+        </Section>
       )}
 
-      <section className="panel billing-profiles-panel">
-        <h2>Perfis disponíveis</h2>
-        {loading ? (
-          <p role="status">Carregando perfis…</p>
-        ) : profiles.length === 0 ? (
-          <p>Nenhum perfil disponível.</p>
-        ) : (
-          <div className="table-wrap billing-profiles-table-wrap">
-            <table className="billing-profiles-table">
-              <colgroup>
-                <col className="billing-col-profile" />
-                <col className="billing-col-configuration" />
-                <col className="billing-col-grouping" />
-                <col className="billing-col-status" />
-                <col className="billing-col-actions" />
-              </colgroup>
-              <thead>
-                <tr>
-                  <th scope="col">Perfil</th>
-                  <th scope="col">Configuração</th>
-                  <th scope="col">Agrupamento</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Ações</th>
-                </tr>
-              </thead>
-              <tbody>
-                {profiles.map((profile) => (
-                  <tr key={profile.id}>
-                    <td>
-                      <div className="billing-profile-name">
-                        <strong>{profile.name}</strong>
-                        {profile.is_default && <span className="badge">Padrão</span>}
-                      </div>
-                      <div className="muted billing-profile-description">
-                        {profile.description || (profile.is_system ? "Perfil de sistema" : "Sem descrição")}
-                      </div>
-                    </td>
-                    <td className="billing-profile-configuration">{profileSummary(profile)}</td>
-                    <td className="billing-profile-grouping">{groupingLabels[profile.group_by]}</td>
-                    <td className="billing-profile-status">{profile.enabled ? "Ativo" : "Inativo"}</td>
-                    <td>
-                      <div className="actions billing-profile-actions">
-                        <button className="button ghost" onClick={() => edit(profile)} disabled={!profile.enabled}>
-                          <Pencil size={15} /> Editar
-                        </button>
-                        {!profile.is_default && profile.enabled && (
-                          <button className="button ghost" onClick={() => void setDefault(profile)}>
-                            <Star size={15} /> Definir como padrão
-                          </button>
-                        )}
-                        {!profile.is_default && !profile.is_system && profile.enabled && (
-                          <button className="button ghost" onClick={() => void deactivate(profile)}>
-                            <XCircle size={15} /> Desativar
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-    </div>
+      <Section title="Perfis disponíveis" description="Perfis persistidos e disponíveis para consultas de Billing.">
+        <Table aria-label="Perfis de Billing disponíveis">
+          <TableHeader>
+            <TableRow staticRow>
+              <TableHead>Perfil</TableHead>
+              <TableHead>Configuração</TableHead>
+              <TableHead>Agrupamento</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Ações</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {loading ? (
+              <TableRow staticRow>
+                <TableState state="loading" colSpan={5}>Carregando perfis…</TableState>
+              </TableRow>
+            ) : profiles.length === 0 ? (
+              <TableRow staticRow>
+                <TableState state="empty" colSpan={5}>Nenhum perfil disponível.</TableState>
+              </TableRow>
+            ) : profiles.map((profile) => (
+              <TableRow key={profile.id}>
+                <TableCell>
+                  <div className={styles.stack}>
+                    <div className={styles.inlineMeta}>
+                      <strong>{profile.name}</strong>
+                      {profile.is_default && <Badge variant="info" appearance="subtle">Padrão</Badge>}
+                    </div>
+                    <span className={styles.secondaryText}>
+                      {profile.description || (profile.is_system ? "Perfil de sistema" : "Sem descrição")}
+                    </span>
+                  </div>
+                </TableCell>
+                <TableCell>{profileSummary(profile)}</TableCell>
+                <TableCell>{groupingLabels[profile.group_by]}</TableCell>
+                <TableCell>
+                  <StatusIndicator
+                    status={profile.enabled ? "success" : "neutral"}
+                    label={profile.enabled ? "Ativo" : "Inativo"}
+                  />
+                </TableCell>
+                <TableCell>
+                  <div className={styles.formActions}>
+                    <Button size="sm" variant="ghost" onClick={() => edit(profile)} disabled={!profile.enabled}>
+                      Editar
+                    </Button>
+                    {!profile.is_default && profile.enabled && (
+                      <Button size="sm" variant="outline" onClick={() => void setDefault(profile)}>
+                        Definir como padrão
+                      </Button>
+                    )}
+                    {!profile.is_default && !profile.is_system && profile.enabled && (
+                      <Button size="sm" variant="danger" onClick={() => void deactivate(profile)}>
+                        Desativar
+                      </Button>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Section>
+    </>
   );
 }

@@ -1,0 +1,86 @@
+.sectionGrid {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-inline-size: 0;
+}
+
+.formStack {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.formGrid {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-inline-size: 0;
+}
+
+.formActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.checkboxGrid {
+  display: grid;
+  gap: var(--space-2);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.toolbar {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-4);
+  min-inline-size: 0;
+}
+
+.inlineMeta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.secondaryText {
+  color: var(--text-secondary);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.technicalValue {
+  color: var(--text-primary);
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line-height);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 900px) {
+  .sectionGrid,
+  .formGrid,
+  .checkboxGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 700px) {
+  .formActions,
+  .toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
