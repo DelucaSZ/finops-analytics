@@ -1,5 +1,55 @@
 /* Compatibility layer for legacy global selectors that still carry dark-only literal colors. */
 
+/*
+ * Task 24.20 bridge: historical application variables resolve through the
+ * canonical Aven semantic runtime after ui-system.css has loaded. This keeps
+ * legacy selectors operational without allowing the old palette to repaint the
+ * application canvas or shared surfaces.
+ */
+:root,
+html[data-theme="light"],
+html[data-theme="dark"] {
+  --background: var(--application-background);
+  --foreground: var(--text-primary);
+  --surface: var(--surface-primary);
+  --surface-muted: var(--surface-secondary);
+  --surface-subtle: var(--surface-tertiary);
+  --border: var(--border-subtle);
+  --primary: var(--action-primary);
+  --primary-hover: var(--action-primary-hover);
+  --primary-foreground: var(--action-primary-text);
+  --muted: var(--text-secondary);
+  --muted-foreground: var(--text-muted);
+  --success: var(--status-success);
+  --success-soft: var(--status-success-bg);
+  --warning: var(--status-warning);
+  --warning-soft: var(--status-warning-bg);
+  --danger: var(--status-danger);
+  --danger-soft: var(--status-danger-bg);
+  --info: var(--status-info);
+  --info-soft: var(--status-info-bg);
+  --focus: var(--focus-ring);
+  --control-bg: var(--control-background);
+  --overlay: var(--overlay-backdrop);
+  --shadow: var(--shadow-sm);
+  --radius-lg: var(--radius-card);
+  --chart-1: var(--chart-series-1);
+  --chart-2: var(--chart-series-2);
+  --chart-3: var(--chart-series-3);
+  --chart-4: var(--chart-series-4);
+  --chart-5: var(--chart-series-5);
+}
+
+/* ui-system.css still declares this canonical name; reassert its semantic mapping after the bridge. */
+:root,
+html[data-theme="light"] {
+  --border-strong: var(--aven-color-neutral-400);
+}
+
+html[data-theme="dark"] {
+  --border-strong: var(--aven-color-neutral-600);
+}
+
 .login-page,
 .access-page {
   color: var(--foreground);

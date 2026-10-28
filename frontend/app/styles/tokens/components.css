@@ -4,11 +4,15 @@
  * must never be page-specific.
  */
 :root {
-  --sidebar-background: var(--surface-primary);
+  /* Application-shell surfaces sit above one shared Aven canvas. */
+  --shell-background: var(--application-background);
+  --shell-content-background: var(--page-background);
+  --sidebar-background: var(--surface-overlay);
   --sidebar-border: var(--border-subtle);
-  --header-background: var(--surface-primary);
+  --header-background: var(--surface-overlay);
   --header-border: var(--border-subtle);
   --topbar-background: var(--header-background);
+  /* Retained for compatibility; the shell no longer draws a full-width topbar rule. */
   --topbar-border: var(--header-border);
 
   /* Persistent Aven application-shell geometry. */
