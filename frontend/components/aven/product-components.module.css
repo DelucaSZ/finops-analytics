@@ -229,6 +229,11 @@
   min-inline-size: min(100%, var(--popover-min-inline-size));
 }
 
+.selector [data-multiple="true"] {
+  align-items: stretch;
+  block-size: auto;
+}
+
 .selectorLoading {
   min-block-size: var(--control-height-compact);
   padding-block: var(--space-3);
