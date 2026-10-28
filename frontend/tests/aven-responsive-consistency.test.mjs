@@ -50,14 +50,18 @@ test("Dropdown and Tooltip share viewport-aware collision positioning", () => {
   assert.match(block(overlays, ".tooltipContent"), /max-inline-size:\s*min\(/);
 });
 
-test("shared Aven product components own narrow header, filter and metric behavior", () => {
+test("shared Aven product components own narrow header, filter, metric and multi-select behavior", () => {
   const source = read("components/aven/product-components.module.css");
+  const select = read("components/ui/select.tsx");
 
   assert.match(block(source, ".pageHeader"), /min-inline-size:\s*0/);
   assert.match(block(source, ".metricCard"), /block-size:\s*100%/);
   assert.match(source, /@media \(max-width:\s*48rem\)/);
   assert.match(source, /\.pageHeaderMain,[\s\S]*\.filterBar\s*\{[\s\S]*flex-direction:\s*column/);
   assert.match(source, /\.filterPrimary > \*\s*\{[^}]*max-inline-size:\s*100%/s);
+  assert.match(source, /\.selector \[data-multiple="true"\]\s*\{[^}]*block-size:\s*auto/s);
+  assert.match(select, /data-multiple=\{multiple \|\| undefined\}/);
+  assert.match(select, /multiple=\{multiple\}/);
 });
 
 test("Aven pages use the shared composition scale instead of historical page-specific breakpoints", () => {
