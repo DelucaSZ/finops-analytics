@@ -16,6 +16,7 @@ import {
 } from "@/components/aven";
 import {
   Alert,
+  Badge,
   Button,
   EmptyState,
   Input,
@@ -133,7 +134,7 @@ function CollectionTableState({
               variant="danger"
               title="Não foi possível carregar os relatórios"
               description={error}
-              actions={<Button variant="outline" size="sm" onClick={onRetry}>Tentar novamente</Button>}
+              actions={<Button type="button" variant="outline" size="sm" onClick={onRetry}>Tentar novamente</Button>}
             />
           </TableCell>
         </TableRow>
@@ -159,7 +160,7 @@ function CollectionTableState({
             <EmptyState
               title={title}
               description={description}
-              primaryAction={hasFilters ? <Button variant="outline" size="sm" onClick={onClear}>Limpar filtros</Button> : undefined}
+              primaryAction={hasFilters ? <Button type="button" variant="outline" size="sm" onClick={onClear}>Limpar filtros</Button> : undefined}
             />
           </TableCell>
         </TableRow>
@@ -185,6 +186,7 @@ export function CollectionWorkspace({
   const [draft, setDraft] = useState(state);
   const [validation, setValidation] = useState("");
   const [now, setNow] = useState(Date.now());
+  const [accountSearch, setAccountSearch] = useState(state.account_id);
   const [optionScope, setOptionScope] = useState({
     provider: state.provider,
     search: state.account_id,
@@ -268,16 +270,17 @@ export function CollectionWorkspace({
 
   useEffect(() => {
     setDraft(state);
+    setAccountSearch(state.account_id);
     setValidation("");
   }, [state]);
 
   useEffect(() => {
     if (collectionId) return;
     const timer = window.setTimeout(() => {
-      setOptionScope({ provider: draft.provider, search: draft.account_id });
+      setOptionScope({ provider: draft.provider, search: accountSearch });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [collectionId, draft.provider, draft.account_id]);
+  }, [accountSearch, collectionId, draft.provider]);
 
   const hasRunning = collectionId
     ? detail?.status === "RUNNING"
@@ -305,11 +308,12 @@ export function CollectionWorkspace({
   const headerActions = (
     <div className={styles.headerActions}>
       {collectionId ? (
-        <Button variant="outline" onClick={() => router.push(`/collections?${query}`)}>
+        <Button type="button" variant="outline" onClick={() => router.push(`/collections?${query}`)}>
           Voltar ao histórico
         </Button>
       ) : headerAction}
       <Button
+        type="button"
         variant="outline"
         leadingIcon={<RefreshCw {...iconDefaults} />}
         loading={refreshing}
@@ -365,10 +369,11 @@ export function CollectionWorkspace({
         >
           <FilterBar
             aria-label="Filtros de relatórios"
-            clearAction={hasFilters ? <Button variant="ghost" size="sm" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+            clearAction={hasFilters ? <Button type="button" variant="ghost" size="sm" onClick={clearFilters}>Limpar filtros</Button> : undefined}
             actions={(
               <div className={styles.toolbar}>
                 <Button
+                  type="button"
                   variant="ghost"
                   size="sm"
                   onClick={() => {
@@ -390,25 +395,52 @@ export function CollectionWorkspace({
             )}
           >
             <div className={styles.filterControls}>
-              <ProviderSelector
-                label="Cloud"
-                value={draft.provider}
-                onChange={(provider) => setDraft({ ...draft, provider, account_id: "" })}
-                options={providerOptions}
-                loading={optionsRequest.isLoading}
-                placeholder="Todas as clouds"
-                clearLabel="Todas as clouds"
-                searchable={false}
-              />
-              <AccountSelector
-                label="Conta"
-                value={draft.account_id}
-                onChange={(account_id) => setDraft({ ...draft, account_id })}
-                options={accountOptions}
-                loading={optionsRequest.isLoading}
-                placeholder="Todas as contas"
-                clearLabel="Todas as contas"
-              />
+              {optionsRequest.error ? (
+                <>
+                  <Input
+                    label="Cloud"
+                    placeholder="Cloud exata"
+                    value={draft.provider}
+                    onChange={(event) => setDraft({ ...draft, provider: event.target.value, account_id: "" })}
+                  />
+                  <Input
+                    label="Conta"
+                    placeholder="ID exato da conta"
+                    value={draft.account_id}
+                    onChange={(event) => setDraft({ ...draft, account_id: event.target.value })}
+                  />
+                </>
+              ) : (
+                <>
+                  <ProviderSelector
+                    label="Cloud"
+                    value={draft.provider}
+                    onChange={(provider) => {
+                      setDraft({ ...draft, provider, account_id: "" });
+                      setAccountSearch("");
+                    }}
+                    options={providerOptions}
+                    loading={optionsRequest.isLoading}
+                    placeholder="Todas as clouds"
+                    clearLabel="Todas as clouds"
+                    searchable={false}
+                  />
+                  <AccountSelector
+                    label="Conta"
+                    value={draft.account_id}
+                    onChange={(account_id) => {
+                      setDraft({ ...draft, account_id });
+                      if (!account_id) setAccountSearch("");
+                    }}
+                    onSearchChange={setAccountSearch}
+                    searchPlaceholder="Buscar conta por nome ou ID"
+                    options={accountOptions}
+                    loading={optionsRequest.isLoading}
+                    placeholder="Todas as contas"
+                    clearLabel="Todas as contas"
+                  />
+                </>
+              )}
               <Select
                 label="Status"
                 value={draft.status}
@@ -446,15 +478,15 @@ export function CollectionWorkspace({
 
           {activeFilters.length > 0 ? (
             <div className={styles.activeFilters} aria-label="Filtros ativos">
-              {activeFilters.map((label) => <span className={styles.activeFilter} key={label}>{label}</span>)}
+              {activeFilters.map((label) => <Badge key={label}>{label}</Badge>)}
             </div>
           ) : null}
-          {options.has_more_accounts ? <p className={styles.note}>Digite o identificador da conta para buscar além das primeiras opções carregadas.</p> : null}
+          {options.has_more_accounts ? <p className={styles.note}>Busque pelo nome ou identificador da conta para consultar além das primeiras opções carregadas.</p> : null}
           {optionsRequest.error ? (
             <Alert
               variant="warning"
               title="Sugestões de filtro indisponíveis"
-              description="Você ainda pode informar a cloud e o identificador da conta manualmente."
+              description="Informe a cloud e o identificador da conta manualmente; o histórico continua consultável."
             />
           ) : null}
           {validation ? <Alert variant="danger" title="Período inválido" description={validation} /> : null}
@@ -605,7 +637,7 @@ export function CollectionWorkspace({
           variant="danger"
           title="Não foi possível carregar o relatório"
           description={error}
-          actions={<Button variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>Tentar novamente</Button>}
+          actions={<Button type="button" variant="outline" size="sm" onClick={() => void detailRequest.refetch()}>Tentar novamente</Button>}
         />
       ) : null}
 
@@ -628,7 +660,7 @@ export function CollectionWorkspace({
               </div>
               <div className={styles.detailActions}>
                 {detail.detailed_observations_available ? (
-                  <Button onClick={() => router.push(collectionOpportunitiesUrl(detail.id))}>
+                  <Button type="button" onClick={() => router.push(collectionOpportunitiesUrl(detail.id))}>
                     Ver oportunidades desta coleta
                   </Button>
                 ) : null}
