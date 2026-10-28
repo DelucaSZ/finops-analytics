@@ -64,6 +64,14 @@ from app.models.rds_coverage import (
     RdsReservationUtilization,
 )
 from app.models.rds_inventory import AwsRdsInstance, AwsRdsReservedInstance
+from app.models.report import (
+    Report,
+    ReportArtifact,
+    ReportArtifactFormat,
+    ReportExecution,
+    ReportExecutionStatus,
+    ReportType,
+)
 from app.models.scan import Scan
 from app.models.user import AuthState, User
 
@@ -122,6 +130,12 @@ __all__ = [
     "PricingAuditAction",
     "PricingAuditActorType",
     "PricingAuditEvent",
+    "Report",
+    "ReportArtifact",
+    "ReportArtifactFormat",
+    "ReportExecution",
+    "ReportExecutionStatus",
+    "ReportType",
     "Scan",
     "User",
     "AuthState",
