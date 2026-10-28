@@ -20,7 +20,8 @@ Before implementing any Task 24.x that changes UI, branding, layout, components,
 14. `docs/brand/aven/AVEN_INVENTORY.md`
 15. `docs/brand/aven/AVEN_RECOMMENDATIONS.md`
 16. `docs/brand/aven/AVEN_SETTINGS.md`
-17. the applicable assets and visual references under this directory
+17. `docs/brand/aven/AVEN_FLOW_AND_SECONDARY_PAGES.md`
+18. the applicable assets and visual references under this directory
 
 ## Brand direction
 
@@ -34,7 +35,7 @@ The approved visual references in Brand Kit v1 are the golden references for the
 
 ## Aven Design System foundation
 
-Tasks 24.2–24.15 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation and Settings architecture:
+Tasks 24.2–24.16 establish the official token, theme-runtime, visual-foundation, UI primitive, Product Component, persistent Application Shell, technical rebrand, Login Experience, Golden Reference, analytical, operational, inventory, recommendation, Settings, Flow and existing-secondary-page architecture:
 
 - `AVEN_DESIGN_TOKENS.md` — token layers, semantic contract, source of truth and migration policy;
 - `AVEN_THEME_ENGINE.md` — Light/Dark/System preference, runtime resolution, bootstrap, persistence and `useTheme()` API;
@@ -50,6 +51,7 @@ Tasks 24.2–24.15 establish the official token, theme-runtime, visual-foundatio
 - `AVEN_INVENTORY.md` — **Cloud resource exploration reference** for persisted inventory, technical identifiers, provider context and dense tables;
 - `AVEN_RECOMMENDATIONS.md` — **FinOps decision-support reference** for optimization opportunities, potential savings, impact, confidence and action-oriented workflows;
 - `AVEN_SETTINGS.md` — **Settings migration reference** for the Functional Foundation Gate, route-based configuration navigation, forms, persistence, permissions, secrets and no-invented-feature rule;
+- `AVEN_FLOW_AND_SECONDARY_PAGES.md` — **Flow and existing-secondary-page reference** for functional-foundation auditing, preserved ledger/collection contracts, route classification, test baseline/integrity and scoped legacy migration;
 - `aven-semantic-tokens.json` — tooling-oriented token-name index;
 - `frontend/app/styles/tokens/` — canonical runtime CSS Custom Properties;
 - `frontend/lib/brand.ts` — canonical public product identity/runtime asset map;
@@ -93,6 +95,8 @@ Aven Inventory Resource Reference
 Aven Recommendations Decision-support Reference
 ↓
 Aven Settings Functional Foundation Reference
+↓
+Aven Flow & Existing Secondary Pages Reference
 ↓
 Feature Experiences
 ```
@@ -216,6 +220,14 @@ Aven visual migration
 
 No visual concept is allowed to justify a new backend API, database model, mock, credential, integration or dead CTA.
 
+## Aven Flow & Existing Secondary Pages
+
+Task 24.16 migrates the existing `/flow` experience and the audited existing secondary surfaces `/collections`, `/collections/[collectionId]`, `/collections/[collectionId]/compare`, and `/scans`. `AVEN_FLOW_AND_SECONDARY_PAGES.md` records the route inventory, Functional Foundation Gate, preserved Flow/Collections/Scans contracts, loading/error/empty behavior, test baseline, test-isolation rules and Task 24.17 readiness.
+
+Flow continues to represent the existing FinOps ledger and does not become a new workflow engine. Existing summary/timeseries/breakdown/entry queries, manual ledger movement and reversal mutations remain feature-owned. Collections preserves its URL-state, server-state, polling, retention and comparison contracts. Scans preserves its existing operational refresh and collection navigation.
+
+Legacy aliases `/finops/ledger` and `/security` remain redirects instead of receiving duplicate UI. No nonexistent route or backend capability is created to complete navigation.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -248,7 +260,7 @@ npm run lint:brand
 npm run lint:design-system
 ```
 
-The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, Recommendations, refactored Settings surfaces and `/dev/ui` preview instead of failing on historical page debt scheduled for progressive migration.
+The design-system gate protects the official primitive library, Product Component library, brand components, Application Shell, Aven authentication experience, migrated Dashboard, Billing, Reservations, Inventory, Recommendations, refactored Settings surfaces, Flow, existing secondary pages and `/dev/ui` preview instead of failing on historical debt scheduled for progressive migration.
 
 ## Layer dependency rule
 
@@ -282,6 +294,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Resource-exploration pages use `AVEN_INVENTORY.md` for persisted inventory, technical identifiers and provider/resource table semantics.
 - Decision-support and optimization pages use `AVEN_RECOMMENDATIONS.md` for savings, impact, confidence, resource context, workflow status and action semantics.
 - Settings and future secondary-page migrations use `AVEN_SETTINGS.md` to enforce the Functional Foundation Gate and prohibit invented capabilities during visual redesign.
+- Flow and remaining existing-secondary-page migrations use `AVEN_FLOW_AND_SECONDARY_PAGES.md` to preserve real contracts, route classification, test integrity and scoped legacy cleanup.
 
 ## Repository note
 
@@ -291,4 +304,4 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.15 provide the design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference, analytical, Reservations, Inventory, Recommendations and Settings foundations required for Task 24.16 — Aven Flow + existing secondary pages.
+Tasks 24.2–24.16 provide the design-system, product-composition, persistent-shell, technical-brand, Login, Golden Reference, analytical, Reservations, Inventory, Recommendations, Settings, Flow and existing-secondary-page foundations required for Task 24.17 — Aven Data Visualization System.

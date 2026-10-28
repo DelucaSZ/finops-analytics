@@ -3,23 +3,31 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { Activity } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
-import { StatusBadge } from "@/components/status-badge";
+import { DataState, PageHeader, Section, StatusIndicator, type ProductStatus } from "@/components/aven";
+import { Alert, Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui";
+import { iconDefaults } from "@/lib/iconography";
 import { api, formatDate } from "@/lib/api";
 import type { AwsAccount, CollectionRun, Scan } from "@/lib/types";
+import styles from "./scans.module.css";
 
-function collectionStatus(status: string) {
-  if (status === "SUCCESS") return "completed";
-  return status.toLowerCase();
+function statusPresentation(status: string): { status: ProductStatus; label: string } {
+  const normalized = status.trim().toUpperCase();
+  if (normalized === "SUCCESS" || normalized === "COMPLETED") return { status: "success", label: "Concluída" };
+  if (normalized === "FAILED" || normalized === "ERROR") return { status: "danger", label: "Falhou" };
+  if (normalized === "RUNNING" || normalized === "PENDING") return { status: "pending", label: normalized === "RUNNING" ? "Em andamento" : "Pendente" };
+  if (normalized === "COMPLETED_WITH_WARNINGS") return { status: "warning", label: "Com alertas" };
+  return { status: "neutral", label: status || "Desconhecido" };
 }
 
 export default function ScansPage() {
   const [scans, setScans] = useState<Scan[]>([]);
   const [accounts, setAccounts] = useState<AwsAccount[]>([]);
   const [collections, setCollections] = useState<CollectionRun[]>([]);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
   useEffect(() => {
+    let active = true;
     const load = () =>
       Promise.all([
         api<Scan[]>("/scans?limit=100"),
@@ -27,15 +35,25 @@ export default function ScansPage() {
         api<CollectionRun[]>("/collections?limit=200"),
       ])
         .then(([scanData, accountData, collectionData]) => {
+          if (!active) return;
           setScans(scanData);
           setAccounts(accountData);
           setCollections(collectionData);
           setError("");
         })
-        .catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar"));
+        .catch((err) => {
+          if (active) setError(err instanceof Error ? err.message : "Falha ao carregar execuções.");
+        })
+        .finally(() => {
+          if (active) setLoading(false);
+        });
+
     void load();
     const timer = window.setInterval(load, 10000);
-    return () => window.clearInterval(timer);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
   }, []);
 
   const accountNames = useMemo(
@@ -53,81 +71,82 @@ export default function ScansPage() {
   );
 
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader
-        eyebrow="PROCESSAMENTO"
         title="Execuções"
         description="Histórico das análises manuais e agendadas, com acesso ao CollectionRun auditável."
+        metadata="Processamento · atualização operacional a cada 10 segundos"
       />
-      {error && <div className="alert error">{error}</div>}
-      <section className="panel table-panel">
-        <div className="panel-heading">
-          <div>
-            <span className="eyebrow">HISTÓRICO</span>
-            <h2>Varreduras AWS</h2>
-          </div>
-          <Activity size={20} />
-        </div>
-        <div
-          className="data-table-wrap"
-          role="region"
-          aria-label="Histórico de execuções"
-          tabIndex={0}
+
+      {error && <Alert variant="danger" title="Não foi possível atualizar as execuções" description={error} />}
+
+      <Section
+        appearance="card"
+        title="Varreduras AWS"
+        description="Execuções persistidas e o CollectionRun correspondente quando disponível."
+        actions={<Activity {...iconDefaults} aria-hidden="true" />}
+      >
+        <DataState
+          loading={loading && scans.length === 0}
+          empty={!loading && scans.length === 0}
+          emptyTitle="Nenhuma análise executada"
+          emptyDescription="O histórico aparecerá aqui após uma execução real."
         >
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th scope="col">Conta</th>
-                <th scope="col">Gatilho</th>
-                <th scope="col">Início</th>
-                <th scope="col">Conclusão</th>
-                <th scope="col">Achados</th>
-                <th scope="col">Status</th>
-                <th scope="col">Coleta</th>
-              </tr>
-            </thead>
-            <tbody>
+          <Table aria-label="Histórico de execuções">
+            <TableHeader>
+              <TableRow staticRow>
+                <TableHead>Conta</TableHead>
+                <TableHead>Gatilho</TableHead>
+                <TableHead>Início</TableHead>
+                <TableHead>Conclusão</TableHead>
+                <TableHead numeric>Achados</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Coleta</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {scans.map((scan) => {
                 const run = collectionByScan[scan.id];
+                const scanStatus = statusPresentation(scan.status);
+                const runStatus = run ? statusPresentation(run.status) : null;
                 return (
-                  <tr key={scan.id}>
-                    <td>
-                      <strong>{accountNames[scan.account_id] || `Conta ${scan.account_id}`}</strong>
-                      <span>{scan.id.slice(0, 8)}</span>
-                    </td>
-                    <td>{scan.trigger === "manual" ? "Manual" : "Agendada"}</td>
-                    <td>{formatDate(scan.started_at || scan.created_at)}</td>
-                    <td>{formatDate(scan.completed_at)}</td>
-                    <td>{scan.findings_count}</td>
-                    <td>
-                      <StatusBadge value={scan.status} />
-                      {scan.error && (
-                        <span className="error-hint" title={scan.error}>
-                          ver erro
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      {run ? (
-                        <div className="row-actions">
-                          <Link href={`/collections/${run.id}`}>Ver coleta</Link>
+                  <TableRow key={scan.id}>
+                    <TableCell>
+                      <span className={styles.cellStack}>
+                        <strong className={styles.primaryText}>{accountNames[scan.account_id] || `Conta ${scan.account_id}`}</strong>
+                        <span className={styles.secondaryText}>{scan.id.slice(0, 8)}</span>
+                      </span>
+                    </TableCell>
+                    <TableCell>{scan.trigger === "manual" ? "Manual" : "Agendada"}</TableCell>
+                    <TableCell>{formatDate(scan.started_at || scan.created_at)}</TableCell>
+                    <TableCell>{formatDate(scan.completed_at)}</TableCell>
+                    <TableCell numeric>{scan.findings_count}</TableCell>
+                    <TableCell>
+                      <span className={styles.cellStack}>
+                        <StatusIndicator status={scanStatus.status} label={scanStatus.label} />
+                        {scan.error && <span className={styles.secondaryText} title={scan.error}>Erro disponível nos detalhes da execução.</span>}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {run && runStatus ? (
+                        <div className={styles.rowActions}>
+                          <Link className={styles.link} href={`/collections/${run.id}`}>Ver coleta</Link>
                           {run.status === "SUCCESS" && (
-                            <Link href={`/collections/${run.id}/compare`}>Comparar</Link>
+                            <Link className={styles.link} href={`/collections/${run.id}/compare`}>Comparar</Link>
                           )}
-                          <StatusBadge value={collectionStatus(run.status)} />
+                          <StatusIndicator status={runStatus.status} label={runStatus.label} />
                         </div>
                       ) : (
-                        <span>Sem CollectionRun</span>
+                        <span className={styles.secondaryText}>Sem CollectionRun</span>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
-          {!scans.length && <div className="empty-table">Nenhuma análise executada até agora.</div>}
-        </div>
-      </section>
-    </>
+            </TableBody>
+          </Table>
+        </DataState>
+      </Section>
+    </div>
   );
 }

@@ -1,0 +1,44 @@
+.page {
+  display: grid;
+  gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.cellStack {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.primaryText {
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.secondaryText {
+  color: var(--text-muted);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+  overflow-wrap: anywhere;
+}
+
+.rowActions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.link {
+  color: var(--text-link);
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+}
+
+.link:hover {
+  color: var(--text-link-hover);
+}
