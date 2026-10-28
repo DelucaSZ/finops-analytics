@@ -65,6 +65,11 @@
   --icon-button-icon-size: var(--icon-size-lg);
 
   --form-field-gap: var(--space-2);
+  --filter-grid-gap: var(--space-3);
+  --filter-field-min-inline-size: var(--popover-min-inline-size);
+  --filter-field-compact-inline-size: var(--popover-min-inline-size);
+  --filter-field-default-inline-size: calc(var(--popover-min-inline-size) + var(--space-8));
+  --filter-field-wide-inline-size: calc(var(--filter-field-default-inline-size) + var(--space-16));
   --table-cell-padding-block: var(--space-3);
   --table-cell-padding-inline: var(--space-4);
   --textarea-min-block-size: calc(var(--control-height-comfortable) + var(--control-height-comfortable) + var(--control-height-comfortable));

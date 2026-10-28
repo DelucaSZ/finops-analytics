@@ -32,6 +32,7 @@ export const Checkbox = forwardRef<HTMLInputElement, CheckboxProps>(function Che
         }}
         type="checkbox"
         className={styles.choiceInput}
+        data-aven-control-inner=""
         data-indeterminate={indeterminate || undefined}
         disabled={disabled}
         aria-checked={indeterminate ? "mixed" : props.checked}

@@ -13,7 +13,7 @@ export const Radio = forwardRef<HTMLInputElement, RadioProps>(function Radio(
 ) {
   return (
     <label className={cx(styles.choiceLabel, className)}>
-      <input ref={ref} type="radio" className={styles.choiceInput} disabled={disabled} {...props} />
+      <input ref={ref} type="radio" className={styles.choiceInput} data-aven-control-inner="" disabled={disabled} {...props} />
       <span className={styles.radioMark} aria-hidden="true"><span className={styles.choiceIcon} /></span>
       {(label || description) && (
         <span className={styles.choiceText}>

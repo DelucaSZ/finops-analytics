@@ -89,24 +89,50 @@ export function Section({
   );
 }
 
+export type FilterItemSize = "compact" | "default" | "wide" | "fluid";
+
+export interface FilterItemProps extends HTMLAttributes<HTMLDivElement> {
+  size?: FilterItemSize;
+}
+
+export function FilterItem({ size = "default", className, children, ...props }: FilterItemProps) {
+  return (
+    <div {...props} className={classNames(styles.filterItem, className)} data-size={size}>
+      {children}
+    </div>
+  );
+}
+
 export interface FilterBarProps extends Omit<HTMLAttributes<HTMLDivElement>, "children"> {
   children: ReactNode;
+  secondary?: ReactNode;
+  summary?: ReactNode;
   actions?: ReactNode;
   clearAction?: ReactNode;
   surface?: boolean;
 }
 
-function FilterBarContent({ children, actions, clearAction }: Pick<FilterBarProps, "children" | "actions" | "clearAction">) {
+function FilterBarContent({
+  children,
+  secondary,
+  summary,
+  actions,
+  clearAction,
+}: Pick<FilterBarProps, "children" | "secondary" | "summary" | "actions" | "clearAction">) {
   return (
     <div className={styles.filterBar}>
       <div className={styles.filterPrimary}>{children}</div>
       {(clearAction || actions) && <div className={styles.filterActions}>{clearAction}{actions}</div>}
+      {secondary && <div className={styles.filterSecondary}>{secondary}</div>}
+      {summary && <div className={styles.filterSummary}>{summary}</div>}
     </div>
   );
 }
 
 export function FilterBar({
   children,
+  secondary,
+  summary,
   actions,
   clearAction,
   surface = true,
@@ -117,7 +143,9 @@ export function FilterBar({
     return (
       <Card className={classNames(styles.filterSurface, className)} {...props}>
         <CardContent className={styles.filterSurfaceContent}>
-          <FilterBarContent actions={actions} clearAction={clearAction}>{children}</FilterBarContent>
+          <FilterBarContent secondary={secondary} summary={summary} actions={actions} clearAction={clearAction}>
+            {children}
+          </FilterBarContent>
         </CardContent>
       </Card>
     );
@@ -125,7 +153,9 @@ export function FilterBar({
 
   return (
     <div className={classNames(styles.filterSurfacePlain, className)} {...props}>
-      <FilterBarContent actions={actions} clearAction={clearAction}>{children}</FilterBarContent>
+      <FilterBarContent secondary={secondary} summary={summary} actions={actions} clearAction={clearAction}>
+        {children}
+      </FilterBarContent>
     </div>
   );
 }

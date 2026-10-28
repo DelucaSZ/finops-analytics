@@ -51,6 +51,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
           ref={ref}
           id={inputId}
           className={cx(styles.input, className)}
+          data-aven-control-inner=""
           disabled={disabled}
           readOnly={readOnly}
           aria-invalid={error ? true : undefined}
