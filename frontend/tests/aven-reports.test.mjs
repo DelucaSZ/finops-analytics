@@ -56,7 +56,28 @@ test("Reports polling remains conditional, visible-tab only and terminal-safe", 
 });
 
 test("Reports preserves server-side filters, sorting and pagination", () => {
-  const state = parseCollectionQuery("provider=aws&account_id=123&status=SUCCESS&page=2&page_size=25&sort=opportunities_found&order=asc");
+  const query = new URLSearchParams(buildCollectionQuery({
+    provider: "aws",
+    account_id: "123",
+    status: "SUCCESS",
+    date_from: "",
+    date_to: "",
+    analyzer_version: "",
+    page: 2,
+    page_size: 25,
+    sort: "opportunities_found",
+    order: "asc",
+  }));
+
+  assert.equal(query.get("provider"), "aws");
+  assert.equal(query.get("account_id"), "123");
+  assert.equal(query.get("status"), "SUCCESS");
+  assert.equal(query.get("page"), "2");
+  assert.equal(query.get("page_size"), "25");
+  assert.equal(query.get("sort"), "opportunities_found");
+  assert.equal(query.get("order"), "asc");
+
+  const state = parseCollectionQuery(query);
   assert.equal(state.provider, "aws");
   assert.equal(state.account_id, "123");
   assert.equal(state.status, "SUCCESS");
@@ -65,16 +86,11 @@ test("Reports preserves server-side filters, sorting and pagination", () => {
   assert.equal(state.sort, "opportunities_found");
   assert.equal(state.order, "asc");
 
-  const query = new URLSearchParams(buildCollectionQuery(state));
-  assert.equal(query.get("provider"), "aws");
-  assert.equal(query.get("account_id"), "123");
-  assert.equal(query.get("status"), "SUCCESS");
-  assert.equal(query.get("page"), "2");
-  assert.equal(query.get("page_size"), "25");
-
   const patched = new URLSearchParams(patchCollectionQuery(query.toString(), { status: "FAILED" }));
   assert.equal(patched.get("status"), "FAILED");
   assert.equal(patched.get("page"), "1");
+  assert.equal(patched.get("sort"), "opportunities_found");
+  assert.equal(patched.get("order"), "asc");
 });
 
 test("Reports keeps the existing manual collection mutation explicit instead of inventing report-file generation", async () => {
