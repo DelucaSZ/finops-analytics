@@ -262,6 +262,12 @@ zero visible old branding
 zero unsafe cleanup
 ```
 
+### Phase 24 closure status
+
+**Phase 24 — Aven Visual Transformation: COMPLETE.**
+
+The Task 24.19 closure gates are green: frontend **360/360 tests**, zero failed/skipped tests, brand/design-system/lint/typecheck/production-build PASS, backend/security CI PASS, hardcode gate **0 colors / 0 structural spacing / 0 radius / 0 typography**, and final browser evidence **153/153 scenarios PASS**. The authoritative evidence, compatibility inventory and proof-before-delete record are maintained in `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md`.
+
 ## Mandatory engineering rule — Task 24.5 onward
 
 > A partir da Task 24.5, nenhum novo componente visual deverá utilizar cores, border radius, spacing ou typography hardcoded.
@@ -340,4 +346,6 @@ Textual specifications, tokens and vector fallbacks are versioned here so every 
 
 Brand Kit: **v1**
 
-Tasks 24.2–24.19 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login, page, visualization, responsive-consistency and final visual-QA foundations for the Aven Phase 24 transformation. The final closure status is recorded in `AVEN_VISUAL_QA_AND_LEGACY_CLEANUP.md` and is valid only when its CI and browser-evidence gates are green.
+Tasks 24.2–24.19 provide the complete design-system, product-composition, persistent-shell, technical-brand, Login, page, visualization, responsive-consistency and final visual-QA foundations for the Aven Phase 24 transformation.
+
+**Phase 24 closure: COMPLETE — all Task 24.19 implementation and browser-evidence gates green.**
