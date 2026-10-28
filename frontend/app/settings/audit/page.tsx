@@ -269,10 +269,10 @@ function UserAutocomplete({
             maxHeight: 240,
             overflowY: "auto",
             border: "1px solid var(--border)",
-            borderRadius: 10,
+            borderRadius: "var(--radius-control)",
             background: "var(--surface)",
-            boxShadow: "0 10px 30px rgba(0,0,0,.18)",
-            padding: 6,
+            boxShadow: "var(--shadow)",
+            padding: "var(--space-2)",
           }}
         >
           {options.map((option) => (
@@ -281,7 +281,7 @@ function UserAutocomplete({
               key={option.id}
               role="option"
               className="button"
-              style={{ width: "100%", textAlign: "left", marginBottom: 4 }}
+              style={{ width: "100%", textAlign: "left", marginBottom: "var(--space-1)" }}
               onClick={() => {
                 onChange(`${option.name} — ${option.email}`, option.id);
                 setOpen(false);
@@ -504,7 +504,7 @@ export default function AuditPage() {
         </label>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
         <button className="button" onClick={() => applyPreset(24)}>Últimas 24h</button>
         <button className="button" onClick={() => applyPreset(24 * 7)}>7 dias</button>
         <button className="button" onClick={() => applyPreset(24 * 30)}>30 dias</button>
@@ -524,10 +524,17 @@ export default function AuditPage() {
         <button className="button" onClick={clearFilters}>Limpar filtros</button>
       </div>
 
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 16, alignItems: "center" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)", alignItems: "center" }}>
         <strong>{data.total} eventos encontrados</strong>
         {activeFilters.map((filter) => (
-          <span key={filter} style={{ padding: "4px 8px", border: "1px solid var(--border)", borderRadius: 999 }}>
+          <span
+            key={filter}
+            style={{
+              padding: "var(--space-1) var(--space-2)",
+              border: "1px solid var(--border)",
+              borderRadius: "var(--radius-pill)",
+            }}
+          >
             {filter}
           </span>
         ))}
@@ -598,14 +605,14 @@ export default function AuditPage() {
           role="dialog"
           aria-modal="true"
           aria-label="Detalhes do evento de auditoria"
-          style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,.48)", display: "flex", justifyContent: "flex-end" }}
+          style={{ position: "fixed", inset: 0, zIndex: 100, background: "var(--overlay)", display: "flex", justifyContent: "flex-end" }}
           onClick={() => setSelected(null)}
         >
           <section
-            style={{ width: "min(720px, 100%)", height: "100%", overflowY: "auto", background: "var(--surface)", padding: 24 }}
+            style={{ width: "min(720px, 100%)", height: "100%", overflowY: "auto", background: "var(--surface)", padding: "var(--space-6)" }}
             onClick={(event) => event.stopPropagation()}
           >
-            <div style={{ display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "flex-start" }}>
               <div>
                 <span>DETALHE DO EVENTO</span>
                 <h2>{actionLabel(selected.action)}</h2>
