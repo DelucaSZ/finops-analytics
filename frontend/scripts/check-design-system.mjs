@@ -30,6 +30,13 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "app", "inventory"),
   path.join(ROOT, "app", "opportunities", "page.tsx"),
   path.join(ROOT, "app", "opportunities", "opportunities.module.css"),
+  path.join(ROOT, "app", "settings", "layout.tsx"),
+  path.join(ROOT, "app", "settings", "settings-layout.module.css"),
+  path.join(ROOT, "app", "settings", "settings-page.module.css"),
+  path.join(ROOT, "app", "settings", "appearance", "page.tsx"),
+  path.join(ROOT, "app", "settings", "security", "page.tsx"),
+  path.join(ROOT, "app", "settings", "sessions", "page.tsx"),
+  path.join(ROOT, "app", "settings", "billing", "profiles", "page.tsx"),
   path.join(ROOT, "app", "dev", "ui"),
 ];
 const SOURCE_EXTENSIONS = new Set([".css", ".ts", ".tsx"]);
