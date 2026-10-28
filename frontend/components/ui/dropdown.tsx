@@ -52,12 +52,29 @@ export function DropdownMenu({ open, defaultOpen = false, onOpenChange, classNam
 
   useEffect(() => {
     if (!isOpen) return;
+
+    const closeAndRestoreFocus = () => {
+      setOpen(false);
+      triggerRef.current?.focus();
+    };
+
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target as Node;
       if (!rootRef.current?.contains(target) && !contentRef.current?.contains(target)) setOpen(false);
     };
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || event.defaultPrevented) return;
+      event.preventDefault();
+      closeAndRestoreFocus();
+    };
+
     document.addEventListener("pointerdown", handlePointerDown);
-    return () => document.removeEventListener("pointerdown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("pointerdown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, [isOpen, setOpen]);
 
   return (
