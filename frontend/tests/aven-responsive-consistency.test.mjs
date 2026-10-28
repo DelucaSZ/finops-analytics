@@ -96,7 +96,7 @@ test("primary Aven pages share the same outer page rhythm", () => {
   ];
 
   for (const source of sources) {
-    assert.match(block(source, ".page"), /gap:\s*var\(--space-6\)/);
+    assert.match(source, /\.page(?:,\s*\.[A-Za-z0-9_-]+)?\s*\{[^}]*gap:\s*var\(--space-6\)/s);
   }
 });
 
