@@ -46,7 +46,11 @@
   inline-size: 100%;
 }
 
-/* Scoped compatibility bridge while each existing Settings workflow keeps its business logic. */
+/*
+ * Scoped compatibility bridge for Settings workflows that still own legacy
+ * markup. Aven primitives are intentionally excluded so a control never
+ * receives both primitive styling and the migration bridge.
+ */
 .content :global(.page-header) {
   align-items: flex-start;
   display: flex;
@@ -137,17 +141,23 @@
   line-height: var(--type-body-md-line-height);
 }
 
-.content :global(form),
+.content :global(.panel form),
+.content :global(.security-card form),
+.content :global(.policy-card form),
+.content :global(.policy-scope-bar form),
 .content :global(.form-grid),
 .content :global(.settings-form-grid),
 .content :global(.policy-fields) {
   min-inline-size: 0;
 }
 
-.content :global(form label),
-.content :global(.form-grid label),
-.content :global(.settings-form-grid label),
-.content :global(.policy-field label) {
+.content :global(.panel label),
+.content :global(.security-card label),
+.content :global(.policy-card label),
+.content :global(.policy-scope-bar label),
+.content :global(.form-grid > label),
+.content :global(.settings-form-grid > label),
+.content :global(.policy-field > label) {
   color: var(--text-primary);
   font-family: var(--type-label-md-family);
   font-size: var(--type-label-md-size);
@@ -155,9 +165,18 @@
   line-height: var(--type-label-md-line-height);
 }
 
-.content :global(input:not([type="checkbox"]):not([type="radio"])),
-.content :global(select),
-.content :global(textarea) {
+.content :global(.panel input:not([type="checkbox"]):not([type="radio"])),
+.content :global(.panel select),
+.content :global(.panel textarea),
+.content :global(.security-card input:not([type="checkbox"]):not([type="radio"])),
+.content :global(.security-card select),
+.content :global(.security-card textarea),
+.content :global(.policy-card input:not([type="checkbox"]):not([type="radio"])),
+.content :global(.policy-card select),
+.content :global(.policy-card textarea),
+.content :global(.policy-scope-bar input:not([type="checkbox"]):not([type="radio"])),
+.content :global(.policy-scope-bar select),
+.content :global(.policy-scope-bar textarea) {
   background: var(--control-background);
   border: 1px solid var(--control-border);
   border-radius: var(--control-radius);
@@ -173,20 +192,34 @@
   width: 100%;
 }
 
-.content :global(textarea) {
+.content :global(.panel textarea),
+.content :global(.security-card textarea),
+.content :global(.policy-card textarea),
+.content :global(.policy-scope-bar textarea) {
   padding-block: var(--space-3);
   resize: vertical;
 }
 
-.content :global(input:focus-visible),
-.content :global(select:focus-visible),
-.content :global(textarea:focus-visible) {
-  border-color: var(--border-focus);
+.content :global(.panel input:focus-visible),
+.content :global(.panel select:focus-visible),
+.content :global(.panel textarea:focus-visible),
+.content :global(.security-card input:focus-visible),
+.content :global(.security-card select:focus-visible),
+.content :global(.security-card textarea:focus-visible),
+.content :global(.policy-card input:focus-visible),
+.content :global(.policy-card select:focus-visible),
+.content :global(.policy-card textarea:focus-visible),
+.content :global(.policy-scope-bar input:focus-visible),
+.content :global(.policy-scope-bar select:focus-visible),
+.content :global(.policy-scope-bar textarea:focus-visible) {
+  border-color: var(--focus-ring);
   outline: var(--focus-outline-width) solid var(--focus-ring);
   outline-offset: var(--focus-outline-offset);
 }
 
-.content :global(code) {
+.content :global(.panel code),
+.content :global(.security-card code),
+.content :global(.policy-card code) {
   color: var(--text-primary);
   font-family: var(--type-code-family);
   font-size: var(--type-code-size);
@@ -203,35 +236,7 @@
   overscroll-behavior-inline: contain;
 }
 
-.content :global(table) {
-  border-collapse: collapse;
-  min-inline-size: 100%;
-  width: 100%;
-}
-
-.content :global(th),
-.content :global(td) {
-  border-block-end: 1px solid var(--border-subtle);
-  color: var(--text-primary);
-  font-family: var(--type-table-body-family);
-  font-size: var(--type-table-body-size);
-  font-weight: var(--type-table-body-weight);
-  line-height: var(--type-table-body-line-height);
-  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
-  text-align: start;
-  vertical-align: top;
-}
-
-.content :global(th) {
-  color: var(--text-secondary);
-  font-family: var(--type-table-header-family);
-  font-size: var(--type-table-header-size);
-  font-weight: var(--type-table-header-weight);
-  line-height: var(--type-table-header-line-height);
-}
-
 .content :global(.https-settings-page),
-.content :global(.billing-profiles-page),
 .content :global(.security-grid),
 .content :global(.policies-list) {
   display: grid;
@@ -252,29 +257,9 @@
   gap: var(--space-2);
 }
 
-.content :global(.billing-profile-name),
-.content :global(.billing-profile-actions) {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-}
-
-.content :global(.session-list),
-.content :global(.session-item) {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.content :global(.session-item) {
-  border-block-start: 1px solid var(--border-subtle);
-  grid-template-columns: minmax(0, 1fr) auto;
-  padding-block-start: var(--space-4);
-}
-
 @media (max-width: 900px) {
   .content :global(.settings-form-grid),
-  .content :global(.form-grid),
-  .content :global(.session-item) {
+  .content :global(.form-grid) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
