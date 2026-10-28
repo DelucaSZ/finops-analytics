@@ -56,9 +56,7 @@ class Report(TimestampMixin, Base):
         Index("ix_reports_type_created_at", "report_type", "created_at"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     name: Mapped[str] = mapped_column(String(160), nullable=False)
     report_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -84,9 +82,7 @@ class ReportExecution(TimestampMixin, Base):
         Index("ix_report_executions_requested_by_created", "requested_by", "created_at"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     report_id: Mapped[str] = mapped_column(
         ForeignKey("reports.id", ondelete="CASCADE"), nullable=False, index=True
     )
@@ -116,9 +112,7 @@ class ReportArtifact(Base):
         Index("ix_report_artifacts_format_created", "format", "created_at"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     report_execution_id: Mapped[str] = mapped_column(
         ForeignKey("report_executions.id", ondelete="CASCADE"), nullable=False, index=True
     )
