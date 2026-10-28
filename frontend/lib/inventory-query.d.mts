@@ -8,7 +8,7 @@ export interface InventoryQueryState {
   region: string;
   resourceType: string;
   lifecycleStatus: string;
-  presenceStatus: InventoryPresenceFilter;
+  presenceStatus: string;
   service: string;
   search: string;
   sort: InventorySortField;
