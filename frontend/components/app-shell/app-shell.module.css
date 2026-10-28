@@ -117,6 +117,7 @@
   margin-block: var(--space-4);
   min-block-size: var(--space-0);
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .navItem {
@@ -256,11 +257,6 @@
   line-height: var(--type-caption-line-height);
 }
 
-.themeMenu,
-.userMenu {
-  transform: translate(calc(-100% + var(--space-16)), var(--space-2));
-}
-
 .themeMenuLabel {
   flex: 1;
 }
@@ -299,7 +295,11 @@
 
 .contentFrame {
   min-inline-size: var(--space-0);
-  padding: var(--space-8) var(--shell-page-gutter) var(--space-12);
+  padding: var(--space-6) var(--shell-page-gutter) var(--space-10);
+}
+
+.contentFrame > * {
+  min-inline-size: var(--space-0);
 }
 
 .shellError {
@@ -379,7 +379,7 @@
   }
 
   .contentFrame {
-    padding: var(--space-6) var(--shell-page-gutter-compact) var(--space-10);
+    padding-inline: var(--shell-page-gutter-compact);
   }
 
   .topbarControlLabel,
