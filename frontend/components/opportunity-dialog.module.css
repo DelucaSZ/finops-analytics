@@ -1,0 +1,50 @@
+.form,
+.body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.detailGrid {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.detailGrid > div {
+  border-block-end: 1px solid var(--border-subtle);
+  display: grid;
+  gap: var(--space-1);
+  padding-block-end: var(--space-3);
+}
+
+.detailGrid dt,
+.secondary {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.detailGrid dd {
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  margin: var(--space-0);
+}
+
+.activeFilterSummary,
+.savingsList {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 700px) {
+  .detailGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
