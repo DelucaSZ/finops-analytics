@@ -49,12 +49,12 @@
   font-size: var(--type-caption-size);
   font-weight: var(--type-caption-weight);
   line-height: var(--type-caption-line-height);
-  max-inline-size: var(--tooltip-max-inline-size);
+  max-inline-size: min(var(--tooltip-max-inline-size), calc(100vw - var(--space-4)));
   opacity: 0;
+  overflow-wrap: anywhere;
   padding: var(--space-2) var(--space-3);
   pointer-events: none;
   position: fixed;
-  transform: translate(-50%, calc(-100% - var(--space-2)));
   transition-property: opacity;
   transition-duration: var(--motion-duration-fast);
   transition-timing-function: var(--motion-ease-standard);
@@ -94,10 +94,13 @@
   box-shadow: var(--popover-shadow);
   display: grid;
   gap: var(--space-1);
-  min-inline-size: var(--popover-min-inline-size);
+  max-block-size: calc(100dvh - var(--space-4));
+  max-inline-size: calc(100vw - var(--space-4));
+  min-inline-size: min(var(--popover-min-inline-size), calc(100vw - var(--space-4)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-2);
   position: fixed;
-  transform: translateY(var(--space-2));
   z-index: var(--z-index-dropdown);
 }
 
@@ -303,7 +306,6 @@
 .drawerInner {
   block-size: 100%;
 }
-
 
 @media (prefers-reduced-motion: reduce) {
   .dropdownTrigger,
