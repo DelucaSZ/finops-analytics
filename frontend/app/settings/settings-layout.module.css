@@ -257,20 +257,14 @@
   gap: var(--space-2);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 62rem) {
   .content :global(.settings-form-grid),
   .content :global(.form-grid) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-@media (max-width: 700px) {
-  .page,
-  .statePage,
-  .content {
-    gap: var(--space-4);
-  }
-
+@media (max-width: 48rem) {
   .content :global(.page-header) {
     align-items: stretch;
     flex-direction: column;
