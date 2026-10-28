@@ -154,9 +154,7 @@ class ReportPersistenceService:
             scope_snapshot=deepcopy(report.scope or {}),
             requested_by=requested_by,
             attempt=attempt,
-            execution_metadata=_safe_mapping(
-                execution_metadata, field_name="execution_metadata"
-            ),
+            execution_metadata=_safe_mapping(execution_metadata, field_name="execution_metadata"),
         )
         db.add(execution)
         db.flush()
