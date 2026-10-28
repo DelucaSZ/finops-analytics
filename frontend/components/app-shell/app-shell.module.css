@@ -1,5 +1,5 @@
 .shell {
-  background: var(--background-secondary);
+  background: var(--shell-background);
   color: var(--text-primary);
   display: grid;
   font-family: var(--font-family-ui);
@@ -193,7 +193,6 @@
 .topbar {
   align-items: center;
   background: var(--topbar-background);
-  border-block-end: 1px solid var(--topbar-border);
   display: flex;
   gap: var(--space-3);
   justify-content: space-between;
@@ -286,7 +285,7 @@
 }
 
 .mainContent {
-  background: var(--background-secondary);
+  background: var(--shell-content-background);
   min-block-size: var(--space-0);
   min-inline-size: var(--space-0);
   overflow: auto;
@@ -339,7 +338,7 @@
 
 .bootScreen {
   align-content: center;
-  background: var(--background-secondary);
+  background: var(--shell-background);
   color: var(--text-secondary);
   display: grid;
   font-family: var(--font-family-ui);

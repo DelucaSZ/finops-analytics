@@ -1,6 +1,10 @@
 /* Aven semantic tokens — Light Theme */
 :root,
 html[data-theme="light"] {
+  /* Application canvas is a semantic role over the official Aven atmosphere. */
+  --application-background: var(--gradient-background-light);
+  --page-background: transparent;
+
   --background-primary: var(--aven-color-neutral-0);
   --background-secondary: var(--aven-color-neutral-50);
   --background-tertiary: var(--aven-color-soft-blue);

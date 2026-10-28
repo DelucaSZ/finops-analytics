@@ -1,5 +1,9 @@
 /* Aven semantic tokens — Dark Theme */
 html[data-theme="dark"] {
+  /* Application canvas is a semantic role over the official Aven atmosphere. */
+  --application-background: var(--gradient-background-dark);
+  --page-background: transparent;
+
   --background-primary: var(--aven-color-neutral-950);
   --background-secondary: var(--aven-color-neutral-900);
   --background-tertiary: var(--aven-color-indigo-deep);
@@ -8,7 +12,7 @@ html[data-theme="dark"] {
   --surface-primary: var(--aven-color-neutral-900);
   --surface-secondary: var(--aven-color-neutral-800);
   --surface-tertiary: var(--aven-color-indigo-deep);
-  --surface-elevated: #182033;
+  --surface-elevated: var(--aven-color-neutral-800);
   --surface-overlay: rgba(17, 24, 39, 0.96);
   --surface-hover: var(--aven-color-neutral-800);
   --surface-selected: var(--aven-color-indigo-deep);
