@@ -72,7 +72,8 @@ test("Flow page exposes filters, dimensional KPIs, charts and paginated ledger",
   assert.ok(source.includes("/finops/flow/breakdowns"));
   assert.ok(source.includes("/finops/flow/entries"));
   assert.ok(source.includes("page_size: 50"));
-  assert.ok(source.includes("Nenhuma movimentação encontrada para os filtros selecionados."));
+  assert.ok(source.includes('emptyTitle="Nenhuma movimentação encontrada"'));
+  assert.ok(source.includes('emptyDescription="Ajuste os filtros ou registre uma movimentação real no ledger."'));
 });
 
 test("Flow reuses ledger mutations and exposes provenance, opportunity links and detail", async () => {
