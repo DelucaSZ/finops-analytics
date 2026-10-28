@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const REPO_ROOT = path.resolve(ROOT, "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(ROOT, relativePath), "utf8");
+}
+
+function readRepo(relativePath) {
+  return fs.readFileSync(path.join(REPO_ROOT, relativePath), "utf8");
 }
 
 function block(source, selector) {
@@ -62,17 +67,20 @@ test("Aven pages use the shared composition scale instead of historical page-spe
     "app/opportunities/opportunities.module.css",
     "app/flow/flow-layout.module.css",
     "app/settings/settings-layout.module.css",
+    "app/collections/collections-layout.module.css",
+    "app/collections/collection.module.css",
   ];
 
   for (const file of files) {
     const source = read(file);
-    assert.doesNotMatch(source, /@media \(max-width:\s*(1279|1100|900|760|700|640)px\)/, file);
+    assert.doesNotMatch(source, /@media \(max-width:\s*(1279|1100|1000|900|760|720|700|640)px\)/, file);
     assert.match(source, /@media \(max-width:\s*(78|62|48)rem\)/, file);
   }
 
   assert.match(read("app/rds/reservations/rds-reservations.module.css"), /@media \(max-width:\s*78rem\)/);
   assert.match(read("app/flow/flow-layout.module.css"), /@media \(max-width:\s*62rem\)/);
   assert.match(read("app/settings/settings-layout.module.css"), /@media \(max-width:\s*48rem\)/);
+  assert.match(read("app/collections/collections-layout.module.css"), /@media \(max-width:\s*62rem\)/);
 });
 
 test("primary Aven pages share the same outer page rhythm", () => {
@@ -84,6 +92,7 @@ test("primary Aven pages share the same outer page rhythm", () => {
     read("app/opportunities/opportunities.module.css"),
     read("app/flow/flow-layout.module.css"),
     read("app/settings/settings-layout.module.css"),
+    read("app/scans/scans.module.css"),
   ];
 
   for (const source of sources) {
@@ -91,10 +100,24 @@ test("primary Aven pages share the same outer page rhythm", () => {
   }
 });
 
-test("table primitive keeps horizontal overflow inside the table container", () => {
+test("table primitive and compatibility tables keep horizontal overflow inside their containers", () => {
   const source = read("components/ui/feedback.module.css");
   const wrapper = block(source, ".tableWrapper");
+  const collections = read("app/collections/collections-layout.module.css");
 
   assert.match(wrapper, /overflow:\s*auto/);
   assert.match(wrapper, /inline-size:\s*100%/);
+  assert.match(collections, /\.data-table-wrap\)\s*\{[^}]*overflow-x:\s*auto/s);
+});
+
+test("responsive consistency and visualization contracts are registered in canonical Aven docs", () => {
+  const readme = readRepo("docs/brand/aven/README.md");
+  const responsive = readRepo("docs/brand/aven/AVEN_RESPONSIVE_AND_UI_CONSISTENCY.md");
+  const visualization = readRepo("docs/brand/aven/AVEN_DATA_VISUALIZATION_SYSTEM.md");
+
+  assert.match(readme, /AVEN_RESPONSIVE_AND_UI_CONSISTENCY\.md/);
+  assert.match(readme, /AVEN_DATA_VISUALIZATION_SYSTEM\.md/);
+  assert.match(responsive, /## Cross-page Audit/);
+  assert.match(responsive, /## Remaining Visual Debt/);
+  assert.match(visualization, /# Aven Data Visualization System/);
 });
