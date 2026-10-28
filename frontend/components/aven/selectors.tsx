@@ -134,12 +134,12 @@ function ProductSelector<T extends ProductSelectorOption>({
       {(clearable || (selection.multiple && selection.selectAll)) && (
         <div className={styles.selectorActions}>
           {selection.multiple && selection.selectAll && (
-            <Button variant="ghost" size="sm" disabled={disabled || loading || options.length === 0} onClick={handleSelectAll}>
+            <Button type="button" variant="ghost" size="sm" disabled={disabled || loading || options.length === 0} onClick={handleSelectAll}>
               {selectAllLabel}
             </Button>
           )}
           {clearable && (
-            <Button variant="ghost" size="sm" disabled={disabled || loading || !hasSelection} onClick={handleClear}>
+            <Button type="button" variant="ghost" size="sm" disabled={disabled || loading || !hasSelection} onClick={handleClear}>
               {clearLabel}
             </Button>
           )}
