@@ -225,27 +225,30 @@
 
 .chartGroups {
   display: grid;
-  gap: 18px;
+  gap: var(--space-4);
 }
 
 .chartGroup + .chartGroup {
-  padding-top: 18px;
-  border-top: 1px solid var(--border);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .chartMeta,
 .currencyHeading {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 10px;
-  color: var(--muted-2);
-  font-size: .75rem;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: var(--chart-label);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
 }
 
 .chartMeta strong,
 .currencyHeading strong {
-  color: var(--text);
+  color: var(--text-primary);
 }
 
 .chartScroll,
@@ -260,28 +263,29 @@
 }
 
 .axisLine {
-  stroke: var(--border-strong);
+  stroke: var(--chart-axis);
   stroke-width: 1;
-  opacity: .65;
 }
 
 .costLine {
   fill: none;
-  stroke: var(--chart-1);
+  stroke: var(--chart-series-1);
   stroke-width: 2.5;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .costPoint {
-  fill: var(--surface);
-  stroke: var(--chart-1);
+  fill: var(--surface-primary);
+  stroke: var(--chart-series-1);
   stroke-width: 2;
 }
 
 .axisLabel {
-  fill: var(--muted-2);
-  font-size: 11px;
+  fill: var(--chart-label);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
 }
 
 .usageGrid {
