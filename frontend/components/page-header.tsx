@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+import { PageHeader as AvenPageHeader } from "@/components/aven";
+
 export function PageHeader({
   eyebrow,
   title,
@@ -7,16 +10,14 @@ export function PageHeader({
   eyebrow?: string;
   title: string;
   description?: string;
-  actions?: React.ReactNode;
+  actions?: ReactNode;
 }) {
   return (
-    <header className="page-header">
-      <div className="page-header-copy">
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
-        <h1>{title}</h1>
-        {description && <p>{description}</p>}
-      </div>
-      {actions && <div className="header-actions">{actions}</div>}
-    </header>
+    <AvenPageHeader
+      title={title}
+      description={description}
+      metadata={eyebrow}
+      actions={actions}
+    />
   );
 }
