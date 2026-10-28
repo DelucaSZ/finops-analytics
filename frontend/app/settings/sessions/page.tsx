@@ -15,7 +15,7 @@ import {
   TableState,
 } from "@/components/ui";
 import { api, formatDate } from "@/lib/api";
-import styles from "../settings-layout.module.css";
+import styles from "../settings-page.module.css";
 
 type Session = {
   id: string;
