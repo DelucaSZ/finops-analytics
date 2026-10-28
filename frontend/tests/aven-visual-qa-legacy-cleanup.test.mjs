@@ -82,6 +82,17 @@ test("final hardcode gate covers complete migrated Recommendations and Settings 
   assert.doesNotMatch(source, /path\.join\(ROOT, "app", "settings", "appearance", "page\.tsx"\)/);
 });
 
+test("theme switching is presentation-only and cannot trigger domain requests or remount children", () => {
+  const provider = readFrontend("components/theme-provider.tsx");
+  assert.doesNotMatch(provider, /@\/lib\/api/);
+  assert.doesNotMatch(provider, /@\/lib\/server-state/);
+  assert.doesNotMatch(provider, /\bfetch\s*\(/);
+  assert.doesNotMatch(provider, /useRouter|router\./);
+  assert.match(provider, /persistThemePreference\(getBrowserStorage\(\), preference\)/);
+  assert.match(provider, /applyTheme\(preference\)/);
+  assert.match(provider, /<ThemeContext\.Provider value=\{value\}>\{children\}<\/ThemeContext\.Provider>/);
+});
+
 test("active compatibility layers are preserved and final QA documentation is registered", () => {
   const layout = readFrontend("app/layout.tsx");
   const tokenIndex = readFrontend("app/styles/tokens/index.css");
