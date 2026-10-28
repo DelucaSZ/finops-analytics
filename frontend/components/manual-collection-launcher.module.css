@@ -4,7 +4,7 @@
   position: absolute;
   inset-block-start: var(--space-0);
   inset-inline-end: var(--space-0);
-  z-index: var(--z-content-raised);
+  z-index: 2;
 }
 
 .feedback {
