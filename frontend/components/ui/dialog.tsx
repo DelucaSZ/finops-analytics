@@ -51,7 +51,7 @@ export function Dialog({ open, defaultOpen = false, onOpenChange, children }: Di
 
 export function DialogTrigger(props: ButtonProps) {
   const { setOpen } = useDialog();
-  return <Button {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(true); }} />;
+  return <Button type="button" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(true); }} />;
 }
 
 export function DialogContent({ className, children, onCancel, onClose, onClick, ...props }: DialogHTMLAttributes<HTMLDialogElement>) {
@@ -115,5 +115,5 @@ export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElem
 
 export function DialogClose({ children = "Fechar", ...props }: ButtonProps) {
   const { setOpen } = useDialog();
-  return <Button variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children}</Button>;
+  return <Button type="button" variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children}</Button>;
 }
