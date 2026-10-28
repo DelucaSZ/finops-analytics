@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useId,
+  useLayoutEffect,
   useRef,
   useState,
   type ButtonHTMLAttributes,
@@ -17,6 +18,7 @@ import { createPortal } from "react-dom";
 import styles from "./overlays.module.css";
 import { cx } from "./utils";
 import { useControllableState } from "./use-controllable-state";
+import { positionDropdown, type DropdownPosition } from "./viewport-position";
 
 interface DropdownContextValue {
   open: boolean;
@@ -110,15 +112,16 @@ export interface DropdownMenuContentProps extends HTMLAttributes<HTMLDivElement>
 export function DropdownMenuContent({ className, children, onKeyDown, "aria-label": ariaLabel, ...props }: DropdownMenuContentProps) {
   const { open, setOpen, contentId, triggerId, triggerRef, contentRef } = useDropdown();
   const [mounted, setMounted] = useState(false);
-  const [position, setPosition] = useState<{ top: number; left: number } | null>(null);
+  const [position, setPosition] = useState<DropdownPosition | null>(null);
 
   useEffect(() => setMounted(true), []);
 
-  useEffect(() => {
-    if (!open) return;
+  useLayoutEffect(() => {
+    if (!open || !mounted) return;
     const updatePosition = () => {
-      const rect = triggerRef.current?.getBoundingClientRect();
-      if (rect) setPosition({ top: rect.bottom, left: rect.left });
+      const trigger = triggerRef.current;
+      const content = contentRef.current;
+      if (trigger && content) setPosition(positionDropdown(trigger.getBoundingClientRect(), content.getBoundingClientRect()));
     };
     updatePosition();
     window.addEventListener("resize", updatePosition);
@@ -127,7 +130,7 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
       window.removeEventListener("resize", updatePosition);
       window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, triggerRef]);
+  }, [children, contentRef, mounted, open, triggerRef]);
 
   useEffect(() => {
     if (!open || !mounted) return;
@@ -147,7 +150,8 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
       aria-labelledby={ariaLabel ? undefined : triggerId}
       className={cx(styles.dropdownContent, className)}
       data-positioned={position ? "true" : "false"}
-      style={position ? { top: position.top, left: position.left } : undefined}
+      data-side={position?.side}
+      style={position ? { top: position.top, left: position.left, maxBlockSize: position.maxBlockSize } : undefined}
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
