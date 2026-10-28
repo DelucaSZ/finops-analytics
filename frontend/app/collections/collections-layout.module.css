@@ -1,0 +1,258 @@
+.scope {
+  display: grid;
+  gap: var(--space-5);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.scope > * {
+  min-inline-size: 0;
+}
+
+.scope :global(.collection-toolbar) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.scope :global(.collection-toolbar > span),
+.scope :global(.collection-note),
+.scope :global(.collection-account-summary small) {
+  color: var(--text-muted);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.scope :global(.panel) {
+  background: var(--surface-primary);
+  border-color: var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-xs);
+}
+
+.scope :global(.opportunity-filter-panel) {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.scope :global(.opportunity-filter-heading),
+.scope :global(.panel-heading) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: space-between;
+}
+
+.scope :global(.opportunity-filter-grid) {
+  display: grid;
+  gap: var(--space-3);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scope :global(.opportunity-filter),
+.scope :global(.collection-pagination label) {
+  color: var(--text-secondary);
+  display: grid;
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  gap: var(--space-2);
+  line-height: var(--type-label-sm-line-height);
+  min-inline-size: 0;
+}
+
+.scope :global(.opportunity-filter input),
+.scope :global(.opportunity-filter select),
+.scope :global(.collection-toolbar select),
+.scope :global(.baselinePicker select) {
+  background: var(--surface-primary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  inline-size: 100%;
+  line-height: var(--type-body-md-line-height);
+  min-block-size: var(--control-height-default);
+  min-inline-size: 0;
+  padding-block: var(--space-2);
+  padding-inline: var(--space-3);
+}
+
+.scope :global(.opportunity-filter input:focus-visible),
+.scope :global(.opportunity-filter select:focus-visible),
+.scope :global(.collection-toolbar select:focus-visible) {
+  border-color: var(--border-focus);
+  outline: var(--focus-ring-width) solid var(--focus-ring);
+  outline-offset: var(--focus-ring-offset-width);
+}
+
+.scope :global(.active-filter-summary) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.scope :global(.active-filter-summary span),
+.scope :global(.collection-status) {
+  align-items: center;
+  background: var(--status-neutral-bg);
+  border: 1px solid var(--status-neutral-border);
+  border-radius: var(--radius-full);
+  color: var(--status-neutral-text);
+  display: inline-flex;
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  gap: var(--space-1);
+  line-height: var(--type-label-sm-line-height);
+  max-inline-size: 100%;
+  padding-block: var(--space-1);
+  padding-inline: var(--space-2);
+}
+
+.scope :global(.collection-success) {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.scope :global(.collection-failed) {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.scope :global(.collection-running) {
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+}
+
+.scope :global(.collection-account-summary),
+.scope :global(.collection-detail),
+.scope :global(.table-panel) {
+  min-inline-size: 0;
+  padding: var(--space-4);
+}
+
+.scope :global(.data-table-wrap) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+}
+
+.scope :global(.data-table) {
+  border-collapse: collapse;
+  inline-size: 100%;
+  min-inline-size: 56rem;
+}
+
+.scope :global(.data-table th),
+.scope :global(.data-table td) {
+  border-block-end: 1px solid var(--border-subtle);
+  padding-block: var(--space-3);
+  padding-inline: var(--space-3);
+  text-align: start;
+  vertical-align: top;
+}
+
+.scope :global(.data-table th) {
+  color: var(--text-secondary);
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+}
+
+.scope :global(.data-table td) {
+  color: var(--text-primary);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
+}
+
+.scope :global(.data-table td > span),
+.scope :global(.data-table td > code) {
+  display: block;
+  margin-block-start: var(--space-1);
+}
+
+.scope :global(.collection-link),
+.scope :global(.data-table a) {
+  color: var(--text-link);
+}
+
+.scope :global(.collection-link:hover),
+.scope :global(.data-table a:hover) {
+  color: var(--text-link-hover);
+}
+
+.scope :global(.collection-pagination) {
+  border-block-start: 1px solid var(--border-subtle);
+  margin-block-start: var(--space-3);
+  padding-block-start: var(--space-3);
+}
+
+.scope :global(.collection-metadata) {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin-block: var(--space-4);
+}
+
+.scope :global(.collection-metadata > div) {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.scope :global(.collection-metadata dt) {
+  color: var(--text-muted);
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+}
+
+.scope :global(.collection-metadata dd) {
+  color: var(--text-primary);
+  margin: var(--space-0);
+  overflow-wrap: anywhere;
+}
+
+.scope :global(.collection-id) {
+  color: var(--text-muted);
+  display: block;
+  margin-block: var(--space-2) var(--space-4);
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1000px) {
+  .scope :global(.opportunity-filter-grid),
+  .scope :global(.collection-metadata) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 700px) {
+  .scope :global(.opportunity-filter-grid),
+  .scope :global(.collection-metadata) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .scope :global(.collection-toolbar) {
+    align-items: stretch;
+  }
+}
