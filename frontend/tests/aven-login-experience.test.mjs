@@ -9,6 +9,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const LOGIN = path.join(ROOT, "app", "login");
 const MFA_SETUP = path.join(ROOT, "app", "mfa-setup");
 const AUTH = path.join(ROOT, "components", "auth");
+const BRAND = path.join(ROOT, "components", "brand", "brand-logo.tsx");
+const BRAND_LIB = path.join(ROOT, "lib", "brand.ts");
+const COMPONENT_TOKENS = path.join(ROOT, "app", "styles", "tokens", "components.css");
 const MFA_SETTINGS = path.join(ROOT, "components", "mfa-settings.tsx");
 const MFA_SETTINGS_STYLES = path.join(ROOT, "components", "mfa-settings.module.css");
 const DOCS = path.resolve(ROOT, "..", "docs", "brand", "aven");
@@ -22,9 +25,25 @@ test("Aven Login Experience exposes a reusable tokenized auth layout", () => {
   }
   const source = authSource();
   assert.match(source, /export function AuthLayout/);
-  assert.match(source, /<BrandLogo variant="wordmark"/);
+  assert.match(source, /<BrandLogo variant="wordmark" className=\{styles\.brandLogo\}/);
   assert.match(source, /PRODUCT_TAGLINE/);
   assert.match(source, /Complexidade por baixo\. Clareza por cima\./);
+  assert.doesNotMatch(source, /brandLogoSurface/);
+});
+
+test("auth branding consumes the official Aven assets without an improvised contrast surface", () => {
+  const brand = fs.readFileSync(BRAND, "utf8");
+  const brandLib = fs.readFileSync(BRAND_LIB, "utf8");
+  const styles = authStyles();
+  const tokens = fs.readFileSync(COMPONENT_TOKENS, "utf8");
+
+  assert.match(brand, /brand\.assets\.wordmarkFallback/);
+  assert.match(brandLib, /aven-logo-horizontal-fallback\.svg/);
+  assert.match(brandLib, /aven-icon-gradient\.svg/);
+  assert.match(tokens, /--auth-brand-wordmark-inline-size:/);
+  assert.match(tokens, /--auth-form-max-inline-size:/);
+  assert.match(styles, /\.brandLogo img[\s\S]*var\(--auth-brand-wordmark-inline-size\)/);
+  assert.doesNotMatch(styles, /background:\s*var\(--aven-color-neutral-0\)/);
 });
 
 test("login composes official Aven primitives instead of legacy visual controls", () => {
@@ -97,13 +116,16 @@ test("MFA enrollment preserves existing API and redirect behavior", () => {
   assert.match(settings, /router\.replace\("\/"\)/);
 });
 
-test("login uses the official Light and Dark institutional gradients and responsive auth composition", () => {
+test("login follows the semantic Aven canvas across Light, Dark and System with responsive auth composition", () => {
   const styles = authStyles();
-  assert.match(styles, /background: var\(--gradient-background-light\)/);
-  assert.match(styles, /html\[data-theme="dark"\][\s\S]*background: var\(--gradient-background-dark\)/);
+  assert.match(styles, /background:\s*var\(--application-background\)/);
+  assert.doesNotMatch(styles, /gradient-background-light|gradient-background-dark/);
+  assert.doesNotMatch(styles, /html\[data-theme="dark"\]/);
+  assert.doesNotMatch(styles, /justify-content:\s*space-between/);
   assert.match(styles, /@media \(max-width: 60rem\)/);
   assert.match(styles, /@media \(max-width: 42rem\)/);
   assert.match(styles, /min-block-size: 100dvh/);
+  assert.match(styles, /-webkit-autofill/);
 });
 
 test("hardcode gate is zero for all new and refactored Login and MFA sources", () => {

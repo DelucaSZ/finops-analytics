@@ -1,5 +1,5 @@
 .page {
-  background: var(--background-primary);
+  background: var(--application-background);
   color: var(--text-primary);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -7,51 +7,44 @@
 }
 
 .brandPanel {
-  background: var(--gradient-background-light);
+  align-items: center;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-10);
-  justify-content: space-between;
   min-inline-size: var(--space-0);
   overflow: hidden;
-  padding: var(--space-10) var(--space-12);
+  padding: var(--auth-layout-padding);
 }
 
-:global(html[data-theme="dark"]) .brandPanel {
-  background: var(--gradient-background-dark);
+.brandContext {
+  display: grid;
+  gap: var(--space-8);
+  max-inline-size: var(--auth-brand-max-inline-size);
+  min-inline-size: var(--space-0);
 }
 
-.brandLogoSurface {
-  align-items: center;
-  align-self: flex-start;
-  background: var(--aven-color-neutral-0);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  box-shadow: var(--shadow-sm);
-  display: inline-flex;
-  padding: var(--space-2) var(--space-3);
+.brandLogo,
+.mobileLogo {
+  align-self: start;
+}
+
+.brandLogo img {
+  block-size: var(--auth-brand-wordmark-block-size);
+  inline-size: var(--auth-brand-wordmark-inline-size);
+}
+
+.mobileLogo img {
+  block-size: var(--auth-brand-wordmark-compact-block-size);
+  inline-size: var(--auth-brand-wordmark-compact-inline-size);
 }
 
 .brandCopy {
   display: grid;
   gap: var(--space-4);
-  max-inline-size: calc(var(--space-16) * 8);
 }
 
-.brandEyebrow,
 .brandTitle,
 .brandPrinciple,
 .mobileBrand p {
   margin: var(--space-0);
-}
-
-.brandEyebrow {
-  color: var(--text-brand);
-  font-family: var(--type-label-sm-family);
-  font-size: var(--type-label-sm-size);
-  font-weight: var(--type-label-sm-weight);
-  letter-spacing: var(--letter-spacing-wide);
-  line-height: var(--type-label-sm-line-height);
 }
 
 .brandTitle {
@@ -69,29 +62,40 @@
   font-size: var(--type-body-lg-size);
   font-weight: var(--type-body-lg-weight);
   line-height: var(--type-body-lg-line-height);
-  max-inline-size: calc(var(--space-16) * 7);
+  max-inline-size: var(--auth-brand-copy-max-inline-size);
 }
 
 .formPanel {
   align-items: center;
-  background: var(--background-primary);
   display: flex;
   justify-content: center;
   min-inline-size: var(--space-0);
   overflow-y: auto;
-  padding: var(--space-8);
+  padding: var(--auth-layout-padding);
 }
 
 .formFrame {
   display: grid;
   gap: var(--space-6);
   inline-size: 100%;
-  max-inline-size: calc(var(--space-16) * 7);
+  max-inline-size: var(--auth-form-max-inline-size);
+  min-inline-size: var(--space-0);
+}
+
+.formFrame > * {
   min-inline-size: var(--space-0);
 }
 
 .mobileBrand {
   display: none;
+}
+
+.formFrame :global(input[data-aven-control-inner]:-webkit-autofill),
+.formFrame :global(input[data-aven-control-inner]:-webkit-autofill:hover),
+.formFrame :global(input[data-aven-control-inner]:-webkit-autofill:focus) {
+  -webkit-text-fill-color: var(--text-primary);
+  box-shadow: 0 0 0 var(--auth-autofill-fill-size) var(--control-background) inset;
+  caret-color: var(--text-primary);
 }
 
 @media (max-width: 60rem) {
@@ -100,13 +104,11 @@
   }
 
   .brandPanel {
-    gap: var(--space-6);
-    min-block-size: auto;
-    padding: var(--space-6) var(--space-8);
+    padding: var(--auth-layout-padding-medium);
   }
 
-  .brandCopy {
-    gap: var(--space-2);
+  .brandContext {
+    gap: var(--space-6);
     max-inline-size: none;
   }
 
@@ -119,7 +121,7 @@
   }
 
   .formPanel {
-    padding: var(--space-6);
+    padding: var(--auth-layout-padding-medium);
   }
 }
 
@@ -131,7 +133,7 @@
   .formPanel {
     align-items: flex-start;
     min-block-size: 100dvh;
-    padding: var(--space-6) var(--space-4);
+    padding: var(--auth-layout-padding-compact);
   }
 
   .mobileBrand {
