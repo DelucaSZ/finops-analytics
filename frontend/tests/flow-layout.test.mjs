@@ -34,8 +34,8 @@ test("Flow filters, metrics and supporting regions use Aven responsive compositi
   assert.ok(page.includes("<ChartCard"));
   assert.ok(css.includes("repeat(auto-fit, minmax(min(100%, 14rem), 1fr))"));
   assert.ok(css.includes("repeat(2, minmax(0, 1fr))"));
-  assert.ok(css.includes("@media (max-width: 900px)"));
-  assert.ok(css.includes("@media (max-width: 640px)"));
+  assert.ok(css.includes("@media (max-width: 62rem)"));
+  assert.ok(css.includes("@media (max-width: 48rem)"));
   assert.ok(css.includes("grid-template-columns: minmax(0, 1fr)"));
 });
 
