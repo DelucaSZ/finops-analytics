@@ -1,356 +1,297 @@
-.page {
+.page,
+.statePage {
+  display: grid;
+  gap: var(--space-6);
+  min-inline-size: 0;
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
 }
 
-.page > * {
-  min-width: 0;
+.page > *,
+.statePage > *,
+.content,
+.content > * {
+  min-inline-size: 0;
+}
+
+.navigationViewport {
+  max-inline-size: 100%;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  padding-block-end: var(--space-1);
 }
 
 .tabs {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  align-items: center;
-}
-
-.tabs :global(a) {
-  min-width: 0;
+  inline-size: max-content;
+  min-inline-size: 100%;
 }
 
 .content {
+  display: grid;
+  gap: var(--space-6);
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
 }
 
-.content > * {
-  min-width: 0;
+.headerSkeleton {
+  block-size: var(--space-16);
+  max-inline-size: 48rem;
 }
 
+.navigationSkeleton {
+  block-size: var(--control-height-md);
+  inline-size: 100%;
+}
+
+.contentSkeleton {
+  block-size: 20rem;
+  inline-size: 100%;
+}
+
+/* Scoped compatibility bridge while each existing Settings workflow keeps its business logic. */
 .content :global(.page-header) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  align-items: flex-start;
+  display: flex;
+  gap: var(--space-4);
+  justify-content: space-between;
+  margin: 0;
+  min-inline-size: 0;
 }
 
 .content :global(.page-header-copy) {
+  display: grid;
   flex: 1 1 auto;
-  min-width: 0;
+  gap: var(--space-2);
+  min-inline-size: 0;
 }
 
-.content :global(.header-actions) {
-  flex: 0 0 auto;
-  max-width: 100%;
+.content :global(.page-header h1) {
+  color: var(--text-primary);
+  font-family: var(--type-heading-xl-family);
+  font-size: var(--type-heading-xl-size);
+  font-weight: var(--type-heading-xl-weight);
+  line-height: var(--type-heading-xl-line-height);
+  margin: 0;
+}
+
+.content :global(.page-header p) {
+  color: var(--text-secondary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  margin: 0;
+  max-inline-size: 72rem;
+}
+
+.content :global(.eyebrow) {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+  margin: 0;
+}
+
+.content :global(.header-actions),
+.content :global(.actions),
+.content :global(.security-actions),
+.content :global(.policy-actions) {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .content :global(.panel),
-.content :global(.security-card) {
-  max-width: 100%;
-  min-width: 0;
+.content :global(.security-card),
+.content :global(.policy-card),
+.content :global(.policy-scope-bar),
+.content :global(.settings-preference-panel) {
+  background: var(--card-background);
+  border: 1px solid var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+  color: var(--text-primary);
+  min-inline-size: 0;
+  padding: var(--card-padding);
 }
 
-/* HTTPS */
-.content :global(.https-settings-page) {
-  display: grid;
+.content :global(.panel h2),
+.content :global(.security-card h2),
+.content :global(.policy-card h3),
+.content :global(.settings-preference-panel h2) {
+  color: var(--text-primary);
+  font-family: var(--type-heading-md-family);
+  font-size: var(--type-heading-md-size);
+  font-weight: var(--type-heading-md-weight);
+  line-height: var(--type-heading-md-line-height);
+}
+
+.content :global(.settings-help),
+.content :global(.muted),
+.content :global(.security-card p),
+.content :global(.panel p) {
+  color: var(--text-secondary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+}
+
+.content :global(form),
+.content :global(.form-grid),
+.content :global(.settings-form-grid),
+.content :global(.policy-fields) {
+  min-inline-size: 0;
+}
+
+.content :global(form label),
+.content :global(.form-grid label),
+.content :global(.settings-form-grid label),
+.content :global(.policy-field label) {
+  color: var(--text-primary);
+  font-family: var(--type-label-md-family);
+  font-size: var(--type-label-md-size);
+  font-weight: var(--type-label-md-weight);
+  line-height: var(--type-label-md-line-height);
+}
+
+.content :global(input:not([type="checkbox"]):not([type="radio"])),
+.content :global(select),
+.content :global(textarea) {
+  background: var(--control-background);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  max-inline-size: 100%;
+  min-block-size: var(--control-height-md);
+  min-inline-size: 0;
+  padding-inline: var(--control-padding-inline-md);
   width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  gap: 20px;
 }
 
-.content :global(.https-settings-page > .page-header) {
-  margin-bottom: 0;
-}
-
-.content :global(.https-settings-page .security-grid) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  gap: 20px;
-}
-
-.content :global(.https-settings-page .security-grid > *) {
-  min-width: 0;
-}
-
-.content :global(.https-settings-page .security-card) {
-  width: 100%;
-  overflow-wrap: anywhere;
-}
-
-.content :global(.https-settings-page .security-card h2) {
-  margin: 0 0 14px;
-  line-height: 1.3;
-}
-
-.content :global(.https-settings-page .security-card p) {
-  margin-top: 0;
-  margin-bottom: 12px;
-}
-
-.content :global(.https-settings-page .security-card p:last-child) {
-  margin-bottom: 0;
-}
-
-.content :global(.https-settings-page .security-card code) {
-  max-width: 100%;
-  white-space: normal;
-  overflow-wrap: anywhere;
-  word-break: break-word;
-}
-
-.content :global(.https-settings-page .security-card form),
-.content :global(.https-settings-page .security-card label) {
-  min-width: 0;
-}
-
-.content :global(.https-settings-page .settings-form-grid) {
-  display: grid;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 18px;
-}
-
-.content :global(.https-settings-page .settings-form-grid > *) {
-  min-width: 0;
-}
-
-.content :global(.https-settings-page .security-card input),
-.content :global(.https-settings-page .security-card select),
-.content :global(.https-settings-page .security-card textarea) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  box-sizing: border-box;
-  color: var(--foreground);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  background: var(--control-bg);
-}
-
-.content :global(.https-settings-page .security-card select) {
-  min-height: 44px;
-  padding: 9px 11px;
-}
-
-.content :global(.https-settings-page .security-card textarea) {
-  padding: 11px;
-  line-height: 1.5;
+.content :global(textarea) {
+  padding-block: var(--space-3);
   resize: vertical;
 }
 
-.content :global(.https-settings-page .security-card input:focus),
-.content :global(.https-settings-page .security-card select:focus),
-.content :global(.https-settings-page .security-card textarea:focus) {
-  border-color: var(--focus);
-  box-shadow: 0 0 0 3px var(--info-soft);
+.content :global(input:focus-visible),
+.content :global(select:focus-visible),
+.content :global(textarea:focus-visible) {
+  border-color: var(--border-focus);
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
 }
 
-.content :global(.https-settings-page .security-actions) {
-  align-items: center;
-  margin-bottom: 0;
+.content :global(code) {
+  color: var(--text-primary);
+  font-family: var(--type-code-resource-family);
+  font-size: var(--type-code-resource-size);
+  font-weight: var(--type-code-resource-weight);
+  line-height: var(--type-code-resource-line-height);
+  overflow-wrap: anywhere;
 }
 
-.content :global(.https-settings-page .security-actions .button) {
-  min-width: 0;
-  white-space: normal;
-  text-align: center;
-}
-
-/* Billing Profiles */
-.content :global(.billing-profiles-page) {
-  display: grid;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-  gap: 18px;
-}
-
-.content :global(.billing-profiles-page > .page-header) {
-  margin-bottom: 0;
-}
-
-.content :global(.billing-profiles-page .panel) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
-}
-
-.content :global(.billing-profile-form-panel > h2),
-.content :global(.billing-profiles-panel > h2) {
-  margin: 0;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--border);
-  font-size: .9375rem;
-  line-height: 1.35;
-}
-
-.content :global(.billing-profiles-page .form-grid > *) {
-  min-width: 0;
-}
-
-.content :global(.billing-profiles-page .form-grid fieldset) {
-  min-width: 0;
-  margin: 0;
-}
-
-.content :global(.billing-profiles-page .checkbox-list) {
-  min-width: 0;
-}
-
+.content :global(.table-wrap),
 .content :global(.billing-profiles-table-wrap) {
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;
+  max-inline-size: 100%;
+  min-inline-size: 0;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
 }
 
-.content :global(.billing-profiles-table) {
-  width: 100%;
-  min-width: 900px;
+.content :global(table) {
   border-collapse: collapse;
-  table-layout: fixed;
-  text-align: left;
-}
-
-.content :global(.billing-profiles-table .billing-col-profile) {
-  width: 27%;
-}
-
-.content :global(.billing-profiles-table .billing-col-configuration) {
-  width: 30%;
-}
-
-.content :global(.billing-profiles-table .billing-col-grouping) {
-  width: 14%;
-}
-
-.content :global(.billing-profiles-table .billing-col-status) {
-  width: 9%;
-}
-
-.content :global(.billing-profiles-table .billing-col-actions) {
-  width: 20%;
-}
-
-.content :global(.billing-profiles-table th),
-.content :global(.billing-profiles-table td) {
-  min-width: 0;
-  padding: 14px 16px;
-  vertical-align: middle;
-  overflow-wrap: anywhere;
-}
-
-.content :global(.billing-profiles-table th) {
-  font-size: .75rem;
-  font-weight: 700;
-  line-height: 1.35;
-}
-
-.content :global(.billing-profiles-table td) {
-  border-top: 1px solid var(--border);
-  color: var(--muted);
-  font-size: .875rem;
-  line-height: 1.5;
-}
-
-.content :global(.billing-profile-name) {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 8px;
-}
-
-.content :global(.billing-profile-name strong) {
-  min-width: 0;
-  color: var(--foreground);
-  overflow-wrap: anywhere;
-}
-
-.content :global(.billing-profile-description) {
-  margin-top: 5px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.content :global(.billing-profile-configuration),
-.content :global(.billing-profile-grouping) {
-  white-space: normal;
-  overflow-wrap: anywhere;
-}
-
-.content :global(.billing-profile-status) {
-  white-space: nowrap;
-}
-
-.content :global(.billing-profile-actions) {
-  display: grid;
-  min-width: 0;
-  gap: 8px;
-  align-items: stretch;
-}
-
-.content :global(.billing-profile-actions .button) {
+  min-inline-size: 100%;
   width: 100%;
-  min-width: 0;
-  min-height: 38px;
-  justify-content: flex-start;
-  padding-inline: 10px;
-  white-space: normal;
-  line-height: 1.25;
-  text-align: left;
 }
 
-.content :global(.billing-profile-actions .button svg) {
-  flex: 0 0 auto;
+.content :global(th),
+.content :global(td) {
+  border-block-end: 1px solid var(--border-subtle);
+  color: var(--text-primary);
+  font-family: var(--type-table-body-family);
+  font-size: var(--type-table-body-size);
+  font-weight: var(--type-table-body-weight);
+  line-height: var(--type-table-body-line-height);
+  padding: var(--table-cell-padding-block) var(--table-cell-padding-inline);
+  text-align: start;
+  vertical-align: top;
+}
+
+.content :global(th) {
+  color: var(--text-secondary);
+  font-family: var(--type-table-header-family);
+  font-size: var(--type-table-header-size);
+  font-weight: var(--type-table-header-weight);
+  line-height: var(--type-table-header-line-height);
+}
+
+.content :global(.https-settings-page),
+.content :global(.billing-profiles-page),
+.content :global(.security-grid),
+.content :global(.policies-list) {
+  display: grid;
+  gap: var(--space-5);
+  min-inline-size: 0;
+  width: 100%;
+}
+
+.content :global(.settings-form-grid),
+.content :global(.form-grid) {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.content :global(.checkbox-list) {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.content :global(.billing-profile-name),
+.content :global(.billing-profile-actions) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.content :global(.session-list),
+.content :global(.session-item) {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.content :global(.session-item) {
+  border-block-start: 1px solid var(--border-subtle);
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-block-start: var(--space-4);
 }
 
 @media (max-width: 900px) {
-  .content :global(.https-settings-page .security-grid),
-  .content :global(.https-settings-page .settings-form-grid) {
-    grid-template-columns: 1fr;
-  }
-
-  .content :global(.billing-profiles-page .page-header) {
-    align-items: stretch;
+  .content :global(.settings-form-grid),
+  .content :global(.form-grid),
+  .content :global(.session-item) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 700px) {
-  .tabs {
-    gap: 5px;
-    margin-bottom: 20px;
-    padding-bottom: 10px;
+  .page,
+  .statePage,
+  .content {
+    gap: var(--space-4);
   }
 
-  .tabs :global(a) {
-    padding: 10px 12px;
+  .content :global(.page-header) {
+    align-items: stretch;
+    flex-direction: column;
   }
 
-  .content :global(.https-settings-page),
-  .content :global(.billing-profiles-page) {
-    gap: 16px;
-  }
-
-  .content :global(.https-settings-page .security-card) {
-    padding: 18px;
-  }
-
-  .content :global(.billing-profile-form-panel > h2),
-  .content :global(.billing-profiles-panel > h2) {
-    padding-inline: 16px;
-  }
-}
-
-@media (max-width: 520px) {
-  .content :global(.https-settings-page .security-actions .button),
-  .content :global(.billing-profiles-page .header-actions .button) {
+  .content :global(.header-actions) {
     width: 100%;
   }
 }
