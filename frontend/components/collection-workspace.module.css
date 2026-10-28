@@ -24,8 +24,7 @@
 .pollingNote,
 .secondary,
 .tableMeta,
-.note,
-.technicalId {
+.note {
   color: var(--text-muted);
   font-family: var(--type-body-sm-family);
   font-size: var(--type-body-sm-size);
@@ -127,8 +126,8 @@
 
 .reportLink:focus-visible {
   border-radius: var(--radius-control);
-  outline: var(--focus-ring-width) solid var(--focus-ring-color);
-  outline-offset: var(--focus-ring-offset);
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
 }
 
 .secondary,
@@ -137,7 +136,11 @@
 }
 
 .technicalId {
-  font-family: var(--font-family-mono);
+  color: var(--text-muted);
+  font-family: var(--type-code-family);
+  font-size: var(--type-code-size);
+  font-weight: var(--type-code-weight);
+  line-height: var(--type-code-line-height);
   overflow-wrap: anywhere;
 }
 
