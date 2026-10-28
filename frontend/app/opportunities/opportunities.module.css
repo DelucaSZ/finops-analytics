@@ -46,7 +46,7 @@
 }
 
 .advancedGrid {
-  align-items: end;
+  align-items: flex-end;
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -54,7 +54,7 @@
 }
 
 .sortControls {
-  align-items: end;
+  align-items: flex-end;
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
