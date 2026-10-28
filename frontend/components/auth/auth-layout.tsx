@@ -11,6 +11,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
           <BrandLogo variant="wordmark" className={styles.brandLogo} />
 
           <div className={styles.brandCopy}>
+            <p className={styles.brandEyebrow}>FINOPS MULTI-CLOUD</p>
             <p className={styles.brandTitle}>{PRODUCT_TAGLINE}</p>
             <p className={styles.brandPrinciple}>Complexidade por baixo. Clareza por cima.</p>
           </div>
