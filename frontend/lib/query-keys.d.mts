@@ -39,4 +39,10 @@ export const queryKeys: {
     ): QueryKey;
     comparisonOptions(targetId: string): QueryKey;
   };
+  inventory: {
+    all: QueryKey;
+    list(query: string): QueryKey;
+    options(provider?: string | null, accountId?: string | null): QueryKey;
+    detail(id: string | number): QueryKey;
+  };
 };
