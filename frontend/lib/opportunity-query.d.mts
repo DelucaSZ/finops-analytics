@@ -59,7 +59,7 @@ export function resolveOpportunityTemporalWindow(
 ): { field: OpportunityDateField; from: string; to: string };
 export function buildOpportunityApiQuery(state: OpportunityQueryState, options?: { now?: Date }): string;
 export function buildOpportunityStatsQuery(state: OpportunityQueryState, options?: { now?: Date }): string;
-export function patchOpportunityUrl(current: string | URLSearchParams, patch: Record<string, string | number | null | undefined>, options?: { resetPage?: boolean }): URLSearchParams;
+export function patchOpportunityUrl(current: string | URLSearchParams, patch: Record<string, string | number | boolean | null | undefined>, options?: { resetPage?: boolean }): URLSearchParams;
 export function buildLifecycleRequest(args: {
   action: "treat" | "reject" | "reopen";
   opportunityIds: string[];
