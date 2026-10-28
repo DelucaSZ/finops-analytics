@@ -6,7 +6,7 @@ import { PageHeader, Section } from "@/components/aven";
 import { Alert, Button, Input } from "@/components/ui";
 import { MfaSettings, MfaStatus } from "@/components/mfa-settings";
 import { api } from "@/lib/api";
-import styles from "../settings-layout.module.css";
+import styles from "../settings-page.module.css";
 
 export default function SecurityPage() {
   const router = useRouter();
