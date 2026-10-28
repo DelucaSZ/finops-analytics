@@ -40,6 +40,12 @@ import {
   Badge,
   Button,
   Checkbox,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
   Input,
   Pagination,
   Select,
@@ -346,6 +352,7 @@ function OpportunitiesContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [searchInput, setSearchInput] = useState(state.search);
   const [unarchiveSavingId, setUnarchiveSavingId] = useState("");
+  const [restoreHistoryFinding, setRestoreHistoryFinding] = useState<HistoricalFinding | null>(null);
   const [archiveDialog, setArchiveDialog] = useState<ArchiveDialogState | null>(null);
   const [decision, setDecision] = useState<{ action: OpportunityDecisionAction; ids: string[]; bulk: boolean } | null>(null);
   const [decisionSaving, setDecisionSaving] = useState(false);
@@ -634,21 +641,40 @@ function OpportunitiesContent() {
 
   async function restoreHistoryRow(finding: HistoricalFinding) {
     if (!finding.archived || unarchiveSavingId) return;
-    const isRejected = finding.status === "rejected";
+    if (finding.status === "rejected") {
+      setMessage("");
+      setRestoreHistoryFinding(finding);
+      return;
+    }
+
     setUnarchiveSavingId(finding.id);
     setMessage("");
     try {
-      if (isRejected) {
-        await api(`/opportunities/${finding.id}/reopen`, { method: "POST", body: JSON.stringify({}) });
-        setMessage("Oportunidade reaberta e devolvida ao backlog operacional.");
-      } else {
-        await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
-        setMessage("Oportunidade desarquivada com sucesso.");
-      }
+      await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
+      setMessage("Oportunidade desarquivada com sucesso.");
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : isRejected ? "Não foi possível reabrir a oportunidade." : "Não foi possível desarquivar a oportunidade.");
+      setMessage(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+    } finally {
+      setUnarchiveSavingId("");
+    }
+  }
+
+  async function confirmRejectedHistoryReopen() {
+    const finding = restoreHistoryFinding;
+    if (!finding || unarchiveSavingId) return;
+
+    setUnarchiveSavingId(finding.id);
+    setMessage("");
+    try {
+      await api(`/opportunities/${finding.id}/reopen`, { method: "POST", body: JSON.stringify({}) });
+      setMessage("Oportunidade reaberta e devolvida ao backlog operacional.");
+      setRestoreHistoryFinding(null);
+      invalidateApiQueries(queryKeys.opportunities.all);
+      invalidateApiQueries(queryKeys.dashboard.all);
+    } catch (err) {
+      setMessage(err instanceof Error ? err.message : "Não foi possível reabrir a oportunidade.");
     } finally {
       setUnarchiveSavingId("");
     }
@@ -915,6 +941,28 @@ function OpportunitiesContent() {
       {state.opportunityId ? <OpportunityDetail opportunityId={state.opportunityId} onClose={closeDetail} onAction={(action, id) => openDecision(action, [id], false)} onArchive={(id) => setArchiveDialog({ mode: "individual", opportunityId: id })} /> : null}
       {decision ? <OpportunityDecisionDialog action={decision.action} count={decision.ids.length} saving={decisionSaving} error={decisionError} onClose={() => { if (!decisionSaving) { setDecision(null); setDecisionError(""); } }} onSubmit={submitDecision} /> : null}
       {archiveDialog ? <OpportunityArchiveDialog mode={archiveDialog.mode} opportunityId={archiveDialog.opportunityId} opportunityIds={archiveDialog.opportunityIds} filters={archiveFilters} filterLabels={archiveFilterLabels} onClose={() => setArchiveDialog(null)} onSuccess={archiveSucceeded} /> : null}
+
+      {restoreHistoryFinding ? (
+        <Dialog
+          open
+          onOpenChange={(open) => {
+            if (!open && !unarchiveSavingId) setRestoreHistoryFinding(null);
+          }}
+        >
+          <DialogContent onCancel={(event) => { if (unarchiveSavingId) event.preventDefault(); }}>
+            <DialogHeader>
+              <DialogTitle>Reabrir oportunidade</DialogTitle>
+              <DialogDescription>
+                A decisão de rejeição será removida e a oportunidade voltará ao backlog operacional. O histórico permanecerá registrado.
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button variant="secondary" disabled={Boolean(unarchiveSavingId)} onClick={() => setRestoreHistoryFinding(null)}>Cancelar</Button>
+              <Button variant="primary" loading={unarchiveSavingId === restoreHistoryFinding.id} onClick={() => void confirmRejectedHistoryReopen()}>Reabrir</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      ) : null}
     </div>
   );
 }

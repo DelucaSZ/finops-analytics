@@ -11,25 +11,31 @@ const detailSource = await readFile(
   "utf8",
 );
 
-const confirmation =
-  "Esta oportunidade foi rejeitada anteriormente. Reabri-la removerá a decisão de rejeição e a devolverá ao backlog operacional. Deseja continuar?";
-
-test("historical rejected rows use explicit reopen instead of direct unarchive", () => {
+test("historical rejected rows require Aven confirmation before reopen", () => {
   assert.match(pageSource, /finding\.status === "rejected"/);
+  assert.match(pageSource, /setRestoreHistoryFinding\(finding\)/);
+  assert.match(pageSource, /confirmRejectedHistoryReopen/);
   assert.match(pageSource, /`\/opportunities\/\$\{finding\.id\}\/reopen`/);
-  assert.match(pageSource, /Reabrir oportunidade/);
-  assert.ok(pageSource.includes(confirmation));
   assert.match(pageSource, /`\/opportunities\/\$\{finding\.id\}\/unarchive`/);
+  assert.match(pageSource, /Reabrir oportunidade/);
+  assert.match(pageSource, /<Dialog/);
+  assert.match(pageSource, /<DialogTitle>Reabrir oportunidade<\/DialogTitle>/);
+  assert.match(pageSource, /decisão de rejeição será removida/i);
+  assert.match(pageSource, /voltará ao backlog operacional/i);
+  assert.match(pageSource, /histórico permanecerá registrado/i);
+  assert.doesNotMatch(pageSource, /window\.confirm/);
 });
 
 test("archived rejected detail uses reopen and explains persistent suppression", () => {
   assert.match(detailSource, /detail\.status === "rejected"/);
   assert.match(detailSource, /`\/opportunities\/\$\{detail\.id\}\/reopen`/);
   assert.match(detailSource, /Reabrir oportunidade/);
-  assert.ok(detailSource.includes(confirmation));
-  assert.ok(
-    detailSource.includes(
-      "Esta oportunidade continua sendo observada tecnicamente, mas permanece suprimida pela decisão de rejeição.",
-    ),
-  );
+  assert.match(detailSource, /<Dialog/);
+  assert.match(detailSource, /<DialogTitle>/);
+  assert.match(detailSource, /<DialogDescription>/);
+  assert.match(detailSource, /decisão de rejeição será removida/i);
+  assert.match(detailSource, /voltará ao backlog operacional/i);
+  assert.match(detailSource, /histórico permanecerá registrado/i);
+  assert.match(detailSource, /recomendação permanece suprimida pela decisão humana registrada/i);
+  assert.doesNotMatch(detailSource, /window\.confirm/);
 });

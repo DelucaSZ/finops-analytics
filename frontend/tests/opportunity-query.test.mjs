@@ -237,26 +237,26 @@ test("workspace source exposes history without regressing operational semantics"
   const archiveHistory = await readFile(new URL("../components/opportunity-archive-history.tsx", import.meta.url), "utf8");
   const dialog = await readFile(new URL("../components/opportunity-decision-dialog.tsx", import.meta.url), "utf8");
 
-  assert.match(page, /Abertas/);
-  assert.match(page, /Tratadas/);
-  assert.match(page, /Rejeitadas/);
-  assert.match(page, /Histórico/);
+  for (const label of ["Abertas", "Tratadas", "Rejeitadas", "Histórico"]) {
+    assert.match(page, new RegExp(label));
+  }
+  for (const primitive of ["FilterBar", "Tabs", "TabsList", "TabsTrigger", "Section", "MetricCard"]) {
+    assert.match(page, new RegExp(`\\b${primitive}\\b`), `expected Aven component ${primitive}`);
+  }
+
   assert.match(page, /archive_state/);
   assert.match(page, /Presença técnica/);
   assert.match(page, /Arquivada desde/);
   assert.match(page, /Desarquivar/);
-  assert.match(page, /sem conversão entre BRL e USD/);
-  const filterPosition = page.indexOf('className="panel opportunity-filter-panel"');
-  const tabsPosition = page.indexOf('className="opportunity-tabs"');
-  const summaryPosition = page.indexOf('className="opportunity-summary-grid"');
-  assert.ok(filterPosition >= 0 && filterPosition < tabsPosition);
-  assert.ok(tabsPosition < summaryPosition);
-  assert.match(page, /const active = !isHistory && state\.status === tab\.value/);
-  assert.match(page, /const count = stats\[tab\.value\]/);
-  assert.match(page, /aria-current=\{active \? "page" : undefined\}/);
+  assert.match(page, /Moedas preservadas separadamente; nenhuma conversão FX é aplicada/);
+  assert.match(page, /totals\[currency\] = \(totals\[currency\] \|\| 0\) \+ amount/);
+  assert.doesNotMatch(page, /exchangeRate|fxRate|convertCurrency/);
   assert.match(page, /\/opportunities\/stats/);
   assert.match(page, /opportunity_id/);
   assert.match(page, /Selecionar página atual/);
+  assert.match(page, /buildLifecycleRequest/);
+  assert.match(page, /archiveSucceeded/);
+  assert.match(page, /restoreHistoryRow/);
   assert.doesNotMatch(page, /window\.prompt/);
   assert.doesNotMatch(page, /location\.reload|window\.location\.reload/);
 

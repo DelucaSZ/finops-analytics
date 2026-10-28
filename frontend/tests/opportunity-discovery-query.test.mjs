@@ -87,7 +87,7 @@ test("discovery type is not sent without a target collection", () => {
   assert.equal(query.has("discovery_type"), false);
 });
 
-test("opportunities UI exposes explicit temporal and discovery terminology", async () => {
+test("opportunities UI exposes Aven temporal and discovery contracts", async () => {
   const { readFile } = await import("node:fs/promises");
   const page = await readFile(new URL("../app/opportunities/page.tsx", import.meta.url), "utf8");
   const detail = await readFile(new URL("../components/opportunity-detail.tsx", import.meta.url), "utf8");
@@ -97,9 +97,20 @@ test("opportunities UI exposes explicit temporal and discovery terminology", asy
   assert.match(page, /Últimas 24h/);
   assert.match(page, /Últimos 7 dias/);
   assert.match(page, /Últimos 30 dias/);
-  assert.match(page, /Novas vs coleta anterior/);
-  assert.match(page, /Reaparecidas/);
-  assert.match(page, /Continuaram presentes/);
-  assert.match(detail, /Primeira coleta/);
-  assert.match(detail, /Última coleta/);
+
+  const discoveryContracts = [
+    ["observed", "Observadas nesta coleta"],
+    ["first_seen", "Identificadas pela primeira vez nesta coleta"],
+    ["new_vs_previous", "Novas em relação à coleta anterior"],
+    ["reappeared", "Reapareceram nesta coleta"],
+    ["continued", "Continuaram presentes"],
+  ];
+  for (const [type, label] of discoveryContracts) {
+    assert.ok(page.includes(`${type}: "${label}"`), `expected current Aven label for ${type}`);
+  }
+
+  assert.match(detail, /Primeira identificação/);
+  assert.match(detail, /Última detecção/);
+  assert.match(detail, /first_seen_collection_run_id/);
+  assert.match(detail, /last_seen_collection_run_id/);
 });

@@ -29,20 +29,16 @@ test("dashboard ranked lists keep long labels inside responsive containers", () 
   assert.match(taskCss, /repeat\(auto-fit, minmax\(min\(13rem, 100%\), 1fr\)\)/);
 });
 
-test("opportunity detections use vertical label and timestamp blocks", () => {
-  assert.match(opportunitiesSource, /className="detection-cell"/);
-  assert.match(opportunitiesSource, /<strong>Primeira identificação<\/strong>/);
-  assert.match(opportunitiesSource, /<strong>Última detecção<\/strong>/);
-  assert.match(taskCss, /\.detection-cell > span \{/);
-  assert.match(taskCss, /flex-direction: column/);
-  assert.match(taskCss, /white-space: normal/);
+test("opportunity detection timestamps remain explicit in the Aven surface", () => {
+  assert.match(opportunitiesSource, /Primeira identificação/);
+  assert.match(opportunitiesSource, /Última detecção/);
+  assert.match(detailSource, /<dt>Primeira identificação<\/dt><dd>\{formatDate\(detail\.first_seen_at\)\}/);
+  assert.match(detailSource, /<dt>Última detecção<\/dt><dd>\{formatDate\(detail\.last_seen_at\)\}/);
 });
 
-test("opportunity detail separates collection references from timestamps", () => {
-  assert.match(detailSource, /className="collection-link"/);
-  assert.match(detailSource, /Primeira coleta/);
-  assert.match(detailSource, /Última coleta/);
-  assert.match(taskCss, /\.detail-grid dd > \.collection-link \{/);
-  assert.match(taskCss, /display: block/);
-  assert.match(taskCss, /margin-top: 3px/);
+test("opportunity detail keeps collection references linked without legacy CSS hooks", () => {
+  assert.match(detailSource, /Abrir primeira coleta/i);
+  assert.match(detailSource, /Abrir última coleta/i);
+  assert.match(detailSource, /href=\{`\/collections\/\$\{encodeURIComponent\(detail\.first_seen_collection_run_id\)\}`\}/);
+  assert.match(detailSource, /href=\{`\/collections\/\$\{encodeURIComponent\(detail\.last_seen_collection_run_id\)\}`\}/);
 });
