@@ -104,11 +104,11 @@ test("Dashboard standardizes loading, empty and error presentation", () => {
   assert.match(source, /Tentar novamente/);
 });
 
-test("Dashboard responsive composition degrades from four columns to one", () => {
+test("Dashboard responsive composition degrades from four columns to one through layout contracts", () => {
   const styles = dashboardStyles();
-  assert.match(styles, /grid-template-columns: repeat\(4, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /@media \(max-width: 78rem\)[\s\S]*repeat\(2, minmax\(0, 1fr\)\)/);
-  assert.match(styles, /@media \(max-width: 48rem\)[\s\S]*grid-template-columns: minmax\(0, 1fr\)/);
+  assert.match(styles, /grid-template-columns: var\(--layout-grid-columns-4\)/);
+  assert.match(styles, /@media \(max-width: 78rem\)[\s\S]*var\(--layout-grid-columns-2\)/);
+  assert.match(styles, /@media \(max-width: 48rem\)[\s\S]*grid-template-columns: var\(--layout-grid-columns-1\)/);
   assert.match(styles, /background: var\(--chart-series-1\)/);
 });
 
