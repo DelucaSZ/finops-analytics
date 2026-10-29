@@ -242,31 +242,31 @@
 
 .content :global(.switch span) {
   background: var(--surface-disabled);
+  block-size: calc(var(--switch-thumb-size) + var(--space-2));
   border: 1px solid var(--border-default);
   border-radius: var(--radius-pill);
-  bottom: auto;
   cursor: pointer;
-  height: var(--switch-thumb-size);
+  inset-block-start: 50%;
   inset-inline: 0;
-  padding: var(--space-1);
   position: absolute;
-  top: auto;
+  transform: translateY(-50%);
 }
 
 .content :global(.switch span::after) {
   background: var(--surface-primary);
+  block-size: var(--switch-thumb-size);
+  border: 1px solid var(--border-subtle);
   border-radius: var(--radius-full);
   box-shadow: var(--shadow-xs);
   content: "";
-  height: var(--switch-thumb-size);
+  inline-size: var(--switch-thumb-size);
   inset-block-start: 50%;
   inset-inline-start: var(--space-1);
   position: absolute;
   transform: translateY(-50%);
   transition-duration: var(--motion-duration-fast);
-  transition-property: transform, background-color;
+  transition-property: transform, background-color, border-color;
   transition-timing-function: var(--motion-ease-standard);
-  width: var(--switch-thumb-size);
 }
 
 .content :global(.switch input:checked + span) {
@@ -284,8 +284,9 @@
 }
 
 .content :global(.switch input:disabled + span) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
 }
 
 /* Legacy button bridge removes dark-only fills while pages migrate to Button. */
@@ -332,8 +333,10 @@
 }
 
 .content :global(.button:disabled) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
+  color: var(--action-disabled-text);
   cursor: not-allowed;
-  opacity: var(--opacity-disabled);
 }
 
 /* Legacy alerts resolve through status semantics instead of fixed dark colors. */
