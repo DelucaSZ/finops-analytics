@@ -91,7 +91,11 @@ test("AvenLogo keeps surface-aware official assets and mark contract", () => {
 
   for (const asset of requiredAssets) {
     assert.match(brand, new RegExp(asset.replaceAll(".", "\\.")));
-    assert.equal(fs.existsSync(path.join(ROOT, "public", asset === "favicon.ico" ? asset : "brand", asset)), true, `Missing official asset ${asset}`);
+    assert.equal(
+      fs.existsSync(path.join(ROOT, "public", "brand", "aven", asset)),
+      true,
+      `Missing official asset ${asset}`,
+    );
   }
 });
 
@@ -112,7 +116,10 @@ test("Sidebar keeps official wordmark plus mark and collapse is a persisted shel
 
   assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
   assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
-  assert.match(shell, /data\.sidebar = next \? "collapsed" : "expanded"/);
+  assert.match(
+    shell,
+    /document\.documentElement\.dataset\.sidebar = next \? "collapsed" : "expanded"/,
+  );
   assert.match(shell, /SIDEBAR_STORAGE_KEY/);
   assert.match(styles, /data-sidebar="collapsed"/);
 });
