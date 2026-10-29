@@ -1,0 +1,149 @@
+/*
+ * Aven global surface hierarchy.
+ * This layer contains no page-owned colors or opacity decisions: every visual
+ * value resolves through semantic/component tokens so Light/Dark/System move
+ * together and the application gradient remains visible behind content.
+ */
+
+[data-aven-surface] {
+  border: 1px solid var(--section-border);
+  border-radius: var(--section-radius);
+  color: var(--text-primary);
+  min-inline-size: 0;
+}
+
+[data-aven-surface="section"] {
+  background: var(--section-background);
+  border-color: var(--section-border);
+  box-shadow: var(--section-shadow);
+}
+
+[data-aven-surface="panel"] {
+  background: var(--panel-background);
+  border-color: var(--panel-border);
+  border-radius: var(--panel-radius);
+  box-shadow: var(--panel-shadow);
+}
+
+[data-aven-surface="card"] {
+  background: var(--card-background);
+  border-color: var(--card-border);
+  border-radius: var(--card-radius);
+  box-shadow: var(--card-shadow);
+}
+
+[data-aven-surface="elevated"] {
+  background: var(--surface-elevated);
+  border-color: var(--elevation-2-border);
+  box-shadow: var(--elevation-2-shadow);
+}
+
+[data-aven-surface="interactive"] {
+  background: var(--interactive-surface-background);
+  border-color: var(--interactive-surface-border);
+  box-shadow: var(--shadow-none);
+  transition:
+    background-color var(--motion-duration-fast) var(--motion-ease-standard),
+    border-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+[data-aven-surface="interactive"]:hover {
+  background: var(--interactive-surface-hover);
+  border-color: var(--border-default);
+}
+
+[data-aven-surface="interactive"][aria-selected="true"],
+[data-aven-surface="interactive"][data-selected="true"] {
+  background: var(--interactive-surface-selected);
+  border-color: var(--state-selected-border);
+}
+
+/* Primitive table contract: the wrapper is the boundary, rows stay lightweight. */
+[data-aven-table] {
+  background: var(--table-background);
+  border-color: var(--table-border);
+  box-shadow: var(--table-shadow);
+}
+
+[data-aven-table] th {
+  background: var(--table-header-background);
+}
+
+[data-aven-table] tbody tr {
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+[data-aven-table] tbody tr:hover:not([data-static="true"]) {
+  background: var(--table-row-hover-background);
+}
+
+[data-aven-table] tbody tr[data-selected="true"] {
+  background: var(--table-row-selected-background);
+}
+
+/* Transitional shared containers. Keep legacy pages on the same hierarchy. */
+.panel,
+.table-panel,
+.opportunity-workspace,
+.security-card,
+.account-card,
+.policy-card,
+.collection-card,
+.collection-detail,
+.collection-account-summary {
+  background: var(--panel-background);
+  border-color: var(--panel-border);
+  box-shadow: var(--panel-shadow);
+}
+
+.toolbar,
+.bulk-toolbar,
+.opportunity-workspace-toolbar,
+.opportunity-pagination,
+.opportunity-filter-panel {
+  background: var(--filter-background);
+  border-color: var(--filter-border);
+  box-shadow: var(--filter-shadow);
+}
+
+.panel-heading,
+.data-table td,
+.resource-table td,
+.stage-five-table td,
+table td,
+.evidence-facts > div,
+.session-item {
+  border-color: var(--border-subtle);
+}
+
+.data-table th,
+.resource-table th,
+.stage-five-table th,
+table th {
+  background: var(--table-header-background);
+}
+
+.data-table tbody tr,
+.resource-table tbody tr,
+.stage-five-table tbody tr,
+.opportunities-table tbody tr,
+.opportunity-row,
+.simple-list > div {
+  transition: background-color var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.data-table tbody tr:hover,
+.resource-table tbody tr:hover,
+.stage-five-table tbody tr:hover,
+.opportunities-table tbody tr:hover,
+.opportunity-row:hover,
+.simple-list > div:hover {
+  background: var(--table-row-hover-background);
+}
+
+.data-table tbody tr.selected-row,
+.resource-table tbody tr.selected-row,
+.stage-five-table tbody tr.selected-row,
+.opportunities-table tbody tr.selected-row {
+  background: var(--table-row-selected-background);
+}

@@ -17,6 +17,7 @@ export * from "./radio";
 export * from "./select";
 export * from "./skeleton";
 export * from "./spinner";
+export * from "./surface";
 export * from "./switch";
 export * from "./table";
 export * from "./tabs";

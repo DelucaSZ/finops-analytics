@@ -5,6 +5,7 @@ import {
   CardDescription,
   CardHeader,
   CardTitle,
+  Surface,
 } from "@/components/ui";
 import styles from "./product-components.module.css";
 import { DataState } from "./data-state";
@@ -74,10 +75,10 @@ export function Section({
 
   if (appearance === "card") {
     return (
-      <Card className={classNames(styles.sectionCard, className)} {...props}>
+      <Surface as="section" variant="section" className={classNames(styles.sectionCard, className)} {...props}>
         {heading && <CardHeader className={styles.sectionCardHeader}>{heading}</CardHeader>}
         <CardContent className={styles.sectionCardContent}>{children}</CardContent>
-      </Card>
+      </Surface>
     );
   }
 
@@ -141,13 +142,13 @@ export function FilterBar({
 }: FilterBarProps) {
   if (surface) {
     return (
-      <Card className={classNames(styles.filterSurface, className)} {...props}>
+      <Surface variant="panel" className={classNames(styles.filterSurface, className)} {...props}>
         <CardContent className={styles.filterSurfaceContent}>
           <FilterBarContent secondary={secondary} summary={summary} actions={actions} clearAction={clearAction}>
             {children}
           </FilterBarContent>
         </CardContent>
-      </Card>
+      </Surface>
     );
   }
 
