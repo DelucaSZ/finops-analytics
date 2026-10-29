@@ -110,7 +110,8 @@
 .content :global(.security-card),
 .content :global(.policy-card),
 .content :global(.policy-scope-bar),
-.content :global(.settings-preference-panel) {
+.content :global(.settings-preference-panel),
+.content :global(.credential-summary) {
   background: var(--card-background);
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
@@ -134,12 +135,17 @@
 .content :global(.settings-help),
 .content :global(.muted),
 .content :global(.security-card p),
-.content :global(.panel p) {
+.content :global(.panel p),
+.content :global(.credential-summary span) {
   color: var(--text-secondary);
   font-family: var(--type-body-md-family);
   font-size: var(--type-body-md-size);
   font-weight: var(--type-body-md-weight);
   line-height: var(--type-body-md-line-height);
+}
+
+.content :global(.credential-summary strong) {
+  color: var(--text-primary);
 }
 
 .content :global(.panel form),
@@ -219,9 +225,65 @@
   outline-offset: var(--focus-outline-offset);
 }
 
+.content :global(input[type="checkbox"]:not([data-aven-control-inner])),
+.content :global(input[type="radio"]:not([data-aven-control-inner])) {
+  accent-color: var(--action-primary);
+}
+
 .content :global(select:not([data-aven-control-inner]) option) {
   background: var(--popover-background);
   color: var(--text-primary);
+}
+
+/* Legacy segmented controls resolve selected/inactive states semantically. */
+.content :global(.segmented) {
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-inline-size: 100%;
+  padding: var(--space-1);
+}
+
+.content :global(.segmented button) {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+  min-block-size: var(--control-height-compact);
+  padding-inline: var(--control-padding-inline-compact);
+}
+
+.content :global(.segmented button:hover:not(:disabled):not(.active)) {
+  background: var(--surface-hover);
+  border-color: var(--state-hover-border);
+  color: var(--text-primary);
+}
+
+.content :global(.segmented button.active) {
+  background: var(--surface-selected);
+  border-color: var(--state-selected-border);
+  color: var(--action-primary);
+}
+
+.content :global(.segmented button:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.segmented button:disabled) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
+  color: var(--action-disabled-text);
+  cursor: not-allowed;
 }
 
 /* Legacy switch bridge: same semantic roles as the official Aven Switch. */
@@ -339,6 +401,38 @@
   cursor: not-allowed;
 }
 
+.content :global(.icon-button),
+.content :global(.input-action button) {
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.content :global(.icon-button:hover:not(:disabled)),
+.content :global(.input-action button:hover:not(:disabled)) {
+  background: var(--surface-hover);
+  border-color: var(--state-hover-border);
+  color: var(--text-primary);
+}
+
+.content :global(.icon-button:focus-visible),
+.content :global(.input-action button:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.search-field),
+.content :global(.select-field) {
+  background: var(--control-background);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+}
+
 /* Legacy alerts resolve through status semantics instead of fixed dark colors. */
 .content :global(.alert) {
   border: 1px solid var(--status-info-border);
@@ -371,9 +465,37 @@
   color: var(--status-warning-text);
 }
 
+.content :global(.field-error),
+.content :global(.account-table-error) {
+  color: var(--status-danger-text);
+}
+
+.content :global(.data-table th) {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-family: var(--type-table-header-family);
+  font-size: var(--type-table-header-size);
+  font-weight: var(--type-table-header-weight);
+  line-height: var(--type-table-header-line-height);
+}
+
+.content :global(.data-table td) {
+  border-block-start-color: var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--type-table-body-family);
+  font-size: var(--type-table-body-size);
+  font-weight: var(--type-table-body-weight);
+  line-height: var(--type-table-body-line-height);
+}
+
+.content :global(.data-table td strong) {
+  color: var(--text-primary);
+}
+
 .content :global(.panel code),
 .content :global(.security-card code),
-.content :global(.policy-card code) {
+.content :global(.policy-card code),
+.content :global(.account-identifier code) {
   color: var(--text-primary);
   font-family: var(--type-code-family);
   font-size: var(--type-code-size);
@@ -383,7 +505,8 @@
 }
 
 .content :global(.table-wrap),
-.content :global(.billing-profiles-table-wrap) {
+.content :global(.billing-profiles-table-wrap),
+.content :global(.data-table-wrap) {
   max-inline-size: 100%;
   min-inline-size: 0;
   overflow-x: auto;
