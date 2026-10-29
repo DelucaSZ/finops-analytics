@@ -13,7 +13,13 @@ export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
 
 export function Badge({ variant = "neutral", appearance = "subtle", icon, className, children, ...props }: BadgeProps) {
   return (
-    <span className={cx(styles.badge, className)} data-variant={variant} data-appearance={appearance} {...props}>
+    <span
+      className={cx(styles.badge, className)}
+      data-aven-badge=""
+      data-variant={variant}
+      data-appearance={appearance}
+      {...props}
+    >
       {icon && <span aria-hidden="true">{icon}</span>}
       {children}
     </span>
