@@ -62,7 +62,7 @@ html[data-theme="dark"] {
 }
 
 .login-copy h1 {
-  letter-spacing: -.045em;
+  letter-spacing: var(--type-heading-xl-letter-spacing);
 }
 
 .login-copy p {
@@ -175,23 +175,4 @@ textarea[data-aven-control-inner]:focus-visible {
   border: 1px solid var(--border);
   color: var(--muted);
   background: var(--surface-muted);
-}
-
-@media (max-width: 900px) {
-  .sidebar .brand-label,
-  .sidebar .nav-label {
-    display: inline;
-  }
-
-  .sidebar .product-tag {
-    display: flex;
-  }
-
-  .sidebar .sidebar-tooltip {
-    display: none !important;
-  }
-
-  .main-nav {
-    margin-top: 0;
-  }
 }

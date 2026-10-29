@@ -26,6 +26,7 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "page-header.tsx"),
   path.join(ROOT, "components", "manual-collection-launcher.tsx"),
   path.join(ROOT, "components", "manual-collection-launcher.module.css"),
+  path.join(ROOT, "app", "legacy-theme-compat.css"),
   path.join(ROOT, "app", "login"),
   path.join(ROOT, "app", "mfa-setup"),
   path.join(ROOT, "app", "billing"),
@@ -74,6 +75,7 @@ const rules = [
     patterns: [
       /\bfont-(?:size|family|weight)\s*:(?!\s*var\()[^;]+/i,
       /\bline-height\s*:(?!\s*var\()[^;]+/i,
+      /\bletter-spacing\s*:(?!\s*var\()[^;]+/i,
       /\b(?:fontSize|fontFamily|fontWeight|lineHeight)\s*:\s*["'`]?(?:\d|[a-z])/i,
       /\b(?:text|font|leading)-\[[^\]]+\]/i,
     ],

@@ -74,12 +74,32 @@ test("canonical visualization documentation replaces the proven duplicate root c
   assert.match(readRepo("docs/brand/aven/README.md"), /AVEN_DATA_VISUALIZATION_SYSTEM\.md/);
 });
 
-test("final hardcode gate covers complete migrated Recommendations and Settings route families", () => {
+test("final hardcode gate covers migrated route families and active compatibility styling", () => {
   const source = readFrontend("scripts/check-design-system.mjs");
+  assert.match(source, /path\.join\(ROOT, "app", "legacy-theme-compat\.css"\)/);
   assert.match(source, /path\.join\(ROOT, "app", "opportunities"\)/);
   assert.match(source, /path\.join\(ROOT, "app", "settings"\)/);
+  assert.match(source, /letter-spacing\\s\*:/);
   assert.doesNotMatch(source, /path\.join\(ROOT, "app", "opportunities", "page\.tsx"\)/);
   assert.doesNotMatch(source, /path\.join\(ROOT, "app", "settings", "appearance", "page\.tsx"\)/);
+});
+
+test("obsolete global shell overrides stay removed after the CSS-module shell migration", () => {
+  const legacy = readFrontend("app/legacy-theme-compat.css");
+
+  assert.doesNotMatch(legacy, /\.sidebar \.brand-label/);
+  assert.doesNotMatch(legacy, /\.sidebar \.nav-label/);
+  assert.doesNotMatch(legacy, /\.sidebar \.product-tag/);
+  assert.doesNotMatch(legacy, /\.sidebar \.sidebar-tooltip/);
+  assert.doesNotMatch(legacy, /\.main-nav/);
+  assert.doesNotMatch(legacy, /!important/);
+  assert.match(legacy, /letter-spacing:\s*var\(--type-heading-xl-letter-spacing\)/);
+});
+
+test("obsolete Task 23.25 layout patch stays removed after Dashboard and Opportunities migration", () => {
+  const layout = readFrontend("app/layout.tsx");
+  assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, "app/task-23-25-layout.css")), false);
+  assert.doesNotMatch(layout, /task-23-25-layout\.css/);
 });
 
 test("theme switching is presentation-only and cannot trigger domain requests or remount children", () => {

@@ -1,7 +1,7 @@
 .page,
 .statePage {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--space-6);
   min-inline-size: 0;
   width: 100%;
 }
