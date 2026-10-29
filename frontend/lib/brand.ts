@@ -8,6 +8,24 @@ export const brand = Object.freeze({
   tagline: PRODUCT_TAGLINE,
   description: PRODUCT_DESCRIPTION,
   assets: Object.freeze({
+    logo: Object.freeze({
+      horizontal: Object.freeze({
+        onLight: "/brand/aven/aven-logo-horizontal-on-light.png",
+        onDark: "/brand/aven/aven-logo-horizontal-on-dark.png",
+      }),
+      vertical: Object.freeze({
+        onLight: "/brand/aven/aven-logo-vertical-on-light.png",
+        onDark: "/brand/aven/aven-logo-vertical-on-dark.png",
+      }),
+    }),
+    mark: Object.freeze({
+      gradient: "/brand/aven/aven-mark-gradient.png",
+    }),
+    icons: Object.freeze({
+      favicon: "/brand/aven/favicon.ico",
+      appleTouch: "/brand/aven/apple-touch-icon.png",
+    }),
+    // Technical-only vector fallbacks. Never use these as the primary Login/Shell branding.
     wordmarkFallback: "/brand/aven/aven-logo-horizontal-fallback.svg",
     symbolGradient: "/brand/aven/aven-icon-gradient.svg",
   }),

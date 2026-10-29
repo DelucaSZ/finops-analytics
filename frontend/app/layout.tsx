@@ -36,7 +36,9 @@ export const metadata: Metadata = {
   },
   description: brand.description,
   icons: {
-    icon: [{ url: brand.assets.symbolGradient, type: "image/svg+xml" }],
+    icon: [{ url: brand.assets.icons.favicon }],
+    shortcut: [brand.assets.icons.favicon],
+    apple: [{ url: brand.assets.icons.appleTouch, type: "image/png", sizes: "180x180" }],
   },
 };
 
