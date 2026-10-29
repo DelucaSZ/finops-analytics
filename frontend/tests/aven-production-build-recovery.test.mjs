@@ -28,9 +28,9 @@ test("single and multiple selector behavior remains covered by explicit branches
   assert.match(selectors, /selection\.onChange\(\[\]\)/);
   assert.match(selectors, /\(selection as SingleSelectorProps\)\.onChange\(""\)/);
   assert.match(selectors, /selection\.value\.length > 0 \? `\$\{selection\.value\.length\} selected` : placeholder/);
-  assert.match(selectors, /selection\.onChange\(selectableOptions\.map\(\(option\) => option\.value\)\)/);
-  assert.match(selectors, /new Set\(\[\.\.\.selection\.value, option\.value\]\)/);
-  assert.match(selectors, /selection\.value\.filter\(\(value\) => value !== option\.value\)/);
+  assert.ok(selectors.includes("selection.onChange(selectableOptions.map((option) => option.value));"));
+  assert.ok(selectors.includes("new Set([...selection.value, option.value])"));
+  assert.ok(selectors.includes("selection.value.filter((value) => value !== option.value)"));
   assert.match(selectors, /emptyLabel = "No options available"/);
   assert.match(selectors, /filteredOptions\.length > 0/);
 });
