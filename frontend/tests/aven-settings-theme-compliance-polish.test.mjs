@@ -148,7 +148,7 @@ test("remaining Accounts and Users legacy markup is explicitly covered by the se
     source("../app/settings/settings-layout.module.css"),
   ]);
 
-  assert.ok(accounts.includes('className="segmented"'));
+  assert.match(accounts, /className="[^"]*\bsegmented\b[^"]*"/);
   assert.ok(accounts.includes("account-card"));
   assert.ok(css.includes(":global(.segmented button.active)"));
   assert.ok(css.includes(":global(.account-card)"));
