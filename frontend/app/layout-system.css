@@ -56,6 +56,8 @@
 }
 
 [data-aven-page-container] {
+  container-name: aven-page;
+  container-type: inline-size;
   inline-size: 100%;
   margin-inline: auto;
   min-inline-size: 0;
@@ -134,6 +136,52 @@
 
 [data-aven-grid="split"] {
   grid-template-columns: var(--layout-grid-columns-split);
+}
+
+/*
+ * Status text must remain readable when analytical columns become narrow.
+ * Short badges keep their pill shape; only long content wraps.
+ */
+[data-aven-badge] {
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+/*
+ * Container queries make page composition respond to the space left by the
+ * expanded/collapsed sidebar, not only to the browser viewport. The media
+ * queries below remain as a compatibility fallback for older engines.
+ */
+@container aven-page (max-width: 62rem) {
+  [data-aven-grid="split"] {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+
+  [data-aven-page-container] [data-aven-filter-actions] {
+    flex-basis: 100%;
+    justify-content: flex-start;
+    margin-inline-start: var(--space-0);
+  }
+}
+
+@container aven-page (max-width: 48rem) {
+  [data-aven-page-container] [data-aven-filter-bar] {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  [data-aven-page-container] [data-aven-filter-group],
+  [data-aven-page-container] [data-aven-filter-actions] {
+    inline-size: 100%;
+  }
+
+  [data-aven-page-container] [data-aven-filter-group] > * {
+    flex-basis: 100%;
+    inline-size: 100%;
+    max-inline-size: 100%;
+    min-inline-size: 0;
+  }
 }
 
 @media (max-width: 80rem) {
