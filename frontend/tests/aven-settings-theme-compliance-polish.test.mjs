@@ -97,18 +97,68 @@ test("Opportunity policy uses official Aven controls and keeps persistence behav
 test("Settings compatibility bridge resolves legacy administrative surfaces through Aven semantics", async () => {
   const css = await source("../app/settings/settings-layout.module.css");
 
+  assert.ok(css.includes("Legacy segmented controls"));
   assert.ok(css.includes("Legacy switch bridge"));
+  assert.ok(css.includes("var(--surface-selected)"));
+  assert.ok(css.includes("var(--state-selected-border)"));
+  assert.ok(css.includes("var(--border-interactive)"));
   assert.ok(css.includes("var(--surface-disabled)"));
   assert.ok(css.includes("var(--action-primary)"));
   assert.ok(css.includes("var(--action-primary-text)"));
+  assert.ok(css.includes("var(--action-secondary)"));
   assert.ok(css.includes("var(--status-danger-bg)"));
   assert.ok(css.includes("var(--status-success-bg)"));
   assert.ok(css.includes("var(--status-warning-bg)"));
+  assert.ok(css.includes("var(--status-info-bg)"));
+  assert.ok(css.includes("var(--status-neutral-bg)"));
   assert.ok(css.includes("select:not([data-aven-control-inner]) option"));
   assert.ok(css.includes("var(--popover-background)"));
   assert.ok(css.includes("max-inline-size: calc(var(--filter-field-wide-inline-size)"));
+  assert.ok(css.includes(":global(.settings-filters)"));
+  assert.ok(css.includes(":global(.account-card)"));
+  assert.ok(css.includes(":global(.data-table th)"));
+  assert.doesNotMatch(css, /--state-hover-border/);
   assert.doesNotMatch(css, /background:\s*(?:black|#000(?:000)?)/i);
   assert.doesNotMatch(css, /filter:\s*invert\(/i);
+});
+
+test("Settings compatibility bridge only consumes defined Aven token roles", async () => {
+  const [css, ...tokenFiles] = await Promise.all([
+    source("../app/settings/settings-layout.module.css"),
+    source("../app/styles/tokens/primitives.css"),
+    source("../app/styles/tokens/foundations.css"),
+    source("../app/styles/tokens/semantic-light.css"),
+    source("../app/styles/tokens/semantic-dark.css"),
+    source("../app/styles/tokens/components.css"),
+    source("../app/styles/tokens/status.css"),
+  ]);
+
+  const defined = new Set(
+    tokenFiles.flatMap((text) => [...text.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((match) => match[1])),
+  );
+  const used = new Set([...css.matchAll(/var\((--[a-z0-9-]+)/gi)].map((match) => match[1]));
+  const missing = [...used].filter((token) => !defined.has(token)).sort();
+  assert.deepEqual(missing, [], `undefined Aven tokens in Settings bridge: ${missing.join(", ")}`);
+});
+
+test("remaining Accounts and Users legacy markup is explicitly covered by the semantic migration bridge", async () => {
+  const [accounts, users, css] = await Promise.all([
+    source("../app/settings/accounts/page.tsx"),
+    source("../app/settings/users/page.tsx"),
+    source("../app/settings/settings-layout.module.css"),
+  ]);
+
+  assert.ok(accounts.includes('className="segmented"'));
+  assert.ok(accounts.includes("account-card"));
+  assert.ok(css.includes(":global(.segmented button.active)"));
+  assert.ok(css.includes(":global(.account-card)"));
+
+  assert.ok(users.includes("settings-filters"));
+  assert.ok(users.includes("settings-row-actions"));
+  assert.ok(css.includes(":global(.settings-filters)"));
+  assert.ok(css.includes(":global(.settings-row-actions)"));
+  assert.ok(css.includes(":global(.form-error)"));
+  assert.ok(css.includes(":global(.form-success)"));
 });
 
 test("Appearance continues to delegate Light Dark System behavior to the official ThemeSelector", async () => {
