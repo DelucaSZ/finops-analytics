@@ -1,7 +1,7 @@
 .page,
 .statePage {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
   min-inline-size: 0;
   width: 100%;
 }
@@ -27,7 +27,7 @@
 
 .content {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-5);
   width: 100%;
 }
 
@@ -49,7 +49,8 @@
 /*
  * Scoped compatibility bridge for Settings workflows that still own legacy
  * markup. Aven primitives are intentionally excluded so a control never
- * receives both primitive styling and the migration bridge.
+ * receives both primitive styling and the migration bridge. Every bridge
+ * value resolves through Aven semantic tokens; Settings never owns a theme.
  */
 .content :global(.page-header) {
   align-items: flex-start;
@@ -109,7 +110,9 @@
 .content :global(.security-card),
 .content :global(.policy-card),
 .content :global(.policy-scope-bar),
-.content :global(.settings-preference-panel) {
+.content :global(.settings-preference-panel),
+.content :global(.credential-summary),
+.content :global(.account-card) {
   background: var(--card-background);
   border: 1px solid var(--card-border);
   border-radius: var(--card-radius);
@@ -119,10 +122,24 @@
   padding: var(--card-padding);
 }
 
+.content :global(.account-card) {
+  min-block-size: auto;
+}
+
+.content :global(.account-icon) {
+  background: var(--status-info-bg);
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--control-radius);
+  color: var(--status-info-text);
+  block-size: var(--control-height-default);
+  inline-size: var(--control-height-default);
+}
+
 .content :global(.panel h2),
 .content :global(.security-card h2),
 .content :global(.policy-card h3),
-.content :global(.settings-preference-panel h2) {
+.content :global(.settings-preference-panel h2),
+.content :global(.account-card h3) {
   color: var(--text-primary);
   font-family: var(--type-heading-md-family);
   font-size: var(--type-heading-md-size);
@@ -133,12 +150,24 @@
 .content :global(.settings-help),
 .content :global(.muted),
 .content :global(.security-card p),
-.content :global(.panel p) {
+.content :global(.panel p),
+.content :global(.credential-summary span),
+.content :global(.account-card dt) {
   color: var(--text-secondary);
   font-family: var(--type-body-md-family);
   font-size: var(--type-body-md-size);
   font-weight: var(--type-body-md-weight);
   line-height: var(--type-body-md-line-height);
+}
+
+.content :global(.credential-summary strong),
+.content :global(.account-card dd) {
+  color: var(--text-primary);
+}
+
+.content :global(.account-card dd),
+.content :global(.account-top code) {
+  overflow-wrap: anywhere;
 }
 
 .content :global(.panel form),
@@ -147,8 +176,18 @@
 .content :global(.policy-scope-bar form),
 .content :global(.form-grid),
 .content :global(.settings-form-grid),
-.content :global(.policy-fields) {
+.content :global(.policy-fields),
+.content :global(.settings-filters) {
+  max-inline-size: calc(var(--filter-field-wide-inline-size) + var(--filter-field-wide-inline-size) + var(--space-4));
   min-inline-size: 0;
+}
+
+.content :global(.settings-filters) {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-block: var(--space-4);
 }
 
 .content :global(.panel label),
@@ -157,7 +196,8 @@
 .content :global(.policy-scope-bar label),
 .content :global(.form-grid > label),
 .content :global(.settings-form-grid > label),
-.content :global(.policy-field > label) {
+.content :global(.policy-field > label),
+.content :global(.settings-filters label) {
   color: var(--text-primary);
   font-family: var(--type-label-md-family);
   font-size: var(--type-label-md-size);
@@ -165,18 +205,27 @@
   line-height: var(--type-label-md-line-height);
 }
 
-.content :global(.panel input:not([type="checkbox"]):not([type="radio"])),
-.content :global(.panel select),
-.content :global(.panel textarea),
-.content :global(.security-card input:not([type="checkbox"]):not([type="radio"])),
-.content :global(.security-card select),
-.content :global(.security-card textarea),
-.content :global(.policy-card input:not([type="checkbox"]):not([type="radio"])),
-.content :global(.policy-card select),
-.content :global(.policy-card textarea),
-.content :global(.policy-scope-bar input:not([type="checkbox"]):not([type="radio"])),
-.content :global(.policy-scope-bar select),
-.content :global(.policy-scope-bar textarea) {
+.content :global(.settings-filters label) {
+  display: grid;
+  flex: 1 1 var(--filter-field-default-inline-size);
+  gap: var(--form-field-gap);
+  min-inline-size: var(--filter-field-min-inline-size);
+}
+
+.content :global(.panel input:not([type="checkbox"]):not([type="radio"]):not([data-aven-control-inner])),
+.content :global(.panel select:not([data-aven-control-inner])),
+.content :global(.panel textarea:not([data-aven-control-inner])),
+.content :global(.security-card input:not([type="checkbox"]):not([type="radio"]):not([data-aven-control-inner])),
+.content :global(.security-card select:not([data-aven-control-inner])),
+.content :global(.security-card textarea:not([data-aven-control-inner])),
+.content :global(.policy-card input:not([type="checkbox"]):not([type="radio"]):not([data-aven-control-inner])),
+.content :global(.policy-card select:not([data-aven-control-inner])),
+.content :global(.policy-card textarea:not([data-aven-control-inner])),
+.content :global(.policy-scope-bar input:not([type="checkbox"]):not([type="radio"]):not([data-aven-control-inner])),
+.content :global(.policy-scope-bar select:not([data-aven-control-inner])),
+.content :global(.policy-scope-bar textarea:not([data-aven-control-inner])),
+.content :global(.settings-filters input:not([type="checkbox"]):not([type="radio"]):not([data-aven-control-inner])),
+.content :global(.settings-filters select:not([data-aven-control-inner])) {
   background: var(--control-background);
   border: 1px solid var(--control-border);
   border-radius: var(--control-radius);
@@ -192,34 +241,372 @@
   width: 100%;
 }
 
-.content :global(.panel textarea),
-.content :global(.security-card textarea),
-.content :global(.policy-card textarea),
-.content :global(.policy-scope-bar textarea) {
+.content :global(.panel textarea:not([data-aven-control-inner])),
+.content :global(.security-card textarea:not([data-aven-control-inner])),
+.content :global(.policy-card textarea:not([data-aven-control-inner])),
+.content :global(.policy-scope-bar textarea:not([data-aven-control-inner])) {
   padding-block: var(--space-3);
   resize: vertical;
 }
 
-.content :global(.panel input:focus-visible),
-.content :global(.panel select:focus-visible),
-.content :global(.panel textarea:focus-visible),
-.content :global(.security-card input:focus-visible),
-.content :global(.security-card select:focus-visible),
-.content :global(.security-card textarea:focus-visible),
-.content :global(.policy-card input:focus-visible),
-.content :global(.policy-card select:focus-visible),
-.content :global(.policy-card textarea:focus-visible),
-.content :global(.policy-scope-bar input:focus-visible),
-.content :global(.policy-scope-bar select:focus-visible),
-.content :global(.policy-scope-bar textarea:focus-visible) {
+.content :global(.panel input:not([data-aven-control-inner]):focus-visible),
+.content :global(.panel select:not([data-aven-control-inner]):focus-visible),
+.content :global(.panel textarea:not([data-aven-control-inner]):focus-visible),
+.content :global(.security-card input:not([data-aven-control-inner]):focus-visible),
+.content :global(.security-card select:not([data-aven-control-inner]):focus-visible),
+.content :global(.security-card textarea:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-card input:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-card select:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-card textarea:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-scope-bar input:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-scope-bar select:not([data-aven-control-inner]):focus-visible),
+.content :global(.policy-scope-bar textarea:not([data-aven-control-inner]):focus-visible),
+.content :global(.settings-filters input:not([data-aven-control-inner]):focus-visible),
+.content :global(.settings-filters select:not([data-aven-control-inner]):focus-visible) {
   border-color: var(--focus-ring);
   outline: var(--focus-outline-width) solid var(--focus-ring);
   outline-offset: var(--focus-outline-offset);
 }
 
+.content :global(input[type="checkbox"]:not([data-aven-control-inner])),
+.content :global(input[type="radio"]:not([data-aven-control-inner])) {
+  accent-color: var(--action-primary);
+}
+
+.content :global(select:not([data-aven-control-inner]) option) {
+  background: var(--popover-background);
+  color: var(--text-primary);
+}
+
+/* Legacy segmented controls resolve selected/inactive states semantically. */
+.content :global(.segmented) {
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--control-radius);
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  max-inline-size: 100%;
+  padding: var(--space-1);
+}
+
+.content :global(.segmented button) {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: var(--type-label-sm-family);
+  font-size: var(--type-label-sm-size);
+  font-weight: var(--type-label-sm-weight);
+  line-height: var(--type-label-sm-line-height);
+  min-block-size: var(--control-height-compact);
+  padding-inline: var(--control-padding-inline-compact);
+}
+
+.content :global(.segmented button:hover:not(:disabled):not(.active)) {
+  background: var(--surface-hover);
+  border-color: var(--border-interactive);
+  color: var(--text-primary);
+}
+
+.content :global(.segmented button.active) {
+  background: var(--surface-selected);
+  border-color: var(--state-selected-border);
+  color: var(--action-primary);
+}
+
+.content :global(.segmented button:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.segmented button:disabled) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
+  color: var(--action-disabled-text);
+  cursor: not-allowed;
+}
+
+/* Legacy switch bridge: same semantic roles as the official Aven Switch. */
+.content :global(.switch) {
+  align-items: center;
+  display: inline-flex;
+  flex: none;
+  min-block-size: var(--hit-target-min);
+  position: relative;
+  width: var(--switch-inline-size);
+}
+
+.content :global(.switch input) {
+  inset: 0;
+  opacity: 0;
+  position: absolute;
+}
+
+.content :global(.switch span) {
+  background: var(--surface-disabled);
+  block-size: calc(var(--switch-thumb-size) + var(--space-2));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  inset-block-start: 50%;
+  inset-inline: 0;
+  position: absolute;
+  transform: translateY(-50%);
+}
+
+.content :global(.switch span::after) {
+  background: var(--surface-primary);
+  block-size: var(--switch-thumb-size);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  box-shadow: var(--shadow-xs);
+  content: "";
+  inline-size: var(--switch-thumb-size);
+  inset-block-start: 50%;
+  inset-inline-start: var(--space-1);
+  position: absolute;
+  transform: translateY(-50%);
+  transition-duration: var(--motion-duration-fast);
+  transition-property: transform, background-color, border-color;
+  transition-timing-function: var(--motion-ease-standard);
+}
+
+.content :global(.switch input:checked + span) {
+  background: var(--action-primary);
+  border-color: var(--action-primary);
+}
+
+.content :global(.switch input:checked + span::after) {
+  transform: translate(var(--switch-thumb-translate), -50%);
+}
+
+.content :global(.switch input:focus-visible + span) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.switch input:disabled + span) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
+  cursor: not-allowed;
+}
+
+/* Legacy button bridge removes dark-only fills while pages migrate to Button. */
+.content :global(.button) {
+  align-items: center;
+  background: var(--action-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--control-radius);
+  color: var(--action-secondary-text);
+  display: inline-flex;
+  font-family: var(--type-label-md-family);
+  font-size: var(--type-label-md-size);
+  font-weight: var(--type-label-md-weight);
+  gap: var(--control-gap);
+  justify-content: center;
+  line-height: var(--type-label-md-line-height);
+  min-block-size: var(--control-height-default);
+  padding-inline: var(--control-padding-inline-default);
+}
+
+.content :global(.button:hover:not(:disabled)) {
+  background: var(--action-secondary-hover);
+  border-color: var(--border-interactive);
+}
+
+.content :global(.button.primary) {
+  background: var(--action-primary);
+  border-color: var(--action-primary);
+  color: var(--action-primary-text);
+}
+
+.content :global(.button.primary:hover:not(:disabled)) {
+  background: var(--action-primary-hover);
+  border-color: var(--action-primary-hover);
+  transform: none;
+}
+
+.content :global(.button.ghost) {
+  background: transparent;
+  border-color: var(--border-default);
+  color: var(--text-primary);
+}
+
+.content :global(.button.ghost:hover:not(:disabled)) {
+  background: var(--surface-hover);
+  border-color: var(--border-interactive);
+  color: var(--text-primary);
+}
+
+.content :global(.button:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.button:disabled) {
+  background: var(--action-disabled);
+  border-color: var(--border-disabled);
+  color: var(--action-disabled-text);
+  cursor: not-allowed;
+}
+
+.content :global(.icon-button),
+.content :global(.input-action button) {
+  align-items: center;
+  background: var(--surface-secondary);
+  border: 1px solid var(--border-default);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+  display: inline-flex;
+  justify-content: center;
+}
+
+.content :global(.icon-button:hover:not(:disabled)),
+.content :global(.input-action button:hover:not(:disabled)) {
+  background: var(--surface-hover);
+  border-color: var(--border-interactive);
+  color: var(--text-primary);
+}
+
+.content :global(.icon-button:focus-visible),
+.content :global(.input-action button:focus-visible) {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
+}
+
+.content :global(.search-field),
+.content :global(.select-field) {
+  background: var(--control-background);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
+  color: var(--text-secondary);
+}
+
+/* Legacy alerts and inline feedback resolve through official status semantics. */
+.content :global(.alert) {
+  border: 1px solid var(--status-info-border);
+  border-radius: var(--radius-card);
+  color: var(--status-info-text);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  gap: var(--space-3);
+  line-height: var(--type-body-sm-line-height);
+  margin: 0;
+  padding: var(--space-4);
+}
+
+.content :global(.alert.error) {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.content :global(.alert.success) {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.content :global(.alert.warning) {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+
+.content :global(.form-error),
+.content :global(.field-error),
+.content :global(.account-error),
+.content :global(.account-table-error) {
+  color: var(--status-danger-text);
+}
+
+.content :global(.form-success) {
+  background: var(--status-success-bg);
+  border: 1px solid var(--status-success-border);
+  border-radius: var(--control-radius);
+  color: var(--status-success-text);
+  padding: var(--space-3) var(--space-4);
+}
+
+.content :global(.status-badge) {
+  border: 1px solid transparent;
+}
+
+.content :global(.status-high),
+.content :global(.status-error),
+.content :global(.status-failed) {
+  background: var(--status-danger-bg);
+  border-color: var(--status-danger-border);
+  color: var(--status-danger-text);
+}
+
+.content :global(.status-medium),
+.content :global(.status-pending),
+.content :global(.status-completed_with_warnings) {
+  background: var(--status-warning-bg);
+  border-color: var(--status-warning-border);
+  color: var(--status-warning-text);
+}
+
+.content :global(.status-low),
+.content :global(.status-connected),
+.content :global(.status-success),
+.content :global(.status-completed),
+.content :global(.status-open) {
+  background: var(--status-success-bg);
+  border-color: var(--status-success-border);
+  color: var(--status-success-text);
+}
+
+.content :global(.status-untested),
+.content :global(.status-rejected) {
+  background: var(--status-neutral-bg);
+  border-color: var(--status-neutral-border);
+  color: var(--status-neutral-text);
+}
+
+.content :global(.status-running),
+.content :global(.status-treated) {
+  background: var(--status-info-bg);
+  border-color: var(--status-info-border);
+  color: var(--status-info-text);
+}
+
+.content :global(.data-table th) {
+  background: var(--surface-secondary);
+  color: var(--text-secondary);
+  font-family: var(--type-table-header-family);
+  font-size: var(--type-table-header-size);
+  font-weight: var(--type-table-header-weight);
+  line-height: var(--type-table-header-line-height);
+}
+
+.content :global(.data-table td) {
+  border-block-start-color: var(--border-subtle);
+  color: var(--text-secondary);
+  font-family: var(--type-table-body-family);
+  font-size: var(--type-table-body-size);
+  font-weight: var(--type-table-body-weight);
+  line-height: var(--type-table-body-line-height);
+}
+
+.content :global(.data-table td strong) {
+  color: var(--text-primary);
+}
+
+.content :global(.data-table td span:not(.status-badge)) {
+  overflow-wrap: anywhere;
+}
+
 .content :global(.panel code),
 .content :global(.security-card code),
-.content :global(.policy-card code) {
+.content :global(.policy-card code),
+.content :global(.account-identifier code),
+.content :global(.account-top code) {
   color: var(--text-primary);
   font-family: var(--type-code-family);
   font-size: var(--type-code-size);
@@ -229,11 +616,18 @@
 }
 
 .content :global(.table-wrap),
-.content :global(.billing-profiles-table-wrap) {
+.content :global(.billing-profiles-table-wrap),
+.content :global(.data-table-wrap) {
   max-inline-size: 100%;
   min-inline-size: 0;
   overflow-x: auto;
   overscroll-behavior-inline: contain;
+}
+
+.content :global(.settings-row-actions),
+.content :global(.account-row-actions),
+.content :global(.row-actions) {
+  min-inline-size: 0;
 }
 
 .content :global(.https-settings-page),
@@ -270,7 +664,13 @@
     flex-direction: column;
   }
 
-  .content :global(.header-actions) {
+  .content :global(.header-actions),
+  .content :global(.settings-filters) {
     width: 100%;
+  }
+
+  .content :global(.settings-filters label) {
+    flex-basis: 100%;
+    min-inline-size: 0;
   }
 }
