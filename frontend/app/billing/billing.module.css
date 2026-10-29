@@ -1,8 +1,15 @@
 .page,
 .analysis {
   display: grid;
-  gap: var(--space-6);
   min-inline-size: 0;
+}
+
+.page {
+  gap: var(--space-5);
+}
+
+.analysis {
+  gap: var(--space-6);
 }
 
 .headerMetadata {
@@ -13,7 +20,7 @@
   font-family: var(--type-body-sm-family);
   font-size: var(--type-body-sm-size);
   font-weight: var(--type-body-sm-weight);
-  gap: var(--space-3);
+  gap: var(--space-2);
   line-height: var(--type-body-sm-line-height);
 }
 
@@ -47,11 +54,15 @@
 .advancedContent,
 .chartStack,
 .breakdownGroups,
-.breakdownGroup,
-.profileContext {
+.breakdownGroup {
   display: grid;
   gap: var(--space-3);
   min-inline-size: 0;
+}
+
+.accountContext {
+  gap: var(--space-2);
+  inline-size: min(100%, var(--filter-field-wide-inline-size));
 }
 
 .accountHint,
@@ -65,22 +76,24 @@
 }
 
 .accountHint {
-  border-block-start: 1px solid var(--border-subtle);
-  padding-block-start: var(--space-3);
+  display: none;
 }
 
 .profileContext {
   align-items: center;
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  padding: var(--space-3) var(--space-4);
+  border-block-start: 1px solid var(--border-subtle);
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  min-inline-size: 0;
+  padding-block-start: var(--space-3);
 }
 
 .profileContext > div {
-  display: grid;
-  gap: var(--space-1);
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
 }
 
 .profileContext > div span {
@@ -100,7 +113,12 @@
 }
 
 .profileContext p {
-  color: var(--text-secondary);
+  color: var(--text-muted);
+  flex: 1 1 var(--filter-field-wide-inline-size);
+  font-family: var(--type-body-sm-family);
+  font-size: var(--type-body-sm-size);
+  font-weight: var(--type-body-sm-weight);
+  line-height: var(--type-body-sm-line-height);
   margin: var(--space-0);
 }
 
@@ -143,13 +161,11 @@
 
 .queryMetadata {
   align-items: baseline;
-  background: var(--surface-secondary);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-control);
+  border-block-start: 1px solid var(--border-subtle);
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
-  padding: var(--space-3) var(--space-4);
+  padding-block-start: var(--space-3);
 }
 
 .queryMetadata strong {
@@ -479,8 +495,7 @@
 }
 
 @media (max-width: 62rem) {
-  .breakdownLayout,
-  .profileContext {
+  .breakdownLayout {
     grid-template-columns: minmax(0, 1fr);
   }
 

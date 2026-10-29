@@ -163,6 +163,11 @@
   min-inline-size: min(100%, var(--filter-field-min-inline-size));
 }
 
+.filterPrimary > .dateRangePicker[data-date-fields="visible"] {
+  flex-basis: var(--filter-field-wide-inline-size);
+  inline-size: min(100%, var(--filter-field-wide-inline-size));
+}
+
 .filterItem {
   min-inline-size: 0;
 }
@@ -285,12 +290,129 @@
 
 .selector {
   align-content: start;
-  min-inline-size: min(100%, var(--popover-min-inline-size));
+  min-inline-size: 0;
 }
 
-.selector [data-multiple="true"] {
-  align-items: stretch;
-  block-size: auto;
+.selectorDropdownRoot,
+.selectorField,
+.selectorTrigger {
+  inline-size: 100%;
+  min-inline-size: 0;
+}
+
+.selectorTrigger {
+  background: var(--control-background);
+  border-color: var(--control-border);
+  block-size: var(--control-height-compact);
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  justify-content: space-between;
+  line-height: var(--type-body-md-line-height);
+  padding-inline: var(--control-padding-inline-compact);
+  text-align: start;
+}
+
+.selectorTrigger:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--border-interactive);
+}
+
+.selectorTriggerText {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectorChevron {
+  color: var(--text-muted);
+  flex: none;
+}
+
+.selectorDropdown {
+  inline-size: min(var(--filter-field-wide-inline-size), calc(100vw - var(--space-4)));
+  max-block-size: min(calc(var(--control-height-comfortable) * 8), calc(100dvh - var(--space-4)));
+  overflow: hidden;
+  padding: var(--space-0);
+}
+
+.selectorDropdownHeader,
+.selectorSelectAll,
+.selectorDropdownFooter {
+  padding: var(--space-3);
+}
+
+.selectorDropdownHeader,
+.selectorSelectAll {
+  border-block-end: 1px solid var(--border-subtle);
+}
+
+.selectorOptionList {
+  display: grid;
+  gap: var(--space-1);
+  max-block-size: calc(var(--control-height-comfortable) * 5);
+  min-block-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+  scrollbar-gutter: stable;
+}
+
+.selectorOption {
+  border-radius: var(--radius-control);
+  inline-size: 100%;
+  padding: var(--space-2);
+}
+
+.selectorOption:hover {
+  background: var(--surface-hover);
+}
+
+.selectorOptionCopy {
+  display: grid;
+  gap: var(--space-1);
+  min-inline-size: 0;
+}
+
+.selectorOptionLabel {
+  color: var(--text-primary);
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  line-height: var(--type-body-md-line-height);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectorOptionDescription,
+.selectorSelectionCount,
+.selectorEmpty {
+  color: var(--text-muted);
+  font-family: var(--type-caption-family);
+  font-size: var(--type-caption-size);
+  font-weight: var(--type-caption-weight);
+  line-height: var(--type-caption-line-height);
+}
+
+.selectorOptionDescription {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectorEmpty {
+  padding: var(--space-3);
+}
+
+.selectorDropdownFooter {
+  align-items: center;
+  border-block-start: 1px solid var(--border-subtle);
+  display: flex;
+  gap: var(--space-2);
+  justify-content: space-between;
 }
 
 .selectorLoading {
@@ -303,10 +425,9 @@
   justify-content: flex-end;
 }
 
-.multiSelect {
-  max-block-size: calc(var(--control-height-default) + var(--control-height-default) + var(--control-height-default) + var(--control-height-default) + var(--control-height-default));
-  min-block-size: calc(var(--control-height-default) + var(--control-height-default) + var(--space-2));
-  overflow-y: auto;
+.dateRangePicker[data-date-fields="hidden"] .dateRangeFields,
+.dateRangePicker[data-date-fields="hidden"] .dateRangeActions {
+  display: none;
 }
 
 .dateRangeFields {
@@ -411,12 +532,22 @@
 
   .filterPrimary > *,
   .filterSecondary > *,
+  .filterPrimary > .dateRangePicker[data-date-fields="visible"],
   .filterItem[data-size="compact"],
   .filterItem[data-size="default"],
   .filterItem[data-size="wide"],
   .filterItem[data-size="fluid"] {
     flex-basis: 100%;
     inline-size: 100%;
+  }
+
+  .selectorDropdown {
+    inline-size: calc(100vw - var(--space-4));
+  }
+
+  .selectorDropdownFooter {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .recommendationMetrics,

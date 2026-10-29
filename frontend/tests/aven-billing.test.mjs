@@ -49,6 +49,40 @@ test("Billing starts from an explicit empty account contract and does not query 
   assert.ok(!page.includes("selectedAccountIds.length === 0 ? accounts"));
 });
 
+test("Billing AccountSelector is compact by default and opens an Aven checkbox dropdown on demand", async () => {
+  const selector = await source("../components/aven/selectors.tsx");
+  const css = await source("../components/aven/product-components.module.css");
+
+  assert.ok(selector.includes("<DropdownMenu"));
+  assert.ok(selector.includes("<DropdownMenuTrigger"));
+  assert.ok(selector.includes("<DropdownMenuContent"));
+  assert.ok(selector.includes("<Checkbox"));
+  assert.ok(selector.includes("indeterminate={partiallySelected}"));
+  assert.ok(selector.includes('placeholder={props.placeholder ?? "Nenhuma conta selecionada"}'));
+  assert.ok(selector.includes('return "Todas as contas selecionadas"'));
+  assert.ok(selector.includes('return "1 conta selecionada"'));
+  assert.ok(selector.includes("contas selecionadas"));
+  assert.ok(!selector.includes("multiple={selection.multiple}"));
+  assert.ok(!selector.includes("styles.multiSelect"));
+  assert.match(css, /\.selectorTrigger\s*\{[\s\S]*?block-size:\s*var\(--control-height-compact\)/);
+});
+
+test("Billing AccountSelector keeps search, select-all and large-account scrolling inside the dropdown", async () => {
+  const selector = await source("../components/aven/selectors.tsx");
+  const css = await source("../components/aven/product-components.module.css");
+  const dropdownStart = selector.indexOf("<DropdownMenuContent");
+  const dropdownSource = selector.slice(dropdownStart);
+
+  assert.ok(dropdownStart >= 0);
+  assert.ok(dropdownSource.includes("searchPlaceholder"));
+  assert.ok(dropdownSource.includes("selectorSelectAll"));
+  assert.ok(dropdownSource.includes("selectorOptionList"));
+  assert.ok(dropdownSource.includes("selection.value.includes(option.value)"));
+  assert.ok(css.includes(".selectorOptionList"));
+  assert.match(css, /\.selectorOptionList\s*\{[\s\S]*?overflow-y:\s*auto/);
+  assert.match(css, /\.selectorDropdown\s*\{[\s\S]*?max-block-size:/);
+});
+
 test("Billing filters remain below account context and custom dates use DateRangePicker", async () => {
   const page = await source("../app/billing/page.tsx");
   const picker = await source("../components/aven/date-range-picker.tsx");
@@ -60,6 +94,28 @@ test("Billing filters remain below account context and custom dates use DateRang
   assert.ok(page.includes("maxDate={today}"));
   assert.ok(picker.includes('type="date"'));
   assert.ok(picker.includes("max={maxDate}"));
+});
+
+test("Billing DateRangePicker keeps preset mode compact and reveals dates only for custom input", async () => {
+  const picker = await source("../components/aven/date-range-picker.tsx");
+  const css = await source("../components/aven/product-components.module.css");
+
+  assert.ok(picker.includes('activePreset === "custom"'));
+  assert.ok(picker.includes('data-date-fields={dateFieldsVisible ? "visible" : "hidden"}'));
+  assert.ok(picker.includes("{dateFieldsVisible && ("));
+  assert.ok(picker.includes("{clearable && dateFieldsVisible && ("));
+  assert.ok(css.includes('.dateRangePicker[data-date-fields="hidden"] .dateRangeFields'));
+  assert.ok(css.includes('.filterPrimary > .dateRangePicker[data-date-fields="visible"]'));
+});
+
+test("Billing layout constrains account controls and reduces profile metadata to a compact contextual row", async () => {
+  const css = await source("../app/billing/billing.module.css");
+
+  assert.match(css, /\.accountContext\s*\{[\s\S]*?inline-size:\s*min\(100%, var\(--filter-field-wide-inline-size\)\)/);
+  assert.match(css, /\.profileContext\s*\{[\s\S]*?border-block-start:\s*1px solid var\(--border-subtle\)/);
+  assert.doesNotMatch(css, /\.profileContext\s*\{[^}]*background:/s);
+  assert.doesNotMatch(css, /\.profileContext\s*\{[^}]*border-radius:/s);
+  assert.match(css, /\.queryMetadata\s*\{[\s\S]*?border-block-start:/);
 });
 
 test("Billing financial presentation uses centralized currency and table primitives", async () => {

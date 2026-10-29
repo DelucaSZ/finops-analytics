@@ -36,6 +36,7 @@ export interface DateRangePickerProps extends Omit<HTMLAttributes<HTMLDivElement
   maxDate?: string;
   disabled?: boolean;
   clearable?: boolean;
+  showDateFields?: boolean;
 }
 
 export function DateRangePicker({
@@ -53,11 +54,15 @@ export function DateRangePicker({
   maxDate,
   disabled = false,
   clearable = true,
+  showDateFields,
   className,
   ...props
 }: DateRangePickerProps) {
   const [internalPreset, setInternalPreset] = useState("");
   const activePreset = presetValue ?? internalPreset;
+  const activePresetDefinition = presets.find((preset) => preset.value === activePreset);
+  const dateFieldsVisible = showDateFields
+    ?? (presets.length === 0 || !activePreset || activePreset === "custom" || Boolean(activePresetDefinition?.range));
 
   const setPreset = (nextPreset: string) => {
     if (presetValue == null) setInternalPreset(nextPreset);
@@ -73,7 +78,11 @@ export function DateRangePicker({
   };
 
   return (
-    <div className={classNames(styles.dateRangePicker, className)} {...props}>
+    <div
+      className={classNames(styles.dateRangePicker, className)}
+      data-date-fields={dateFieldsVisible ? "visible" : "hidden"}
+      {...props}
+    >
       {presets.length > 0 && (
         <Select
           label={presetLabel}
@@ -85,37 +94,39 @@ export function DateRangePicker({
           controlSize="sm"
         />
       )}
-      <div className={styles.dateRangeFields}>
-        <Input
-          type="date"
-          label={startLabel}
-          value={value.startDate ?? ""}
-          min={minDate}
-          max={earlierDate(value.endDate, maxDate)}
-          disabled={disabled}
-          onChange={(event) => {
-            if (presetValue == null) setInternalPreset("");
-            onPresetChange?.("");
-            onChange({ ...value, startDate: event.target.value || null });
-          }}
-          controlSize="sm"
-        />
-        <Input
-          type="date"
-          label={endLabel}
-          value={value.endDate ?? ""}
-          min={laterDate(value.startDate, minDate)}
-          max={maxDate}
-          disabled={disabled}
-          onChange={(event) => {
-            if (presetValue == null) setInternalPreset("");
-            onPresetChange?.("");
-            onChange({ ...value, endDate: event.target.value || null });
-          }}
-          controlSize="sm"
-        />
-      </div>
-      {clearable && (
+      {dateFieldsVisible && (
+        <div className={styles.dateRangeFields}>
+          <Input
+            type="date"
+            label={startLabel}
+            value={value.startDate ?? ""}
+            min={minDate}
+            max={earlierDate(value.endDate, maxDate)}
+            disabled={disabled}
+            onChange={(event) => {
+              if (presetValue == null) setInternalPreset("");
+              onPresetChange?.("");
+              onChange({ ...value, startDate: event.target.value || null });
+            }}
+            controlSize="sm"
+          />
+          <Input
+            type="date"
+            label={endLabel}
+            value={value.endDate ?? ""}
+            min={laterDate(value.startDate, minDate)}
+            max={maxDate}
+            disabled={disabled}
+            onChange={(event) => {
+              if (presetValue == null) setInternalPreset("");
+              onPresetChange?.("");
+              onChange({ ...value, endDate: event.target.value || null });
+            }}
+            controlSize="sm"
+          />
+        </div>
+      )}
+      {clearable && dateFieldsVisible && (
         <div className={styles.dateRangeActions}>
           <Button
             variant="ghost"
