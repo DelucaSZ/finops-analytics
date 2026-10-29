@@ -1,3 +1,4 @@
+import { Checkbox, Select } from "@/components/ui";
 import { formatDate } from "@/lib/api";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { SCHEDULE_INTERVAL_OPTIONS } from "@/lib/account-scheduling.mjs";
@@ -38,31 +39,26 @@ export function CollectionScheduleFields({
     <fieldset className="span-2 account-provider-fieldset" disabled={disabled}>
       <legend>Agendamento</legend>
       <div className="form-grid">
-        <label className="check-label span-2">
-          <input
-            type="checkbox"
+        <div className="span-2">
+          <Checkbox
             checked={scheduleEnabled}
+            disabled={disabled}
+            label="Ativar coleta automática"
+            description={`Quando ativado, o ${PRODUCT_NAME} executará automaticamente a coleta desta conta no intervalo selecionado.`}
             onChange={(event) => onScheduleEnabledChange(event.target.checked)}
           />
-          Ativar coleta automática
-        </label>
-        <p className="span-2 account-form-note">
-          Quando ativado, o {PRODUCT_NAME} executará automaticamente a coleta desta conta no intervalo selecionado.
-        </p>
-        <label>
-          Intervalo de coleta
-          <select
-            value={scanIntervalHours}
-            disabled={disabled || !scheduleEnabled}
-            onChange={(event) => onIntervalChange(Number(event.target.value))}
-            aria-describedby={error ? "schedule-interval-error" : undefined}
-          >
-            {SCHEDULE_INTERVAL_OPTIONS.map((option) => (
-              <option key={option.value} value={option.value}>{option.label}</option>
-            ))}
-          </select>
-          {error && <span id="schedule-interval-error" className="field-error">{error}</span>}
-        </label>
+        </div>
+        <Select
+          label="Intervalo de coleta"
+          value={String(scanIntervalHours)}
+          disabled={disabled || !scheduleEnabled}
+          error={error}
+          options={SCHEDULE_INTERVAL_OPTIONS.map((option) => ({
+            value: String(option.value),
+            label: option.label,
+          }))}
+          onChange={(event) => onIntervalChange(Number(event.target.value))}
+        />
         {showNextScan && scheduleEnabled && (
           <div className="account-form-note">
             <strong>Próxima execução prevista</strong><br />

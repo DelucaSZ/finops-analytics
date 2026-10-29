@@ -2,12 +2,14 @@
 
 import Link from "next/link";
 import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
+import { Button, Input, Select } from "@/components/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { ApiError, formatDate } from "@/lib/api";
 import { formatAccountLabel, formatNumber, providerLabel } from "@/lib/cloud.mjs";
+import { iconDefaults } from "@/lib/iconography";
 import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { prefetchApiQuery, useApiQuery } from "@/lib/server-state";
 import {
@@ -219,8 +221,9 @@ export function CollectionWorkspace({
         <span>
           Horários no fuso local do navegador · atualização a cada 15s apenas durante coletas em andamento
         </span>
-        <button
-          className="button ghost"
+        <Button
+          variant="ghost"
+          leadingIcon={<RefreshCw {...iconDefaults} />}
           disabled={loading || refreshing}
           onClick={() => {
             if (collectionId) void detailRequest.refetch();
@@ -230,8 +233,8 @@ export function CollectionWorkspace({
             }
           }}
         >
-          <RefreshCw size={16} /> Atualizar
-        </button>
+          Atualizar
+        </Button>
       </div>
       {!collectionId && (
         <form
@@ -253,13 +256,13 @@ export function CollectionWorkspace({
           <div className="opportunity-filter-heading">
             <strong>Filtros de coletas</strong>
             {hasFilters && (
-              <button
-                type="button"
-                className="filter-clear"
+              <Button
+                variant="ghost"
+                size="sm"
                 onClick={() => router.push("/collections")}
               >
                 Limpar filtros
-              </button>
+              </Button>
             )}
           </div>
           {activeFilters.length > 0 && (
@@ -268,22 +271,20 @@ export function CollectionWorkspace({
             </div>
           )}
           <div className="opportunity-filter-grid">
-            <label className="opportunity-filter">
-              <span>Cloud</span>
-              <div>
-                <input
-                  list="collection-providers"
-                  placeholder="Todas as clouds"
-                  value={draft.provider}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      provider: event.target.value,
-                      account_id: "",
-                    })
-                  }
-                />
-              </div>
+            <div className="opportunity-filter">
+              <Input
+                label="Cloud"
+                list="collection-providers"
+                placeholder="Todas as clouds"
+                value={draft.provider}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    provider: event.target.value,
+                    account_id: "",
+                  })
+                }
+              />
               <datalist id="collection-providers">
                 {options.providers.map((provider) => (
                   <option key={provider} value={provider}>
@@ -291,19 +292,18 @@ export function CollectionWorkspace({
                   </option>
                 ))}
               </datalist>
-            </label>
-            <label className="opportunity-filter account-filter">
-              <span>Conta · nome ou identificador</span>
-              <div>
-                <input
-                  list="collection-accounts"
-                  placeholder="Busque e selecione ou informe o ID"
-                  value={draft.account_id}
-                  onChange={(event) =>
-                    setDraft({ ...draft, account_id: event.target.value })
-                  }
-                />
-              </div>
+            </div>
+            <div className="opportunity-filter account-filter">
+              <Input
+                label="Conta · nome ou identificador"
+                list="collection-accounts"
+                placeholder="Busque e selecione ou informe o ID"
+                value={draft.account_id}
+                helperText={options.has_more_accounts ? "Digite para buscar mais contas." : undefined}
+                onChange={(event) =>
+                  setDraft({ ...draft, account_id: event.target.value })
+                }
+              />
               <datalist id="collection-accounts">
                 {options.accounts.map((account) => (
                   <option
@@ -315,75 +315,60 @@ export function CollectionWorkspace({
                   </option>
                 ))}
               </datalist>
-              {options.has_more_accounts && (
-                <small>Digite para buscar mais contas.</small>
-              )}
-            </label>
-            <label className="opportunity-filter">
-              <span>Status</span>
-              <div>
-                <select
-                  aria-label="Status"
-                  value={draft.status}
-                  onChange={(event) =>
-                    setDraft({ ...draft, status: event.target.value })
-                  }
-                >
-                  <option value="">Todos</option>
-                  {statusOptions.map(([value, label]) => (
-                    <option key={value} value={value}>
-                      {label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Início do período (inclusivo)</span>
-              <div>
-                <input
-                  type="datetime-local"
-                  value={localDateTime(draft.date_from)}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      date_from: event.target.value
-                        ? new Date(event.target.value).toISOString()
-                        : "",
-                    })
-                  }
-                />
-              </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Fim do período (exclusivo)</span>
-              <div>
-                <input
-                  type="datetime-local"
-                  value={localDateTime(draft.date_to)}
-                  onChange={(event) =>
-                    setDraft({
-                      ...draft,
-                      date_to: event.target.value
-                        ? new Date(event.target.value).toISOString()
-                        : "",
-                    })
-                  }
-                />
-              </div>
-            </label>
-            <label className="opportunity-filter">
-              <span>Versão dos analyzers</span>
-              <div>
-                <input
-                  placeholder="Todas as versões"
-                  value={draft.analyzer_version}
-                  onChange={(event) =>
-                    setDraft({ ...draft, analyzer_version: event.target.value })
-                  }
-                />
-              </div>
-            </label>
+            </div>
+            <div className="opportunity-filter">
+              <Select
+                label="Status"
+                value={draft.status}
+                options={[
+                  { value: "", label: "Todos" },
+                  ...statusOptions.map(([value, label]) => ({ value, label })),
+                ]}
+                onChange={(event) =>
+                  setDraft({ ...draft, status: event.target.value })
+                }
+              />
+            </div>
+            <div className="opportunity-filter">
+              <Input
+                type="datetime-local"
+                label="Início do período (inclusivo)"
+                value={localDateTime(draft.date_from)}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    date_from: event.target.value
+                      ? new Date(event.target.value).toISOString()
+                      : "",
+                  })
+                }
+              />
+            </div>
+            <div className="opportunity-filter">
+              <Input
+                type="datetime-local"
+                label="Fim do período (exclusivo)"
+                value={localDateTime(draft.date_to)}
+                onChange={(event) =>
+                  setDraft({
+                    ...draft,
+                    date_to: event.target.value
+                      ? new Date(event.target.value).toISOString()
+                      : "",
+                  })
+                }
+              />
+            </div>
+            <div className="opportunity-filter">
+              <Input
+                label="Versão dos analyzers"
+                placeholder="Todas as versões"
+                value={draft.analyzer_version}
+                onChange={(event) =>
+                  setDraft({ ...draft, analyzer_version: event.target.value })
+                }
+              />
+            </div>
           </div>
           {optionsError && (
             <p role="status">
@@ -397,12 +382,9 @@ export function CollectionWorkspace({
             </p>
           )}
           <div className="collection-toolbar">
-            <button type="submit" className="button primary">
-              Aplicar filtros
-            </button>
-            <button
-              type="button"
-              className="button ghost"
+            <Button type="submit">Aplicar filtros</Button>
+            <Button
+              variant="ghost"
               onClick={() => {
                 const end = new Date();
                 const start = new Date(end);
@@ -416,22 +398,22 @@ export function CollectionWorkspace({
               }}
             >
               Últimos 30 dias
-            </button>
+            </Button>
           </div>
         </form>
       )}
       {error && (
         <div className="alert error" role="alert">
           {error}{" "}
-          <button
-            className="button ghost"
+          <Button
+            variant="ghost"
             onClick={() => {
               if (collectionId) void detailRequest.refetch();
               else void listRequest.refetch();
             }}
           >
             Tentar novamente
-          </button>
+          </Button>
         </div>
       )}
       {(loading || refreshing) && (
@@ -583,12 +565,9 @@ export function CollectionWorkspace({
                     : "Ainda não existem coletas."}
               </p>
               {hasFilters && (
-                <button
-                  className="button ghost"
-                  onClick={() => router.push("/collections")}
-                >
+                <Button variant="ghost" onClick={() => router.push("/collections")}>
                   Limpar filtros
-                </button>
+                </Button>
               )}
             </div>
           )}
@@ -610,20 +589,20 @@ export function CollectionWorkspace({
             <span>
               Página {state.page} de {data?.total_pages || 1}
             </span>
-            <button
-              className="button ghost"
+            <Button
+              variant="ghost"
               disabled={loading || state.page <= 1}
               onClick={() => change({ page: state.page - 1 })}
             >
               Anterior
-            </button>
-            <button
-              className="button ghost"
+            </Button>
+            <Button
+              variant="ghost"
               disabled={loading || !data || state.page >= data.total_pages}
               onClick={() => change({ page: state.page + 1 })}
             >
               Próxima
-            </button>
+            </Button>
           </div>
           <p className="collection-note">
             Recursos: o coletor atual ainda não informa esse total.

@@ -3,9 +3,12 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { History, LockKeyhole, RefreshCw } from "lucide-react";
+import { FilterBar, FilterItem } from "@/components/aven";
+import { Alert, Button, Input, Select } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
+import { iconDefaults } from "@/lib/iconography";
 import {
   buildHistorySnapshotQuery,
   chooseHistoryCycle,
@@ -200,73 +203,90 @@ export default function OpportunityHistoryCyclesPage() {
         title="Histórico de ciclos"
         description="Snapshots imutáveis por período fechado, separados do backlog e do arquivamento operacional."
         actions={(
-          <button className="button secondary" type="button" onClick={refresh} disabled={loading}>
-            <RefreshCw size={16} /> {loading ? "Atualizando…" : "Atualizar"}
-          </button>
+          <Button
+            variant="secondary"
+            leadingIcon={<RefreshCw {...iconDefaults} />}
+            onClick={refresh}
+            disabled={loading}
+          >
+            {loading ? "Atualizando…" : "Atualizar"}
+          </Button>
         )}
       />
 
       <div className={styles.switcher} aria-label="Visões de histórico">
-        <span><History size={14} /> Ciclos fechados</span>
+        <span><History {...iconDefaults} /> Ciclos fechados</span>
         <Link href="/opportunities?view=history">Arquivadas atualmente / Histórico legado</Link>
         <Link href="/opportunities">Backlog operacional</Link>
       </div>
 
-      {error && <div className={styles.error} role="alert">{error}</div>}
+      {error && <Alert variant="danger" description={error} />}
 
-      <div className={styles.controls}>
-        <div className={styles.field}>
-          <label htmlFor="history-cycle">Período histórico</label>
-          <select
+      <FilterBar className={styles.filterBar}>
+        <FilterItem size="wide">
+          <Select
             id="history-cycle"
+            label="Período histórico"
             value={cycleId}
+            options={cycles.map((item) => ({
+              value: item.id,
+              label: `${item.label} — ${cycleStateLabel(item.status)}`,
+            }))}
             onChange={(event) => { setCycleId(event.target.value); setPage(1); }}
-          >
-            {cycles.map((item) => (
-              <option value={item.id} key={item.id}>
-                {item.label} — {cycleStateLabel(item.status)}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="history-provider">Cloud</label>
-          <select id="history-provider" value={provider} onChange={(event) => { setProvider(event.target.value); setPage(1); }}>
-            <option value="">Todas</option>
-            <option value="aws">AWS</option>
-            <option value="oci">OCI</option>
-          </select>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="history-status">Status no fechamento</label>
-          <select id="history-status" value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); }}>
-            <option value="">Todos</option>
-            <option value="open">Aberta</option>
-            <option value="treated">Tratada</option>
-            <option value="rejected">Rejeitada</option>
-          </select>
-        </div>
-        <div className={styles.field}>
-          <label htmlFor="history-severity">Severidade</label>
-          <select id="history-severity" value={severity} onChange={(event) => { setSeverity(event.target.value); setPage(1); }}>
-            <option value="">Todas</option>
-            <option value="high">Alta</option>
-            <option value="medium">Média</option>
-            <option value="low">Baixa</option>
-          </select>
-        </div>
-      </div>
-
-      <div className={styles.field}>
-        <label htmlFor="history-search">Buscar no snapshot</label>
-        <input
-          id="history-search"
-          type="search"
-          value={search}
-          onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-          placeholder="Recurso, título, conta ou ID"
-        />
-      </div>
+          />
+        </FilterItem>
+        <FilterItem size="compact">
+          <Select
+            id="history-provider"
+            label="Cloud"
+            value={provider}
+            options={[
+              { value: "", label: "Todas" },
+              { value: "aws", label: "AWS" },
+              { value: "oci", label: "OCI" },
+            ]}
+            onChange={(event) => { setProvider(event.target.value); setPage(1); }}
+          />
+        </FilterItem>
+        <FilterItem size="default">
+          <Select
+            id="history-status"
+            label="Status no fechamento"
+            value={status}
+            options={[
+              { value: "", label: "Todos" },
+              { value: "open", label: "Aberta" },
+              { value: "treated", label: "Tratada" },
+              { value: "rejected", label: "Rejeitada" },
+            ]}
+            onChange={(event) => { setStatus(event.target.value); setPage(1); }}
+          />
+        </FilterItem>
+        <FilterItem size="compact">
+          <Select
+            id="history-severity"
+            label="Severidade"
+            value={severity}
+            options={[
+              { value: "", label: "Todas" },
+              { value: "high", label: "Alta" },
+              { value: "medium", label: "Média" },
+              { value: "low", label: "Baixa" },
+            ]}
+            onChange={(event) => { setSeverity(event.target.value); setPage(1); }}
+          />
+        </FilterItem>
+        <FilterItem size="wide">
+          <Input
+            id="history-search"
+            label="Buscar no snapshot"
+            type="search"
+            value={search}
+            onChange={(event) => { setSearch(event.target.value); setPage(1); }}
+            placeholder="Recurso, título, conta ou ID"
+          />
+        </FilterItem>
+      </FilterBar>
 
       {cycle && (
         <div className={styles.banner}>
@@ -276,10 +296,14 @@ export default function OpportunityHistoryCyclesPage() {
             {cycle.closed_at ? ` · fechado em ${formatDate(cycle.closed_at)}` : " · Prévia — período ainda não fechado"}
           </span>
           {cycle.status === "OPEN" && (
-            <div style={{ marginTop: 12 }}>
-              <button className="button" type="button" disabled={closing || cycle.coverage.running > 0} onClick={closeSelectedCycle}>
-                <LockKeyhole size={16} /> {closing ? "Fechando…" : "Fechar ciclo"}
-              </button>
+            <div className={styles.bannerActions}>
+              <Button
+                leadingIcon={<LockKeyhole {...iconDefaults} />}
+                disabled={closing || cycle.coverage.running > 0}
+                onClick={closeSelectedCycle}
+              >
+                {closing ? "Fechando…" : "Fechar ciclo"}
+              </Button>
             </div>
           )}
         </div>
@@ -358,8 +382,8 @@ export default function OpportunityHistoryCyclesPage() {
           <div className={styles.footer}>
             <span>{snapshots.total} snapshots · página {snapshots.page || 1} de {snapshots.total_pages || 1}</span>
             <div className={styles.footerActions}>
-              <button className="button secondary" type="button" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</button>
-              <button className="button secondary" type="button" disabled={!snapshots.total_pages || page >= snapshots.total_pages} onClick={() => setPage((value) => value + 1)}>Próxima</button>
+              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</Button>
+              <Button variant="secondary" disabled={!snapshots.total_pages || page >= snapshots.total_pages} onClick={() => setPage((value) => value + 1)}>Próxima</Button>
             </div>
           </div>
         </div>
@@ -373,7 +397,7 @@ export default function OpportunityHistoryCyclesPage() {
               <h2>{selected.title}</h2>
               <p>{selected.description}</p>
             </div>
-            <button className="button secondary" type="button" onClick={() => setSelected(null)}>Fechar detalhe</button>
+            <Button variant="secondary" onClick={() => setSelected(null)}>Fechar detalhe</Button>
           </div>
           <dl className={styles.detailGrid}>
             <div><dt>Cloud</dt><dd>{providerLabel(selected.provider)}</dd></div>

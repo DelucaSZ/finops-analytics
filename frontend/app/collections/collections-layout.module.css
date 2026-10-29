@@ -16,6 +16,7 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: space-between;
+  min-inline-size: 0;
 }
 
 .scope :global(.collection-toolbar > span),
@@ -29,10 +30,10 @@
 }
 
 .scope :global(.panel) {
-  background: var(--surface-primary);
-  border-color: var(--border-subtle);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-xs);
+  background: var(--elevation-1-surface);
+  border-color: var(--elevation-1-border);
+  border-radius: var(--radius-card);
+  box-shadow: var(--elevation-1-shadow);
 }
 
 .scope :global(.opportunity-filter-panel) {
@@ -48,12 +49,15 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: space-between;
+  min-inline-size: 0;
 }
 
 .scope :global(.opportunity-filter-grid) {
-  display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: flex-start;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--filter-grid-gap);
+  min-inline-size: 0;
 }
 
 .scope :global(.opportunity-filter),
@@ -63,18 +67,32 @@
   font-family: var(--type-label-sm-family);
   font-size: var(--type-label-sm-size);
   font-weight: var(--type-label-sm-weight);
-  gap: var(--space-2);
+  gap: var(--form-field-gap);
   line-height: var(--type-label-sm-line-height);
   min-inline-size: 0;
 }
 
-.scope :global(.opportunity-filter input),
-.scope :global(.opportunity-filter select),
+.scope :global(.opportunity-filter) {
+  flex: 0 1 var(--filter-field-default-inline-size);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
+  max-inline-size: 100%;
+  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+}
+
+.scope :global(.opportunity-filter.account-filter) {
+  flex-basis: var(--filter-field-wide-inline-size);
+  inline-size: min(100%, var(--filter-field-wide-inline-size));
+}
+
+.scope :global(.opportunity-filter > [class*="field"]) {
+  min-inline-size: 0;
+}
+
 .scope :global(.collection-toolbar select),
 .scope :global(.baselinePicker select) {
-  background: var(--surface-primary);
-  border: 1px solid var(--border-default);
-  border-radius: var(--radius-md);
+  background: var(--control-background);
+  border: 1px solid var(--control-border);
+  border-radius: var(--control-radius);
   color: var(--text-primary);
   font-family: var(--type-body-md-family);
   font-size: var(--type-body-md-size);
@@ -84,12 +102,16 @@
   min-block-size: var(--control-height-default);
   min-inline-size: 0;
   padding-block: var(--space-2);
-  padding-inline: var(--space-3);
+  padding-inline: var(--control-padding-inline-default);
 }
 
-.scope :global(.opportunity-filter input:focus-visible),
-.scope :global(.opportunity-filter select:focus-visible),
-.scope :global(.collection-toolbar select:focus-visible) {
+.scope :global(.collection-toolbar select) {
+  inline-size: auto;
+  max-inline-size: var(--filter-field-default-inline-size);
+}
+
+.scope :global(.collection-toolbar select:focus-visible),
+.scope :global(.baselinePicker select:focus-visible) {
   border-color: var(--border-focus);
   outline: var(--focus-ring-width) solid var(--focus-ring);
   outline-offset: var(--focus-ring-offset-width);
@@ -117,6 +139,10 @@
   max-inline-size: 100%;
   padding-block: var(--space-1);
   padding-inline: var(--space-2);
+}
+
+.scope :global(.active-filter-summary span) {
+  overflow-wrap: anywhere;
 }
 
 .scope :global(.collection-success) {
@@ -155,13 +181,14 @@
 .scope :global(.data-table) {
   border-collapse: collapse;
   inline-size: 100%;
-  min-inline-size: 56rem;
+  min-inline-size: 100%;
 }
 
 .scope :global(.data-table th),
 .scope :global(.data-table td) {
   border-block-end: 1px solid var(--border-subtle);
-  padding-block: var(--space-3);
+  overflow-wrap: anywhere;
+  padding-block: var(--space-2);
   padding-inline: var(--space-3);
   text-align: start;
   vertical-align: top;
@@ -187,6 +214,8 @@
 .scope :global(.data-table td > code) {
   display: block;
   margin-block-start: var(--space-1);
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
 }
 
 .scope :global(.collection-link),
@@ -207,7 +236,7 @@
 
 .scope :global(.collection-metadata) {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-block: var(--space-4);
 }
@@ -240,14 +269,20 @@
 }
 
 @media (max-width: 62rem) {
-  .scope :global(.opportunity-filter-grid),
   .scope :global(.collection-metadata) {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 48rem) {
-  .scope :global(.opportunity-filter-grid),
+  .scope :global(.opportunity-filter),
+  .scope :global(.opportunity-filter.account-filter),
+  .scope :global(.collection-toolbar select) {
+    flex-basis: 100%;
+    inline-size: 100%;
+    max-inline-size: 100%;
+  }
+
   .scope :global(.collection-metadata) {
     grid-template-columns: minmax(0, 1fr);
   }
