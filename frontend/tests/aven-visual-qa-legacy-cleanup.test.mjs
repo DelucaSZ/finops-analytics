@@ -96,6 +96,12 @@ test("obsolete global shell overrides stay removed after the CSS-module shell mi
   assert.match(legacy, /letter-spacing:\s*var\(--type-heading-xl-letter-spacing\)/);
 });
 
+test("obsolete Task 23.25 layout patch stays removed after Dashboard and Opportunities migration", () => {
+  const layout = readFrontend("app/layout.tsx");
+  assert.equal(fs.existsSync(path.join(FRONTEND_ROOT, "app/task-23-25-layout.css")), false);
+  assert.doesNotMatch(layout, /task-23-25-layout\.css/);
+});
+
 test("theme switching is presentation-only and cannot trigger domain requests or remount children", () => {
   const provider = readFrontend("components/theme-provider.tsx");
   assert.doesNotMatch(provider, /@\/lib\/api/);
