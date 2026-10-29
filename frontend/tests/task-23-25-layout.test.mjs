@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { test } from "node:test";
 
 const layoutSource = readFileSync(new URL("../app/layout.tsx", import.meta.url), "utf8");
-const taskCss = readFileSync(new URL("../app/task-23-25-layout.css", import.meta.url), "utf8");
+const legacyTaskCssUrl = new URL("../app/task-23-25-layout.css", import.meta.url);
 const opportunitiesSource = readFileSync(
   new URL("../app/opportunities/page.tsx", import.meta.url),
   "utf8",
@@ -13,20 +13,9 @@ const detailSource = readFileSync(
   "utf8",
 );
 
-test("task 23.25 layout overrides are loaded after shared styles", () => {
-  assert.match(layoutSource, /import "\.\/task-23-25-layout\.css";/);
-  assert.ok(
-    layoutSource.indexOf('import "./task-23-25-layout.css";') >
-      layoutSource.indexOf('import "./dashboard-operational-insights.css";'),
-  );
-});
-
-test("dashboard ranked lists keep long labels inside responsive containers", () => {
-  assert.match(taskCss, /\.dashboard-ranked-list > a > span \{/);
-  assert.match(taskCss, /grid-template-columns: 18px minmax\(0, 1fr\)/);
-  assert.match(taskCss, /overflow-wrap: anywhere/);
-  assert.match(taskCss, /\.dashboard-distributions \{/);
-  assert.match(taskCss, /repeat\(auto-fit, minmax\(min\(13rem, 100%\), 1fr\)\)/);
+test("obsolete Task 23.25 layout patch stays retired after the Aven migrations", () => {
+  assert.equal(existsSync(legacyTaskCssUrl), false);
+  assert.doesNotMatch(layoutSource, /task-23-25-layout\.css/);
 });
 
 test("opportunity detection timestamps remain explicit in the Aven surface", () => {
