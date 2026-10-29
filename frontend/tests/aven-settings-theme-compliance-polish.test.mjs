@@ -59,6 +59,41 @@ test("Policies visual layer is semantic-token only and preserves responsive over
   assert.doesNotMatch(css, /rgba?\(/i);
 });
 
+test("Opportunity policy uses official Aven controls and keeps persistence behavior", async () => {
+  const [page, css] = await Promise.all([
+    source("../app/settings/opportunities/page.tsx"),
+    source("../app/settings/opportunities/page.module.css"),
+  ]);
+
+  for (const primitive of ["PageHeader", "Section", "Alert", "Button", "Card", "Input", "Select", "Switch"]) {
+    assert.ok(page.includes(primitive), `expected ${primitive} in Opportunity settings`);
+  }
+
+  for (const contract of [
+    'api<OpportunityPolicy>("/settings/opportunity-policy")',
+    'api<Preview>("/settings/opportunity-policy/preview"',
+    'method: "POST"',
+    'method: "PUT"',
+    "expected_version: policy.version",
+  ]) {
+    assert.ok(page.includes(contract), `missing Opportunity settings contract ${contract}`);
+  }
+
+  assert.equal(page.includes('className="switch"'), false);
+  assert.equal(page.includes('className="button primary"'), false);
+  assert.equal(page.includes('className="alert error"'), false);
+  assert.equal(page.includes('className={`panel'), false);
+
+  const violations = [
+    ...scanText(page, "app/settings/opportunities/page.tsx"),
+    ...scanText(css, "app/settings/opportunities/page.module.css"),
+  ];
+  assert.deepEqual(summarize(violations), { colors: 0, spacing: 0, radius: 0, typography: 0 });
+  assert.deepEqual(violations, []);
+  assert.doesNotMatch(css, /#[0-9a-f]{3,8}\b/i);
+  assert.doesNotMatch(css, /rgba?\(/i);
+});
+
 test("Settings compatibility bridge resolves legacy administrative surfaces through Aven semantics", async () => {
   const css = await source("../app/settings/settings-layout.module.css");
 
@@ -100,4 +135,10 @@ test("Policies keeps the existing functional API contracts", async () => {
   }
   assert.ok(page.includes("canManagePolicies"));
   assert.ok(page.includes("override_fields"));
+});
+
+test("frontend lint scope covers both Settings policy surfaces migrated in this task", async () => {
+  const packageJson = await source("../package.json");
+  assert.ok(packageJson.includes("--file app/settings/policies/page.tsx"));
+  assert.ok(packageJson.includes("--file app/settings/opportunities/page.tsx"));
 });
