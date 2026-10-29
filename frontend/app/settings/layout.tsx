@@ -2,7 +2,7 @@
 
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
-import { PageHeader } from "@/components/aven";
+import { PageContainer, PageHeader } from "@/components/aven";
 import { Alert, Button, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { api } from "@/lib/api";
 import {
@@ -44,7 +44,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
 
   if (error) {
     return (
-      <div className={styles.statePage}>
+      <PageContainer width="standard" className={styles.statePage}>
         <PageHeader
           title="Configurações"
           description="Gerencie as configurações disponíveis da plataforma."
@@ -59,24 +59,29 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
             </Button>
           }
         />
-      </div>
+      </PageContainer>
     );
   }
 
   if (!role) {
     return (
-      <div className={styles.statePage} aria-busy="true" aria-label="Carregando configurações">
+      <PageContainer
+        width="standard"
+        className={styles.statePage}
+        aria-busy="true"
+        aria-label="Carregando configurações"
+      >
         <Skeleton className={styles.headerSkeleton} />
         <Skeleton className={styles.navigationSkeleton} />
         <Skeleton className={styles.contentSkeleton} />
-      </div>
+      </PageContainer>
     );
   }
 
   const adminOnly = isAdminOnlySettingsPath(path);
 
   return (
-    <div className={styles.page}>
+    <PageContainer width="standard" className={styles.page}>
       <Tabs
         value={activeTab}
         defaultValue={activeTab}
@@ -105,6 +110,6 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           )}
         </TabsContent>
       </Tabs>
-    </div>
+    </PageContainer>
   );
 }
