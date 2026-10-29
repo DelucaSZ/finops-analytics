@@ -2,24 +2,25 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { access, readFile } from "node:fs/promises";
 
-const appUrl = new URL("../app/", import.meta.url);
+const rootUrl = new URL("../", import.meta.url);
+const appUrl = new URL("app/", rootUrl);
+const brandUrl = new URL("public/brand/aven/", rootUrl);
 
-test("Aven browser icon uses the official versioned gradient symbol", async () => {
-  const [icon, layout] = await Promise.all([
-    readFile(new URL("icon.svg", appUrl), "utf8"),
-    readFile(new URL("layout.tsx", appUrl), "utf8"),
+test("Aven browser metadata uses the official Brand Kit raster icons", async () => {
+  const layout = await readFile(new URL("layout.tsx", appUrl), "utf8");
+
+  await Promise.all([
+    access(new URL("favicon.ico", brandUrl)),
+    access(new URL("apple-touch-icon.png", brandUrl)),
   ]);
 
-  assert.match(icon, /#38B2F6/i);
-  assert.match(icon, /#6366F1/i);
-  assert.match(icon, /#8B5CF6/i);
-  assert.match(icon, /M 42,398 L 51,407/);
-  assert.doesNotMatch(icon, /#55e5b6|#80f0cf|#07120f/i);
   assert.match(layout, /PRODUCT_NAME/);
-  assert.match(layout, /image\/svg\+xml/);
+  assert.match(layout, /brand\.assets\.icons\.favicon/);
+  assert.match(layout, /brand\.assets\.icons\.appleTouch/);
+  assert.doesNotMatch(layout, /image\/svg\+xml/);
   assert.doesNotMatch(layout, /DeepOps|NuvemIQ/);
 });
 
-test("legacy DeepOps favicon.ico is not exposed while official Aven raster favicon is pending", async () => {
-  await assert.rejects(access(new URL("favicon.ico", appUrl)), { code: "ENOENT" });
+test("file-based SVG metadata no longer overrides the official Aven favicon configuration", async () => {
+  await assert.rejects(access(new URL("icon.svg", appUrl)), { code: "ENOENT" });
 });
