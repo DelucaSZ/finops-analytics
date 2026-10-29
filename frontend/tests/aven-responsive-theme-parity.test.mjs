@@ -49,7 +49,7 @@ test("tables own horizontal overflow and badges wrap instead of clipping", () =>
   assert.match(table, /\.tableWrapper\s*\{[\s\S]*max-inline-size:\s*100%[\s\S]*overflow-x:\s*auto/);
   assert.match(table, /\.table\s*\{[\s\S]*min-inline-size:\s*100%/);
   assert.match(badge, /data-aven-badge=""/);
-  assert.match(layout, /\[data-aven-badge\][\s\S]*max-inline-size:\s*100%[\s\S]*overflow-wrap:\s*anywhere[\s\S]*white-space:\s*normal/);
+  assert.match(layout, /\[data-aven-badge\]\[data-variant\][\s\S]*max-inline-size:\s*100%[\s\S]*overflow-wrap:\s*anywhere[\s\S]*white-space:\s*normal/);
 });
 
 test("Light, Dark and System theme engine keeps resolved DOM state live and persistent", () => {
