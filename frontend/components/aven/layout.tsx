@@ -100,7 +100,7 @@ export function PageHeader({
   ...props
 }: PageHeaderProps) {
   return (
-    <header data-aven-page-header="" className={classNames(styles.pageHeader, className)} {...props}>
+    <header className={classNames(styles.pageHeader, className)} data-aven-page-header="" {...props}>
       {breadcrumbs && <div className={styles.breadcrumbs}>{breadcrumbs}</div>}
       <div className={styles.pageHeaderMain}>
         <div className={styles.pageHeaderCopy}>
@@ -151,7 +151,7 @@ export function Section({
   }
 
   return (
-    <section data-aven-section="" className={classNames(styles.section, className)} {...props}>
+    <section className={classNames(styles.section, className)} data-aven-section="" {...props}>
       {heading}
       <div className={styles.sectionContent}>{children}</div>
     </section>
