@@ -1,7 +1,28 @@
 "use client";
 
-import { useMemo, useState, type ChangeEvent, type HTMLAttributes } from "react";
-import { Button, Input, Select, Skeleton } from "@/components/ui";
+import { ChevronDown } from "lucide-react";
+import {
+  useId,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type HTMLAttributes,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
+import {
+  Button,
+  Checkbox,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuTrigger,
+  Field,
+  FieldLabel,
+  Input,
+  Select,
+  Skeleton,
+} from "@/components/ui";
+import { iconDefaults } from "@/lib/iconography";
 import styles from "./product-components.module.css";
 import type { AccountSelectorOption, ProductSelectorOption } from "./types";
 
@@ -22,6 +43,8 @@ interface SelectorCommonProps<T extends ProductSelectorOption> extends Omit<HTML
   loading?: boolean;
   emptyLabel?: string;
   getOptionLabel?: (option: T) => string;
+  getOptionDescription?: (option: T) => ReactNode;
+  formatSelectionSummary?: (selectedOptions: T[], allSelected: boolean) => string;
 }
 
 interface SingleSelectorProps {
@@ -53,9 +76,12 @@ function ProductSelector<T extends ProductSelectorOption>({
   loading = false,
   emptyLabel = "No options available",
   getOptionLabel = (option) => option.label,
+  getOptionDescription = (option) => option.description,
+  formatSelectionSummary,
   className,
   ...selection
 }: ProductSelectorProps<T>) {
+  const triggerId = useId();
   const [search, setSearch] = useState("");
   const filteredOptions = useMemo(() => {
     const query = search.trim().toLocaleLowerCase();
@@ -76,68 +102,165 @@ function ProductSelector<T extends ProductSelectorOption>({
     disabled: option.disabled,
   }));
 
-  const handleChange = (event: ChangeEvent<HTMLSelectElement>) => {
-    if (selection.multiple) {
-      selection.onChange(Array.from(event.currentTarget.selectedOptions, (option) => option.value));
-      return;
-    }
-    selection.onChange(event.currentTarget.value);
+  const handleSingleChange = (event: ChangeEvent<HTMLSelectElement>) => {
+    if (!selection.multiple) selection.onChange(event.currentTarget.value);
   };
 
   const handleClear = () => {
-    if (selection.multiple) selection.onChange([]);
-    else selection.onChange("");
+    if (selection.multiple) {
+      selection.onChange([]);
+      return;
+    }
+    (selection as SingleSelectorProps).onChange("");
   };
 
-  const handleSelectAll = () => {
-    if (!selection.multiple) return;
-    selection.onChange(options.filter((option) => !option.disabled).map((option) => option.value));
-  };
-
+  const selectedOptions = selection.multiple
+    ? options.filter((option) => selection.value.includes(option.value))
+    : [];
+  const selectableOptions = options.filter((option) => !option.disabled);
+  const selectedSelectableCount = selection.multiple
+    ? selectableOptions.filter((option) => selection.value.includes(option.value)).length
+    : 0;
+  const allSelected = selection.multiple
+    && selectableOptions.length > 0
+    && selectedSelectableCount === selectableOptions.length;
+  const partiallySelected = selection.multiple && selectedSelectableCount > 0 && !allSelected;
   const hasSelection = selection.multiple ? selection.value.length > 0 : Boolean(selection.value);
   const hasOptions = selectOptions.length > 0;
+  const selectionSummary = selection.multiple
+    ? formatSelectionSummary?.(selectedOptions, allSelected)
+      ?? (selection.value.length > 0 ? `${selection.value.length} selected` : placeholder)
+    : "";
+
+  const handleSelectAll = (checked: boolean) => {
+    if (!selection.multiple) return;
+    if (!checked) {
+      selection.onChange([]);
+      return;
+    }
+    selection.onChange(selectableOptions.map((option) => option.value));
+  };
+
+  const handleOptionChange = (option: T, checked: boolean) => {
+    if (!selection.multiple) return;
+    if (checked) {
+      selection.onChange(Array.from(new Set([...selection.value, option.value])));
+      return;
+    }
+    selection.onChange(selection.value.filter((value) => value !== option.value));
+  };
+
+  const preserveSearchCursorKeys = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (["ArrowDown", "ArrowUp", "Home", "End"].includes(event.key)) event.stopPropagation();
+  };
 
   return (
     <div className={classNames(styles.selector, className)}>
-      {searchable && (
-        <Input
-          aria-label={`${label} search`}
-          placeholder={searchPlaceholder}
-          value={search}
-          disabled={disabled || loading}
-          onChange={(event) => setSearch(event.target.value)}
-          controlSize="sm"
-        />
-      )}
       {loading ? (
         <div className={styles.selectorLoading} role="status" aria-label={`Loading ${label}`}>
           <Skeleton />
         </div>
+      ) : selection.multiple ? (
+        <DropdownMenu className={styles.selectorDropdownRoot}>
+          <Field className={styles.selectorField}>
+            <FieldLabel htmlFor={triggerId}>{label}</FieldLabel>
+            <DropdownMenuTrigger
+              id={triggerId}
+              className={styles.selectorTrigger}
+              disabled={disabled || options.length === 0}
+              aria-label={`${label}: ${selectionSummary}`}
+            >
+              <span className={styles.selectorTriggerText}>{selectionSummary}</span>
+              <ChevronDown className={styles.selectorChevron} {...iconDefaults} aria-hidden="true" />
+            </DropdownMenuTrigger>
+          </Field>
+          <DropdownMenuContent className={styles.selectorDropdown} aria-label={label}>
+            {searchable && (
+              <div className={styles.selectorDropdownHeader}>
+                <Input
+                  autoFocus
+                  aria-label={`${label} search`}
+                  placeholder={searchPlaceholder}
+                  value={search}
+                  disabled={disabled}
+                  onChange={(event) => setSearch(event.target.value)}
+                  onKeyDown={preserveSearchCursorKeys}
+                  controlSize="sm"
+                />
+              </div>
+            )}
+            {selection.selectAll && selectableOptions.length > 0 && (
+              <div className={styles.selectorSelectAll}>
+                <Checkbox
+                  checked={allSelected}
+                  indeterminate={partiallySelected}
+                  onChange={(event) => handleSelectAll(event.target.checked)}
+                  label={selectAllLabel}
+                />
+              </div>
+            )}
+            <div className={styles.selectorOptionList} role="group" aria-label={`${label} options`}>
+              {filteredOptions.length > 0 ? (
+                filteredOptions.map((option) => {
+                  const description = getOptionDescription(option);
+                  return (
+                    <Checkbox
+                      key={option.value}
+                      className={styles.selectorOption}
+                      checked={selection.value.includes(option.value)}
+                      disabled={option.disabled}
+                      onChange={(event) => handleOptionChange(option, event.target.checked)}
+                      label={(
+                        <span className={styles.selectorOptionCopy}>
+                          <span className={styles.selectorOptionLabel}>{getOptionLabel(option)}</span>
+                          {description && <span className={styles.selectorOptionDescription}>{description}</span>}
+                        </span>
+                      )}
+                    />
+                  );
+                })
+              ) : (
+                <div className={styles.selectorEmpty} role="status">{emptyLabel}</div>
+              )}
+            </div>
+            <div className={styles.selectorDropdownFooter}>
+              <span className={styles.selectorSelectionCount}>{selectionSummary}</span>
+              {clearable && (
+                <Button variant="ghost" size="sm" disabled={disabled || !hasSelection} onClick={handleClear}>
+                  {clearLabel}
+                </Button>
+              )}
+            </div>
+          </DropdownMenuContent>
+        </DropdownMenu>
       ) : (
-        <Select
-          label={label}
-          placeholder={hasOptions && !selection.multiple ? placeholder : undefined}
-          options={hasOptions ? selectOptions : [{ value: "__empty__", label: emptyLabel, disabled: true }]}
-          value={selection.value}
-          multiple={selection.multiple}
-          disabled={disabled || !hasOptions}
-          onChange={handleChange}
-          className={selection.multiple ? styles.multiSelect : undefined}
-        />
-      )}
-      {(clearable || (selection.multiple && selection.selectAll)) && (
-        <div className={styles.selectorActions}>
-          {selection.multiple && selection.selectAll && (
-            <Button variant="ghost" size="sm" disabled={disabled || loading || options.length === 0} onClick={handleSelectAll}>
-              {selectAllLabel}
-            </Button>
+        <>
+          {searchable && (
+            <Input
+              aria-label={`${label} search`}
+              placeholder={searchPlaceholder}
+              value={search}
+              disabled={disabled}
+              onChange={(event) => setSearch(event.target.value)}
+              controlSize="sm"
+            />
           )}
+          <Select
+            label={label}
+            placeholder={hasOptions ? placeholder : undefined}
+            options={hasOptions ? selectOptions : [{ value: "__empty__", label: emptyLabel, disabled: true }]}
+            value={selection.value}
+            disabled={disabled || !hasOptions}
+            onChange={handleSingleChange}
+          />
           {clearable && (
-            <Button variant="ghost" size="sm" disabled={disabled || loading || !hasSelection} onClick={handleClear}>
-              {clearLabel}
-            </Button>
+            <div className={styles.selectorActions}>
+              <Button variant="ghost" size="sm" disabled={disabled || !hasSelection} onClick={handleClear}>
+                {clearLabel}
+              </Button>
+            </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
@@ -149,10 +272,23 @@ export function AccountSelector(props: AccountSelectorProps) {
   return (
     <ProductSelector
       {...props}
+      placeholder={props.placeholder ?? "Nenhuma conta selecionada"}
       searchable={props.searchable ?? true}
       getOptionLabel={(account) => {
-        const metadata = [account.accountId, account.provider, account.environment].filter(Boolean);
-        return metadata.length ? `${account.label} · ${metadata.join(" · ")}` : account.label;
+        const metadata = [account.accountId, account.environment, account.provider?.toUpperCase()].filter(Boolean);
+        if (props.multiple || metadata.length === 0) return account.label;
+        return `${account.label} · ${metadata.join(" · ")}`;
+      }}
+      getOptionDescription={(account) => {
+        if (!props.multiple) return undefined;
+        const metadata = [account.accountId, account.environment, account.provider?.toUpperCase()].filter(Boolean);
+        return metadata.length ? metadata.join(" · ") : undefined;
+      }}
+      formatSelectionSummary={(selectedOptions, allSelected) => {
+        if (allSelected) return "Todas as contas selecionadas";
+        if (selectedOptions.length === 0) return "Nenhuma conta selecionada";
+        if (selectedOptions.length === 1) return "1 conta selecionada";
+        return `${selectedOptions.length} contas selecionadas`;
       }}
     />
   );
