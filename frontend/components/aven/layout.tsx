@@ -14,6 +14,74 @@ function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
 }
 
+export type PageWidth = "standard" | "wide" | "full";
+
+export interface PageContainerProps extends HTMLAttributes<HTMLDivElement> {
+  width?: PageWidth;
+  children: ReactNode;
+}
+
+export function PageContainer({
+  width = "wide",
+  className,
+  children,
+  ...props
+}: PageContainerProps) {
+  return (
+    <div
+      {...props}
+      className={className}
+      data-aven-page-container=""
+      data-width={width}
+    >
+      {children}
+    </div>
+  );
+}
+
+export type LayoutGap = "compact" | "default" | "section" | "page";
+
+export interface StackProps extends HTMLAttributes<HTMLDivElement> {
+  gap?: LayoutGap;
+  children: ReactNode;
+}
+
+export function Stack({ gap = "default", className, children, ...props }: StackProps) {
+  return (
+    <div {...props} className={className} data-aven-stack="" data-gap={gap}>
+      {children}
+    </div>
+  );
+}
+
+export interface ClusterProps extends HTMLAttributes<HTMLDivElement> {
+  gap?: LayoutGap;
+  children: ReactNode;
+}
+
+export function Cluster({ gap = "default", className, children, ...props }: ClusterProps) {
+  return (
+    <div {...props} className={className} data-aven-cluster="" data-gap={gap}>
+      {children}
+    </div>
+  );
+}
+
+export type GridVariant = "auto" | "metrics" | "content" | "split";
+
+export interface GridProps extends HTMLAttributes<HTMLDivElement> {
+  variant?: GridVariant;
+  children: ReactNode;
+}
+
+export function Grid({ variant = "auto", className, children, ...props }: GridProps) {
+  return (
+    <div {...props} className={className} data-aven-grid={variant}>
+      {children}
+    </div>
+  );
+}
+
 export interface PageHeaderProps extends Omit<HTMLAttributes<HTMLElement>, "title"> {
   title: ReactNode;
   description?: ReactNode;
@@ -32,7 +100,7 @@ export function PageHeader({
   ...props
 }: PageHeaderProps) {
   return (
-    <header className={classNames(styles.pageHeader, className)} {...props}>
+    <header data-aven-page-header="" className={classNames(styles.pageHeader, className)} {...props}>
       {breadcrumbs && <div className={styles.breadcrumbs}>{breadcrumbs}</div>}
       <div className={styles.pageHeaderMain}>
         <div className={styles.pageHeaderCopy}>
@@ -75,7 +143,13 @@ export function Section({
 
   if (appearance === "card") {
     return (
-      <Surface as="section" variant="section" className={classNames(styles.sectionCard, className)} {...props}>
+      <Surface
+        as="section"
+        variant="section"
+        data-aven-section=""
+        className={classNames(styles.sectionCard, className)}
+        {...props}
+      >
         {heading && <CardHeader className={styles.sectionCardHeader}>{heading}</CardHeader>}
         <CardContent className={styles.sectionCardContent}>{children}</CardContent>
       </Surface>
@@ -83,7 +157,7 @@ export function Section({
   }
 
   return (
-    <section className={classNames(styles.section, className)} {...props}>
+    <section data-aven-section="" className={classNames(styles.section, className)} {...props}>
       {heading}
       <div className={styles.sectionContent}>{children}</div>
     </section>
