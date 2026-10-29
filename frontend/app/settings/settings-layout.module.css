@@ -264,7 +264,7 @@
 
 .content :global(.segmented button:hover:not(:disabled):not(.active)) {
   background: var(--surface-hover);
-  border-color: var(--state-hover-border);
+  border-color: var(--border-interactive);
   color: var(--text-primary);
 }
 
@@ -385,7 +385,7 @@
 
 .content :global(.button.ghost:hover:not(:disabled)) {
   background: var(--surface-hover);
-  border-color: var(--state-hover-border);
+  border-color: var(--border-interactive);
   color: var(--text-primary);
 }
 
@@ -415,7 +415,7 @@
 .content :global(.icon-button:hover:not(:disabled)),
 .content :global(.input-action button:hover:not(:disabled)) {
   background: var(--surface-hover);
-  border-color: var(--state-hover-border);
+  border-color: var(--border-interactive);
   color: var(--text-primary);
 }
 
