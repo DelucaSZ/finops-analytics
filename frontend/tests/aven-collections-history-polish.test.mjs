@@ -18,6 +18,22 @@ test("Collections filter layout uses semantic sizing roles instead of expanding 
   assert.doesNotMatch(layout, /min-inline-size:\s*56rem/);
 });
 
+test("Collection filters consume Aven form primitives while preserving datetime query semantics", async () => {
+  const workspace = await source("../components/collection-workspace.tsx");
+
+  for (const component of ["Button", "Input", "Select"]) {
+    assert.ok(workspace.includes(component), `expected ${component} in CollectionWorkspace`);
+  }
+
+  assert.match(workspace, /label="Cloud"/);
+  assert.match(workspace, /label="Conta · nome ou identificador"/);
+  assert.match(workspace, /label="Status"/);
+  assert.match(workspace, /type="datetime-local"[\s\S]*label="Início do período \(inclusivo\)"/);
+  assert.match(workspace, /type="datetime-local"[\s\S]*label="Fim do período \(exclusivo\)"/);
+  assert.match(workspace, /new Date\(event\.target\.value\)\.toISOString\(\)/);
+  assert.doesNotMatch(workspace, /<input\b/);
+});
+
 test("Collection comparison and workspace density avoid historical fixed empty-state and diff widths", async () => {
   const styles = await source("../app/collections/collection.module.css");
 
@@ -57,6 +73,7 @@ test("Historical cycles use semantic Aven surfaces and keep table overflow local
 
 test("Task 24.27 touched visual files pass the Aven hardcode gate", async () => {
   const filenames = [
+    "components/collection-workspace.tsx",
     "app/collections/collection.module.css",
     "app/collections/collections-layout.module.css",
     "app/opportunities/history-cycles/page.tsx",
