@@ -1,7 +1,12 @@
-.page,
-.dashboardContent {
+.page {
   display: grid;
   gap: var(--space-6);
+  min-inline-size: 0;
+}
+
+.dashboardContent {
+  display: grid;
+  gap: var(--space-5);
   min-inline-size: 0;
 }
 
@@ -28,6 +33,10 @@
   display: grid;
   gap: var(--space-4);
   grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.metricGrid > * {
+  align-content: start;
 }
 
 .metricSupport {
@@ -72,17 +81,21 @@
 }
 
 .analysisGrid {
-  align-items: stretch;
+  align-items: start;
   display: grid;
   gap: var(--space-4);
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
-.serviceChart,
+.serviceChart {
+  display: grid;
+  gap: var(--space-3);
+}
+
 .lifecycleList,
 .opportunityMetadata {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--space-2);
 }
 
 .chartRow {
@@ -182,13 +195,19 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.opportunityGrid {
+  align-items: start;
+}
+
 .opportunityMetadata {
   min-inline-size: 0;
 }
 
 .opportunityMetadata > span:first-child {
   color: var(--text-muted);
-  overflow-wrap: anywhere;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .opportunitySavings {

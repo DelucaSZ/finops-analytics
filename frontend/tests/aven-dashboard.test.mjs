@@ -32,6 +32,7 @@ test("Aven Dashboard composes official product components", () => {
     "StatusIndicator",
     "ProviderBadge",
     "RecommendationCard",
+    "ResourceIdentifier",
   ]) {
     assert.match(source, new RegExp(`<${component}\\b`), `${component} should be used by the Dashboard`);
   }
@@ -66,6 +67,22 @@ test("Dashboard analytical visualization uses real service distribution instead 
   assert.match(source, /summary\.by_service\.map/);
   assert.match(source, /Quantidade de oportunidades em aberto por serviço/);
   assert.doesNotMatch(source, /cost evolution|Evolução de custos/i);
+});
+
+test("Dashboard visual polish keeps cards content-driven and summary identifiers bounded", () => {
+  const source = dashboardSource();
+  const styles = dashboardStyles();
+  assert.match(styles, /\.analysisGrid\s*\{[\s\S]*?align-items: start;/);
+  assert.doesNotMatch(styles, /\.analysisGrid\s*\{[\s\S]*?align-items: stretch;/);
+  assert.match(styles, /\.metricGrid > \*\s*\{[\s\S]*?align-content: start;/);
+  assert.doesNotMatch(styles, /^\s*(?:height|min-height)\s*:/m);
+  assert.match(source, /resource=\{[\s\S]*?<ResourceIdentifier/);
+  assert.match(source, /technicalId=\{item\.resource_name \? undefined : item\.resource_id\}/);
+  assert.doesNotMatch(source, /description=\{`[^`]*resource_id/);
+  assert.ok(
+    source.indexOf("<CollectionFailureOperationalInsights />") > source.indexOf("<DataState"),
+    "operational activity should follow the primary executive summary",
+  );
 });
 
 test("operational insights preserve isolated scoped query and refresh behavior", () => {
