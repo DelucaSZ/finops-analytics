@@ -84,16 +84,10 @@
   inline-size: min(100%, var(--filter-field-wide-inline-size));
 }
 
-.scope :global(.opportunity-filter) > div {
-  background: transparent;
-  border: 0;
-  box-shadow: none;
+.scope :global(.opportunity-filter > [class*="field"]) {
   min-inline-size: 0;
-  padding: var(--space-0);
 }
 
-.scope :global(.opportunity-filter input),
-.scope :global(.opportunity-filter select),
 .scope :global(.collection-toolbar select),
 .scope :global(.baselinePicker select) {
   background: var(--control-background);
@@ -116,8 +110,6 @@
   max-inline-size: var(--filter-field-default-inline-size);
 }
 
-.scope :global(.opportunity-filter input:focus-visible),
-.scope :global(.opportunity-filter select:focus-visible),
 .scope :global(.collection-toolbar select:focus-visible),
 .scope :global(.baselinePicker select:focus-visible) {
   border-color: var(--border-focus);
