@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { AlertTriangle, Check, Eye, Save } from "lucide-react";
-import { PageHeader } from "@/components/page-header";
+import { AlertTriangle, Eye, Save } from "lucide-react";
+import { PageHeader, Section } from "@/components/aven";
+import { Alert, Button, Card, Input, Select, Switch } from "@/components/ui";
 import { api, ApiError, formatDate } from "@/lib/api";
+import { iconDefaults } from "@/lib/iconography";
 import styles from "./page.module.css";
 
 type CycleMode = "CALENDAR_MONTH" | "FIXED_DAYS";
@@ -166,142 +168,122 @@ export default function OpportunityPolicyPage() {
 
   if (!policy) {
     return (
-      <>
+      <div className={styles.page}>
         <PageHeader
-          eyebrow="CONFIGURAÇÕES · OPORTUNIDADES"
           title="Retenção e histórico"
           description="Carregando política de retenção e rastreabilidade."
+          metadata={<span>Configurações · Oportunidades</span>}
         />
-        {error && <div className="alert error">{error}</div>}
-      </>
+        {error && <Alert variant="danger" title="Não foi possível carregar a política" description={error} />}
+      </div>
     );
   }
 
   const cycle = policy.current_cycle;
 
   return (
-    <>
+    <div className={styles.page}>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES · OPORTUNIDADES"
         title="Retenção e histórico"
         description="Defina quando oportunidades saem do backlog, como os ciclos históricos são fechados e por quanto tempo os detalhes técnicos permanecem disponíveis."
+        metadata={<span>Configurações · Oportunidades</span>}
       />
 
-      {error && <div className="alert error">{error}</div>}
-      {message && <div className="alert success"><Check size={17} />{message}</div>}
+      {error && <Alert variant="danger" title="Não foi possível atualizar a política" description={error} />}
+      {message && <Alert variant="success" title={message} />}
 
-      <section className={styles.statusGrid}>
-        <div className="panel">
-          <span className={styles.kicker}>VERSÃO</span>
-          <strong>{policy.version}</strong>
-          <small>Atualizada em {formatDate(policy.updated_at)}</small>
-        </div>
-        <div className="panel">
-          <span className={styles.kicker}>CICLO ATUAL</span>
-          <strong>{cycle?.label || "Ainda não criado"}</strong>
-          <small>
-            {cycle
-              ? `${formatDate(cycle.period_start)} → ${formatDate(cycle.period_end)}`
-              : "Será criado conforme a política vigente."}
-          </small>
-        </div>
-        <div className="panel">
-          <span className={styles.kicker}>PRÓXIMO FECHAMENTO</span>
-          <strong>{policy.next_cycle_start ? formatDate(policy.next_cycle_start) : "—"}</strong>
-          <small>{policy.automatic_cycle_close_enabled ? "Automático" : "Fechamento manual"}</small>
-        </div>
+      <section className={styles.statusGrid} aria-label="Resumo da política de oportunidades">
+        <PolicyStatus label="Versão" value={String(policy.version)} detail={`Atualizada em ${formatDate(policy.updated_at)}`} />
+        <PolicyStatus
+          label="Ciclo atual"
+          value={cycle?.label || "Ainda não criado"}
+          detail={cycle ? `${formatDate(cycle.period_start)} → ${formatDate(cycle.period_end)}` : "Será criado conforme a política vigente."}
+        />
+        <PolicyStatus
+          label="Próximo fechamento"
+          value={policy.next_cycle_start ? formatDate(policy.next_cycle_start) : "—"}
+          detail={policy.automatic_cycle_close_enabled ? "Automático" : "Fechamento manual"}
+        />
       </section>
 
-      <section className={`panel ${styles.section}`}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <h2>Ciclos de rastreabilidade</h2>
-            <p>O período atual não é reformatado ao salvar. As novas regras passam a valer no próximo ciclo.</p>
-          </div>
-          <label className="switch">
-            <input
-              aria-label="Habilitar fechamento automático"
-              type="checkbox"
-              checked={policy.automatic_cycle_close_enabled}
-              onChange={(event) => patch({ automatic_cycle_close_enabled: event.target.checked })}
-            />
-            <span />
-          </label>
-        </div>
-
+      <Section
+        appearance="card"
+        title="Ciclos de rastreabilidade"
+        description="O período atual não é reformatado ao salvar. As novas regras passam a valer no próximo ciclo."
+        actions={(
+          <Switch
+            aria-label="Habilitar fechamento automático"
+            checked={policy.automatic_cycle_close_enabled}
+            onCheckedChange={(checked) => patch({ automatic_cycle_close_enabled: checked })}
+          />
+        )}
+      >
         <div className={styles.formGrid}>
-          <label>
-            <span>Tipo de ciclo</span>
-            <select
-              value={policy.cycle_mode}
-              onChange={(event) => patch({ cycle_mode: event.target.value as CycleMode })}
-            >
-              <option value="CALENDAR_MONTH">Mês calendário</option>
-              <option value="FIXED_DAYS">Período fixo</option>
-            </select>
-          </label>
-          <label>
-            <span>Timezone</span>
-            <input
-              value={policy.cycle_timezone}
-              list="cycle-timezones"
-              onChange={(event) => patch({ cycle_timezone: event.target.value })}
-            />
-            <datalist id="cycle-timezones">
-              <option value="UTC" />
-              <option value="America/Sao_Paulo" />
-            </datalist>
-          </label>
+          <Select
+            label="Tipo de ciclo"
+            value={policy.cycle_mode}
+            onChange={(event) => patch({ cycle_mode: event.target.value as CycleMode })}
+            options={[
+              { value: "CALENDAR_MONTH", label: "Mês calendário" },
+              { value: "FIXED_DAYS", label: "Período fixo" },
+            ]}
+          />
+          <Input
+            label="Timezone"
+            value={policy.cycle_timezone}
+            list="cycle-timezones"
+            onChange={(event) => patch({ cycle_timezone: event.target.value })}
+          />
+          <datalist id="cycle-timezones">
+            <option value="UTC" />
+            <option value="America/Sao_Paulo" />
+          </datalist>
           {policy.cycle_mode === "FIXED_DAYS" && (
             <>
-              <label>
-                <span>Duração do ciclo (dias)</span>
-                <input
-                  type="number"
-                  min={7}
-                  max={365}
-                  value={policy.cycle_length_days}
-                  onChange={(event) => patch({ cycle_length_days: Number(event.target.value) })}
-                />
-              </label>
-              <label>
-                <span>Data âncora</span>
-                <input
-                  type="date"
-                  value={policy.cycle_anchor_date || ""}
-                  onChange={(event) => patch({ cycle_anchor_date: event.target.value || null })}
-                />
-              </label>
+              <Input
+                label="Duração do ciclo (dias)"
+                type="number"
+                min={7}
+                max={365}
+                value={policy.cycle_length_days}
+                onChange={(event) => patch({ cycle_length_days: Number(event.target.value) })}
+              />
+              <Input
+                label="Data âncora"
+                type="date"
+                value={policy.cycle_anchor_date || ""}
+                onChange={(event) => patch({ cycle_anchor_date: event.target.value || null })}
+              />
             </>
           )}
         </div>
 
         {cycle && (
-          <div className={styles.infoBox}>
-            O período atual permanece de <strong>{formatDate(cycle.period_start)}</strong> até{" "}
-            <strong>{formatDate(cycle.period_end)}</strong>. Alterações de tipo ou timezone serão
-            aplicadas somente aos próximos ciclos.
-          </div>
+          <Alert
+            variant="info"
+            title="Período atual preservado"
+            description={(
+              <span>
+                O período atual permanece de <strong>{formatDate(cycle.period_start)}</strong> até{" "}
+                <strong>{formatDate(cycle.period_end)}</strong>. Alterações de tipo ou timezone serão aplicadas somente aos próximos ciclos.
+              </span>
+            )}
+          />
         )}
-      </section>
+      </Section>
 
-      <section className={`panel ${styles.section}`}>
-        <div className={styles.sectionHeader}>
-          <div>
-            <h2>Arquivamento automático</h2>
-            <p>Arquivar move a oportunidade para o Histórico sem alterar o status humano.</p>
-          </div>
-          <label className="switch">
-            <input
-              aria-label="Habilitar automações da política"
-              type="checkbox"
-              checked={policy.enabled}
-              onChange={(event) => patch({ enabled: event.target.checked })}
-            />
-            <span />
-          </label>
-        </div>
-
+      <Section
+        appearance="card"
+        title="Arquivamento automático"
+        description="Arquivar move a oportunidade para o Histórico sem alterar o status humano."
+        actions={(
+          <Switch
+            aria-label="Habilitar automações da política"
+            checked={policy.enabled}
+            onCheckedChange={(checked) => patch({ enabled: checked })}
+          />
+        )}
+      >
         <div className={styles.retentionTable}>
           <RetentionRow
             label="Tratadas"
@@ -336,51 +318,58 @@ export default function OpportunityPolicyPage() {
             onDays={(value) => patch({ open_archive_days: value })}
           />
         </div>
-      </section>
+      </Section>
 
-      <section className={`panel ${styles.section}`}>
-        <h2>Detalhes das observações</h2>
-        <div className={styles.formGrid}>
-          <label>
-            <span>Manter detalhes das observações por</span>
-            <div className={styles.inlineInput}>
-              <input
-                type="number"
-                min={policy.cycle_mode === "CALENDAR_MONTH" ? 31 : Math.max(30, policy.cycle_length_days)}
-                max={3650}
-                value={policy.observation_retention_days}
-                onChange={(event) => patch({ observation_retention_days: Number(event.target.value) })}
-              />
-              <span>dias</span>
-            </div>
-          </label>
+      <Section appearance="card" title="Detalhes das observações">
+        <div className={styles.singleField}>
+          <Input
+            label="Manter detalhes das observações por (dias)"
+            type="number"
+            min={policy.cycle_mode === "CALENDAR_MONTH" ? 31 : Math.max(30, policy.cycle_length_days)}
+            max={3650}
+            value={policy.observation_retention_days}
+            onChange={(event) => patch({ observation_retention_days: Number(event.target.value) })}
+            helperText="Snapshots de ciclos fechados permanecem disponíveis mesmo depois da remoção das observações detalhadas."
+          />
         </div>
-        <p className={styles.muted}>
-          Snapshots de ciclos fechados permanecem disponíveis mesmo depois da remoção das observações detalhadas.
-        </p>
-      </section>
+      </Section>
 
       {reductionWarning && (
-        <div className={`alert warning ${styles.warning}`}>
-          <AlertTriangle size={18} />
-          Esta alteração reduz retenção. Registros antigos poderão ficar elegíveis para arquivamento
-          ou remoção na próxima execução. Nenhum snapshot de ciclo fechado será apagado ao salvar.
-        </div>
+        <Alert
+          variant="warning"
+          icon={<AlertTriangle {...iconDefaults} />}
+          title="Redução de retenção"
+          description="Registros antigos poderão ficar elegíveis para arquivamento ou remoção na próxima execução. Nenhum snapshot de ciclo fechado será apagado ao salvar."
+        />
       )}
 
-      <section className={`panel ${styles.section}`}>
-        <div className={styles.actions}>
-          <button className="button ghost" onClick={() => void runPreview()} disabled={busy}>
-            <Eye size={16} /> Visualizar impacto
-          </button>
-          <button className="button primary" onClick={() => void save()} disabled={busy}>
-            <Save size={16} /> {busy ? "Processando…" : "Salvar política"}
-          </button>
-        </div>
-
-        {preview && (
+      <Section
+        appearance="card"
+        title="Impacto e salvamento"
+        description="Revise o impacto antes de persistir alterações de retenção ou ciclo."
+        actions={(
+          <div className={styles.actions}>
+            <Button
+              variant="secondary"
+              leadingIcon={<Eye {...iconDefaults} />}
+              onClick={() => void runPreview()}
+              disabled={busy}
+            >
+              Visualizar impacto
+            </Button>
+            <Button
+              variant="primary"
+              leadingIcon={<Save {...iconDefaults} />}
+              onClick={() => void save()}
+              loading={busy}
+            >
+              Salvar política
+            </Button>
+          </div>
+        )}
+      >
+        {preview ? (
           <div className={styles.preview}>
-            <h3>Impacto estimado</h3>
             <div className={styles.previewGrid}>
               <Metric label="Tratadas elegíveis" value={preview.treated_eligible} />
               <Metric label="Rejeitadas elegíveis" value={preview.rejected_eligible} />
@@ -390,21 +379,32 @@ export default function OpportunityPolicyPage() {
               <Metric label="Ciclos vencidos aguardando fechamento" value={preview.overdue_cycles_awaiting_close} />
             </div>
             {preview.warnings.map((warning) => (
-              <p key={warning} className={styles.previewWarning}>{warning}</p>
+              <Alert key={warning} variant="warning" description={warning} />
             ))}
           </div>
+        ) : (
+          <p className={styles.secondaryText}>Execute a prévia para estimar quantos registros serão afetados pelas regras atuais.</p>
         )}
-      </section>
+      </Section>
 
-      <section className={`panel ${styles.section}`}>
-        <h2>Últimas execuções</h2>
+      <Section appearance="card" title="Últimas execuções">
         <div className={styles.maintenanceGrid}>
-          <span>Retenção <strong>{formatDate(policy.maintenance.last_retention_run_at)}</strong></span>
-          <span>Fechamento automático <strong>{formatDate(policy.maintenance.last_cycle_close_check_at)}</strong></span>
-          <span>Limpeza de observações <strong>{formatDate(policy.maintenance.last_observation_cleanup_at)}</strong></span>
+          <MaintenanceItem label="Retenção" value={formatDate(policy.maintenance.last_retention_run_at)} />
+          <MaintenanceItem label="Fechamento automático" value={formatDate(policy.maintenance.last_cycle_close_check_at)} />
+          <MaintenanceItem label="Limpeza de observações" value={formatDate(policy.maintenance.last_observation_cleanup_at)} />
         </div>
-      </section>
-    </>
+      </Section>
+    </div>
+  );
+}
+
+function PolicyStatus({ label, value, detail }: { label: string; value: string; detail: string }) {
+  return (
+    <Card className={styles.statusCard}>
+      <span className={styles.kicker}>{label}</span>
+      <strong className={styles.statusValue}>{value}</strong>
+      <span className={styles.statusMeta}>{detail}</span>
+    </Card>
   );
 }
 
@@ -425,30 +425,28 @@ function RetentionRow({
 }) {
   return (
     <div className={styles.retentionRow}>
-      <div>
+      <div className={styles.retentionCopy}>
         <strong>{label}</strong>
-        <small>{detail}</small>
+        <span>{detail}</span>
       </div>
-      <label className="switch">
-        <input
-          aria-label={`Habilitar arquivamento de ${label}`}
-          type="checkbox"
-          checked={enabled}
-          onChange={(event) => onEnabled(event.target.checked)}
-        />
-        <span />
-      </label>
+      <Switch
+        aria-label={`Habilitar arquivamento de ${label}`}
+        checked={enabled}
+        onCheckedChange={onEnabled}
+      />
       <div className={styles.afterDays}>
         <span>após</span>
-        <input
-          aria-label={`Dias para ${label}`}
-          type="number"
-          min={1}
-          max={3650}
-          value={days}
-          disabled={!enabled}
-          onChange={(event) => onDays(Number(event.target.value))}
-        />
+        <div className={styles.daysControl}>
+          <Input
+            aria-label={`Dias para ${label}`}
+            type="number"
+            min={1}
+            max={3650}
+            value={days}
+            disabled={!enabled}
+            onChange={(event) => onDays(Number(event.target.value))}
+          />
+        </div>
         <span>dias</span>
       </div>
     </div>
@@ -460,6 +458,15 @@ function Metric({ label, value }: { label: string; value: number }) {
     <div className={styles.metric}>
       <strong>{value.toLocaleString("pt-BR")}</strong>
       <span>{label}</span>
+    </div>
+  );
+}
+
+function MaintenanceItem({ label, value }: { label: string; value: string }) {
+  return (
+    <div className={styles.maintenanceItem}>
+      <span>{label}</span>
+      <strong>{value}</strong>
     </div>
   );
 }
