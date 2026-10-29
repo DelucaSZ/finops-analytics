@@ -1,20 +1,20 @@
 .page {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--layout-page-gap);
   min-inline-size: 0;
 }
 
 .metricsGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-5);
   min-inline-size: 0;
 }
 
 .analysisGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
   min-inline-size: 0;
 }
 
@@ -63,8 +63,8 @@
 
 .capacityGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-3);
 }
 
 .capacityGrid > div {
@@ -115,9 +115,9 @@
 .tableHeading {
   align-items: flex-end;
   display: flex;
-  gap: var(--space-4);
+  gap: var(--layout-component-gap);
   justify-content: space-between;
-  margin-block: var(--space-4);
+  margin-block: var(--layout-component-gap);
 }
 
 .tableHeading > div {
@@ -148,23 +148,23 @@
   border-block-start: 1px solid var(--border-subtle);
   display: flex;
   justify-content: flex-end;
-  margin-block-start: var(--space-4);
-  padding-block-start: var(--space-4);
+  margin-block-start: var(--layout-component-gap);
+  padding-block-start: var(--layout-component-gap);
 }
 
 @media (max-width: 78rem) {
   .metricsGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-3);
   }
 }
 
 @media (max-width: 62rem) {
   .analysisGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .capacityGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-2);
   }
 
   .capacityPrimary {
@@ -175,7 +175,7 @@
 @media (max-width: 48rem) {
   .metricsGrid,
   .capacityGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .tableHeading {
