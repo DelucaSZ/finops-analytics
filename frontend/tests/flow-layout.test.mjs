@@ -32,11 +32,14 @@ test("Flow filters, metrics and supporting regions use Aven responsive compositi
   assert.ok(page.includes("<MetricCard"));
   assert.ok(page.includes("<Section"));
   assert.ok(page.includes("<ChartCard"));
-  assert.ok(css.includes("repeat(auto-fit, minmax(min(100%, 14rem), 1fr))"));
-  assert.ok(css.includes("repeat(2, minmax(0, 1fr))"));
+  assert.ok(css.includes("var(--layout-grid-min-metric-inline-size)"));
+  assert.ok(css.includes("grid-template-columns: var(--layout-grid-columns-2)"));
   assert.ok(css.includes("@media (max-width: 62rem)"));
   assert.ok(css.includes("@media (max-width: 48rem)"));
-  assert.ok(css.includes("grid-template-columns: minmax(0, 1fr)"));
+  assert.ok(css.includes("grid-template-columns: var(--layout-grid-columns-1)"));
+  assert.ok(css.includes("gap: var(--layout-page-gap)"));
+  assert.ok(css.includes("gap: var(--layout-section-gap)"));
+  assert.doesNotMatch(css, /14rem|36rem/);
 });
 
 test("Flow chart protects zero/single-point geometry and uses visualization tokens", async () => {
@@ -55,6 +58,7 @@ test("Flow chart protects zero/single-point geometry and uses visualization toke
   assert.ok(css.includes("var(--chart-series-2)"));
   assert.ok(css.includes("var(--chart-series-3)"));
   assert.ok(css.includes("var(--chart-axis)"));
+  assert.match(css, /\.chart\s*\{[\s\S]*max-inline-size:\s*100%[\s\S]*min-inline-size:\s*100%/);
 });
 
 test("Flow movement table contains long identifiers locally and keeps numeric alignment in the shared primitive", async () => {
