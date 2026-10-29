@@ -3,9 +3,29 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { History, LockKeyhole, RefreshCw } from "lucide-react";
-import { FilterBar, FilterItem } from "@/components/aven";
-import { Alert, Button, Input, Select } from "@/components/ui";
-import { PageHeader } from "@/components/page-header";
+import {
+  DataState,
+  FilterBar,
+  FilterItem,
+  MetricCard,
+  PageHeader,
+  ProviderBadge,
+  Section,
+  StatusIndicator,
+} from "@/components/aven";
+import {
+  Alert,
+  Button,
+  Input,
+  Select,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+  TableState,
+} from "@/components/ui";
 import { api, formatDate } from "@/lib/api";
 import { formatMoney, providerLabel } from "@/lib/cloud.mjs";
 import { iconDefaults } from "@/lib/iconography";
@@ -97,10 +117,28 @@ function statusLabel(status: string) {
   return "Aberta";
 }
 
+function statusTone(status: string) {
+  if (status === "treated") return "success" as const;
+  if (status === "rejected") return "neutral" as const;
+  return "info" as const;
+}
+
 function presenceLabel(status: string) {
   if (status === "missing") return "Ausente";
   if (status === "resolved_externally") return "Resolvida externamente";
   return "Ativa";
+}
+
+function presenceTone(status: string) {
+  if (status === "missing") return "warning" as const;
+  if (status === "resolved_externally") return "success" as const;
+  return "info" as const;
+}
+
+function severityTone(severity: string) {
+  if (severity === "high") return "danger" as const;
+  if (severity === "medium") return "warning" as const;
+  return "neutral" as const;
 }
 
 export default function OpportunityHistoryCyclesPage() {
@@ -197,11 +235,11 @@ export default function OpportunityHistoryCyclesPage() {
   }
 
   return (
-    <section className={styles.page}>
+    <div className={styles.page}>
       <PageHeader
-        eyebrow="OPORTUNIDADES"
         title="Histórico de ciclos"
         description="Snapshots imutáveis por período fechado, separados do backlog e do arquivamento operacional."
+        metadata="OPORTUNIDADES"
         actions={(
           <Button
             variant="secondary"
@@ -214,13 +252,13 @@ export default function OpportunityHistoryCyclesPage() {
         )}
       />
 
-      <div className={styles.switcher} aria-label="Visões de histórico">
-        <span><History {...iconDefaults} /> Ciclos fechados</span>
+      <nav className={styles.switcher} aria-label="Visões de histórico">
+        <span aria-current="page"><History {...iconDefaults} /> Ciclos fechados</span>
         <Link href="/opportunities?view=history">Arquivadas atualmente / Histórico legado</Link>
         <Link href="/opportunities">Backlog operacional</Link>
-      </div>
+      </nav>
 
-      {error && <Alert variant="danger" description={error} />}
+      {error && <Alert variant="danger" title="Não foi possível carregar o histórico" description={error} />}
 
       <FilterBar className={styles.filterBar}>
         <FilterItem size="wide">
@@ -289,96 +327,128 @@ export default function OpportunityHistoryCyclesPage() {
       </FilterBar>
 
       {cycle && (
-        <div className={styles.banner}>
-          <strong>{cycle.label} · {cycleStateLabel(cycle.status)}</strong>
-          <span className={styles.secondary}>
-            {formatDate(cycle.period_start)} até {formatDate(cycle.period_end)} · timezone {cycle.timezone}
-            {cycle.closed_at ? ` · fechado em ${formatDate(cycle.closed_at)}` : " · Prévia — período ainda não fechado"}
-          </span>
-          {cycle.status === "OPEN" && (
-            <div className={styles.bannerActions}>
-              <Button
-                leadingIcon={<LockKeyhole {...iconDefaults} />}
-                disabled={closing || cycle.coverage.running > 0}
-                onClick={closeSelectedCycle}
-              >
-                {closing ? "Fechando…" : "Fechar ciclo"}
-              </Button>
-            </div>
-          )}
-        </div>
+        <Section
+          appearance="card"
+          title={`${cycle.label} · ${cycleStateLabel(cycle.status)}`}
+          description={`${formatDate(cycle.period_start)} até ${formatDate(cycle.period_end)} · timezone ${cycle.timezone}${cycle.closed_at ? ` · fechado em ${formatDate(cycle.closed_at)}` : " · Prévia — período ainda não fechado"}`}
+          actions={cycle.status === "OPEN" ? (
+            <Button
+              leadingIcon={<LockKeyhole {...iconDefaults} />}
+              loading={closing}
+              disabled={closing || cycle.coverage.running > 0}
+              onClick={closeSelectedCycle}
+            >
+              Fechar ciclo
+            </Button>
+          ) : undefined}
+        >
+          <div className={styles.cycleMeta}>
+            <StatusIndicator
+              status={cycle.status === "CLOSED" ? "success" : "pending"}
+              label={cycleStateLabel(cycle.status)}
+            />
+            <span>{cycle.coverage.success} coletas concluídas · {cycle.coverage.failed} falhas · {cycle.coverage.running} em andamento</span>
+          </div>
+        </Section>
       )}
 
       {cycle && (
-        <div className={styles.summary}>
-          <div className={styles.card}>
-            <small>Oportunidades no snapshot</small>
-            <strong>{cycle.status === "CLOSED" ? cycle.snapshot_count : "—"}</strong>
+        <Section title="Resumo do ciclo" description="Indicadores persistidos no contexto histórico selecionado.">
+          <div className={styles.summary}>
+            <MetricCard
+              label="Oportunidades no snapshot"
+              value={cycle.status === "CLOSED" ? cycle.snapshot_count : "—"}
+              supportingText={cycle.status === "CLOSED" ? "Registros imutáveis materializados no fechamento" : "Disponível após o fechamento do ciclo"}
+              icon={<History {...iconDefaults} />}
+            />
+            <MetricCard
+              label="Economia potencial"
+              value={savings.length ? (
+                <span className={styles.moneyList}>
+                  {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</span>)}
+                </span>
+              ) : "—"}
+              supportingText="Moedas preservadas sem conversão"
+            />
+            <MetricCard
+              label="Custo atual no fechamento"
+              value={costs.length ? (
+                <span className={styles.moneyList}>
+                  {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</span>)}
+                </span>
+              ) : "—"}
+              supportingText="Valor capturado no ciclo selecionado"
+            />
+            <MetricCard
+              label="Cobertura de coletas"
+              value={cycle.coverage.total}
+              supportingText={`${cycle.coverage.success} sucesso · ${cycle.coverage.failed} falha · ${cycle.coverage.running} em andamento`}
+            />
           </div>
-          <div className={styles.card}>
-            <small>Economia potencial</small>
-            <div className={styles.moneyList}>
-              {savings.length ? savings.map((row) => <strong key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</strong>) : <strong>—</strong>}
-            </div>
-          </div>
-          <div className={styles.card}>
-            <small>Custo atual no fechamento</small>
-            <div className={styles.moneyList}>
-              {costs.length ? costs.map((row) => <strong key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</strong>) : <strong>—</strong>}
-            </div>
-          </div>
-          <div className={styles.card}>
-            <small>Cobertura de coletas</small>
-            <strong>{cycle.coverage.total}</strong>
-            <span className={styles.secondary}>{cycle.coverage.success} sucesso · {cycle.coverage.failed} falha · {cycle.coverage.running} em andamento</span>
-          </div>
-        </div>
+        </Section>
       )}
 
       {cycle?.status === "OPEN" ? (
-        <div className={styles.empty}>
-          Prévia — período ainda não fechado. Snapshots definitivos são materializados somente no fechamento.
-        </div>
+        <Section appearance="card">
+          <DataState
+            empty
+            emptyTitle="Prévia — período ainda não fechado"
+            emptyDescription="Snapshots definitivos são materializados somente no fechamento do ciclo."
+          >
+            <span />
+          </DataState>
+        </Section>
       ) : (
-        <div className={styles.tableCard}>
-          <div className={styles.tableScroll}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th>Oportunidade</th>
-                  <th>Conta / Cloud</th>
-                  <th>Status</th>
-                  <th>Severidade</th>
-                  <th>Custo</th>
-                  <th>Economia</th>
-                  <th>Observações</th>
-                  <th>Última observação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {snapshots.items.map((item) => (
-                  <tr key={item.id}>
-                    <td>
-                      <button type="button" className={styles.rowButton} onClick={() => setSelected(item)}>
-                        <strong>{item.title}</strong>
-                        <span>{item.resource_name || item.resource_id}</span>
-                      </button>
-                    </td>
-                    <td>{item.account_name || item.account_id}<div className={styles.secondary}>{providerLabel(item.provider)}</div></td>
-                    <td><span className={styles.pill}>{statusLabel(item.status)}</span></td>
-                    <td>{item.severity}</td>
-                    <td>{formatMoney(item.current_monthly_cost, item.currency)}</td>
-                    <td>{formatMoney(item.estimated_monthly_savings, item.currency)}</td>
-                    <td>{item.occurrence_count_in_cycle}</td>
-                    <td>{formatDate(item.last_observed_in_cycle_at)}</td>
-                  </tr>
-                ))}
-                {!snapshots.items.length && (
-                  <tr><td colSpan={8} className={styles.empty}>Nenhum snapshot encontrado para este ciclo e filtros.</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <Section
+          title="Snapshots do ciclo"
+          description="Estado histórico imutável das oportunidades no fechamento do período."
+        >
+          <Table density="compact" aria-label="Snapshots do histórico de oportunidades">
+            <TableHeader>
+              <TableRow staticRow>
+                <TableHead kind="identifier">Oportunidade</TableHead>
+                <TableHead kind="text">Conta / Cloud</TableHead>
+                <TableHead kind="status">Status</TableHead>
+                <TableHead kind="badge">Severidade</TableHead>
+                <TableHead kind="currency" numeric>Custo</TableHead>
+                <TableHead kind="currency" numeric>Economia</TableHead>
+                <TableHead kind="numeric" numeric>Observações</TableHead>
+                <TableHead kind="date">Última observação</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {snapshots.items.map((item) => (
+                <TableRow key={item.id}>
+                  <TableCell kind="identifier">
+                    <button type="button" className={styles.rowButton} onClick={() => setSelected(item)}>
+                      <strong>{item.title}</strong>
+                      <span>{item.resource_name || item.resource_id}</span>
+                    </button>
+                  </TableCell>
+                  <TableCell kind="text">
+                    {item.account_name || item.account_id}
+                    <div className={styles.providerLine}><ProviderBadge provider={item.provider} /></div>
+                  </TableCell>
+                  <TableCell kind="status">
+                    <div className={styles.statusStack}>
+                      <StatusIndicator status={statusTone(item.status)} label={statusLabel(item.status)} />
+                      <StatusIndicator status={presenceTone(item.presence_status)} label={presenceLabel(item.presence_status)} />
+                    </div>
+                  </TableCell>
+                  <TableCell kind="badge"><StatusIndicator status={severityTone(item.severity)} label={item.severity} /></TableCell>
+                  <TableCell kind="currency" numeric>{formatMoney(item.current_monthly_cost, item.currency)}</TableCell>
+                  <TableCell kind="currency" numeric>{formatMoney(item.estimated_monthly_savings, item.currency)}</TableCell>
+                  <TableCell kind="numeric" numeric>{item.occurrence_count_in_cycle}</TableCell>
+                  <TableCell kind="date">{formatDate(item.last_observed_in_cycle_at)}</TableCell>
+                </TableRow>
+              ))}
+              {!snapshots.items.length && (
+                <TableRow staticRow>
+                  <TableState state="empty" colSpan={8}>Nenhum snapshot encontrado para este ciclo e filtros.</TableState>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
           <div className={styles.footer}>
             <span>{snapshots.total} snapshots · página {snapshots.page || 1} de {snapshots.total_pages || 1}</span>
             <div className={styles.footerActions}>
@@ -386,19 +456,17 @@ export default function OpportunityHistoryCyclesPage() {
               <Button variant="secondary" disabled={!snapshots.total_pages || page >= snapshots.total_pages} onClick={() => setPage((value) => value + 1)}>Próxima</Button>
             </div>
           </div>
-        </div>
+        </Section>
       )}
 
       {selected && (
-        <article className={styles.detail} aria-label={`Snapshot ${selected.title}`}>
-          <div className={styles.detailHeader}>
-            <div>
-              <small>Snapshot do período</small>
-              <h2>{selected.title}</h2>
-              <p>{selected.description}</p>
-            </div>
-            <Button variant="secondary" onClick={() => setSelected(null)}>Fechar detalhe</Button>
-          </div>
+        <Section
+          appearance="card"
+          title={selected.title}
+          description={selected.description}
+          actions={<Button variant="secondary" onClick={() => setSelected(null)}>Fechar detalhe</Button>}
+          aria-label={`Snapshot ${selected.title}`}
+        >
           <dl className={styles.detailGrid}>
             <div><dt>Cloud</dt><dd>{providerLabel(selected.provider)}</dd></div>
             <div><dt>Conta</dt><dd>{selected.account_name || selected.account_id}</dd></div>
@@ -418,13 +486,15 @@ export default function OpportunityHistoryCyclesPage() {
             <div><dt>Última detecção conhecida no fechamento</dt><dd>{formatDate(selected.last_seen_at)}</dd></div>
             <div><dt>Última CollectionRun do ciclo</dt><dd>{selected.last_collection_run_id_in_cycle || "—"}</dd></div>
           </dl>
-          {selected.rejection_reason && <p><strong>Motivo da rejeição:</strong> {selected.rejection_reason}{selected.rejection_note ? ` — ${selected.rejection_note}` : ""}</p>}
-          {selected.treatment_note && <p><strong>Tratamento:</strong> {selected.treatment_note}</p>}
-          {selected.opportunity_id && (
-            <p><Link href={`/opportunities?resource_id=${encodeURIComponent(selected.resource_id)}`}>Ver oportunidade atual</Link> <span className={styles.secondary}>— o estado atual é independente deste snapshot.</span></p>
-          )}
-        </article>
+          <div className={styles.detailNotes}>
+            {selected.rejection_reason && <p><strong>Motivo da rejeição:</strong> {selected.rejection_reason}{selected.rejection_note ? ` — ${selected.rejection_note}` : ""}</p>}
+            {selected.treatment_note && <p><strong>Tratamento:</strong> {selected.treatment_note}</p>}
+            {selected.opportunity_id && (
+              <p><Link href={`/opportunities?resource_id=${encodeURIComponent(selected.resource_id)}`}>Ver oportunidade atual</Link> <span className={styles.secondary}>— o estado atual é independente deste snapshot.</span></p>
+            )}
+          </div>
+        </Section>
       )}
-    </section>
+    </div>
   );
 }

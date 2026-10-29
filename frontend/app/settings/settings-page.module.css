@@ -1,20 +1,24 @@
 .sectionGrid {
   display: grid;
-  gap: var(--space-5);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
+}
+
+.sectionGrid > * {
   min-inline-size: 0;
 }
 
 .formStack {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--layout-component-gap);
   min-inline-size: 0;
 }
 
 .formGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
   min-inline-size: 0;
 }
 
@@ -23,12 +27,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .checkboxGrid {
   display: grid;
-  gap: var(--space-2);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-compact-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
 }
 
 .toolbar {
@@ -37,11 +43,12 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: space-between;
+  min-inline-size: 0;
 }
 
 .stack {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--layout-component-gap);
   min-inline-size: 0;
 }
 
@@ -50,6 +57,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .secondaryText {
@@ -69,15 +77,15 @@
   overflow-wrap: anywhere;
 }
 
-@media (max-width: 900px) {
+@media (max-width: 62rem) {
   .sectionGrid,
   .formGrid,
   .checkboxGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 48rem) {
   .formActions,
   .toolbar {
     align-items: stretch;

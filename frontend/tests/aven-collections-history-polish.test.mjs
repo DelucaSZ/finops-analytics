@@ -79,14 +79,21 @@ test("Historical cycles consume official Aven filter and form primitives", async
   assert.doesNotMatch(page, /style=\{\{\s*marginTop:/);
 });
 
-test("Historical cycles use semantic Aven surfaces and keep table overflow local", async () => {
+test("Historical cycles use shared Aven surfaces and the shared analytical table overflow contract", async () => {
+  const page = await source("../app/opportunities/history-cycles/page.tsx");
   const styles = await source("../app/opportunities/history-cycles/page.module.css");
-  const tableScroll = block(styles, "\\.tableScroll");
-  const table = block(styles, "\\.table");
+  const tableStyles = await source("../components/ui/table.module.css");
+  const tableWrapper = block(tableStyles, "\\.tableWrapper");
+  const table = block(tableStyles, "\\.table");
 
-  assert.match(styles, /var\(--elevation-1-surface\)/);
+  assert.match(page, /<Section/);
+  assert.match(page, /<MetricCard/);
+  assert.match(page, /<Table density="compact"/);
+  assert.match(page, /<TableState state="empty"/);
+  assert.doesNotMatch(page, /<table\b/);
+  assert.doesNotMatch(styles, /\.tableScroll\b|\.tableCard\b/);
   assert.match(styles, /var\(--border-subtle\)/);
-  assert.match(tableScroll, /overflow-x:\s*auto/);
+  assert.match(tableWrapper, /overflow-x:\s*auto/);
   assert.match(table, /min-inline-size:\s*100%/);
   assert.doesNotMatch(styles, /min-width:\s*980px/);
   assert.doesNotMatch(styles, /var\(--border\)/);

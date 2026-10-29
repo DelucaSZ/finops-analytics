@@ -10,26 +10,29 @@
 
 .page {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--layout-page-gap);
   inline-size: 100%;
   min-inline-size: 0;
 }
 
 .filterDates {
   display: grid;
-  gap: var(--space-3);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap-compact);
+  grid-template-columns: var(--layout-grid-columns-2);
   inline-size: 100%;
+  min-inline-size: 0;
 }
 
 .metricGroups {
   display: grid;
-  gap: var(--space-5);
+  gap: var(--layout-section-gap);
+  min-inline-size: 0;
 }
 
 .metricGroup {
   display: grid;
-  gap: var(--space-3);
+  gap: var(--layout-grid-gap-compact);
+  min-inline-size: 0;
 }
 
 .metricGroupHeading,
@@ -51,14 +54,24 @@
 
 .metricGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--layout-grid-min-metric-inline-size)), 1fr)
+  );
+  min-inline-size: 0;
+}
+
+.metricGrid > * {
+  block-size: 100%;
+  min-inline-size: 0;
 }
 
 .breakdownGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
 }
 
 .breakdownList,
@@ -67,11 +80,13 @@
 .movementStack {
   display: grid;
   gap: var(--space-3);
+  min-inline-size: 0;
 }
 
 .breakdownRow {
   display: grid;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .breakdownLine,
@@ -83,6 +98,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .breakdownLine {
@@ -112,7 +128,7 @@
 .breakdownTrack {
   background: var(--surface-secondary);
   block-size: var(--space-1);
-  border-radius: var(--radius-full);
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
@@ -133,7 +149,8 @@
 .chart {
   display: block;
   inline-size: 100%;
-  min-inline-size: 36rem;
+  max-inline-size: 100%;
+  min-inline-size: 100%;
 }
 
 .chartAxis {
@@ -210,7 +227,7 @@
 .actionLink {
   align-items: center;
   border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-control);
   color: var(--text-primary);
   display: inline-flex;
   font-family: var(--type-label-sm-family);
@@ -226,12 +243,19 @@
 
 .actionLink:hover {
   background: var(--action-ghost-hover);
+  border-color: var(--border-interactive);
+}
+
+.actionLink:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
 }
 
 .detailGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
 }
 
 .detailItem {
@@ -251,7 +275,7 @@
 }
 
 .dialogForm {
-  margin-block-start: var(--space-4);
+  margin-block-start: var(--layout-component-gap);
 }
 
 .dialogActions,
@@ -268,7 +292,7 @@
   .breakdownGrid,
   .detailGrid,
   .filterDates {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 }
 

@@ -109,9 +109,11 @@ test("Task 24.33 analytical pages share the semantic outer page rhythm", () => {
   assert.match(settingsLayout, /<PageContainer width="standard" className=\{styles\.page\}>/);
 });
 
-test("legacy pages keep the equivalent base rhythm until they migrate to PageContainer", () => {
+test("Flow uses semantic outer rhythm while remaining legacy pages keep the equivalent base rhythm", () => {
+  const flow = read("app/flow/flow-layout.module.css");
+  assert.match(flow, /\.page(?:,\s*\.[A-Za-z0-9_-]+)?\s*\{[^}]*gap:\s*var\(--layout-page-gap\)/s);
+
   for (const source of [
-    read("app/flow/flow-layout.module.css"),
     read("app/settings/settings-layout.module.css"),
     read("app/scans/scans.module.css"),
   ]) {
