@@ -1,8 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
-import { BrainCircuit, Copy, RotateCcw } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BrainCircuit, Check, Copy, RotateCcw } from "lucide-react";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { OpportunityArchiveHistory } from "@/components/opportunity-archive-history";
 import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
@@ -119,6 +119,13 @@ function humanize(value?: string | null) {
   return value.split("_").filter(Boolean).map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase()).join(" ");
 }
 
+function technicalValue(value: unknown): string {
+  if (value == null || value === "") return "—";
+  if (typeof value === "string") return value;
+  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  return JSON.stringify(value, null, 2) ?? String(value);
+}
+
 function MoneyValue({ value, currency }: { value: string | number | null | undefined; currency: string }) {
   const amount = numericValue(value);
   if (!currency || amount == null) return <span>—</span>;
@@ -139,6 +146,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   const [aiLoading, setAiLoading] = useState(false);
   const [unarchiveSaving, setUnarchiveSaving] = useState(false);
   const [restoreOpen, setRestoreOpen] = useState(false);
+  const [copiedTechnicalKey, setCopiedTechnicalKey] = useState("");
+  const copyTimeoutRef = useRef<number | null>(null);
   const historyPageSize = historyExpanded ? 50 : 8;
 
   const detailRequest = useApiQuery<HistoricalOpportunityDetail>({
@@ -174,12 +183,36 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
     setHistoryExpanded(false);
     setAiInsight("");
     setActionError("");
+    setCopiedTechnicalKey("");
   }, [opportunityId]);
+
+  useEffect(() => () => {
+    if (copyTimeoutRef.current != null) window.clearTimeout(copyTimeoutRef.current);
+  }, []);
 
   const currentDecision = useMemo(() => {
     if (!detail || !decisions) return null;
     return decisions.items.find((item) => item.to_status === detail.status) || null;
   }, [decisions, detail]);
+
+  const providerMetadataEntries = useMemo(
+    () => Object.entries(detail?.provider_metadata ?? {}).sort(([left], [right]) => left.localeCompare(right)),
+    [detail?.provider_metadata],
+  );
+
+  async function copyTechnical(key: string, value: string) {
+    if (!value || value === "—" || !navigator.clipboard) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedTechnicalKey(key);
+      if (copyTimeoutRef.current != null) window.clearTimeout(copyTimeoutRef.current);
+      copyTimeoutRef.current = window.setTimeout(() => {
+        setCopiedTechnicalKey((current) => current === key ? "" : current);
+      }, 1600);
+    } catch {
+      setCopiedTechnicalKey("");
+    }
+  }
 
   async function explain() {
     if (!detail || aiLoading) return;
@@ -221,7 +254,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   return (
     <>
       <Drawer open onOpenChange={(open) => { if (!open) onClose(); }}>
-        <DrawerContent side="right">
+        <DrawerContent side="right" size="wide">
           <DrawerHeader>
             <DrawerTitle>{detail?.title || "Carregando oportunidade…"}</DrawerTitle>
             <DrawerDescription>{detail ? detail.description : "Carregando contexto, evidências e histórico."}</DrawerDescription>
@@ -248,6 +281,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     primary={detail.resource_name || detail.resource_id}
                     technicalId={detail.resource_name ? detail.resource_id : undefined}
                     copyValue={detail.resource_id}
+                    copyLabel="Copiar identificador do recurso"
+                    copiedLabel="Identificador copiado"
                   />
 
                   {detail.status === "rejected" && detail.archived && detail.presence_status === "active" ? (
@@ -360,13 +395,49 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 <details className={styles.technicalDetails}>
                   <summary>Informações técnicas</summary>
                   <dl className={styles.technicalGrid}>
-                    <div><dt>ID da oportunidade</dt><dd><code>{detail.id}</code><Button variant="ghost" size="sm" leadingIcon={<Copy {...iconDefaults} />} onClick={() => void navigator.clipboard.writeText(detail.id)}>Copiar</Button></dd></div>
-                    <div><dt>Fingerprint</dt><dd><code>{detail.fingerprint}</code><Button variant="ghost" size="sm" leadingIcon={<Copy {...iconDefaults} />} onClick={() => void navigator.clipboard.writeText(detail.fingerprint)}>Copiar</Button></dd></div>
+                    <div>
+                      <dt>ID do recurso</dt>
+                      <dd><code>{detail.resource_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "resource-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("resource-id", detail.resource_id)}>{copiedTechnicalKey === "resource-id" ? "Copiado" : "Copiar"}</Button></dd>
+                    </div>
+                    <div>
+                      <dt>ID da conta</dt>
+                      <dd><code>{detail.account_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "account-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("account-id", detail.account_id)}>{copiedTechnicalKey === "account-id" ? "Copiado" : "Copiar"}</Button></dd>
+                    </div>
+                    <div>
+                      <dt>ID da oportunidade</dt>
+                      <dd><code>{detail.id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "opportunity-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("opportunity-id", detail.id)}>{copiedTechnicalKey === "opportunity-id" ? "Copiado" : "Copiar"}</Button></dd>
+                    </div>
+                    <div>
+                      <dt>Fingerprint</dt>
+                      <dd><code>{detail.fingerprint}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "fingerprint" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("fingerprint", detail.fingerprint)}>{copiedTechnicalKey === "fingerprint" ? "Copiado" : "Copiar"}</Button></dd>
+                    </div>
                     <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
                     <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
                     <div><dt>Primeira CollectionRun</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
                     <div><dt>Última CollectionRun</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
-                    {Object.keys(detail.provider_metadata || {}).length > 0 ? <div><dt>Metadata do provider</dt><dd><pre>{JSON.stringify(detail.provider_metadata, null, 2)}</pre></dd></div> : null}
+                    {providerMetadataEntries.map(([key, value]) => {
+                      const formattedValue = technicalValue(value);
+                      const copyKey = `provider-${key}`;
+                      const structured = typeof value === "object" && value !== null;
+                      return (
+                        <div key={key}>
+                          <dt>{humanize(key)}</dt>
+                          <dd>
+                            {structured ? <pre>{formattedValue}</pre> : <code>{formattedValue}</code>}
+                            {formattedValue !== "—" ? (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                leadingIcon={copiedTechnicalKey === copyKey ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />}
+                                onClick={() => void copyTechnical(copyKey, formattedValue)}
+                              >
+                                {copiedTechnicalKey === copyKey ? "Copiado" : "Copiar"}
+                              </Button>
+                            ) : null}
+                          </dd>
+                        </div>
+                      );
+                    })}
                   </dl>
                 </details>
               </>

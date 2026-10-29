@@ -215,9 +215,14 @@
   max-block-size: calc(100% - var(--dialog-safe-margin));
 }
 
-.dialog::backdrop,
-.drawer::backdrop {
+.dialog::backdrop {
   background: var(--overlay-backdrop);
+}
+
+.drawer::backdrop {
+  -webkit-backdrop-filter: var(--overlay-backdrop-filter);
+  backdrop-filter: var(--overlay-backdrop-filter);
+  background: var(--overlay-backdrop-strong);
 }
 
 .dialogInner,
@@ -295,6 +300,10 @@
   position: fixed;
 }
 
+.drawer[data-size="wide"] {
+  inline-size: min(100%, var(--drawer-inline-size-wide));
+}
+
 .drawer[data-side="right"] {
   inset: var(--space-0) var(--space-0) var(--space-0) auto;
 }
@@ -305,6 +314,23 @@
 
 .drawerInner {
   block-size: 100%;
+}
+
+.drawer[data-size="wide"] .drawerInner {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+@media (max-width: 78rem) {
+  .drawer[data-size="wide"] {
+    inline-size: min(60vw, calc(100% - var(--space-4)));
+  }
+}
+
+@media (max-width: 48rem) {
+  .drawer[data-size="wide"] {
+    inline-size: 100%;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

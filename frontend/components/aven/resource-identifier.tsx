@@ -6,8 +6,18 @@ import { IconButton, Tooltip } from "@/components/ui";
 import { iconDefaults } from "@/lib/iconography";
 import styles from "./product-components.module.css";
 
+const COMPACT_IDENTIFIER_THRESHOLD = 36;
+const COMPACT_IDENTIFIER_PREFIX = 18;
+const COMPACT_IDENTIFIER_SUFFIX = 8;
+
 function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
+}
+
+export function compactResourceIdentifier(value: string) {
+  const normalized = value.trim();
+  if (normalized.length <= COMPACT_IDENTIFIER_THRESHOLD) return normalized;
+  return `${normalized.slice(0, COMPACT_IDENTIFIER_PREFIX)}…${normalized.slice(-COMPACT_IDENTIFIER_SUFFIX)}`;
 }
 
 export interface ResourceIdentifierProps extends Omit<HTMLAttributes<HTMLDivElement>, "children" | "onCopy"> {
@@ -34,6 +44,10 @@ export function ResourceIdentifier({
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const valueToCopy = copyValue ?? technicalId ?? "";
+  const primaryText = typeof primary === "string" ? primary.trim() : null;
+  const compactPrimary = primaryText ? compactResourceIdentifier(primaryText) : primary;
+  const primaryIsCompacted = Boolean(primaryText && compactPrimary !== primaryText);
+  const compactTechnicalId = technicalId ? compactResourceIdentifier(technicalId) : null;
 
   useEffect(() => () => {
     if (timeoutRef.current != null) window.clearTimeout(timeoutRef.current);
@@ -52,13 +66,19 @@ export function ResourceIdentifier({
     }
   };
 
+  const primaryNode = (
+    <span className={styles.resourcePrimary} tabIndex={primaryIsCompacted ? 0 : undefined}>
+      {compactPrimary}
+    </span>
+  );
+
   return (
     <div className={classNames(styles.resourceIdentifier, className)} {...props}>
       <div className={styles.resourceValues}>
-        <span className={styles.resourcePrimary}>{primary}</span>
-        {technicalId && (
+        {primaryIsCompacted && primaryText ? <Tooltip content={primaryText}>{primaryNode}</Tooltip> : primaryNode}
+        {technicalId && compactTechnicalId && (
           <Tooltip content={technicalId}>
-            <span className={styles.resourceTechnical} tabIndex={0}>{technicalId}</span>
+            <span className={styles.resourceTechnical} tabIndex={0}>{compactTechnicalId}</span>
           </Tooltip>
         )}
       </div>

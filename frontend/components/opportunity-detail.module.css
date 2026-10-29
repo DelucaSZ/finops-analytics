@@ -1,7 +1,11 @@
 .body {
+  container-type: inline-size;
   display: grid;
   gap: var(--space-6);
   min-inline-size: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-inline-end: var(--space-1);
 }
 
 .statusLine,
@@ -27,6 +31,7 @@
 .section {
   display: grid;
   gap: var(--space-4);
+  min-inline-size: 0;
 }
 
 .section {
@@ -65,6 +70,7 @@
   display: grid;
   gap: var(--space-3);
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  min-inline-size: 0;
 }
 
 .detailGrid > div,
@@ -72,6 +78,7 @@
   border-block-end: 1px solid var(--border-subtle);
   display: grid;
   gap: var(--space-1);
+  min-inline-size: 0;
   padding-block-end: var(--space-3);
 }
 
@@ -104,6 +111,7 @@
 .decisionHistory {
   display: grid;
   gap: var(--space-3);
+  min-inline-size: 0;
 }
 
 .historyItem,
@@ -112,6 +120,7 @@
   border-radius: var(--radius-card);
   display: grid;
   gap: var(--space-3);
+  min-inline-size: 0;
   padding: var(--space-4);
 }
 
@@ -131,6 +140,7 @@
 .historyMetric {
   display: grid;
   gap: var(--space-1);
+  min-inline-size: 0;
 }
 
 .historyMetric strong {
@@ -143,11 +153,13 @@
   color: var(--text-secondary);
   display: grid;
   gap: var(--space-2);
+  min-inline-size: 0;
   padding-inline-start: var(--space-4);
 }
 
 .technicalDetails {
   border-block-start: 1px solid var(--border-subtle);
+  min-inline-size: 0;
   padding-block-start: var(--space-4);
 }
 
@@ -164,11 +176,15 @@
   display: grid;
   gap: var(--space-3);
   margin-block-start: var(--space-4);
+  min-inline-size: 0;
 }
 
 .technicalGrid > div {
+  border-block-end: 1px solid var(--border-subtle);
   display: grid;
   gap: var(--space-1);
+  min-inline-size: 0;
+  padding-block-end: var(--space-3);
 }
 
 .technicalGrid dt {
@@ -180,7 +196,9 @@
 }
 
 .technicalGrid dd {
+  align-items: flex-start;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   margin: var(--space-0);
   min-inline-size: 0;
@@ -188,17 +206,25 @@
 
 .technicalGrid code,
 .technicalGrid pre {
+  flex: 1 1 var(--popover-min-inline-size);
   font-family: var(--type-code-family);
   font-size: var(--type-code-size);
   font-weight: var(--type-code-weight);
   line-height: var(--type-code-line-height);
   margin: var(--space-0);
   max-inline-size: 100%;
+  min-inline-size: 0;
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+  word-break: break-word;
 }
 
-@media (max-width: 700px) {
+.technicalGrid pre {
+  max-block-size: calc(var(--control-height-comfortable) * 6);
+  overflow: auto;
+}
+
+@container (max-width: 36rem) {
   .detailGrid,
   .decisionGrid {
     grid-template-columns: minmax(0, 1fr);
@@ -206,5 +232,13 @@
 
   .decisionNote {
     grid-column: auto;
+  }
+}
+
+@media (max-width: 48rem) {
+  .actions,
+  .historyActions {
+    align-items: stretch;
+    flex-direction: column;
   }
 }

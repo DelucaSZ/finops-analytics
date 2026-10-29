@@ -56,9 +56,10 @@ export function DrawerTrigger(props: ButtonProps) {
 
 export interface DrawerContentProps extends DialogHTMLAttributes<HTMLDialogElement> {
   side?: "left" | "right";
+  size?: "default" | "wide";
 }
 
-export function DrawerContent({ side = "right", className, children, onCancel, onClose, onClick, ...props }: DrawerContentProps) {
+export function DrawerContent({ side = "right", size = "default", className, children, onCancel, onClose, onClick, ...props }: DrawerContentProps) {
   const { open, setOpen, titleId, descriptionId } = useDrawer();
   const ref = useRef<HTMLDialogElement | null>(null);
 
@@ -75,6 +76,7 @@ export function DrawerContent({ side = "right", className, children, onCancel, o
       ref={ref}
       className={cx(styles.drawer, className)}
       data-side={side}
+      data-size={size}
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
       onCancel={(event) => {
