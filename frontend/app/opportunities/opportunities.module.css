@@ -11,6 +11,11 @@
   min-inline-size: 0;
 }
 
+.metricsGrid > * {
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
 .savingsStack {
   display: grid;
   gap: var(--space-1);
@@ -29,11 +34,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .advancedFilters {
   border-block: 1px solid var(--border-subtle);
   color: var(--text-secondary);
+  min-inline-size: 0;
   padding-block: var(--layout-component-gap);
 }
 
@@ -43,6 +50,12 @@
   font-size: var(--type-body-sm-size);
   font-weight: var(--type-body-sm-weight);
   line-height: var(--type-body-sm-line-height);
+  max-inline-size: 100%;
+}
+
+.advancedFilters > summary:focus-visible {
+  outline: var(--focus-outline-width) solid var(--focus-ring);
+  outline-offset: var(--focus-outline-offset);
 }
 
 .advancedGrid {
@@ -50,6 +63,7 @@
   display: grid;
   gap: var(--layout-grid-gap);
   grid-template-columns: var(--layout-grid-columns-4);
+  min-inline-size: 0;
   padding-block-start: var(--layout-component-gap);
 }
 
@@ -58,6 +72,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
+  min-inline-size: 0;
 }
 
 .workspaceMeta {
@@ -72,6 +87,7 @@
   justify-content: space-between;
   line-height: var(--type-body-sm-line-height);
   margin-block-end: var(--space-3);
+  min-inline-size: 0;
 }
 
 .selectionBar {
@@ -82,6 +98,7 @@
   gap: var(--space-3);
   justify-content: space-between;
   margin-block-end: var(--layout-component-gap);
+  min-inline-size: 0;
   padding-block: var(--space-3);
 }
 
@@ -90,18 +107,15 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  min-inline-size: 0;
 }
 
 .rowActions {
-  align-items: stretch;
-  display: grid;
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--layout-compact-gap);
-  grid-template-columns: max-content max-content;
-  min-inline-size: max-content;
-}
-
-.rowActions > :first-child {
-  grid-column: 1 / -1;
+  min-inline-size: 0;
 }
 
 .rowActions > * {
@@ -113,6 +127,10 @@
   display: grid;
   gap: var(--layout-grid-gap);
   grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
+}
+
+.cardsGrid > * {
   min-inline-size: 0;
 }
 
@@ -182,12 +200,14 @@
 }
 
 .paginationRow {
-  align-items: flex-end;
+  align-items: center;
   border-block-start: 1px solid var(--border-subtle);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--layout-component-gap);
   justify-content: space-between;
   margin-block-start: var(--layout-component-gap);
+  min-inline-size: 0;
   padding-block-start: var(--layout-component-gap);
 }
 
@@ -204,14 +224,6 @@
   .page :global(table[aria-label="Recomendações"]),
   .page :global(table[aria-label="Histórico de recomendações"]) {
     --table-cell-padding-inline: var(--space-2);
-  }
-
-  .rowActions {
-    grid-template-columns: max-content;
-  }
-
-  .rowActions > :first-child {
-    grid-column: auto;
   }
 }
 
