@@ -62,7 +62,40 @@
   padding-block-start: var(--layout-component-gap);
 }
 
+/*
+ * Inventory density follows the page container so sidebar state is part of the
+ * responsive calculation. Viewport media queries remain as a fallback.
+ */
+@container aven-page (max-width: 78rem) {
+  .metricsGrid {
+    grid-template-columns: var(--layout-grid-columns-3);
+  }
+}
+
+@container aven-page (max-width: 62rem) {
+  .metricsGrid {
+    grid-template-columns: var(--layout-grid-columns-2);
+  }
+}
+
+@container aven-page (max-width: 48rem) {
+  .metricsGrid {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+
+  .paginationRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}
+
 @media (max-width: 78rem) {
+  .metricsGrid {
+    grid-template-columns: var(--layout-grid-columns-3);
+  }
+}
+
+@media (max-width: 62rem) {
   .metricsGrid {
     grid-template-columns: var(--layout-grid-columns-2);
   }
