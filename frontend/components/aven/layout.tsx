@@ -143,13 +143,7 @@ export function Section({
 
   if (appearance === "card") {
     return (
-      <Surface
-        as="section"
-        variant="section"
-        data-aven-section=""
-        className={classNames(styles.sectionCard, className)}
-        {...props}
-      >
+      <Surface as="section" variant="section" data-aven-section="" className={classNames(styles.sectionCard, className)} {...props}>
         {heading && <CardHeader className={styles.sectionCardHeader}>{heading}</CardHeader>}
         <CardContent className={styles.sectionCardContent}>{children}</CardContent>
       </Surface>
