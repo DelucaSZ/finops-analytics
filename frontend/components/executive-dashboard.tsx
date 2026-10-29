@@ -25,6 +25,7 @@ import {
   ProviderBadge,
   ProviderSelector,
   RecommendationCard,
+  ResourceIdentifier,
   Section,
   StatusIndicator,
 } from "@/components/aven";
@@ -321,8 +322,6 @@ export function ExecutiveDashboard() {
         />
       ) : null}
 
-      <CollectionFailureOperationalInsights />
-
       <DataState
         error={summaryError || undefined}
         empty={Boolean(!summaryLoading && summary && !summary.scope.has_current_data)}
@@ -479,6 +478,8 @@ export function ExecutiveDashboard() {
           ) : null}
         </div>
       </DataState>
+
+      <CollectionFailureOperationalInsights />
     </div>
   );
 }
@@ -663,7 +664,14 @@ function TopOpportunities({
           <RecommendationCard
             key={item.id}
             title={item.title}
-            description={`${item.service || item.rule_key} · ${item.resource_name || item.resource_id}`}
+            description={item.service || item.rule_key}
+            resource={
+              <ResourceIdentifier
+                primary={item.resource_name || "Recurso sem nome amigável"}
+                technicalId={item.resource_name ? undefined : item.resource_id}
+                copyable={false}
+              />
+            }
             provider={item.provider}
             status={severityStatus(item.severity)}
             statusLabel={severityLabel(item.severity)}
