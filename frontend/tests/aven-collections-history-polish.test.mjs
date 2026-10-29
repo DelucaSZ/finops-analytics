@@ -42,6 +42,18 @@ test("Collection filters consume Aven form primitives while preserving datetime 
   assert.doesNotMatch(workspace, /<input\b/);
 });
 
+test("Collection scheduling uses shared Aven controls without changing schedule semantics", async () => {
+  const schedule = await source("../components/collection-schedule-fields.tsx");
+
+  assert.match(schedule, /import \{ Checkbox, Select \} from "@\/components\/ui"/);
+  assert.match(schedule, /checked=\{scheduleEnabled\}/);
+  assert.match(schedule, /onScheduleEnabledChange\(event\.target\.checked\)/);
+  assert.match(schedule, /value=\{String\(scanIntervalHours\)\}/);
+  assert.match(schedule, /onIntervalChange\(Number\(event\.target\.value\)\)/);
+  assert.match(schedule, /formatDate\(nextScanAt\)/);
+  assert.doesNotMatch(schedule, /<input\b|<select\b/);
+});
+
 test("Collection comparison and workspace density avoid historical fixed empty-state and diff widths", async () => {
   const styles = await source("../app/collections/collection.module.css");
   const compareHeader = block(styles, "\\.compareHeader");
@@ -85,6 +97,7 @@ test("Historical cycles use semantic Aven surfaces and keep table overflow local
 test("Task 24.27 touched visual files pass the Aven hardcode gate", async () => {
   const filenames = [
     "components/collection-workspace.tsx",
+    "components/collection-schedule-fields.tsx",
     "app/collections/collection.module.css",
     "app/collections/collections-layout.module.css",
     "app/opportunities/history-cycles/page.tsx",
