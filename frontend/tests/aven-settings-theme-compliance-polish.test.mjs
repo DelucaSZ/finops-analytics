@@ -141,17 +141,19 @@ test("Settings compatibility bridge only consumes defined Aven token roles", asy
   assert.deepEqual(missing, [], `undefined Aven tokens in Settings bridge: ${missing.join(", ")}`);
 });
 
-test("remaining Accounts and Users legacy markup is explicitly covered by the semantic migration bridge", async () => {
+test("remaining Accounts and Users compatibility markup is explicitly covered by the semantic migration bridge", async () => {
   const [accounts, users, css] = await Promise.all([
     source("../app/settings/accounts/page.tsx"),
     source("../app/settings/users/page.tsx"),
     source("../app/settings/settings-layout.module.css"),
   ]);
 
-  assert.ok(accounts.includes('className="segmented"'));
-  assert.ok(accounts.includes("account-card"));
+  assert.match(accounts, /className="[^"]*\bsegmented\b[^"]*"/);
+  assert.ok(accounts.includes("settings-table"));
+  assert.ok(accounts.includes("settings-row-actions"));
   assert.ok(css.includes(":global(.segmented button.active)"));
-  assert.ok(css.includes(":global(.account-card)"));
+  assert.ok(css.includes(":global(.data-table th)"));
+  assert.ok(css.includes(":global(.settings-row-actions)"));
 
   assert.ok(users.includes("settings-filters"));
   assert.ok(users.includes("settings-row-actions"));

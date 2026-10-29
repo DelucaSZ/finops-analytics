@@ -121,10 +121,12 @@ function ProductSelector<T extends ProductSelectorOption>({
   const selectedSelectableCount = selection.multiple
     ? selectableOptions.filter((option) => selection.value.includes(option.value)).length
     : 0;
-  const allSelected = selection.multiple
-    && selectableOptions.length > 0
-    && selectedSelectableCount === selectableOptions.length;
-  const partiallySelected = selection.multiple && selectedSelectableCount > 0 && !allSelected;
+  const allSelected = Boolean(
+    selection.multiple
+      && selectableOptions.length > 0
+      && selectedSelectableCount === selectableOptions.length,
+  );
+  const partiallySelected = Boolean(selection.multiple && selectedSelectableCount > 0 && !allSelected);
   const hasSelection = selection.multiple ? selection.value.length > 0 : Boolean(selection.value);
   const hasOptions = selectOptions.length > 0;
   const selectionSummary = selection.multiple

@@ -62,7 +62,9 @@ test("shared Aven product components own narrow header, filter, metric and multi
   assert.match(source, /@media \(max-width:\s*48rem\)/);
   assert.match(source, /\.pageHeaderMain,[\s\S]*\.filterBar\s*\{[\s\S]*flex-direction:\s*column/);
   assert.match(source, /\.filterPrimary > \*\s*\{[^}]*max-inline-size:\s*100%/s);
-  assert.match(source, /\.selector \[data-multiple="true"\]\s*\{[^}]*block-size:\s*auto/s);
+  assert.match(block(source, ".selectorDropdown"), /max-block-size:\s*min\(/);
+  assert.match(block(source, ".selectorOptionList"), /max-block-size:/);
+  assert.match(block(source, ".selectorOptionList"), /overflow-y:\s*auto/);
   assert.match(select, /data-multiple=\{multiple \|\| undefined\}/);
   assert.match(select, /multiple=\{multiple\}/);
 });

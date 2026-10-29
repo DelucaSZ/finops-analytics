@@ -44,8 +44,8 @@ test("HTTPS settings preserves its functional TLS contracts under the tokenized 
   assert.ok(page.includes('className="settings-form-grid"'));
   assert.ok(css.includes(".content :global(.settings-form-grid)"));
   assert.ok(css.includes("grid-template-columns: repeat(2, minmax(0, 1fr))"));
-  assert.ok(css.includes(".content :global(.security-card select)"));
-  assert.ok(css.includes(".content :global(.security-card textarea)"));
+  assert.ok(css.includes(".content :global(.security-card select:not([data-aven-control-inner]))"));
+  assert.ok(css.includes(".content :global(.security-card textarea:not([data-aven-control-inner]))"));
   assert.ok(css.includes("var(--control-background)"));
   assert.ok(css.includes("var(--control-border)"));
   assert.ok(css.includes("overflow-wrap: anywhere"));
