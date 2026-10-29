@@ -11,10 +11,19 @@
   min-inline-size: 0;
 }
 
+.metricsGrid > * {
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
 .analysisGrid {
   display: grid;
   gap: var(--layout-grid-gap);
   grid-template-columns: var(--layout-grid-columns-2);
+  min-inline-size: 0;
+}
+
+.analysisGrid > * {
   min-inline-size: 0;
 }
 
@@ -65,6 +74,7 @@
   display: grid;
   gap: var(--layout-grid-gap);
   grid-template-columns: var(--layout-grid-columns-3);
+  min-inline-size: 0;
 }
 
 .capacityGrid > div {
@@ -115,9 +125,11 @@
 .tableHeading {
   align-items: flex-end;
   display: flex;
+  flex-wrap: wrap;
   gap: var(--layout-component-gap);
   justify-content: space-between;
-  margin-block: var(--layout-component-gap);
+  margin-block: var(--layout-component-gap) var(--space-3);
+  min-inline-size: 0;
 }
 
 .tableHeading > div {
@@ -147,6 +159,7 @@
 .pagination {
   border-block-start: 1px solid var(--border-subtle);
   display: flex;
+  flex-wrap: wrap;
   justify-content: flex-end;
   margin-block-start: var(--layout-component-gap);
   padding-block-start: var(--layout-component-gap);
@@ -154,7 +167,7 @@
 
 @media (max-width: 78rem) {
   .metricsGrid {
-    grid-template-columns: var(--layout-grid-columns-3);
+    grid-template-columns: var(--layout-grid-columns-2);
   }
 }
 
