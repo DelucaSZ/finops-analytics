@@ -41,7 +41,7 @@ test("AccountSelector keeps zero, one, many, all, metadata, search, clear and pa
   assert.match(selectors, /\$\{selectedOptions\.length\} contas selecionadas/);
   assert.match(selectors, /Todas as contas selecionadas/);
   assert.match(selectors, /account\.accountId, account\.environment, account\.provider\?\.toUpperCase\(\)/);
-  assert.match(selectors, /searchable=\{props\.searchable \?\? true\}/);
+  assert.match(selectors, /searchable=\{props\.searchable \?\? Boolean\(props\.multiple\)\}/);
   assert.match(selectors, /indeterminate=\{partiallySelected\}/);
   assert.match(selectors, /disabled=\{disabled \|\| !hasSelection\}/);
 });

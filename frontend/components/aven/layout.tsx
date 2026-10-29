@@ -166,7 +166,12 @@ export interface FilterItemProps extends HTMLAttributes<HTMLDivElement> {
 
 export function FilterItem({ size = "default", className, children, ...props }: FilterItemProps) {
   return (
-    <div {...props} className={classNames(styles.filterItem, className)} data-size={size}>
+    <div
+      {...props}
+      className={classNames(styles.filterItem, className)}
+      data-aven-filter-item=""
+      data-size={size}
+    >
       {children}
     </div>
   );
@@ -189,10 +194,14 @@ function FilterBarContent({
   clearAction,
 }: Pick<FilterBarProps, "children" | "secondary" | "summary" | "actions" | "clearAction">) {
   return (
-    <div className={styles.filterBar}>
-      <div className={styles.filterPrimary}>{children}</div>
-      {(clearAction || actions) && <div className={styles.filterActions}>{clearAction}{actions}</div>}
-      {secondary && <div className={styles.filterSecondary}>{secondary}</div>}
+    <div className={styles.filterBar} data-aven-filter-bar="">
+      <div className={styles.filterPrimary} data-aven-filter-group="primary">{children}</div>
+      {secondary && (
+        <div className={styles.filterSecondary} data-aven-filter-group="secondary">{secondary}</div>
+      )}
+      {(clearAction || actions) && (
+        <div className={styles.filterActions} data-aven-filter-actions="">{clearAction}{actions}</div>
+      )}
       {summary && <div className={styles.filterSummary}>{summary}</div>}
     </div>
   );
