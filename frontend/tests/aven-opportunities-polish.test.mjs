@@ -10,16 +10,21 @@ function source(relativePath) {
   return readFileSync(path.join(ROOT, relativePath), "utf8");
 }
 
-test("Opportunities keeps long resource identifiers compact in the decision list", () => {
+test("Opportunities keeps long resource identifiers compact without fixed table clipping", () => {
   const resourceIdentifier = source("components/aven/resource-identifier.tsx");
   const opportunitiesStyles = source("app/opportunities/opportunities.module.css");
+  const tableStyles = source("components/ui/table.module.css");
 
   assert.match(resourceIdentifier, /export function compactResourceIdentifier/);
   assert.match(resourceIdentifier, /compactResourceIdentifier\(primaryText\)/);
   assert.match(resourceIdentifier, /compactResourceIdentifier\(technicalId\)/);
   assert.match(resourceIdentifier, /Tooltip content=\{primaryText\}/);
-  assert.match(opportunitiesStyles, /table-layout:\s*fixed/);
+  assert.doesNotMatch(opportunitiesStyles, /table-layout:\s*fixed/);
+  assert.doesNotMatch(opportunitiesStyles, /nth-child/);
+  assert.doesNotMatch(opportunitiesStyles, /overflow:\s*hidden/);
   assert.doesNotMatch(opportunitiesStyles, /min-(?:inline-)?size:\s*1180px/);
+  assert.match(tableStyles, /table-layout:\s*auto/);
+  assert.match(tableStyles, /\.tableWrapper\s*\{[\s\S]*overflow-x:\s*auto/);
 });
 
 test("Opportunities uses a semantic wide Drawer without changing the default Drawer size", () => {

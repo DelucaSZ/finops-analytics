@@ -1,0 +1,146 @@
+.tableWrapper {
+  background: var(--table-background);
+  border: 1px solid var(--table-border);
+  border-radius: var(--radius-card);
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overflow-y: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.table {
+  --aven-table-cell-padding-block: var(--table-cell-padding-block);
+  --aven-table-cell-padding-inline: var(--table-cell-padding-inline);
+  --aven-table-column-selection: var(--space-10);
+  --aven-table-column-provider-min: calc(var(--space-16) + var(--space-4));
+  --aven-table-column-badge-min: calc(var(--space-16) + var(--space-16) + var(--space-2));
+  --aven-table-column-status-min: calc(var(--space-16) + var(--space-16) + var(--space-4));
+  --aven-table-column-numeric-min: calc(var(--space-16) + var(--space-8));
+  --aven-table-column-currency-min: calc(var(--space-16) + var(--space-16));
+  --aven-table-column-date-min: calc(var(--space-16) + var(--space-16));
+  --aven-table-column-actions-min: calc(var(--space-16) + var(--space-16) + var(--space-8));
+  --aven-table-column-identifier-min: calc(var(--space-16) + var(--space-16) + var(--space-16));
+  --aven-table-column-text-min: calc(var(--space-16) + var(--space-16));
+  border-collapse: collapse;
+  color: var(--text-primary);
+  inline-size: 100%;
+  min-inline-size: 100%;
+  table-layout: auto;
+}
+
+.table[data-density="compact"] {
+  --aven-table-cell-padding-block: var(--space-2);
+  --aven-table-cell-padding-inline: var(--space-3);
+}
+
+.table[data-density="comfortable"] {
+  --aven-table-cell-padding-block: var(--space-4);
+  --aven-table-cell-padding-inline: var(--space-5);
+}
+
+.tableHead {
+  background: var(--table-header-background);
+  border-block-end: 1px solid var(--table-border);
+  color: var(--text-secondary);
+  font-family: var(--type-table-header-family);
+  font-size: var(--type-table-header-size);
+  font-weight: var(--type-table-header-weight);
+  line-height: var(--type-table-header-line-height);
+  padding: var(--aven-table-cell-padding-block) var(--aven-table-cell-padding-inline);
+  text-align: start;
+  vertical-align: middle;
+  white-space: normal;
+}
+
+.tableCell {
+  border-block-start: 1px solid var(--table-border);
+  font-family: var(--type-table-body-family);
+  font-size: var(--type-table-body-size);
+  font-weight: var(--type-table-body-weight);
+  line-height: var(--type-table-body-line-height);
+  overflow: visible;
+  padding: var(--aven-table-cell-padding-block) var(--aven-table-cell-padding-inline);
+  text-align: start;
+  vertical-align: top;
+}
+
+.tableCell[data-numeric="true"],
+.tableHead[data-numeric="true"] {
+  font-variant-numeric: var(--font-variant-numeric-tabular);
+  text-align: end;
+}
+
+.tableCell[data-column-kind="selection"],
+.tableHead[data-column-kind="selection"] {
+  inline-size: var(--aven-table-column-selection);
+  min-inline-size: var(--aven-table-column-selection);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.tableCell[data-column-kind="identifier"],
+.tableHead[data-column-kind="identifier"] {
+  min-inline-size: var(--aven-table-column-identifier-min);
+}
+
+.tableCell[data-column-kind="text"],
+.tableHead[data-column-kind="text"] {
+  min-inline-size: var(--aven-table-column-text-min);
+}
+
+.tableCell[data-column-kind="provider"],
+.tableHead[data-column-kind="provider"] {
+  min-inline-size: var(--aven-table-column-provider-min);
+  white-space: nowrap;
+}
+
+.tableCell[data-column-kind="badge"],
+.tableHead[data-column-kind="badge"] {
+  min-inline-size: var(--aven-table-column-badge-min);
+}
+
+.tableCell[data-column-kind="status"],
+.tableHead[data-column-kind="status"] {
+  min-inline-size: var(--aven-table-column-status-min);
+}
+
+.tableCell[data-column-kind="numeric"],
+.tableHead[data-column-kind="numeric"] {
+  min-inline-size: var(--aven-table-column-numeric-min);
+  white-space: nowrap;
+}
+
+.tableCell[data-column-kind="currency"],
+.tableHead[data-column-kind="currency"] {
+  min-inline-size: var(--aven-table-column-currency-min);
+  white-space: nowrap;
+}
+
+.tableCell[data-column-kind="date"],
+.tableHead[data-column-kind="date"] {
+  min-inline-size: var(--aven-table-column-date-min);
+  white-space: nowrap;
+}
+
+.tableCell[data-column-kind="actions"],
+.tableHead[data-column-kind="actions"] {
+  min-inline-size: var(--aven-table-column-actions-min);
+  white-space: nowrap;
+}
+
+.tableRow[data-selected="true"] {
+  background: var(--table-row-selected-background);
+}
+
+.tableRow:hover:not([data-static="true"]) {
+  background: var(--table-row-hover-background);
+}
+
+.tableState {
+  color: var(--text-muted);
+  padding: var(--space-8) var(--space-4);
+  text-align: center;
+}
