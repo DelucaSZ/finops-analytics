@@ -13,6 +13,7 @@ import "./opportunities-stage5.css";
 import "./styles/tokens/index.css";
 import "./ui-system.css";
 import "./legacy-theme-compat.css";
+import "./surface-hierarchy.css";
 
 const inter = Inter({
   subsets: ["latin"],

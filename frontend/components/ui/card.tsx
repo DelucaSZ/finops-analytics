@@ -3,7 +3,7 @@ import styles from "./feedback.module.css";
 import { cx } from "./utils";
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <section className={cx(styles.card, className)} {...props} />;
+  return <section className={cx(styles.card, className)} data-aven-surface="card" {...props} />;
 }
 
 export function CardHeader({ className, ...props }: HTMLAttributes<HTMLDivElement>) {

@@ -28,7 +28,10 @@ test("Task 24.20 maps the application canvas to the official Aven gradients", ()
   assert.equal(declaration(dark, "--application-background"), "var(--gradient-background-dark)");
   assert.equal(declaration(light, "--page-background"), "transparent");
   assert.equal(declaration(dark, "--page-background"), "transparent");
-  assert.equal(declaration(dark, "--surface-elevated"), "var(--aven-color-neutral-800)");
+  assert.equal(declaration(light, "--surface-canvas"), "var(--application-background)");
+  assert.equal(declaration(dark, "--surface-canvas"), "var(--application-background)");
+  assert.equal(declaration(light, "--surface-page"), "var(--page-background)");
+  assert.equal(declaration(dark, "--surface-page"), "var(--page-background)");
 });
 
 test("canonical tokens remain before transitional CSS while the post-compatibility bridge restores Aven semantics", () => {
@@ -56,7 +59,7 @@ test("ApplicationShell exposes the shared canvas and removes the full-width topb
   const components = readToken("components.css");
 
   assert.equal(declaration(components, "--shell-background"), "var(--application-background)");
-  assert.equal(declaration(components, "--shell-content-background"), "var(--page-background)");
+  assert.equal(declaration(components, "--shell-content-background"), "var(--surface-page)");
   assert.equal(declaration(components, "--sidebar-background"), "var(--surface-overlay)");
   assert.equal(declaration(components, "--topbar-background"), "var(--header-background)");
 
@@ -66,11 +69,11 @@ test("ApplicationShell exposes the shared canvas and removes the full-width topb
   assert.doesNotMatch(ruleBlock(styles, ".topbar"), /border-block-end/);
 });
 
-test("card and overlay hierarchy continues to resolve through shared elevation roles", () => {
+test("card hierarchy uses semantic surfaces while overlays retain elevation roles", () => {
   const components = readToken("components.css");
 
-  assert.equal(declaration(components, "--card-background"), "var(--elevation-1-surface)");
-  assert.equal(declaration(components, "--card-border"), "var(--elevation-1-border)");
+  assert.equal(declaration(components, "--card-background"), "var(--surface-card)");
+  assert.equal(declaration(components, "--card-border"), "var(--border-subtle)");
   assert.equal(declaration(components, "--card-shadow"), "var(--elevation-1-shadow)");
   assert.equal(declaration(components, "--popover-background"), "var(--elevation-2-surface)");
   assert.equal(declaration(components, "--dialog-background"), "var(--elevation-3-surface)");

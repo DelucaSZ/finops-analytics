@@ -6,7 +6,7 @@
 :root {
   /* Application-shell surfaces sit above one shared Aven canvas. */
   --shell-background: var(--application-background);
-  --shell-content-background: var(--page-background);
+  --shell-content-background: var(--surface-page);
   --sidebar-background: var(--surface-overlay);
   --sidebar-border: var(--border-subtle);
   --header-background: var(--surface-overlay);
@@ -39,13 +39,40 @@
   --auth-form-max-inline-size: calc(var(--space-16) * 7);
   --auth-autofill-fill-size: calc(var(--control-height-comfortable) * 2);
 
-  --card-background: var(--elevation-1-surface);
-  --card-border: var(--elevation-1-border);
+  /* Shared content-surface hierarchy. */
+  --section-background: var(--surface-section);
+  --section-border: var(--border-subtle);
+  --section-radius: var(--radius-card);
+  --section-shadow: var(--shadow-none);
+
+  --panel-background: var(--surface-panel);
+  --panel-border: var(--border-subtle);
+  --panel-radius: var(--radius-card);
+  --panel-shadow: var(--shadow-none);
+
+  --card-background: var(--surface-card);
+  --card-border: var(--border-subtle);
   --card-radius: var(--radius-card);
   --card-padding: var(--space-6);
   --card-shadow: var(--elevation-1-shadow);
 
-  --control-background: var(--surface-primary);
+  --interactive-surface-background: var(--surface-interactive);
+  --interactive-surface-hover: var(--surface-hover);
+  --interactive-surface-selected: var(--surface-selected);
+  --interactive-surface-border: var(--border-subtle);
+
+  --filter-background: var(--surface-section);
+  --filter-border: var(--border-subtle);
+  --filter-shadow: var(--shadow-none);
+
+  --table-background: var(--surface-panel);
+  --table-border: var(--border-subtle);
+  --table-header-background: var(--surface-card);
+  --table-row-hover-background: var(--surface-hover);
+  --table-row-selected-background: var(--surface-selected);
+  --table-shadow: var(--shadow-none);
+
+  --control-background: var(--surface-interactive);
   --control-border: var(--border-default);
   --control-radius: var(--radius-control);
   --control-padding-inline-compact: var(--space-3);

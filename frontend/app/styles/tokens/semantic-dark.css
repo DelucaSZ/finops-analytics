@@ -9,13 +9,22 @@ html[data-theme="dark"] {
   --background-tertiary: var(--aven-color-indigo-deep);
   --background-inverse: var(--aven-color-neutral-0);
 
-  --surface-primary: var(--aven-color-neutral-900);
-  --surface-secondary: var(--aven-color-neutral-800);
-  --surface-tertiary: var(--aven-color-indigo-deep);
-  --surface-elevated: var(--aven-color-neutral-800);
+  /* Global surface hierarchy: canvas -> section -> panel -> card/content. */
+  --surface-canvas: var(--application-background);
+  --surface-page: var(--page-background);
+  --surface-section: color-mix(in srgb, var(--aven-color-neutral-900) 68%, transparent);
+  --surface-panel: color-mix(in srgb, var(--aven-color-neutral-900) 82%, transparent);
+  --surface-card: color-mix(in srgb, var(--aven-color-neutral-800) 88%, transparent);
+  --surface-interactive: color-mix(in srgb, var(--aven-color-neutral-800) 84%, transparent);
+
+  /* Compatibility roles now resolve through the hierarchy instead of ad-hoc page fills. */
+  --surface-primary: var(--surface-card);
+  --surface-secondary: var(--surface-panel);
+  --surface-tertiary: var(--surface-section);
+  --surface-elevated: color-mix(in srgb, var(--aven-color-neutral-800) 94%, transparent);
   --surface-overlay: rgba(17, 24, 39, 0.96);
-  --surface-hover: var(--aven-color-neutral-800);
-  --surface-selected: var(--aven-color-indigo-deep);
+  --surface-hover: color-mix(in srgb, var(--aven-color-neutral-700) 72%, transparent);
+  --surface-selected: color-mix(in srgb, var(--aven-color-indigo-deep) 90%, transparent);
   --surface-disabled: var(--aven-color-neutral-800);
   --surface-inverse: var(--aven-color-neutral-0);
 
@@ -55,7 +64,7 @@ html[data-theme="dark"] {
 
   --state-hover-overlay: rgba(96, 165, 250, 0.1);
   --state-active-overlay: rgba(129, 140, 248, 0.16);
-  --state-selected-bg: var(--aven-color-indigo-deep);
+  --state-selected-bg: var(--surface-selected);
   --state-selected-border: var(--aven-color-indigo-500);
 
   --overlay-backdrop: rgba(2, 6, 23, 0.68);
@@ -68,10 +77,10 @@ html[data-theme="dark"] {
   --shadow-lg: 0 18px 44px rgba(0, 0, 0, 0.26);
   --shadow-xl: 0 24px 64px rgba(0, 0, 0, 0.3);
 
-  --elevation-0-surface: var(--background-primary);
+  --elevation-0-surface: var(--surface-page);
   --elevation-0-border: transparent;
   --elevation-0-shadow: var(--shadow-none);
-  --elevation-1-surface: var(--surface-primary);
+  --elevation-1-surface: var(--surface-card);
   --elevation-1-border: var(--border-subtle);
   --elevation-1-shadow: var(--shadow-none);
   --elevation-2-surface: var(--surface-elevated);

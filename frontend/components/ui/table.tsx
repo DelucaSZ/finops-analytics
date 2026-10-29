@@ -8,7 +8,7 @@ import styles from "./feedback.module.css";
 import { cx } from "./utils";
 
 export function Table({ className, ...props }: TableHTMLAttributes<HTMLTableElement>) {
-  return <div className={styles.tableWrapper}><table className={cx(styles.table, className)} {...props} /></div>;
+  return <div className={styles.tableWrapper} data-aven-table><table className={cx(styles.table, className)} {...props} /></div>;
 }
 
 export function TableHeader(props: HTMLAttributes<HTMLTableSectionElement>) { return <thead {...props} />; }
