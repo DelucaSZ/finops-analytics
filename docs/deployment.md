@@ -31,10 +31,15 @@ Generate strong values for `POSTGRES_PASSWORD`, `NUVEMIQ_SECRET_KEY` and
 Start the services:
 
 ```bash
-docker compose up --build -d
+NEXT_PUBLIC_BUILD_SHA="$(git rev-parse --short=12 HEAD)" docker compose build --pull --no-cache && \
+  docker compose up -d --force-recreate --remove-orphans
 docker compose ps
 docker compose logs -f --tail=200
 ```
+
+The `&&` is intentional: a failed image build must stop the deployment before
+`docker compose up` can reuse an older local image. For routine updates, use the
+versioned deployment script below instead of running build and up independently.
 
 The default Caddy configuration serves HTTP on port 80 for initial private-network
 validation. Before external exposure, apply HTTPS from **Configurações > HTTPS**,
@@ -53,10 +58,31 @@ for cookie, SMTP and current migration/rollback behavior.
 ## Updating
 
 ```bash
-cd /opt/nuvemiq
-git pull --ff-only
 ./scripts/deploy.sh /opt/nuvemiq
 ```
+
+The deployment script refuses tracked local modifications, runs `git pull --ff-only`,
+derives `NEXT_PUBLIC_BUILD_SHA` from the checked-out commit, builds every buildable
+image with `--pull --no-cache`, and only then recreates containers with
+`--force-recreate --remove-orphans`. Because the script uses `set -euo pipefail`,
+any failed pull or build aborts before container recreation.
+
+After startup, the script verifies that the running `web` container reports the
+same SHA that was built. The frontend also exposes immutable build metadata at:
+
+```text
+/version
+```
+
+A successful response has the form:
+
+```json
+{"buildSha":"c28e6c7c0696"}
+```
+
+The value is injected while the frontend image is built and is also recorded in
+the image label `org.opencontainers.image.revision`, so troubleshooting can tie a
+running frontend back to the source commit incorporated into the image.
 
 ## Backup
 
