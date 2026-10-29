@@ -1,6 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { isVisualGuardrailAllowlisted } from "./visual-guardrail-allowlist.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const DEFAULT_TARGETS = [
@@ -50,21 +52,25 @@ function stripComments(source) {
 const rules = [
   {
     category: "colors",
-    label: "Hardcoded colors",
+    label: "Hardcoded color",
+    guidance: "Use Aven semantic color tokens instead.",
     patterns: [/#(?:[0-9a-f]{3}|[0-9a-f]{4}|[0-9a-f]{6}|[0-9a-f]{8})\b/i, /\b(?:rgb|rgba|hsl|hsla)\s*\(/i, /(?:text|bg|border)-\[\s*#[0-9a-f]+\s*\]/i],
   },
   {
     category: "spacing",
     label: "Hardcoded structural spacing",
+    guidance: "Use the Aven spacing scale or a documented technical sizing exception.",
     patterns: [
       /\b(?:padding|padding-(?:block|inline|top|right|bottom|left)|margin|margin-(?:block|inline|top|right|bottom|left)|gap|row-gap|column-gap)\s*:(?!\s*[^;]*var\()[^;]*(?:\d+(?:\.\d+)?(?:px|rem|em))/i,
       /\b(?:p|px|py|pt|pr|pb|pl|m|mx|my|mt|mr|mb|ml|gap|gap-x|gap-y)-\[[^\]]*(?:px|rem|em)[^\]]*\]/i,
       /\b(?:padding|margin|gap|rowGap|columnGap)\s*:\s*["'`]\s*\d+(?:\.\d+)?(?:px|rem|em)/i,
+      /\b(?:w|h|min-w|max-w|min-h|max-h)-\[(?:[4-9]\d|[1-9]\d{2,})px\]/i,
     ],
   },
   {
     category: "radius",
     label: "Hardcoded border radius",
+    guidance: "Use an Aven semantic radius token instead.",
     patterns: [
       /\bborder-radius\s*:(?!\s*var\()[^;]*(?:\d+(?:\.\d+)?(?:px|rem|em)|999\w*)/i,
       /\brounded(?:-[trblxy]+)?-\[[^\]]+\]/i,
@@ -74,6 +80,7 @@ const rules = [
   {
     category: "typography",
     label: "Hardcoded typography",
+    guidance: "Use Aven semantic typography tokens instead.",
     patterns: [
       /\bfont-(?:size|family|weight)\s*:(?!\s*var\()[^;]+/i,
       /\bline-height\s*:(?!\s*var\()[^;]+/i,
@@ -92,7 +99,14 @@ export function scanText(source, filename = "unknown") {
       for (const pattern of rule.patterns) {
         const match = line.match(pattern);
         if (match) {
-          violations.push({ category: rule.category, label: rule.label, filename, line: index + 1, excerpt: match[0].trim() });
+          violations.push({
+            category: rule.category,
+            label: rule.label,
+            guidance: rule.guidance,
+            filename,
+            line: index + 1,
+            excerpt: match[0].trim(),
+          });
           break;
         }
       }
@@ -112,22 +126,61 @@ function collectFiles(target) {
 }
 
 export function scanDirectory(target = DEFAULT_TARGETS[0]) {
-  return collectFiles(target).flatMap((filename) => scanText(fs.readFileSync(filename, "utf8"), path.relative(ROOT, filename)));
+  return collectFiles(target).flatMap((filename) => {
+    const relative = path.relative(ROOT, filename).replaceAll("\\", "/");
+    if (isVisualGuardrailAllowlisted(relative)) return [];
+    return scanText(fs.readFileSync(filename, "utf8"), relative);
+  });
+}
+
+function normalizeDiffPath(value) {
+  return value.replace(/^b\//, "").replace(/^frontend\//, "").replaceAll("\\", "/");
+}
+
+export function scanAddedLines(diffText) {
+  const violations = [];
+  let filename = "";
+  let newLine = 0;
+
+  for (const rawLine of diffText.split(/\r?\n/)) {
+    if (rawLine.startsWith("+++ ")) {
+      const target = rawLine.slice(4).trim();
+      filename = target === "/dev/null" ? "" : normalizeDiffPath(target);
+      continue;
+    }
+
+    const hunk = rawLine.match(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/);
+    if (hunk) {
+      newLine = Number.parseInt(hunk[1], 10);
+      continue;
+    }
+
+    if (!filename || !SOURCE_EXTENSIONS.has(path.extname(filename)) || isVisualGuardrailAllowlisted(filename)) {
+      if (rawLine.startsWith(" ") || rawLine.startsWith("+")) newLine += 1;
+      continue;
+    }
+
+    if (rawLine.startsWith("+") && !rawLine.startsWith("+++")) {
+      const found = scanText(rawLine.slice(1), filename);
+      violations.push(...found.map((item) => ({ ...item, line: newLine })));
+      newLine += 1;
+      continue;
+    }
+
+    if (rawLine.startsWith(" ")) newLine += 1;
+  }
+
+  return violations;
 }
 
 export function summarize(violations) {
   return Object.fromEntries(rules.map((rule) => [rule.category, violations.filter((item) => item.category === rule.category).length]));
 }
 
-function run() {
-  const targets = process.argv.length > 2
-    ? process.argv.slice(2).map((target) => path.resolve(process.cwd(), target))
-    : DEFAULT_TARGETS;
-  const violations = targets.flatMap((target) => scanDirectory(target));
+function printResult(violations, scopeLabel) {
   const summary = summarize(violations);
-
   console.log(`Aven hardcode gate: ${violations.length === 0 ? "PASS" : "FAIL"}`);
-  console.log(`Scopes: ${targets.map((target) => path.relative(ROOT, target)).join(", ")}`);
+  console.log(`Scope: ${scopeLabel}`);
   console.log(`Hardcoded colors: ${summary.colors}`);
   console.log(`Hardcoded structural spacing: ${summary.spacing}`);
   console.log(`Hardcoded border radius: ${summary.radius}`);
@@ -136,10 +189,36 @@ function run() {
   if (violations.length) {
     console.error("\nViolations:");
     for (const violation of violations) {
-      console.error(`- ${violation.filename}:${violation.line} [${violation.category}] ${violation.excerpt}`);
+      console.error(`- ${violation.filename}:${violation.line} [${violation.category}] ${violation.label}: ${violation.excerpt}. ${violation.guidance}`);
     }
     process.exitCode = 1;
   }
+}
+
+function scanChanged(baseRef) {
+  if (!baseRef) throw new Error("Changed-line visual guardrail requires a base ref or AVEN_VISUAL_BASE.");
+  const diff = execFileSync(
+    "git",
+    ["diff", "--unified=0", `${baseRef}...HEAD`, "--", "app", "components"],
+    { cwd: ROOT, encoding: "utf8", maxBuffer: 16 * 1024 * 1024 },
+  );
+  return scanAddedLines(diff);
+}
+
+function run() {
+  const args = process.argv.slice(2);
+  if (args[0] === "--changed") {
+    const baseRef = args[1] || process.env.AVEN_VISUAL_BASE;
+    const violations = scanChanged(baseRef);
+    printResult(violations, `new lines in app/components since ${baseRef}`);
+    return;
+  }
+
+  const targets = args.length
+    ? args.map((target) => path.resolve(process.cwd(), target))
+    : DEFAULT_TARGETS;
+  const violations = targets.flatMap((target) => scanDirectory(target));
+  printResult(violations, targets.map((target) => path.relative(ROOT, target)).join(", "));
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? "").href) run();
