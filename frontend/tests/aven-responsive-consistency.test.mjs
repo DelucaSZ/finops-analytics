@@ -92,19 +92,29 @@ test("Aven pages use the shared composition scale instead of historical page-spe
   assert.match(read("app/collections/collections-layout.module.css"), /@media \(max-width:\s*62rem\)/);
 });
 
-test("primary Aven pages share the same outer page rhythm", () => {
-  const sources = [
+test("Task 24.33 analytical pages share the semantic outer page rhythm", () => {
+  const managedSources = [
     read("components/executive-dashboard.module.css"),
     read("app/billing/billing.module.css"),
     read("app/rds/reservations/rds-reservations.module.css"),
     read("app/inventory/inventory.module.css"),
     read("app/opportunities/opportunities.module.css"),
+  ];
+
+  for (const source of managedSources) {
+    assert.match(source, /\.page(?:,\s*\.[A-Za-z0-9_-]+)?\s*\{[^}]*gap:\s*var\(--layout-page-gap\)/s);
+  }
+
+  const settingsLayout = read("app/settings/layout.tsx");
+  assert.match(settingsLayout, /<PageContainer width="standard" className=\{styles\.page\}>/);
+});
+
+test("legacy pages keep the equivalent base rhythm until they migrate to PageContainer", () => {
+  for (const source of [
     read("app/flow/flow-layout.module.css"),
     read("app/settings/settings-layout.module.css"),
     read("app/scans/scans.module.css"),
-  ];
-
-  for (const source of sources) {
+  ]) {
     assert.match(source, /\.page(?:,\s*\.[A-Za-z0-9_-]+)?\s*\{[^}]*gap:\s*var\(--space-6\)/s);
   }
 });
