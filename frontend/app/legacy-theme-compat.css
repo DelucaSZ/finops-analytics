@@ -62,7 +62,7 @@ html[data-theme="dark"] {
 }
 
 .login-copy h1 {
-  letter-spacing: -.045em;
+  letter-spacing: var(--type-heading-xl-letter-spacing);
 }
 
 .login-copy p {
