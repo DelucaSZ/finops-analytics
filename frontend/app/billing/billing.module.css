@@ -476,6 +476,70 @@
   margin: var(--space-0);
 }
 
+/*
+ * Billing density follows the actual page width left by the shell. The media
+ * blocks below are retained as compatibility fallbacks.
+ */
+@container aven-page (max-width: 78rem) {
+  .metricGrid {
+    grid-template-columns: var(--layout-grid-columns-2);
+  }
+
+  .recordTypeGrid {
+    grid-template-columns: var(--layout-grid-columns-3);
+  }
+
+  .chartContextGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .chartContextGrid > :last-child {
+    grid-column: 1 / -1;
+  }
+}
+
+@container aven-page (max-width: 62rem) {
+  .breakdownLayout {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+
+  .breakdownLayout > :only-child {
+    grid-column: auto;
+  }
+
+  .recordTypeGrid {
+    grid-template-columns: var(--layout-grid-columns-2);
+  }
+}
+
+@container aven-page (max-width: 48rem) {
+  .metricGrid,
+  .recordTypeGrid,
+  .chartContextGrid {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+
+  .chartContextGrid > :last-child {
+    grid-column: auto;
+  }
+
+  .queryMetadata,
+  .currencyHeading,
+  .tooltipHeading,
+  .tooltipTotal {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .chart {
+    aspect-ratio: auto;
+  }
+
+  .chartTooltip {
+    inline-size: calc(100% - var(--space-4));
+  }
+}
+
 @media (max-width: 78rem) {
   .metricGrid {
     grid-template-columns: var(--layout-grid-columns-2);

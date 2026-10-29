@@ -288,6 +288,31 @@
   display: inline-flex;
 }
 
+/*
+ * Flow detail composition follows the PageContainer's available inline size so
+ * an expanded Sidebar cannot leave two-column panels artificially compressed.
+ */
+@container aven-page (max-width: 62rem) {
+  .breakdownGrid,
+  .detailGrid,
+  .filterDates {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+}
+
+@container aven-page (max-width: 48rem) {
+  .dialogActions,
+  .detailActions {
+    align-items: stretch;
+    flex-direction: column-reverse;
+  }
+
+  .dialogActions > *,
+  .detailActions > * {
+    inline-size: 100%;
+  }
+}
+
 @media (max-width: 62rem) {
   .breakdownGrid,
   .detailGrid,
