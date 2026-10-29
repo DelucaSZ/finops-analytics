@@ -36,8 +36,8 @@ test("FilterBar exposes shared sizing roles instead of stretching every filter",
 
 test("shared multi-select lists remain bounded and scroll internally", () => {
   const styles = read("components", "aven", "product-components.module.css");
-  assert.match(styles, /\.multiSelect[\s\S]*max-block-size:/);
-  assert.match(styles, /\.multiSelect[\s\S]*overflow-y:\s*auto/);
+  assert.match(styles, /\.selectorOptionList\s*\{[^}]*max-block-size:/s);
+  assert.match(styles, /\.selectorOptionList\s*\{[^}]*overflow-y:\s*auto/s);
 });
 
 test("dropdown positioning follows trigger size and visual viewport changes", () => {
