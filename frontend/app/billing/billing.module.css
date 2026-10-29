@@ -5,11 +5,11 @@
 }
 
 .page {
-  gap: var(--space-6);
+  gap: var(--layout-page-gap);
 }
 
 .analysis {
-  gap: var(--space-6);
+  gap: var(--layout-section-gap);
 }
 
 .headerMetadata {
@@ -155,8 +155,8 @@
 
 .recordTypeGrid {
   display: grid;
-  gap: var(--space-2) var(--space-4);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-4);
 }
 
 .queryMetadata {
@@ -174,15 +174,15 @@
 
 .metricGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-3);
 }
 
 .breakdownLayout {
   align-items: start;
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
 }
 
 .breakdownLayout > :only-child {
@@ -478,11 +478,11 @@
 
 @media (max-width: 78rem) {
   .metricGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-2);
   }
 
   .recordTypeGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-3);
   }
 
   .chartContextGrid {
@@ -496,7 +496,7 @@
 
 @media (max-width: 62rem) {
   .breakdownLayout {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .breakdownLayout > :only-child {
@@ -504,7 +504,7 @@
   }
 
   .recordTypeGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-2);
   }
 }
 
@@ -512,7 +512,7 @@
   .metricGrid,
   .recordTypeGrid,
   .chartContextGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .chartContextGrid > :last-child {

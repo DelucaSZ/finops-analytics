@@ -1,13 +1,13 @@
 .page {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--layout-page-gap);
   min-inline-size: 0;
 }
 
 .metricsGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-3);
   min-inline-size: 0;
 }
 
@@ -34,7 +34,7 @@
 .advancedFilters {
   border-block: 1px solid var(--border-subtle);
   color: var(--text-secondary);
-  padding-block: var(--space-4);
+  padding-block: var(--layout-component-gap);
 }
 
 .advancedFilters > summary {
@@ -48,9 +48,9 @@
 .advancedGrid {
   align-items: flex-end;
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  padding-block-start: var(--space-4);
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-4);
+  padding-block-start: var(--layout-component-gap);
 }
 
 .sortControls {
@@ -81,7 +81,7 @@
   flex-wrap: wrap;
   gap: var(--space-3);
   justify-content: space-between;
-  margin-block-end: var(--space-4);
+  margin-block-end: var(--layout-component-gap);
   padding-block: var(--space-3);
 }
 
@@ -95,8 +95,8 @@
 .rowActions {
   align-items: stretch;
   display: grid;
-  gap: var(--space-2);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-compact-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
   min-inline-size: 0;
 }
 
@@ -116,8 +116,8 @@
 
 .cardsGrid {
   display: grid;
-  gap: var(--space-4);
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--layout-grid-gap);
+  grid-template-columns: var(--layout-grid-columns-2);
   min-inline-size: 0;
 }
 
@@ -238,20 +238,20 @@
   align-items: flex-end;
   border-block-start: 1px solid var(--border-subtle);
   display: flex;
-  gap: var(--space-4);
+  gap: var(--layout-component-gap);
   justify-content: space-between;
-  margin-block-start: var(--space-4);
-  padding-block-start: var(--space-4);
+  margin-block-start: var(--layout-component-gap);
+  padding-block-start: var(--layout-component-gap);
 }
 
 @media (max-width: 78rem) {
   .metricsGrid,
   .advancedGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: var(--layout-grid-columns-2);
   }
 
   .cardsGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .page :global(table[aria-label="Recomendações"]),
@@ -267,7 +267,7 @@
   }
 
   .rowActions {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .rowActions > :first-child {
@@ -278,7 +278,7 @@
 @media (max-width: 48rem) {
   .metricsGrid,
   .advancedGrid {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: var(--layout-grid-columns-1);
   }
 
   .selectionBar,

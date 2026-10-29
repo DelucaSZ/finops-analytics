@@ -1,0 +1,155 @@
+/*
+ * Aven global layout grid and spacing system.
+ * Geometry is derived exclusively from the existing Aven spacing scale.
+ * The Application Shell owns the outer gutter; page primitives own semantic
+ * width, vertical rhythm and reusable grid composition inside that frame.
+ */
+
+:root {
+  --layout-page-max-inline-size-standard: calc(var(--space-16) * 16);
+  --layout-page-max-inline-size-wide: calc(var(--space-16) * 24);
+  --layout-page-max-inline-size-full: 100%;
+
+  --layout-page-padding-inline: var(--space-8);
+  --layout-page-padding-inline-medium: var(--space-6);
+  --layout-page-padding-inline-compact: var(--space-4);
+  --layout-page-padding-current: var(--layout-page-padding-inline);
+  --layout-page-padding-block-start: var(--space-6);
+  --layout-page-padding-block-end: var(--space-10);
+
+  --layout-page-gap: var(--space-6);
+  --layout-section-gap: var(--space-5);
+  --layout-component-gap: var(--space-4);
+  --layout-compact-gap: var(--space-2);
+  --layout-grid-gap: var(--space-4);
+  --layout-grid-gap-compact: var(--space-3);
+
+  --layout-grid-columns-1: minmax(0, 1fr);
+  --layout-grid-columns-2: repeat(2, minmax(0, 1fr));
+  --layout-grid-columns-3: repeat(3, minmax(0, 1fr));
+  --layout-grid-columns-4: repeat(4, minmax(0, 1fr));
+  --layout-grid-columns-5: repeat(5, minmax(0, 1fr));
+  --layout-grid-columns-split: minmax(0, 2fr) minmax(0, 1fr);
+  --layout-grid-min-metric-inline-size: calc(var(--space-16) * 3);
+  --layout-grid-min-content-inline-size: calc(var(--space-16) * 4);
+
+  /* Keep shell chrome and content on the same horizontal baseline. */
+  --shell-page-gutter: var(--layout-page-padding-current);
+  --shell-page-gutter-compact: var(--layout-page-padding-inline-compact);
+}
+
+/*
+ * The shell content frame is the authenticated application's outer
+ * PageContainer. It is deliberately independent from sidebar width: the shell
+ * grid resolves expanded/collapsed navigation before this frame is measured.
+ */
+#main-content > div {
+  box-sizing: border-box;
+  inline-size: 100%;
+  margin-inline: auto;
+  max-inline-size: var(--layout-page-max-inline-size-wide);
+  padding: var(--layout-page-padding-block-start) var(--layout-page-padding-current) var(--layout-page-padding-block-end);
+}
+
+#main-content > div > * {
+  min-inline-size: 0;
+}
+
+[data-aven-page-container] {
+  inline-size: 100%;
+  margin-inline: auto;
+  min-inline-size: 0;
+}
+
+[data-aven-page-container][data-width="standard"] {
+  max-inline-size: var(--layout-page-max-inline-size-standard);
+}
+
+[data-aven-page-container][data-width="wide"] {
+  max-inline-size: var(--layout-page-max-inline-size-wide);
+}
+
+[data-aven-page-container][data-width="full"] {
+  max-inline-size: var(--layout-page-max-inline-size-full);
+}
+
+[data-aven-stack] {
+  display: grid;
+  gap: var(--layout-component-gap);
+  min-inline-size: 0;
+}
+
+[data-aven-stack][data-gap="compact"] {
+  gap: var(--layout-compact-gap);
+}
+
+[data-aven-stack][data-gap="section"] {
+  gap: var(--layout-section-gap);
+}
+
+[data-aven-stack][data-gap="page"] {
+  gap: var(--layout-page-gap);
+}
+
+[data-aven-cluster] {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--layout-component-gap);
+  min-inline-size: 0;
+}
+
+[data-aven-cluster][data-gap="compact"] {
+  gap: var(--layout-compact-gap);
+}
+
+[data-aven-cluster][data-gap="section"] {
+  gap: var(--layout-section-gap);
+}
+
+[data-aven-cluster][data-gap="page"] {
+  gap: var(--layout-page-gap);
+}
+
+[data-aven-grid] {
+  display: grid;
+  gap: var(--layout-grid-gap);
+  min-inline-size: 0;
+}
+
+[data-aven-grid="metrics"] {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--layout-grid-min-metric-inline-size)), 1fr)
+  );
+}
+
+[data-aven-grid="content"],
+[data-aven-grid="auto"] {
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--layout-grid-min-content-inline-size)), 1fr)
+  );
+}
+
+[data-aven-grid="split"] {
+  grid-template-columns: var(--layout-grid-columns-split);
+}
+
+@media (max-width: 80rem) {
+  :root {
+    --layout-page-padding-current: var(--layout-page-padding-inline-medium);
+  }
+}
+
+@media (max-width: 62rem) {
+  [data-aven-grid="split"] {
+    grid-template-columns: var(--layout-grid-columns-1);
+  }
+}
+
+@media (max-width: 53.125rem) {
+  :root {
+    --layout-page-padding-current: var(--layout-page-padding-inline-compact);
+  }
+}

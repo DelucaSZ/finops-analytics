@@ -14,6 +14,7 @@ import "./styles/tokens/index.css";
 import "./ui-system.css";
 import "./legacy-theme-compat.css";
 import "./surface-hierarchy.css";
+import "./layout-system.css";
 
 const inter = Inter({
   subsets: ["latin"],
