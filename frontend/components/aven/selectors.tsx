@@ -101,6 +101,13 @@ function ProductSelector<T extends ProductSelectorOption>({
     label: getOptionLabel(option),
     disabled: option.disabled,
   }));
+  const hasOptions = selectOptions.length > 0;
+  const singleSelectOptions = hasOptions
+    ? [
+        ...(clearable ? [{ value: "", label: placeholder }] : []),
+        ...selectOptions,
+      ]
+    : [{ value: "__empty__", label: emptyLabel, disabled: true }];
 
   const handleSingleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     if (!selection.multiple) selection.onChange(event.currentTarget.value);
@@ -128,7 +135,6 @@ function ProductSelector<T extends ProductSelectorOption>({
   );
   const partiallySelected = Boolean(selection.multiple && selectedSelectableCount > 0 && !allSelected);
   const hasSelection = selection.multiple ? selection.value.length > 0 : Boolean(selection.value);
-  const hasOptions = selectOptions.length > 0;
   const selectionSummary = selection.multiple
     ? formatSelectionSummary?.(selectedOptions, allSelected)
       ?? (selection.value.length > 0 ? `${selection.value.length} selected` : placeholder)
@@ -249,19 +255,12 @@ function ProductSelector<T extends ProductSelectorOption>({
           )}
           <Select
             label={label}
-            placeholder={hasOptions ? placeholder : undefined}
-            options={hasOptions ? selectOptions : [{ value: "__empty__", label: emptyLabel, disabled: true }]}
+            placeholder={!clearable && hasOptions ? placeholder : undefined}
+            options={singleSelectOptions}
             value={selection.value}
             disabled={disabled || !hasOptions}
             onChange={handleSingleChange}
           />
-          {clearable && (
-            <div className={styles.selectorActions}>
-              <Button variant="ghost" size="sm" disabled={disabled || !hasSelection} onClick={handleClear}>
-                {clearLabel}
-              </Button>
-            </div>
-          )}
         </>
       )}
     </div>
@@ -275,7 +274,7 @@ export function AccountSelector(props: AccountSelectorProps) {
     <ProductSelector
       {...props}
       placeholder={props.placeholder ?? "Nenhuma conta selecionada"}
-      searchable={props.searchable ?? true}
+      searchable={props.searchable ?? Boolean(props.multiple)}
       getOptionLabel={(account) => {
         const metadata = [account.accountId, account.environment, account.provider?.toUpperCase()].filter(Boolean);
         if (props.multiple || metadata.length === 0) return account.label;
