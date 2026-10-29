@@ -61,6 +61,13 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Build production web image
+        working-directory: ${{ github.workspace }}
+        env:
+          NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
+        run: |
+          cp .env.example .env
+          docker compose build --no-cache web
 
   security:
     runs-on: ubuntu-latest
