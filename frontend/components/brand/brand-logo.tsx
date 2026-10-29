@@ -1,36 +1,71 @@
+"use client";
+
+import Image from "next/image";
+import { useTheme } from "@/components/theme-provider";
 import { brand } from "@/lib/brand";
 import styles from "./brand-logo.module.css";
 
-export type BrandLogoVariant = "auto" | "wordmark" | "symbol";
+export type AvenLogoVariant = "horizontal" | "vertical" | "mark";
+export type AvenLogoSurface = "light" | "dark";
+export type BrandLogoVariant = AvenLogoVariant | "wordmark" | "symbol";
 
-export function BrandLogo({
-  variant = "auto",
-  decorative = false,
-  className,
-}: {
+interface AvenLogoProps {
   variant?: BrandLogoVariant;
+  surface?: AvenLogoSurface;
   decorative?: boolean;
+  priority?: boolean;
   className?: string;
-}) {
-  const variantClass =
-    variant === "symbol"
-      ? styles.symbolOnly
-      : variant === "wordmark"
-        ? styles.wordmarkOnly
-        : styles.auto;
-  const classes = [styles.root, variantClass, className].filter(Boolean).join(" ");
+}
+
+const dimensions = {
+  horizontal: { width: 240, height: 94 },
+  vertical: { width: 160, height: 160 },
+  mark: { width: 96, height: 96 },
+} as const;
+
+function normalizeVariant(variant: BrandLogoVariant): AvenLogoVariant {
+  if (variant === "wordmark") return "horizontal";
+  if (variant === "symbol") return "mark";
+  return variant;
+}
+
+function logoSource(variant: AvenLogoVariant, surface: AvenLogoSurface) {
+  const surfaceKey = surface === "dark" ? "onDark" : "onLight";
+  if (variant === "mark") return brand.assets.mark.gradient;
+  return brand.assets.logo[variant][surfaceKey];
+}
+
+export function AvenLogo({
+  variant = "horizontal",
+  surface,
+  decorative = false,
+  priority = false,
+  className,
+}: AvenLogoProps) {
+  const { resolvedTheme } = useTheme();
+  const resolvedSurface: AvenLogoSurface = surface ?? (resolvedTheme === "dark" ? "dark" : "light");
+  const resolvedVariant = normalizeVariant(variant);
+  const source = logoSource(resolvedVariant, resolvedSurface);
+  const size = dimensions[resolvedVariant];
+  const classes = [styles.root, styles[resolvedVariant], className].filter(Boolean).join(" ");
 
   return (
-    <span
-      className={classes}
-      role={decorative ? undefined : "img"}
-      aria-label={decorative ? undefined : brand.name}
-      aria-hidden={decorative || undefined}
-    >
-      {/* Repository wordmark fallback remains available for explicit institutional use only. */}
-      <img className={styles.wordmark} src={brand.assets.wordmarkFallback} alt="" />
-      {/* Official gradient symbol is the runtime-safe asset while approved raster masters are pending. */}
-      <img className={styles.symbol} src={brand.assets.symbolGradient} alt="" />
+    <span className={classes} data-aven-logo={resolvedVariant} data-surface={resolvedSurface}>
+      <Image
+        className={styles.image}
+        src={source}
+        alt={decorative ? "" : brand.name}
+        width={size.width}
+        height={size.height}
+        priority={priority}
+      />
     </span>
   );
 }
+
+// Compatibility references document the retained technical SVG fallbacks without rendering them.
+export const AVEN_VECTOR_WORDMARK_FALLBACK = brand.assets.wordmarkFallback;
+export const AVEN_VECTOR_SYMBOL_FALLBACK = brand.assets.symbolGradient;
+
+// Compatibility export for pre-24.31 consumers. New code should prefer AvenLogo.
+export const BrandLogo = AvenLogo;

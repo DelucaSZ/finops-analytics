@@ -1,18 +1,27 @@
+"use client";
+
 import type { ReactNode } from "react";
-import { BrandLogo } from "@/components/brand/brand-logo";
-import { PRODUCT_TAGLINE } from "@/lib/brand";
+import { AvenLogo, type AvenLogoSurface } from "@/components/brand/brand-logo";
+import { useTheme } from "@/components/theme-provider";
 import styles from "./auth-layout.module.css";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
+  const { resolvedTheme } = useTheme();
+  const surface: AvenLogoSurface = resolvedTheme === "dark" ? "dark" : "light";
+
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel}>
         <div className={styles.brandContext}>
-          <BrandLogo variant="wordmark" className={styles.brandLogo} />
+          <AvenLogo
+            variant="vertical"
+            surface={surface}
+            priority
+            className={styles.brandLogo}
+          />
 
           <div className={styles.brandCopy}>
             <p className={styles.brandEyebrow}>FINOPS MULTI-CLOUD</p>
-            <p className={styles.brandTitle}>{PRODUCT_TAGLINE}</p>
             <p className={styles.brandPrinciple}>Complexidade por baixo. Clareza por cima.</p>
           </div>
         </div>
@@ -21,8 +30,12 @@ export function AuthLayout({ children }: { children: ReactNode }) {
       <section className={styles.formPanel} aria-label="Autenticação">
         <div className={styles.formFrame}>
           <div className={styles.mobileBrand}>
-            <BrandLogo variant="wordmark" className={styles.mobileLogo} />
-            <p>{PRODUCT_TAGLINE}</p>
+            <AvenLogo
+              variant="horizontal"
+              surface={surface}
+              priority
+              className={styles.mobileLogo}
+            />
           </div>
           {children}
         </div>

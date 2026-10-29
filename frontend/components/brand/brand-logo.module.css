@@ -1,38 +1,17 @@
 .root {
-  align-items: center;
-  display: inline-flex;
+  display: inline-block;
+  max-inline-size: 100%;
   min-inline-size: var(--space-0);
 }
 
-.wordmark {
-  block-size: var(--shell-brand-wordmark-block-size);
+.image {
+  block-size: auto;
   display: block;
-  inline-size: var(--shell-brand-wordmark-inline-size);
-  object-fit: contain;
-  object-position: left center;
-}
-
-.symbol {
-  block-size: var(--shell-brand-mark-size);
-  display: none;
-  inline-size: var(--shell-brand-mark-size);
+  inline-size: 100%;
+  max-inline-size: 100%;
   object-fit: contain;
 }
 
-.auto .wordmark,
-.symbolOnly .wordmark {
-  display: none;
-}
-
-.auto .symbol,
-.symbolOnly .symbol {
-  display: block;
-}
-
-.wordmarkOnly .wordmark {
-  display: block;
-}
-
-.wordmarkOnly .symbol {
-  display: none;
+.mark {
+  aspect-ratio: 1;
 }
