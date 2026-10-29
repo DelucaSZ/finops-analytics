@@ -27,6 +27,7 @@ const DEFAULT_TARGETS = [
   path.join(ROOT, "components", "manual-collection-launcher.tsx"),
   path.join(ROOT, "components", "manual-collection-launcher.module.css"),
   path.join(ROOT, "app", "legacy-theme-compat.css"),
+  path.join(ROOT, "app", "surface-hierarchy.css"),
   path.join(ROOT, "app", "login"),
   path.join(ROOT, "app", "mfa-setup"),
   path.join(ROOT, "app", "billing"),
