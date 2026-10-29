@@ -140,9 +140,10 @@
 
 /*
  * Status text must remain readable when analytical columns become narrow.
- * Short badges keep their pill shape; only long content wraps.
+ * The compound selector intentionally outranks the Badge CSS Module's default
+ * single-line rule regardless of stylesheet injection order.
  */
-[data-aven-badge] {
+[data-aven-badge][data-variant] {
   max-inline-size: 100%;
   overflow-wrap: anywhere;
   white-space: normal;
