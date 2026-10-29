@@ -148,6 +148,7 @@
 }
 
 .policyFieldControl {
+  grid-column: 2;
   min-inline-size: var(--space-0);
 }
 
