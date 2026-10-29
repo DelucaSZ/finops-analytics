@@ -11,6 +11,11 @@
   min-inline-size: 0;
 }
 
+.metricsGrid > * {
+  block-size: 100%;
+  min-inline-size: 0;
+}
+
 .secondary {
   color: var(--text-muted);
   display: block;
@@ -19,6 +24,7 @@
   font-weight: var(--type-caption-weight);
   line-height: var(--type-caption-line-height);
   margin-block-start: var(--space-1);
+  overflow-wrap: anywhere;
 }
 
 .statusStack {
@@ -26,6 +32,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+  min-inline-size: 0;
 }
 
 .tableMeta {
@@ -40,15 +47,18 @@
   justify-content: space-between;
   line-height: var(--type-body-sm-line-height);
   margin-block-end: var(--space-3);
+  min-inline-size: 0;
 }
 
 .paginationRow {
-  align-items: flex-end;
+  align-items: center;
   border-block-start: 1px solid var(--border-subtle);
   display: flex;
+  flex-wrap: wrap;
   gap: var(--layout-component-gap);
   justify-content: space-between;
   margin-block-start: var(--layout-component-gap);
+  min-inline-size: 0;
   padding-block-start: var(--layout-component-gap);
 }
 
