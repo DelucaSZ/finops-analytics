@@ -96,8 +96,8 @@
   align-items: stretch;
   display: grid;
   gap: var(--layout-compact-gap);
-  grid-template-columns: var(--layout-grid-columns-2);
-  min-inline-size: 0;
+  grid-template-columns: max-content max-content;
+  min-inline-size: max-content;
 }
 
 .rowActions > :first-child {
@@ -105,13 +105,8 @@
 }
 
 .rowActions > * {
-  max-inline-size: 100%;
-  min-inline-size: 0;
-}
-
-.rowActions > * > span {
-  overflow: hidden;
-  text-overflow: ellipsis;
+  max-inline-size: none;
+  min-inline-size: max-content;
 }
 
 .cardsGrid {
@@ -153,6 +148,10 @@
   min-inline-size: 0;
 }
 
+.statusStack > * {
+  max-inline-size: none;
+}
+
 .secondary {
   color: var(--text-muted);
   display: block;
@@ -168,70 +167,18 @@
 .page :global(table[aria-label="Recomendações"]),
 .page :global(table[aria-label="Histórico de recomendações"]) {
   --table-cell-padding-inline: var(--space-3);
-  min-inline-size: 0;
-  table-layout: fixed;
 }
 
 .page :global(table[aria-label="Recomendações"] th),
 .page :global(table[aria-label="Recomendações"] td),
 .page :global(table[aria-label="Histórico de recomendações"] th),
 .page :global(table[aria-label="Histórico de recomendações"] td) {
-  min-inline-size: 0;
-  overflow: hidden;
   vertical-align: top;
 }
 
 .page :global(table[aria-label="Recomendações"] th),
 .page :global(table[aria-label="Histórico de recomendações"] th) {
   white-space: normal;
-}
-
-.page :global(table[aria-label="Recomendações"] td),
-.page :global(table[aria-label="Histórico de recomendações"] td) {
-  overflow-wrap: anywhere;
-}
-
-.page :global(table[aria-label="Recomendações"] th:nth-child(1)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(1)) {
-  inline-size: var(--space-10);
-}
-
-.page :global(table[aria-label="Recomendações"] th:nth-child(4)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(4)),
-.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(3)),
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) {
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.page :global(table[aria-label="Recomendações"] td:nth-child(4)) .secondary,
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) .secondary {
-  max-inline-size: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.page :global(table[aria-label="Recomendações"] th:nth-child(5)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(5)),
-.page :global(table[aria-label="Recomendações"] th:nth-child(6)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(6)),
-.page :global(table[aria-label="Recomendações"] th:nth-child(7)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(7)),
-.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(4)),
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(4)),
-.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(5)),
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(5)),
-.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(6)),
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(6)) {
-  inline-size: calc(var(--space-16) + var(--space-16));
-}
-
-.page :global(table[aria-label="Recomendações"] th:nth-child(8)),
-.page :global(table[aria-label="Recomendações"] td:nth-child(8)),
-.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(7)),
-.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(7)) {
-  inline-size: calc(var(--space-16) + var(--space-16) + var(--space-16));
 }
 
 .paginationRow {
@@ -259,15 +206,8 @@
     --table-cell-padding-inline: var(--space-2);
   }
 
-  .page :global(table[aria-label="Recomendações"] th:nth-child(8)),
-  .page :global(table[aria-label="Recomendações"] td:nth-child(8)),
-  .page :global(table[aria-label="Histórico de recomendações"] th:nth-child(7)),
-  .page :global(table[aria-label="Histórico de recomendações"] td:nth-child(7)) {
-    inline-size: calc(var(--space-16) + var(--space-16));
-  }
-
   .rowActions {
-    grid-template-columns: var(--layout-grid-columns-1);
+    grid-template-columns: max-content;
   }
 
   .rowActions > :first-child {
@@ -286,12 +226,5 @@
   .sortControls {
     align-items: stretch;
     flex-direction: column;
-  }
-
-  .page :global(table[aria-label="Recomendações"] th:nth-child(4)),
-  .page :global(table[aria-label="Recomendações"] td:nth-child(4)),
-  .page :global(table[aria-label="Histórico de recomendações"] th:nth-child(3)),
-  .page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) {
-    display: none;
   }
 }
