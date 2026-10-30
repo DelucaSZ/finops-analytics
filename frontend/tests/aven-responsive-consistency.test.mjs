@@ -106,7 +106,7 @@ test("Task 24.33 analytical pages share the semantic outer page rhythm", () => {
   }
 
   const settingsLayout = read("app/settings/layout.tsx");
-  assert.match(settingsLayout, /<PageContainer width="standard" className=\{styles\.page\}>/);
+  assert.match(settingsLayout, /<PageContainer width="full" className=\{styles\.page\}>/);
 });
 
 test("Flow uses semantic outer rhythm while remaining legacy pages keep the equivalent base rhythm", () => {

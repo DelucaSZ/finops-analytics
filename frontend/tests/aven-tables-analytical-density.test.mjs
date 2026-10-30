@@ -46,18 +46,19 @@ test("shared Table centralizes bounded critical columns without blanket nowrap",
   assert.doesNotMatch(styles, /\.tableCell\s*\{[^}]*white-space:\s*nowrap/s);
 });
 
-test("Opportunities no longer clips Impact and Confidence through fixed table geometry", () => {
+test("Opportunities keeps Impact and Confidence readable within deterministic table geometry", () => {
   const page = read("app", "opportunities", "page.tsx");
   const styles = read("app", "opportunities", "opportunities.module.css");
 
   assert.match(page, /<TableHead>Impacto \/ confiança<\/TableHead>/);
   assert.match(page, /label=\{`Impacto: \$\{humanize\(finding\.severity\)\}`\}/);
   assert.match(page, /label=\{`Confiança: \$\{finding\.confidence/);
-  assert.doesNotMatch(styles, /table-layout:\s*fixed/);
-  assert.doesNotMatch(styles, /nth-child/);
-  assert.doesNotMatch(styles, /overflow:\s*hidden/);
-  assert.match(styles, /\.statusStack > \*\s*\{[\s\S]*max-inline-size:\s*none/);
+  assert.match(styles, /table-layout:\s*fixed/);
+  assert.match(styles, /--opportunities-column-8:/);
+  assert.match(styles, /nth-child\(8\)/);
+  assert.match(styles, /\.statusStack > \*\s*\{[\s\S]*max-inline-size:\s*100%/);
   assert.match(styles, /\.rowActions > \*\s*\{[\s\S]*min-inline-size:\s*max-content/);
+  assert.doesNotMatch(styles, /overflow-wrap:\s*anywhere/);
 });
 
 test("analytical pages retain shared tables and critical display primitives", () => {

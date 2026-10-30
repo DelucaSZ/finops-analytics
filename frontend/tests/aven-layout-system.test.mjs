@@ -107,11 +107,11 @@ test("target analytical pages share page rhythm and grid contracts", () => {
   }
 });
 
-test("Settings explicitly opts into the controlled standard width", () => {
+test("Settings explicitly opts into the fluid autofit width", () => {
   const source = read("app", "settings", "layout.tsx");
   assert.match(source, /PageContainer, PageHeader/);
   assert.ok((source.match(/<PageContainer/g) ?? []).length >= 3);
-  assert.match(source, /<PageContainer width="standard" className=\{styles\.page\}>/);
+  assert.match(source, /<PageContainer width="full" className=\{styles\.page\}>/);
 });
 
 test("PageHeader keeps actions wrapping structurally on narrow viewports", () => {

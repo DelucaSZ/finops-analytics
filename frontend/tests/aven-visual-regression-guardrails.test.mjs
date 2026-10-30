@@ -81,11 +81,11 @@ test("AvenLogo keeps surface-aware official assets and mark contract", () => {
   assert.doesNotMatch(logo, /src=\{AVEN_VECTOR_(?:WORDMARK|SYMBOL)_FALLBACK\}/);
 
   const requiredAssets = [
-    "aven-logo-horizontal-on-dark.png",
-    "aven-logo-horizontal-on-light.png",
-    "aven-logo-vertical-on-dark.png",
-    "aven-logo-vertical-on-light.png",
-    "aven-mark-gradient.png",
+    "aven_logo_horizontal_light_ui_4096.svg",
+    "aven_logo_horizontal_dark_ui_4096.svg",
+    "aven_logo_vertical_light_ui_4096.svg",
+    "aven_logo_vertical_dark_ui_4096.svg",
+    "aven-icon-gradient.svg",
     "favicon.ico",
   ];
 
@@ -104,18 +104,19 @@ test("Login branding is delegated to AvenLogo instead of a textual AVEN facsimil
   const authLayout = read("components", "auth", "auth-layout.tsx");
 
   assert.match(login, /<AuthLayout>/);
+  assert.equal((authLayout.match(/variant="vertical"/g) ?? []).length, 2);
   assert.match(authLayout, /<AvenLogo[\s\S]*variant="vertical"[\s\S]*surface=\{surface\}/);
-  assert.match(authLayout, /<AvenLogo[\s\S]*variant="horizontal"[\s\S]*surface=\{surface\}/);
+  assert.doesNotMatch(authLayout, /variant="horizontal"/);
   assert.doesNotMatch(authLayout, />\s*AVEN\s*</i);
   assert.doesNotMatch(authLayout, /<svg\b/i);
 });
 
-test("Sidebar keeps official wordmark plus mark and collapse is a persisted shell state", () => {
+test("Sidebar keeps official wordmark plus collapsed lockup and collapse is a persisted shell state", () => {
   const shell = read("components", "app-shell", "application-shell.tsx");
   const styles = read("components", "app-shell", "app-shell.module.css");
 
   assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
-  assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
+  assert.match(shell, /<BrandLogo variant="verticalNoTagline" decorative \/>/);
   assert.match(
     shell,
     /document\.documentElement\.dataset\.sidebar = next \? "collapsed" : "expanded"/,

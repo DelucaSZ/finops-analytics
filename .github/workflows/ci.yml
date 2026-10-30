@@ -74,7 +74,16 @@ jobs:
           NEXT_PUBLIC_BUILD_SHA: ${{ github.sha }}
         run: |
           cp .env.example .env
-          docker compose build --no-cache web
+          for attempt in 1 2; do
+            if docker compose build --no-cache web; then
+              exit 0
+            fi
+            if [ "$attempt" -eq 2 ]; then
+              exit 1
+            fi
+            echo "Production web image build failed; retrying once to tolerate transient next/font Google responses."
+            sleep 5
+          done
 
   security:
     runs-on: ubuntu-latest

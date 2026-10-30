@@ -58,7 +58,7 @@ test("ApplicationShell exposes the shared canvas and removes the full-width topb
   const styles = read("components/app-shell/app-shell.module.css");
   const components = readToken("components.css");
 
-  assert.equal(declaration(components, "--shell-background"), "var(--application-background)");
+  assert.equal(declaration(components, "--shell-background"), "var(--page-background)");
   assert.equal(declaration(components, "--shell-content-background"), "var(--surface-page)");
   assert.equal(declaration(components, "--sidebar-background"), "var(--surface-overlay)");
   assert.equal(declaration(components, "--topbar-background"), "var(--header-background)");
