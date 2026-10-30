@@ -433,12 +433,13 @@ def rds_reservations_refresh_due(db: Session, *, now: datetime | None = None) ->
     if not has_aws:
         return False
     running = (
-        db.query(RdsReservationCoverageRun.id)
+        db.query(RdsReservationCoverageRun)
         .filter(RdsReservationCoverageRun.status == "RUNNING")
+        .order_by(RdsReservationCoverageRun.id.desc())
         .first()
     )
     if running is not None:
-        return False
+        return normalize_utc(running.started_at) < current - _RUNNING_TIMEOUT
     latest_success = (
         db.query(RdsReservationCoverageRun)
         .filter(RdsReservationCoverageRun.status == "COMPLETED")
