@@ -37,6 +37,7 @@ export interface DateRangePickerProps extends Omit<HTMLAttributes<HTMLDivElement
   disabled?: boolean;
   clearable?: boolean;
   showDateFields?: boolean;
+  layout?: "stacked" | "inline";
 }
 
 export function DateRangePicker({
@@ -55,6 +56,7 @@ export function DateRangePicker({
   disabled = false,
   clearable = true,
   showDateFields,
+  layout = "stacked",
   className,
   ...props
 }: DateRangePickerProps) {
@@ -81,6 +83,7 @@ export function DateRangePicker({
     <div
       className={classNames(styles.dateRangePicker, className)}
       data-date-fields={dateFieldsVisible ? "visible" : "hidden"}
+      data-layout={layout}
       {...props}
     >
       {presets.length > 0 && (
