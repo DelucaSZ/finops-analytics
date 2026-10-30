@@ -39,10 +39,10 @@ test("auth branding consumes the Full HD Aven assets through the centralized sur
 
   assert.match(brand, /export function AvenLogo/);
   assert.match(brand, /logoSource\(resolvedVariant, resolvedSurface\)/);
-  assert.match(brandLib, /aven_logo_horizontal_no_tagline_light_ui_4096\.png/);
-  assert.match(brandLib, /aven_logo_horizontal_no_tagline_dark_ui_4096\.png/);
-  assert.match(brandLib, /aven_logo_vertical_light_ui_4096\.png/);
-  assert.match(brandLib, /aven_logo_vertical_dark_ui_4096\.png/);
+  assert.match(brandLib, /aven_logo_horizontal_no_tagline_light_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_horizontal_no_tagline_dark_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_vertical_light_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_vertical_dark_ui_4096\.svg/);
   assert.match(tokens, /--auth-brand-hero-inline-size:/);
   assert.match(tokens, /--auth-brand-hero-medium-inline-size:/);
   assert.match(tokens, /--auth-form-max-inline-size:/);
