@@ -59,9 +59,7 @@ def _pipeline_lock(db: Session) -> Iterator[None]:
                 )
             )
             if not claimed:
-                raise RdsReservationsPipelineBusy(
-                    "RDS Reservations refresh is already running"
-                )
+                raise RdsReservationsPipelineBusy("RDS Reservations refresh is already running")
         yield
     finally:
         if lock_connection is not None:
@@ -97,9 +95,7 @@ def _recover_abandoned_runs(db: Session, *, now: datetime) -> None:
             # Coverage may already be valid. Preserve it if the stage reached opportunities.
             run.status = "COMPLETED"
             run.opportunity_status = "FAILED"
-            run.opportunity_error_detail = (
-                "Pipeline execution was abandoned during opportunities"
-            )
+            run.opportunity_error_detail = "Pipeline execution was abandoned during opportunities"
             run.pipeline_stage = "completed"
     if abandoned:
         db.commit()
@@ -232,9 +228,9 @@ def refresh_rds_reservations(
                 failed.status = "FAILED"
                 failed.inventory_status = "FAILED"
                 failed.pipeline_stage = "inventory"
-                failed.inventory_error_detail = "\n".join(
-                    str(item) for item in inventory_errors
-                )[:2000]
+                failed.inventory_error_detail = "\n".join(str(item) for item in inventory_errors)[
+                    :2000
+                ]
                 failed.error_detail = (
                     "RDS inventory collection completed with errors; coverage skipped"
                 )
@@ -351,9 +347,7 @@ def get_rds_reservations_operational_status(
 ) -> dict[str, Any]:
     current = _utc_now(now)
     latest = (
-        db.query(RdsReservationCoverageRun)
-        .order_by(RdsReservationCoverageRun.id.desc())
-        .first()
+        db.query(RdsReservationCoverageRun).order_by(RdsReservationCoverageRun.id.desc()).first()
     )
     successful = (
         db.query(RdsReservationCoverageRun)
@@ -423,9 +417,7 @@ def get_rds_reservations_operational_status(
         "data_freshness": freshness,
         "freshness_threshold_hours": settings.rds_reservation_inventory_freshness_hours,
         "error_detail": (
-            latest.inventory_error_detail
-            or latest.error_detail
-            or latest.opportunity_error_detail
+            latest.inventory_error_detail or latest.error_detail or latest.opportunity_error_detail
         ),
     }
 
@@ -456,6 +448,5 @@ def rds_reservations_refresh_due(db: Session, *, now: datetime | None = None) ->
     if latest_success is None:
         return True
     return (
-        classify_rds_inventory_freshness(latest_success.inventory_snapshot_at, now=current)
-        == STALE
+        classify_rds_inventory_freshness(latest_success.inventory_snapshot_at, now=current) == STALE
     )
