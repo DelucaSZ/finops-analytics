@@ -23,7 +23,7 @@
   --aven-table-column-date-min: calc(var(--space-16) + var(--space-16));
   --aven-table-column-actions-min: calc(var(--space-16) + var(--space-16) + var(--space-8));
   --aven-table-column-identifier-min: calc(var(--space-16) + var(--space-16) + var(--space-16));
-  --aven-table-column-text-min: calc(var(--space-16) + var(--space-8));
+  --aven-table-column-text-min: calc(var(--space-16) + var(--space-16));
   border-collapse: collapse;
   color: var(--text-primary);
   inline-size: 100%;
@@ -72,6 +72,14 @@
   min-inline-size: var(--aven-table-column-text-min);
   overflow-wrap: normal;
   word-break: normal;
+}
+
+.table:has(.tableCell:first-child input[type="checkbox"]) .tableHead:first-child,
+.table:has(.tableCell:first-child input[type="checkbox"]) .tableCell:first-child {
+  inline-size: var(--aven-table-column-selection);
+  min-inline-size: var(--aven-table-column-selection);
+  text-align: center;
+  white-space: nowrap;
 }
 
 .tableCell[data-numeric="true"],
