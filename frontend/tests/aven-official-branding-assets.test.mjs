@@ -15,6 +15,8 @@ const fullHdLogoAssets = [
   "aven_logo_horizontal_no_tagline_light_ui_4096.svg",
   "aven_logo_vertical_dark_ui_4096.svg",
   "aven_logo_vertical_light_ui_4096.svg",
+  "aven_logo_vertical_no_tagline_dark_text_4096.svg",
+  "aven_logo_vertical_no_tagline_white_text_4096.svg",
 ];
 
 const legacyRasterAssets = [
@@ -50,7 +52,7 @@ test("AvenLogo centralizes Full HD lockup selection and theme-aware surfaces", (
   const component = read("components/brand/brand-logo.tsx");
   const config = read("lib/brand.ts");
 
-  assert.match(component, /export type AvenLogoVariant = "horizontal" \| "horizontalNoTagline" \| "vertical" \| "mark"/);
+  assert.match(component, /export type AvenLogoVariant = "horizontal" \| "horizontalNoTagline" \| "vertical" \| "verticalNoTagline" \| "mark"/);
   assert.match(component, /surfaceKey = surface === "dark" \? "onDark" : "onLight"/);
   assert.match(component, /if \(variant === "wordmark"\) return "horizontalNoTagline"/);
   assert.match(component, /if \(variant === "symbol"\) return "horizontal"/);
@@ -61,6 +63,8 @@ test("AvenLogo centralizes Full HD lockup selection and theme-aware surfaces", (
   assert.match(config, /aven_logo_horizontal_dark_ui_4096\.svg/);
   assert.match(config, /aven_logo_vertical_light_ui_4096\.svg/);
   assert.match(config, /aven_logo_vertical_dark_ui_4096\.svg/);
+  assert.match(config, /verticalNoTagline:[\s\S]*onLight: "\/brand\/aven\/aven_logo_vertical_no_tagline_dark_text_4096\.svg"/);
+  assert.match(config, /verticalNoTagline:[\s\S]*onDark: "\/brand\/aven\/aven_logo_vertical_no_tagline_white_text_4096\.svg"/);
   assert.match(config, /mark:[\s\S]*aven-icon-gradient\.svg/);
 });
 
@@ -76,9 +80,9 @@ test("Sidebar keeps centralized branding with the requested expanded and collaps
   const shell = read("components/app-shell/application-shell.tsx");
   const component = read("components/brand/brand-logo.tsx");
   assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
-  assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
+  assert.match(shell, /<BrandLogo variant="verticalNoTagline" decorative \/>/);
   assert.match(component, /variant === "wordmark"\) return "horizontalNoTagline"/);
-  assert.match(component, /variant === "symbol"\) return "horizontal"/);
+  assert.doesNotMatch(shell, /<BrandLogo variant="symbol" decorative \/>/);
   assert.doesNotMatch(shell, /\/brand\/aven\//);
 });
 
