@@ -215,7 +215,8 @@ def _generate_opportunities_for_completed_run(
             run.completed_at = utcnow()
             db.commit()
         logger.info(
-            "event=rds_opportunities_completed coverage_run_id=%s created=%s updated=%s resolved=%s",
+            "event=rds_opportunities_completed coverage_run_id=%s "
+            "created=%s updated=%s resolved=%s",
             run_id,
             result.created,
             result.updated,
