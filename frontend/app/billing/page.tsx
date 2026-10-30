@@ -10,6 +10,7 @@ import {
   DataState,
   DateRangePicker,
   FilterBar,
+  FilterItem,
   MetricCard,
   PageHeader,
   PercentageDisplay,
@@ -632,6 +633,29 @@ export default function BillingPage() {
         startDate: period?.start_date || null,
         endDate: period ? inclusiveEndDate(period.end_date) : null,
       };
+  const periodPicker = (
+    <DateRangePicker
+      value={dateRangeValue}
+      onChange={setDateRange}
+      presets={BILLING_PERIOD_PRESETS.map((preset) => ({ value: preset.value, label: preset.label }))}
+      presetValue={periodPreset}
+      onPresetChange={(nextPreset) => {
+        if (VALID_PRESETS.has(nextPreset as BillingPeriodPreset)) {
+          setPeriodPreset(nextPreset as BillingPeriodPreset);
+        } else {
+          setPeriodPreset("custom");
+        }
+      }}
+      presetLabel="Período"
+      presetPlaceholder="Escolha um período"
+      startLabel="Data inicial"
+      endLabel="Data final"
+      clearLabel="Limpar datas"
+      maxDate={today}
+      clearable={periodPreset === "custom"}
+      layout={periodPreset === "custom" ? "inline" : undefined}
+    />
+  );
 
   return (
     <div className={styles.page}>
@@ -705,6 +729,9 @@ export default function BillingPage() {
         description="Refine período, perfil e metodologia para o escopo de contas selecionado."
       >
         <FilterBar
+          secondary={periodPreset === "custom" ? (
+            <FilterItem size="fluid">{periodPicker}</FilterItem>
+          ) : undefined}
           actions={hasOverrides ? (
             <Button
               variant="ghost"
@@ -727,26 +754,7 @@ export default function BillingPage() {
             onChange={(event) => chooseProfile(event.target.value)}
             controlSize="sm"
           />
-          <DateRangePicker
-            value={dateRangeValue}
-            onChange={setDateRange}
-            presets={BILLING_PERIOD_PRESETS.map((preset) => ({ value: preset.value, label: preset.label }))}
-            presetValue={periodPreset}
-            onPresetChange={(nextPreset) => {
-              if (VALID_PRESETS.has(nextPreset as BillingPeriodPreset)) {
-                setPeriodPreset(nextPreset as BillingPeriodPreset);
-              } else {
-                setPeriodPreset("custom");
-              }
-            }}
-            presetLabel="Período"
-            presetPlaceholder="Escolha um período"
-            startLabel="Data inicial"
-            endLabel="Data final"
-            clearLabel="Limpar datas"
-            maxDate={today}
-            clearable={periodPreset === "custom"}
-          />
+          {periodPreset !== "custom" && periodPicker}
           <Select
             label="Métrica"
             value={metric}
