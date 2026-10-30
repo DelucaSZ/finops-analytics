@@ -26,7 +26,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className={styles.formFrame}>
           <div className={styles.mobileBrand}>
             <AvenLogo
-              variant="horizontal"
+              variant="vertical"
               surface={surface}
               priority
               className={styles.mobileLogo}
