@@ -67,10 +67,27 @@
   vertical-align: top;
 }
 
+.tableHead,
+.tableCell {
+  min-inline-size: var(--aven-table-column-text-min);
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
+.table:has(.tableCell:first-child input[type="checkbox"]) .tableHead:first-child,
+.table:has(.tableCell:first-child input[type="checkbox"]) .tableCell:first-child {
+  inline-size: var(--aven-table-column-selection);
+  min-inline-size: var(--aven-table-column-selection);
+  text-align: center;
+  white-space: nowrap;
+}
+
 .tableCell[data-numeric="true"],
 .tableHead[data-numeric="true"] {
   font-variant-numeric: var(--font-variant-numeric-tabular);
+  min-inline-size: var(--aven-table-column-numeric-min);
   text-align: end;
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="selection"],
@@ -100,11 +117,13 @@
 .tableCell[data-column-kind="badge"],
 .tableHead[data-column-kind="badge"] {
   min-inline-size: var(--aven-table-column-badge-min);
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="status"],
 .tableHead[data-column-kind="status"] {
   min-inline-size: var(--aven-table-column-status-min);
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="numeric"],
