@@ -10,12 +10,16 @@ export const brand = Object.freeze({
   assets: Object.freeze({
     logo: Object.freeze({
       horizontal: Object.freeze({
-        onLight: "/brand/aven/aven-logo-horizontal-on-light.png",
-        onDark: "/brand/aven/aven-logo-horizontal-on-dark.png",
+        onLight: "/brand/aven/aven_logo_horizontal_light_ui_4096.png",
+        onDark: "/brand/aven/aven_logo_horizontal_dark_ui_4096.png",
+      }),
+      horizontalNoTagline: Object.freeze({
+        onLight: "/brand/aven/aven_logo_horizontal_no_tagline_light_ui_4096.png",
+        onDark: "/brand/aven/aven_logo_horizontal_no_tagline_dark_ui_4096.png",
       }),
       vertical: Object.freeze({
-        onLight: "/brand/aven/aven-logo-vertical-on-light.png",
-        onDark: "/brand/aven/aven-logo-vertical-on-dark.png",
+        onLight: "/brand/aven/aven_logo_vertical_light_ui_4096.png",
+        onDark: "/brand/aven/aven_logo_vertical_dark_ui_4096.png",
       }),
     }),
     mark: Object.freeze({
@@ -25,7 +29,7 @@ export const brand = Object.freeze({
       favicon: "/brand/aven/favicon.ico",
       appleTouch: "/brand/aven/apple-touch-icon.png",
     }),
-    // Technical-only vector fallbacks. Never use these as the primary Login/Shell branding.
+    // Technical-only compatibility assets. Runtime Login/Shell branding uses the 4096 UI lockups above.
     wordmarkFallback: "/brand/aven/aven-logo-horizontal-fallback.svg",
     symbolGradient: "/brand/aven/aven-icon-gradient.svg",
   }),
