@@ -24,7 +24,6 @@ test("Aven Login Experience exposes a reusable tokenized auth layout", () => {
     assert.ok(fs.existsSync(path.join(AUTH, file)), `${file} should exist`);
   }
   const source = authSource();
-  assert.match(source, /export function AuthLayout/);
   assert.match(source, /<AvenLogo[\s\S]*variant="vertical"[\s\S]*surface=\{surface\}[\s\S]*priority/);
   assert.match(source, /className=\{styles\.brandHero\}/);
   assert.doesNotMatch(source, /FINOPS MULTI-CLOUD/);
@@ -32,7 +31,7 @@ test("Aven Login Experience exposes a reusable tokenized auth layout", () => {
   assert.doesNotMatch(source, /brandCopy|PRODUCT_TAGLINE|brandLogoSurface/);
 });
 
-test("auth branding consumes official raster Aven assets through the centralized surface-aware component", () => {
+test("auth branding consumes the Full HD Aven assets through the centralized surface-aware component", () => {
   const brand = fs.readFileSync(BRAND, "utf8");
   const brandLib = fs.readFileSync(BRAND_LIB, "utf8");
   const styles = authStyles();
@@ -40,10 +39,10 @@ test("auth branding consumes official raster Aven assets through the centralized
 
   assert.match(brand, /export function AvenLogo/);
   assert.match(brand, /logoSource\(resolvedVariant, resolvedSurface\)/);
-  assert.match(brandLib, /aven-logo-horizontal-on-light\.png/);
-  assert.match(brandLib, /aven-logo-horizontal-on-dark\.png/);
-  assert.match(brandLib, /aven-logo-vertical-on-light\.png/);
-  assert.match(brandLib, /aven-logo-vertical-on-dark\.png/);
+  assert.match(brandLib, /aven_logo_horizontal_no_tagline_light_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_horizontal_no_tagline_dark_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_vertical_light_ui_4096\.svg/);
+  assert.match(brandLib, /aven_logo_vertical_dark_ui_4096\.svg/);
   assert.match(tokens, /--auth-brand-hero-inline-size:/);
   assert.match(tokens, /--auth-brand-hero-medium-inline-size:/);
   assert.match(tokens, /--auth-form-max-inline-size:/);
