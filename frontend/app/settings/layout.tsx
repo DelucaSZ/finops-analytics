@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageContainer, PageHeader } from "@/components/aven";
 import { Alert, Button, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
 import { api } from "@/lib/api";
@@ -17,6 +17,7 @@ type CurrentUser = { role: string };
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
   const router = useRouter();
+  const navigationViewportRef = useRef<HTMLDivElement | null>(null);
   const [role, setRole] = useState("");
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
@@ -42,9 +43,16 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     [path, tabs],
   );
 
+  useEffect(() => {
+    const activeTabElement = navigationViewportRef.current?.querySelector<HTMLElement>(
+      '[role="tab"][aria-selected="true"]',
+    );
+    activeTabElement?.scrollIntoView({ block: "nearest", inline: "nearest" });
+  }, [activeTab]);
+
   if (error) {
     return (
-      <PageContainer width="standard" className={styles.statePage}>
+      <PageContainer width="full" className={styles.statePage}>
         <PageHeader
           title="Configurações"
           description="Gerencie as configurações disponíveis da plataforma."
@@ -66,7 +74,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   if (!role) {
     return (
       <PageContainer
-        width="standard"
+        width="full"
         className={styles.statePage}
         aria-busy="true"
         aria-label="Carregando configurações"
@@ -81,7 +89,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
   const adminOnly = isAdminOnlySettingsPath(path);
 
   return (
-    <PageContainer width="standard" className={styles.page}>
+    <PageContainer width="full" className={styles.page}>
       <Tabs
         value={activeTab}
         defaultValue={activeTab}
@@ -89,7 +97,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           if (href !== path) router.push(href);
         }}
       >
-        <div className={styles.navigationViewport}>
+        <div ref={navigationViewportRef} className={styles.navigationViewport}>
           <TabsList className={styles.tabs} aria-label="Áreas de Configurações">
             {tabs.map((tab) => (
               <TabsTrigger key={tab.href} value={tab.href}>
