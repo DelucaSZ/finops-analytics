@@ -47,14 +47,19 @@ test("global layout tokens derive widths, gutters and rhythm from the Aven spaci
   assert.match(source, /--shell-page-gutter:\s*var\(--layout-page-padding-current\)/);
 });
 
-test("shell content frame owns width and padding without depending on sidebar dimensions", () => {
+test("shell content frame stays fluid while Application Shell owns responsive padding", () => {
   const source = layoutSystem();
   const frame = source.match(/#main-content > div \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const shell = read("components", "app-shell", "app-shell.module.css");
+  const contentFrame = shell.match(/\.contentFrame \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(frame, /max-inline-size:\s*var\(--layout-page-max-inline-size-wide\)/);
-  assert.match(frame, /margin-inline:\s*auto/);
-  assert.match(frame, /padding:\s*var\(--layout-page-padding-block-start\) var\(--layout-page-padding-current\) var\(--layout-page-padding-block-end\)/);
+  assert.match(frame, /box-sizing:\s*border-box/);
+  assert.match(frame, /inline-size:\s*100%/);
+  assert.match(frame, /max-inline-size:\s*100%/);
+  assert.match(frame, /min-inline-size:\s*0/);
+  assert.doesNotMatch(frame, /margin-inline|padding|--layout-page-max-inline-size-(?:standard|wide)/);
   assert.doesNotMatch(frame, /sidebar|--shell-sidebar/);
+  assert.match(contentFrame, /padding:\s*var\(--space-6\)\s+var\(--shell-page-gutter\)\s+var\(--space-10\)/);
   assert.match(source, /@media \(max-width: 80rem\)[\s\S]*--layout-page-padding-current:\s*var\(--layout-page-padding-inline-medium\)/);
   assert.match(source, /@media \(max-width: 53\.125rem\)[\s\S]*--layout-page-padding-current:\s*var\(--layout-page-padding-inline-compact\)/);
 });
