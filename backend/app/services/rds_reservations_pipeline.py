@@ -3,9 +3,10 @@ from __future__ import annotations
 import logging
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
-from datetime import UTC, datetime, timedelta
-from typing import Any, Iterator
+from datetime import datetime, timedelta
+from typing import Any
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -58,7 +59,9 @@ def _pipeline_lock(db: Session) -> Iterator[None]:
                 )
             )
             if not claimed:
-                raise RdsReservationsPipelineBusy("RDS Reservations refresh is already running")
+                raise RdsReservationsPipelineBusy(
+                    "RDS Reservations refresh is already running"
+                )
         yield
     finally:
         if lock_connection is not None:
@@ -94,7 +97,9 @@ def _recover_abandoned_runs(db: Session, *, now: datetime) -> None:
             # Coverage may already be valid. Preserve it if the stage reached opportunities.
             run.status = "COMPLETED"
             run.opportunity_status = "FAILED"
-            run.opportunity_error_detail = "Pipeline execution was abandoned during opportunities"
+            run.opportunity_error_detail = (
+                "Pipeline execution was abandoned during opportunities"
+            )
             run.pipeline_stage = "completed"
     if abandoned:
         db.commit()
@@ -227,8 +232,12 @@ def refresh_rds_reservations(
                 failed.status = "FAILED"
                 failed.inventory_status = "FAILED"
                 failed.pipeline_stage = "inventory"
-                failed.inventory_error_detail = "\n".join(str(item) for item in inventory_errors)[:2000]
-                failed.error_detail = "RDS inventory collection completed with errors; coverage skipped"
+                failed.inventory_error_detail = "\n".join(
+                    str(item) for item in inventory_errors
+                )[:2000]
+                failed.error_detail = (
+                    "RDS inventory collection completed with errors; coverage skipped"
+                )
                 failed.completed_at = utcnow()
                 db.commit()
             logger.error(
@@ -296,7 +305,8 @@ def refresh_rds_reservations(
             run = db.get(RdsReservationCoverageRun, run.id) or run
             run.opportunity_status = "COMPLETED"
             logger.info(
-                "event=rds_opportunities_completed coverage_run_id=%s created=%s updated=%s resolved=%s",
+                "event=rds_opportunities_completed coverage_run_id=%s "
+                "created=%s updated=%s resolved=%s",
                 run.id,
                 opportunity_result.created,
                 opportunity_result.updated,
@@ -340,7 +350,11 @@ def get_rds_reservations_operational_status(
     now: datetime | None = None,
 ) -> dict[str, Any]:
     current = _utc_now(now)
-    latest = db.query(RdsReservationCoverageRun).order_by(RdsReservationCoverageRun.id.desc()).first()
+    latest = (
+        db.query(RdsReservationCoverageRun)
+        .order_by(RdsReservationCoverageRun.id.desc())
+        .first()
+    )
     successful = (
         db.query(RdsReservationCoverageRun)
         .filter(RdsReservationCoverageRun.status == "COMPLETED")
@@ -442,5 +456,6 @@ def rds_reservations_refresh_due(db: Session, *, now: datetime | None = None) ->
     if latest_success is None:
         return True
     return (
-        classify_rds_inventory_freshness(latest_success.inventory_snapshot_at, now=current) == STALE
+        classify_rds_inventory_freshness(latest_success.inventory_snapshot_at, now=current)
+        == STALE
     )
