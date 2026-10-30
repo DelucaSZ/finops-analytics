@@ -13,16 +13,19 @@ function block(sourceText, selectorPattern) {
   return match[1];
 }
 
-test("Collections filter layout uses semantic sizing roles instead of expanding fields with equal fractions", async () => {
+test("Collections filter layout uses an adaptive semantic grid instead of fixed page width", async () => {
   const layout = await source("../app/collections/collections-layout.module.css");
   const filterGrid = block(layout, "\\.scope :global\\(\\.opportunity-filter-grid\\)");
+  const accountFilter = block(layout, "\\.scope :global\\(\\.opportunity-filter\\.account-filter\\)");
 
-  assert.match(layout, /--filter-field-default-inline-size/);
-  assert.match(layout, /--filter-field-wide-inline-size/);
+  assert.match(layout, /--filter-field-min-inline-size/);
   assert.match(layout, /\.opportunity-filter\.account-filter/);
-  assert.match(filterGrid, /display:\s*flex/);
-  assert.match(filterGrid, /flex-wrap:\s*wrap/);
-  assert.doesNotMatch(filterGrid, /grid-template-columns/);
+  assert.match(filterGrid, /display:\s*grid/);
+  assert.match(filterGrid, /grid-template-columns:\s*repeat\(/);
+  assert.match(filterGrid, /auto-fit/);
+  assert.match(filterGrid, /--filter-field-min-inline-size/);
+  assert.match(accountFilter, /grid-column:\s*span 2/);
+  assert.doesNotMatch(filterGrid, /display:\s*flex/);
   assert.doesNotMatch(layout, /min-inline-size:\s*56rem/);
 });
 
