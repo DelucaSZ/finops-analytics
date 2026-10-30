@@ -38,7 +38,8 @@
 
 .scope :global(.opportunity-filter-panel) {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
+  overflow: visible;
   padding: var(--space-4);
 }
 
@@ -52,12 +53,22 @@
   min-inline-size: 0;
 }
 
+.scope :global(.opportunity-filter-heading) {
+  border-block-end: 0;
+  min-block-size: auto;
+  padding: var(--space-0);
+}
+
 .scope :global(.opportunity-filter-grid) {
-  align-items: flex-start;
-  display: flex;
-  flex-wrap: wrap;
+  align-items: start;
+  display: grid;
   gap: var(--filter-grid-gap);
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--filter-field-min-inline-size)), 1fr)
+  );
   min-inline-size: 0;
+  padding: var(--space-0);
 }
 
 .scope :global(.opportunity-filter),
@@ -73,19 +84,47 @@
 }
 
 .scope :global(.opportunity-filter) {
-  flex: 0 1 var(--filter-field-default-inline-size);
-  inline-size: min(100%, var(--filter-field-default-inline-size));
-  max-inline-size: 100%;
-  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+  inline-size: 100%;
 }
 
 .scope :global(.opportunity-filter.account-filter) {
-  flex-basis: var(--filter-field-wide-inline-size);
-  inline-size: min(100%, var(--filter-field-wide-inline-size));
+  grid-column: span 2;
+  inline-size: 100%;
+}
+
+.scope :global(.opportunity-filter > div) {
+  align-items: stretch;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  display: grid;
+  gap: var(--form-field-gap);
+  min-block-size: auto;
+  min-inline-size: 0;
+  padding: var(--space-0);
+}
+
+.scope :global(.opportunity-filter > div:focus-within) {
+  border-color: transparent;
+  box-shadow: none;
 }
 
 .scope :global(.opportunity-filter > [class*="field"]) {
   min-inline-size: 0;
+}
+
+.scope :global(.opportunity-filter input),
+.scope :global(.opportunity-filter select) {
+  block-size: auto;
+  height: auto;
+}
+
+.scope :global(.opportunity-filter-panel > .collection-toolbar) {
+  justify-content: flex-start;
+}
+
+.scope :global(.opportunity-filter-panel > p) {
+  margin: var(--space-0);
 }
 
 .scope :global(.collection-toolbar select),
@@ -121,6 +160,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
+  padding: var(--space-0);
 }
 
 .scope :global(.active-filter-summary span),
@@ -275,10 +315,11 @@
 }
 
 @media (max-width: 48rem) {
-  .scope :global(.opportunity-filter),
-  .scope :global(.opportunity-filter.account-filter),
+  .scope :global(.opportunity-filter.account-filter) {
+    grid-column: span 1;
+  }
+
   .scope :global(.collection-toolbar select) {
-    flex-basis: 100%;
     inline-size: 100%;
     max-inline-size: 100%;
   }
