@@ -1,0 +1,32 @@
+.page {
+  min-inline-size: 0;
+  position: relative;
+}
+
+.page :global(.data-table-wrap) {
+  inline-size: 100%;
+  max-inline-size: 100%;
+  min-inline-size: 0;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scrollbar-gutter: stable;
+}
+
+.page :global(.collection-table) {
+  inline-size: 100%;
+  min-inline-size: 100%;
+  table-layout: auto;
+}
+
+.page :global(.collection-table th),
+.page :global(.collection-table td) {
+  min-inline-size: calc(var(--space-16) + var(--space-8));
+  overflow-wrap: normal;
+  vertical-align: top;
+  word-break: normal;
+}
+
+.page :global(.collection-table code),
+.page :global(.collection-table .collection-status) {
+  white-space: nowrap;
+}
