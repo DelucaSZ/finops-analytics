@@ -5,7 +5,7 @@
  */
 :root {
   /* Application-shell surfaces sit above one shared Aven canvas. */
-  --shell-background: var(--application-background);
+  --shell-background: var(--page-background);
   --shell-content-background: var(--surface-page);
   --sidebar-background: var(--surface-overlay);
   --sidebar-border: var(--border-subtle);

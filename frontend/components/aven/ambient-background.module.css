@@ -1,0 +1,45 @@
+.viewport {
+  background: var(--application-background);
+  isolation: isolate;
+  min-block-size: 100dvh;
+  position: relative;
+}
+
+.background {
+  inset: var(--space-0);
+  overflow: hidden;
+  pointer-events: none;
+  position: fixed;
+  z-index: var(--z-index-base);
+}
+
+.asset {
+  block-size: 100%;
+  display: block;
+  inline-size: 100%;
+  object-fit: cover;
+  object-position: center;
+  user-select: none;
+}
+
+.lightAsset {
+  display: block;
+}
+
+.darkAsset {
+  display: none;
+}
+
+:global(html[data-theme="dark"]) .lightAsset {
+  display: none;
+}
+
+:global(html[data-theme="dark"]) .darkAsset {
+  display: block;
+}
+
+.content {
+  min-block-size: 100dvh;
+  position: relative;
+  z-index: var(--z-index-sticky);
+}

@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Sora } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
+import { AvenAmbientBackground } from "@/components/aven/ambient-background";
 import { ThemeProvider } from "@/components/theme-provider";
 import { ToastProvider } from "@/components/ui/toast";
 import { brand, PRODUCT_NAME } from "@/lib/brand";
@@ -67,9 +68,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       </head>
       <body>
         <ThemeProvider>
-          <ToastProvider>
-            <AppShell>{children}</AppShell>
-          </ToastProvider>
+          <AvenAmbientBackground>
+            <ToastProvider>
+              <AppShell>{children}</AppShell>
+            </ToastProvider>
+          </AvenAmbientBackground>
         </ThemeProvider>
       </body>
     </html>
