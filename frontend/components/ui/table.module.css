@@ -23,7 +23,7 @@
   --aven-table-column-date-min: calc(var(--space-16) + var(--space-16));
   --aven-table-column-actions-min: calc(var(--space-16) + var(--space-16) + var(--space-8));
   --aven-table-column-identifier-min: calc(var(--space-16) + var(--space-16) + var(--space-16));
-  --aven-table-column-text-min: calc(var(--space-16) + var(--space-16));
+  --aven-table-column-text-min: calc(var(--space-16) + var(--space-8));
   border-collapse: collapse;
   color: var(--text-primary);
   inline-size: 100%;
@@ -67,10 +67,19 @@
   vertical-align: top;
 }
 
+.tableHead,
+.tableCell {
+  min-inline-size: var(--aven-table-column-text-min);
+  overflow-wrap: normal;
+  word-break: normal;
+}
+
 .tableCell[data-numeric="true"],
 .tableHead[data-numeric="true"] {
   font-variant-numeric: var(--font-variant-numeric-tabular);
+  min-inline-size: var(--aven-table-column-numeric-min);
   text-align: end;
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="selection"],
@@ -100,11 +109,13 @@
 .tableCell[data-column-kind="badge"],
 .tableHead[data-column-kind="badge"] {
   min-inline-size: var(--aven-table-column-badge-min);
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="status"],
 .tableHead[data-column-kind="status"] {
   min-inline-size: var(--aven-table-column-status-min);
+  white-space: nowrap;
 }
 
 .tableCell[data-column-kind="numeric"],
