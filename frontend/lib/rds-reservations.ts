@@ -144,6 +144,23 @@ export type RdsReservationsSummary = {
   };
 };
 
+export type RdsReservationsOperationalStatus = {
+  last_inventory_collection_at: string | null;
+  last_coverage_run_at: string | null;
+  last_successful_coverage_run_at: string | null;
+  coverage_run_id: number | null;
+  latest_run_id: number | null;
+  pipeline_status: "NEVER_EXECUTED" | "RUNNING" | "COMPLETED" | "COMPLETED_WITH_WARNINGS" | "FAILED" | "STALE";
+  pipeline_stage: string | null;
+  inventory_status: string;
+  coverage_status: string;
+  opportunity_status: string;
+  billing_validation_status: string;
+  data_freshness: "FRESH" | "STALE" | "UNKNOWN";
+  freshness_threshold_hours: number;
+  error_detail: string | null;
+};
+
 export type RdsReservationsOptions = {
   accounts: RdsAccountRef[];
   regions: string[];
