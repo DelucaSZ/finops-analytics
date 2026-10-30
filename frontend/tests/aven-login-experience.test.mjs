@@ -123,7 +123,7 @@ test("MFA enrollment preserves existing API and redirect behavior", () => {
 
 test("login follows the semantic Aven canvas across Light, Dark and System with responsive auth composition", () => {
   const styles = authStyles();
-  assert.match(styles, /background:\s*var\(--application-background\)/);
+  assert.match(styles, /background:\s*var\(--page-background\)/);
   assert.doesNotMatch(styles, /gradient-background-light|gradient-background-dark/);
   assert.doesNotMatch(styles, /html\[data-theme="dark"\]/);
   assert.doesNotMatch(styles, /justify-content:\s*space-between/);
