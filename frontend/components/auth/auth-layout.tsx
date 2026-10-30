@@ -12,18 +12,13 @@ export function AuthLayout({ children }: { children: ReactNode }) {
   return (
     <main className={styles.page}>
       <section className={styles.brandPanel}>
-        <div className={styles.brandContext}>
+        <div className={styles.brandHero}>
           <AvenLogo
             variant="vertical"
             surface={surface}
             priority
             className={styles.brandLogo}
           />
-
-          <div className={styles.brandCopy}>
-            <p className={styles.brandEyebrow}>FINOPS MULTI-CLOUD</p>
-            <p className={styles.brandPrinciple}>Complexidade por baixo. Clareza por cima.</p>
-          </div>
         </div>
       </section>
 

@@ -9,70 +9,35 @@
 .brandPanel {
   align-items: center;
   display: flex;
+  justify-content: center;
   min-inline-size: var(--space-0);
   overflow: hidden;
   padding: var(--auth-layout-padding);
 }
 
-.brandContext {
+.brandHero {
   display: grid;
-  gap: var(--space-8);
-  max-inline-size: var(--auth-brand-max-inline-size);
+  inline-size: 100%;
+  justify-items: center;
   min-inline-size: var(--space-0);
 }
 
-.brandLogo,
-.mobileLogo {
-  align-self: start;
+.brandLogo {
+  inline-size: min(100%, var(--auth-brand-hero-inline-size));
 }
 
 .brandLogo img {
   block-size: auto;
-  inline-size: var(--auth-brand-wordmark-inline-size);
+  inline-size: 100%;
+}
+
+.mobileLogo {
+  align-self: start;
 }
 
 .mobileLogo img {
   block-size: auto;
   inline-size: var(--auth-brand-wordmark-compact-inline-size);
-}
-
-.brandCopy {
-  display: grid;
-  gap: var(--space-4);
-}
-
-.brandEyebrow,
-.brandTitle,
-.brandPrinciple,
-.mobileBrand p {
-  margin: var(--space-0);
-}
-
-.brandEyebrow {
-  color: var(--text-brand);
-  font-family: var(--type-label-sm-family);
-  font-size: var(--type-label-sm-size);
-  font-weight: var(--type-label-sm-weight);
-  letter-spacing: var(--letter-spacing-wide);
-  line-height: var(--type-label-sm-line-height);
-}
-
-.brandTitle {
-  color: var(--text-primary);
-  font-family: var(--type-display-lg-family);
-  font-size: var(--type-display-lg-size);
-  font-weight: var(--type-display-lg-weight);
-  letter-spacing: var(--type-display-lg-letter-spacing);
-  line-height: var(--type-display-lg-line-height);
-}
-
-.brandPrinciple {
-  color: var(--text-secondary);
-  font-family: var(--type-body-lg-family);
-  font-size: var(--type-body-lg-size);
-  font-weight: var(--type-body-lg-weight);
-  line-height: var(--type-body-lg-line-height);
-  max-inline-size: var(--auth-brand-copy-max-inline-size);
 }
 
 .formPanel {
@@ -117,17 +82,8 @@
     padding: var(--auth-layout-padding-medium);
   }
 
-  .brandContext {
-    gap: var(--space-6);
-    max-inline-size: none;
-  }
-
-  .brandTitle {
-    font-family: var(--type-heading-xl-family);
-    font-size: var(--type-heading-xl-size);
-    font-weight: var(--type-heading-xl-weight);
-    letter-spacing: var(--type-heading-xl-letter-spacing);
-    line-height: var(--type-heading-xl-line-height);
+  .brandLogo {
+    inline-size: min(100%, var(--auth-brand-hero-medium-inline-size));
   }
 
   .formPanel {
@@ -149,14 +105,5 @@
   .mobileBrand {
     align-items: flex-start;
     display: grid;
-    gap: var(--space-3);
-  }
-
-  .mobileBrand p {
-    color: var(--text-secondary);
-    font-family: var(--type-body-sm-family);
-    font-size: var(--type-body-sm-size);
-    font-weight: var(--type-body-sm-weight);
-    line-height: var(--type-body-sm-line-height);
   }
 }

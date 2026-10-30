@@ -86,7 +86,9 @@ test("authentication and metadata use provider-neutral Aven identity", async () 
   ]);
   const authExperience = `${login}\n${authLayout}`;
   assert.ok(!authExperience.includes("AWS FINOPS INTELLIGENCE"));
-  assert.ok(authLayout.includes("FINOPS MULTI-CLOUD"));
+  assert.ok(authLayout.includes('variant="vertical"'));
+  assert.ok(!authLayout.includes("FINOPS MULTI-CLOUD"));
+  assert.ok(!authLayout.includes("Complexidade por baixo. Clareza por cima."));
   assert.ok(!layout.includes("ambientes AWS"));
   assert.ok(layout.includes("brand.description"));
   assert.ok(brand.includes("FinOps Multi-Cloud"));
