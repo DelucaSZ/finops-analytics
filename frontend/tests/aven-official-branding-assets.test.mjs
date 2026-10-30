@@ -9,43 +9,41 @@ const BRAND_DIR = path.join(ROOT, "public", "brand", "aven");
 const read = (relativePath) => fs.readFileSync(path.join(ROOT, relativePath), "utf8");
 
 const fullHdLogoAssets = [
-  "aven_logo_horizontal_dark_ui_4096.png",
-  "aven_logo_horizontal_light_ui_4096.png",
-  "aven_logo_horizontal_no_tagline_dark_ui_4096.png",
-  "aven_logo_horizontal_no_tagline_light_ui_4096.png",
-  "aven_logo_vertical_dark_ui_4096.png",
-  "aven_logo_vertical_light_ui_4096.png",
+  "aven_logo_horizontal_dark_ui_4096.svg",
+  "aven_logo_horizontal_light_ui_4096.svg",
+  "aven_logo_horizontal_no_tagline_dark_ui_4096.svg",
+  "aven_logo_horizontal_no_tagline_light_ui_4096.svg",
+  "aven_logo_vertical_dark_ui_4096.svg",
+  "aven_logo_vertical_light_ui_4096.svg",
 ];
 
-const legacyRasterLogos = [
+const legacyRasterAssets = [
   "aven-logo-horizontal-on-dark.png",
   "aven-logo-horizontal-on-light.png",
   "aven-logo-vertical-on-dark.png",
   "aven-logo-vertical-on-light.png",
+  "aven-mark-gradient.png",
 ];
 
-function pngDimensions(file) {
-  const buffer = fs.readFileSync(file);
-  assert.equal(buffer.toString("ascii", 1, 4), "PNG", `${path.basename(file)} should be a PNG`);
-  return {
-    width: buffer.readUInt32BE(16),
-    height: buffer.readUInt32BE(20),
-  };
-}
-
-test("Aven Full HD production lockups are versioned under the frontend brand directory", () => {
+test("Aven Full HD production lockups are versioned as official vector masters under the frontend brand directory", () => {
   for (const asset of fullHdLogoAssets) {
     const file = path.join(BRAND_DIR, asset);
     assert.ok(fs.existsSync(file), `${asset} should exist`);
     assert.ok(fs.statSync(file).size > 0, `${asset} should not be empty`);
-    const dimensions = pngDimensions(file);
-    assert.equal(dimensions.width, 4096, `${asset} should keep the 4096px master width`);
-    assert.equal(dimensions.height, asset.includes("vertical") ? 4096 : 1600);
+    const source = fs.readFileSync(file, "utf8");
+    assert.match(source, /^<svg\b/);
+    assert.match(source, /viewBox="0 0 (?:1600 625|1200 1200)"/);
   }
 
-  for (const asset of legacyRasterLogos) {
+  for (const asset of legacyRasterAssets) {
     assert.equal(fs.existsSync(path.join(BRAND_DIR, asset)), false, `${asset} should be removed`);
   }
+});
+
+test("technical wordmark fallback contains the refreshed official artwork rather than the legacy approximation", () => {
+  const fallback = fs.readFileSync(path.join(BRAND_DIR, "aven-logo-horizontal-fallback.svg"), "utf8");
+  const official = fs.readFileSync(path.join(BRAND_DIR, "aven_logo_horizontal_no_tagline_light_ui_4096.svg"), "utf8");
+  assert.equal(fallback, official);
 });
 
 test("AvenLogo centralizes Full HD lockup selection and theme-aware surfaces", () => {
@@ -57,12 +55,13 @@ test("AvenLogo centralizes Full HD lockup selection and theme-aware surfaces", (
   assert.match(component, /if \(variant === "wordmark"\) return "horizontalNoTagline"/);
   assert.match(component, /if \(variant === "symbol"\) return "horizontal"/);
   assert.match(component, /brand\.assets\.logo\[variant\]\[surfaceKey\]/);
-  assert.match(config, /aven_logo_horizontal_no_tagline_light_ui_4096\.png/);
-  assert.match(config, /aven_logo_horizontal_no_tagline_dark_ui_4096\.png/);
-  assert.match(config, /aven_logo_horizontal_light_ui_4096\.png/);
-  assert.match(config, /aven_logo_horizontal_dark_ui_4096\.png/);
-  assert.match(config, /aven_logo_vertical_light_ui_4096\.png/);
-  assert.match(config, /aven_logo_vertical_dark_ui_4096\.png/);
+  assert.match(config, /aven_logo_horizontal_no_tagline_light_ui_4096\.svg/);
+  assert.match(config, /aven_logo_horizontal_no_tagline_dark_ui_4096\.svg/);
+  assert.match(config, /aven_logo_horizontal_light_ui_4096\.svg/);
+  assert.match(config, /aven_logo_horizontal_dark_ui_4096\.svg/);
+  assert.match(config, /aven_logo_vertical_light_ui_4096\.svg/);
+  assert.match(config, /aven_logo_vertical_dark_ui_4096\.svg/);
+  assert.match(config, /mark:[\s\S]*aven-icon-gradient\.svg/);
 });
 
 test("Login renders the official vertical Full HD lockup in desktop and mobile auth layouts", () => {
@@ -92,7 +91,7 @@ test("primary branding does not use CSS transforms to manufacture light or dark 
   assert.doesNotMatch(source, /mix-blend-mode:/);
 });
 
-test("root metadata keeps the refreshed official favicon and Apple touch assets", () => {
+test("root metadata keeps the official favicon and Apple touch assets", () => {
   const layout = read("app/layout.tsx");
   assert.match(layout, /brand\.assets\.icons\.favicon/);
   assert.match(layout, /brand\.assets\.icons\.appleTouch/);
