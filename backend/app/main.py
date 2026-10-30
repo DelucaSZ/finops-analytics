@@ -30,6 +30,7 @@ from app.api.routes import (
     rds_inventory,
     rds_reservation_opportunities,
     rds_reservations_dashboard,
+    rds_reservations_pipeline,
     scans,
     tls,
     users,
@@ -64,7 +65,6 @@ app = FastAPI(
 
 @app.exception_handler(RequestValidationError)
 async def validation_error(_: Request, exc: RequestValidationError) -> JSONResponse:
-    # Pydantic errors can otherwise echo the submitted password/input in a 422 response.
     return JSONResponse(
         status_code=422,
         content={
@@ -124,6 +124,7 @@ app.include_router(collections.router, prefix="/api/v1")
 app.include_router(rds_inventory.router, prefix="/api/v1")
 app.include_router(rds_reservation_opportunities.router, prefix="/api/v1")
 app.include_router(rds_reservations_dashboard.router, prefix="/api/v1")
+app.include_router(rds_reservations_pipeline.router, prefix="/api/v1")
 app.include_router(opportunity_discovery.router, prefix="/api/v1")
 app.include_router(findings.router, prefix="/api/v1")
 app.include_router(opportunities.router, prefix="/api/v1")

@@ -40,6 +40,7 @@ import type {
   RdsCoverageItem,
   RdsPage,
   RdsReservationOpportunity,
+  RdsReservationsOperationalStatus,
   RdsReservationsOptions,
   RdsReservationsSummary,
   RdsReservationUtilization,
@@ -78,6 +79,19 @@ function formatDate(value?: string | null) {
   return new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric" }).format(date);
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
+  return new Intl.DateTimeFormat("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+}
+
 function humanize(value?: string | null) {
   if (!value) return "—";
   return value.toLowerCase().split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
@@ -91,6 +105,34 @@ function queryError(error: unknown, fallback: string) {
   if (error.status === 400) return "The reservation request was rejected for the current scope or filters.";
   if (error.status === 502 || error.status === 503) return "The reservation provider API is temporarily unavailable.";
   return fallback;
+}
+
+function operationalTone(status?: RdsReservationsOperationalStatus["pipeline_status"]) {
+  if (status === "COMPLETED") return "success" as const;
+  if (status === "RUNNING") return "pending" as const;
+  if (status === "FAILED") return "danger" as const;
+  if (status === "STALE" || status === "COMPLETED_WITH_WARNINGS") return "warning" as const;
+  return "neutral" as const;
+}
+
+function OperationalNotice({ status }: { status?: RdsReservationsOperationalStatus }) {
+  if (!status) return null;
+  if (status.pipeline_status === "NEVER_EXECUTED") {
+    return <Alert variant="warning" title="Reservation data has not been processed yet" description="The RDS Reservations pipeline has not completed its first inventory and coverage run. The worker will bootstrap it automatically for configured AWS accounts." />;
+  }
+  if (status.pipeline_status === "RUNNING") {
+    return <Alert variant="info" title="Reservation data is updating" description={`The RDS Reservations pipeline is currently running${status.pipeline_stage ? ` (${humanize(status.pipeline_stage)})` : ""}. Existing completed coverage remains available while the refresh finishes.`} />;
+  }
+  if (status.pipeline_status === "FAILED") {
+    return <Alert variant="danger" title="Last reservation refresh failed" description={status.coverage_run_id ? "The latest pipeline attempt failed. The last successful coverage snapshot remains available below." : "The latest pipeline attempt failed before a valid coverage snapshot was produced."} />;
+  }
+  if (status.pipeline_status === "STALE") {
+    return <Alert variant="warning" title="Data may be outdated" description={`The latest valid RDS inventory is older than the configured ${status.freshness_threshold_hours}-hour freshness threshold. The worker will refresh it automatically.`} />;
+  }
+  if (status.pipeline_status === "COMPLETED_WITH_WARNINGS") {
+    return <Alert variant="warning" title="Coverage updated with an opportunity-processing warning" description="The coverage snapshot is valid, but opportunity generation did not complete. It can be retried without invalidating coverage." />;
+  }
+  return null;
 }
 
 function coverageTone(status: string) {
@@ -271,6 +313,7 @@ function ReservationsContent() {
   const mainKind = state.tab === "coverage" ? "coverage" : state.tab === "reservations" ? "reservations" : state.tab === "expiring" ? "expiring" : "opportunities";
   const mainQuery = buildRdsDashboardQuery(state, mainKind);
 
+  const operational = useApiQuery<RdsReservationsOperationalStatus>({ key: ["rds-reservations", "operational-status"], path: "/rds/reservations/operational-status", ...cachePolicy.operational });
   const summary = useApiQuery<RdsReservationsSummary>({ key: ["rds-reservations", "summary", summaryQuery], path: `/rds/reservations-dashboard/summary${summaryQuery ? `?${summaryQuery}` : ""}`, ...cachePolicy.operational });
   const options = useApiQuery<RdsReservationsOptions>({ key: ["rds-reservations", "options", optionsQuery], path: `/rds/reservations-dashboard/options${optionsQuery ? `?${optionsQuery}` : ""}`, ...cachePolicy.metadata });
   const coverage = useApiQuery<RdsPage<RdsCoverageItem>>({ key: ["rds-reservations", "coverage", mainQuery], path: `/rds/reservations-dashboard/coverage?${mainQuery}`, enabled: state.tab === "coverage", keepPreviousData: true, placeholderIdentity: JSON.stringify({ ...state, page: 0 }), ...cachePolicy.operational });
@@ -278,8 +321,9 @@ function ReservationsContent() {
   const opportunities = useApiQuery<RdsPage<RdsReservationOpportunity>>({ key: ["rds-reservations", "opportunities", mainQuery], path: `/rds/reservations-dashboard/opportunities?${mainQuery}`, enabled: state.tab === "opportunities", keepPreviousData: true, placeholderIdentity: JSON.stringify({ ...state, page: 0 }), ...cachePolicy.operational });
   const main = state.tab === "coverage" ? coverage : state.tab === "opportunities" ? opportunities : reservations;
   const mainError = main.error ? queryError(main.error, "Could not load RDS reservation data.") : undefined;
+  const coverageNotReady = summary.error instanceof ApiError && summary.error.status === 404 && operational.data && ["NEVER_EXECUTED", "RUNNING", "FAILED"].includes(operational.data.pipeline_status);
 
-  const refresh = () => { void summary.refetch(); void options.refetch(); void main.refetch(); };
+  const refresh = () => { void operational.refetch(); void summary.refetch(); void options.refetch(); void main.refetch(); };
   const metrics: Array<{ label: string; value: ReactNode; supportingText: string; icon: ReactNode }> = [
     { label: "Active reservations", value: summary.data?.reservations.active ?? "—", supportingText: "Reserved DB Instances currently active", icon: <Cloud {...iconDefaults} /> },
     { label: "Reservation coverage", value: <PercentageDisplay value={summary.data?.coverage.coverage_percentage} />, supportingText: `${formatNu(summary.data?.coverage.covered_units ?? 0)} / ${formatNu(summary.data?.coverage.required_units ?? 0)} covered`, icon: <ShieldCheck {...iconDefaults} /> },
@@ -290,10 +334,23 @@ function ReservationsContent() {
 
   return (
     <div className={styles.page}>
-      <PageHeader title="RDS Reservations" description="Analyze reservation coverage, reserved-capacity utilization, expirations and RDS reservation opportunities." metadata={<ProviderBadge provider="aws" />} actions={<Button variant="outline" leadingIcon={<RefreshCw {...iconDefaults} />} loading={summary.isFetching || main.isFetching} onClick={refresh}>Refresh</Button>} />
+      <PageHeader title="RDS Reservations" description="Analyze reservation coverage, reserved-capacity utilization, expirations and RDS reservation opportunities." metadata={<ProviderBadge provider="aws" />} actions={<Button variant="outline" leadingIcon={<RefreshCw {...iconDefaults} />} loading={operational.isFetching || summary.isFetching || main.isFetching} onClick={refresh}>Refresh</Button>} />
 
-      {summary.error && <Alert variant={summary.error instanceof ApiError && summary.error.status === 404 ? "warning" : "danger"} title="Reservation summary unavailable" description={queryError(summary.error, "Could not load the reservation summary.")} />}
+      <OperationalNotice status={operational.data} />
+      {operational.error && <Alert variant="warning" title="Operational status unavailable" description={queryError(operational.error, "Could not load the RDS Reservations pipeline status.")} />}
+      {summary.error && !coverageNotReady && <Alert variant={summary.error instanceof ApiError && summary.error.status === 404 ? "warning" : "danger"} title="Reservation summary unavailable" description={queryError(summary.error, "Could not load the reservation summary.")} />}
       {options.error && <Alert variant="warning" title="Some filter options are unavailable" description={queryError(options.error, "Could not load reservation filter options.")} />}
+
+      {operational.data && (
+        <Section appearance="card" title="Data status" description="Operational state is calculated by the backend; analytical views continue using the latest successful coverage snapshot.">
+          <div className={styles.capacityGrid}>
+            <div><span>Pipeline</span><StatusIndicator status={operationalTone(operational.data.pipeline_status)} label={humanize(operational.data.pipeline_status)} /></div>
+            <div><span>Data freshness</span><StatusIndicator status={operational.data.data_freshness === "FRESH" ? "success" : operational.data.data_freshness === "STALE" ? "warning" : "neutral"} label={humanize(operational.data.data_freshness)} /></div>
+            <div><span>Last AWS collection</span><strong>{formatDateTime(operational.data.last_inventory_collection_at)}</strong></div>
+            <div><span>Last coverage calculation</span><strong>{formatDateTime(operational.data.last_successful_coverage_run_at)}</strong></div>
+          </div>
+        </Section>
+      )}
 
       <Filters state={state} options={options.data} loading={options.isLoading} onChange={update} onClear={clear} />
 

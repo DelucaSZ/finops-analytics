@@ -183,7 +183,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0037_inventory_domain"
+            == "0038_rds_reservations_pipeline"
         )
 
     engine.dispose()

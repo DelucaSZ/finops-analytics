@@ -22,6 +22,11 @@ from app.services.opportunity_retention import (
     OpportunityRetentionResult,
     OpportunityRetentionService,
 )
+from app.services.rds_reservations_pipeline import (
+    RdsReservationsPipelineBusy,
+    rds_reservations_refresh_due,
+    refresh_rds_reservations,
+)
 from app.services.retention import cleanup_observations, retention_cutoff
 
 logger = logging.getLogger("deepops.worker_runtime")
@@ -31,6 +36,8 @@ LOCK_RECHECK = timedelta(minutes=5)
 FAILURE_RETRY = timedelta(hours=1)
 CYCLE_CLOSE_CADENCE = timedelta(minutes=15)
 OBSERVATION_CLEANUP_CADENCE = timedelta(days=1)
+RDS_PIPELINE_RECHECK = timedelta(minutes=5)
+RDS_PIPELINE_FAILURE_RETRY = timedelta(hours=1)
 
 
 class DailyOpportunityRetentionScheduler:
@@ -256,8 +263,6 @@ class OpportunityAutomationScheduler:
     ) -> bool:
         with self.session_factory() as db:
             state = OpportunityManagementPolicyService.get_maintenance_state(db)
-            # Serialize workers through the singleton row. SQLite ignores FOR UPDATE,
-            # but production PostgreSQL provides the intended multi-worker lock.
             state = (
                 db.scalar(
                     select(OpportunityMaintenanceState)
@@ -340,13 +345,56 @@ class OpportunityAutomationScheduler:
         self._cleanup(current)
 
 
+class RdsReservationsScheduler:
+    """Bootstrap and periodically refresh RDS Reservations using the official worker."""
+
+    def __init__(
+        self,
+        *,
+        session_factory: sessionmaker[Session] | None = None,
+    ) -> None:
+        self.session_factory = session_factory or SessionLocal
+        self._next_check_at: datetime | None = None
+
+    @staticmethod
+    def _utc(value: datetime) -> datetime:
+        return value.astimezone(UTC) if value.tzinfo is not None else value.replace(tzinfo=UTC)
+
+    def tick(self, *, now: datetime | None = None) -> dict | None:
+        current = self._utc(now or datetime.now(UTC))
+        if self._next_check_at is not None and current < self._next_check_at:
+            return None
+        try:
+            with self.session_factory() as db:
+                if not rds_reservations_refresh_due(db, now=current):
+                    self._next_check_at = current + RDS_PIPELINE_RECHECK
+                    return None
+                result = refresh_rds_reservations(db, validate_billing=True, now=current)
+            self._next_check_at = current + (
+                RDS_PIPELINE_FAILURE_RETRY
+                if result.get("status") == "FAILED"
+                else RDS_PIPELINE_RECHECK
+            )
+            return result
+        except RdsReservationsPipelineBusy:
+            self._next_check_at = current + RDS_PIPELINE_RECHECK
+            return None
+        except Exception:
+            self._next_check_at = current + RDS_PIPELINE_FAILURE_RETRY
+            logger.exception("event=rds_reservations_scheduled_refresh_failed")
+            return None
+
+
 def process_runtime_once(
     scheduler: DailyOpportunityRetentionScheduler,
     automation_scheduler: OpportunityAutomationScheduler | None = None,
+    rds_scheduler: RdsReservationsScheduler | None = None,
 ) -> bool:
-    # Collection/reconciliation work runs first so cycle close never races ahead
-    # of a completed scan that still needs to persist its observations.
+    # Collection/reconciliation work runs first so dependent maintenance never
+    # races ahead of a scan that still needs to persist its observations.
     worked = worker.process_once()
+    if rds_scheduler is not None:
+        rds_scheduler.tick()
     scheduler.tick()
     if automation_scheduler is not None:
         automation_scheduler.tick()
@@ -357,10 +405,11 @@ def main() -> None:
     wait_for_database(engine)
     scheduler = DailyOpportunityRetentionScheduler(engine)
     automation_scheduler = OpportunityAutomationScheduler()
+    rds_scheduler = RdsReservationsScheduler()
     logger.info("Aven worker started")
     try:
         while True:
-            worked = process_runtime_once(scheduler, automation_scheduler)
+            worked = process_runtime_once(scheduler, automation_scheduler, rds_scheduler)
             if not worked:
                 time.sleep(settings.worker_poll_seconds)
     finally:
