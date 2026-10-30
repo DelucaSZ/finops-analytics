@@ -430,6 +430,22 @@
   display: none;
 }
 
+.dateRangePicker[data-layout="inline"] {
+  align-items: end;
+  gap: var(--filter-grid-gap);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  inline-size: 100%;
+}
+
+.dateRangePicker[data-layout="inline"] .dateRangeFields {
+  display: contents;
+}
+
+.dateRangePicker[data-layout="inline"] .dateRangeActions {
+  align-self: end;
+  justify-content: flex-start;
+}
+
 .dateRangeFields {
   display: grid;
   gap: var(--space-2);
@@ -503,6 +519,12 @@
   overflow-wrap: anywhere;
 }
 
+@container aven-page (max-width: 48rem) {
+  .dateRangePicker[data-layout="inline"] {
+    grid-template-columns: 1fr;
+  }
+}
+
 @media (max-width: 48rem) {
   .pageHeaderMain,
   .sectionHeader,
@@ -551,7 +573,8 @@
   }
 
   .recommendationMetrics,
-  .dateRangeFields {
+  .dateRangeFields,
+  .dateRangePicker[data-layout="inline"] {
     grid-template-columns: 1fr;
   }
 }
