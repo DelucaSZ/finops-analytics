@@ -263,9 +263,7 @@ def test_refresh_api_returns_pipeline_summary(monkeypatch) -> None:
             "data_freshness": "FRESH",
         },
     )
-    response = _api_client(db).post(
-        "/api/v1/rds/reservations/refresh?validate_billing=false"
-    )
+    response = _api_client(db).post("/api/v1/rds/reservations/refresh?validate_billing=false")
     assert response.status_code == 200
     assert response.json()["coverage_run_id"] == 42
 
