@@ -83,12 +83,12 @@ test("priority analytical page modules share Aven page and grid rhythm", () => {
   assert.match(reservations, /\.metricsGrid > \*/);
 });
 
-test("Settings keeps controlled width, shared form rhythm and theme-safe policy controls", () => {
+test("Settings keeps fluid width, shared form rhythm and theme-safe policy controls", () => {
   const layout = read("app", "settings", "layout.tsx");
   const settingsStyles = read("app", "settings", "settings-page.module.css");
   const policyStyles = read("app", "settings", "policies", "page.module.css");
 
-  assert.match(layout, /<PageContainer width="standard" className=\{styles\.page\}>/);
+  assert.match(layout, /<PageContainer width="full" className=\{styles\.page\}>/);
   assert.match(settingsStyles, /gap:\s*var\(--layout-grid-gap\)/);
   assert.match(settingsStyles, /grid-template-columns:\s*var\(--layout-grid-columns-2\)/);
   assert.match(policyStyles, /background:\s*var\(--surface-secondary\)/);
