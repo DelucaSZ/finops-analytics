@@ -5,7 +5,7 @@ import { useTheme } from "@/components/theme-provider";
 import { brand } from "@/lib/brand";
 import styles from "./brand-logo.module.css";
 
-export type AvenLogoVariant = "horizontal" | "vertical" | "mark";
+export type AvenLogoVariant = "horizontal" | "horizontalNoTagline" | "vertical" | "mark";
 export type AvenLogoSurface = "light" | "dark";
 export type BrandLogoVariant = AvenLogoVariant | "wordmark" | "symbol";
 
@@ -19,13 +19,14 @@ interface AvenLogoProps {
 
 const dimensions = {
   horizontal: { width: 240, height: 94 },
+  horizontalNoTagline: { width: 240, height: 94 },
   vertical: { width: 160, height: 160 },
   mark: { width: 96, height: 96 },
 } as const;
 
 function normalizeVariant(variant: BrandLogoVariant): AvenLogoVariant {
-  if (variant === "wordmark") return "horizontal";
-  if (variant === "symbol") return "mark";
+  if (variant === "wordmark") return "horizontalNoTagline";
+  if (variant === "symbol") return "horizontal";
   return variant;
 }
 
@@ -63,7 +64,7 @@ export function AvenLogo({
   );
 }
 
-// Compatibility references document the retained technical SVG fallbacks without rendering them.
+// Compatibility references are retained for pre-24.31 consumers, but now point to official Full HD kit assets.
 export const AVEN_VECTOR_WORDMARK_FALLBACK = brand.assets.wordmarkFallback;
 export const AVEN_VECTOR_SYMBOL_FALLBACK = brand.assets.symbolGradient;
 
