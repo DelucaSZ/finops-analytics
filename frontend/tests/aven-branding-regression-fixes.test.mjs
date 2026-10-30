@@ -7,15 +7,17 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const read = (...parts) => fs.readFileSync(path.join(ROOT, ...parts), "utf8");
 
-test("collapsed sidebar keeps the official Aven mark visible inside the tokenized brand box", () => {
+test("collapsed sidebar resolves the compatibility symbol slot to the requested Full HD horizontal lockup", () => {
   const shell = read("components", "app-shell", "application-shell.tsx");
   const styles = read("components", "app-shell", "app-shell.module.css");
+  const logo = read("components", "brand", "brand-logo.tsx");
   const brand = read("lib", "brand.ts");
 
   assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
-  assert.match(brand, /mark:[\s\S]*gradient: "\/brand\/aven\/aven-mark-gradient\.png"/);
+  assert.match(logo, /if \(variant === "symbol"\) return "horizontal"/);
+  assert.match(brand, /aven_logo_horizontal_light_ui_4096\.png/);
+  assert.match(brand, /aven_logo_horizontal_dark_ui_4096\.png/);
   assert.match(styles, /\.brandMark[\s\S]*var\(--shell-brand-mark-size\)/);
-  assert.match(styles, /\.brandMark > span,[\s\S]*\.brandMark img[\s\S]*block-size: 100%[\s\S]*inline-size: 100%/);
   assert.match(styles, /html\[data-sidebar="collapsed"\][\s\S]*\.brandMark[\s\S]*display: block/);
   assert.doesNotMatch(shell, />\s*A\s*</);
 });
@@ -34,11 +36,12 @@ test("login hero contains only the official Aven logo and no manual marketing co
   assert.match(tokens, /--auth-brand-hero-medium-inline-size: calc\(var\(--space-16\) \* 4\)/);
 });
 
-test("narrow auth layouts preserve the existing mobile branding fallback", () => {
+test("narrow auth layouts preserve the vertical Full HD login branding", () => {
   const layout = read("components", "auth", "auth-layout.tsx");
   const styles = read("components", "auth", "auth-layout.module.css");
 
-  assert.match(layout, /variant="horizontal"[\s\S]*className=\{styles\.mobileLogo\}/);
+  assert.match(layout, /variant="vertical"[\s\S]*className=\{styles\.mobileLogo\}/);
+  assert.doesNotMatch(layout, /variant="horizontal"[\s\S]*className=\{styles\.mobileLogo\}/);
   assert.match(styles, /@media \(max-width: 42rem\)[\s\S]*\.brandPanel[\s\S]*display: none/);
   assert.match(styles, /@media \(max-width: 42rem\)[\s\S]*\.mobileBrand[\s\S]*display: grid/);
 });
