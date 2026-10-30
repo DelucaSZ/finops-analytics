@@ -10,7 +10,7 @@ function source(relativePath) {
   return readFileSync(path.join(ROOT, relativePath), "utf8");
 }
 
-test("Opportunities keeps long resource identifiers compact without fixed table clipping", () => {
+test("Opportunities uses deterministic table sizing while keeping long identifiers compact and accessible", () => {
   const resourceIdentifier = source("components/aven/resource-identifier.tsx");
   const opportunitiesStyles = source("app/opportunities/opportunities.module.css");
   const tableStyles = source("components/ui/table.module.css");
@@ -19,12 +19,57 @@ test("Opportunities keeps long resource identifiers compact without fixed table 
   assert.match(resourceIdentifier, /compactResourceIdentifier\(primaryText\)/);
   assert.match(resourceIdentifier, /compactResourceIdentifier\(technicalId\)/);
   assert.match(resourceIdentifier, /Tooltip content=\{primaryText\}/);
-  assert.doesNotMatch(opportunitiesStyles, /table-layout:\s*fixed/);
-  assert.doesNotMatch(opportunitiesStyles, /nth-child/);
-  assert.doesNotMatch(opportunitiesStyles, /overflow:\s*hidden/);
-  assert.doesNotMatch(opportunitiesStyles, /min-(?:inline-)?size:\s*1180px/);
+  assert.match(resourceIdentifier, /Tooltip content=\{technicalId\}/);
+  assert.match(resourceIdentifier, /navigator\.clipboard\.writeText\(valueToCopy\)/);
+  assert.match(resourceIdentifier, /aria-label=\{copied \? copiedLabel : copyLabel\}/);
+
+  assert.match(opportunitiesStyles, /table-layout:\s*fixed/);
+  assert.match(opportunitiesStyles, /--opportunities-column-1:/);
+  assert.match(opportunitiesStyles, /--opportunities-column-8:/);
+  assert.match(opportunitiesStyles, /min-inline-size:\s*0/);
+  assert.match(opportunitiesStyles, /text-overflow:\s*ellipsis/);
+  assert.match(opportunitiesStyles, /-webkit-line-clamp:\s*2/);
+  assert.doesNotMatch(opportunitiesStyles, /word-break:\s*break-all/);
+
   assert.match(tableStyles, /table-layout:\s*auto/);
   assert.match(tableStyles, /\.tableWrapper\s*\{[\s\S]*overflow-x:\s*auto/);
+});
+
+test("Opportunity rows keep realistic OCI and AWS identifiers wired to full-value access, copy and selection", () => {
+  const page = source("app/opportunities/page.tsx");
+  const resourceIdentifier = source("components/aven/resource-identifier.tsx");
+  const realisticIdentifiers = [
+    "ocid1.instance.oc1.sa-saopaulo-1.aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "ocid1.blockvolume.oc1.sa-saopaulo-1.bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "arn:aws:ec2:us-east-1:123456789012:instance/i-0123456789abcdef0",
+  ];
+
+  for (const identifier of realisticIdentifiers) {
+    assert.ok(identifier.length > 36, `${identifier} should exercise compact identifier handling`);
+  }
+
+  assert.match(page, /technicalId=\{finding\.resource_name \? finding\.resource_id : undefined\}/);
+  assert.match(page, /copyValue=\{finding\.resource_id\}/);
+  assert.match(page, /aria-label=\{`Selecionar \$\{finding\.title\} · \$\{finding\.resource_id\}`\}/);
+  assert.match(page, /toggleSelection\(finding\.id\)/);
+  assert.match(resourceIdentifier, /return `\$\{normalized\.slice\(0, COMPACT_IDENTIFIER_PREFIX\)\}…\$\{normalized\.slice\(-COMPACT_IDENTIFIER_SUFFIX\)\}`/);
+  assert.match(resourceIdentifier, /tabIndex=\{primaryIsCompacted \? 0 : undefined\}/);
+  assert.match(resourceIdentifier, /tabIndex=\{0\}/);
+});
+
+test("Opportunity tables share the same column contract across header, rows and loading skeletons", () => {
+  const page = source("app/opportunities/page.tsx");
+  const opportunitiesStyles = source("app/opportunities/opportunities.module.css");
+
+  assert.match(page, /<TableHeader>/);
+  assert.match(page, /<OpportunityLoadingRows history=\{isHistory\} \/>/);
+  assert.match(page, /<TableBody>/);
+  for (let index = 1; index <= 8; index += 1) {
+    assert.match(opportunitiesStyles, new RegExp(`--opportunities-column-${index}:`));
+    assert.match(opportunitiesStyles, new RegExp(`th:nth-child\\(${index}\\)`));
+    assert.match(opportunitiesStyles, new RegExp(`td:nth-child\\(${index}\\)`));
+  }
+  assert.match(opportunitiesStyles, /@media \(max-width:\s*64rem\)[\s\S]*min-inline-size:\s*58rem/);
 });
 
 test("Opportunities uses a semantic wide Drawer without changing the default Drawer size", () => {
