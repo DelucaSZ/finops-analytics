@@ -39,16 +39,15 @@
 }
 
 /*
- * The shell content frame is the authenticated application's outer
- * PageContainer. It is deliberately independent from sidebar width: the shell
- * grid resolves expanded/collapsed navigation before this frame is measured.
+ * The Application Shell owns the authenticated application's outer content
+ * frame and responsive gutters. This rule only enforces a shrink-safe 100%
+ * sizing contract; semantic max widths belong to PageContainer.
  */
 #main-content > div {
   box-sizing: border-box;
   inline-size: 100%;
-  margin-inline: auto;
-  max-inline-size: var(--layout-page-max-inline-size-wide);
-  padding: var(--layout-page-padding-block-start) var(--layout-page-padding-current) var(--layout-page-padding-block-end);
+  max-inline-size: 100%;
+  min-inline-size: 0;
 }
 
 #main-content > div > * {
