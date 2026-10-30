@@ -31,7 +31,7 @@ test("sidebar branding uses the central BrandLogo contract for expanded and coll
   const brandConfig = fs.readFileSync(path.join(ROOT, "lib", "brand.ts"), "utf8");
 
   assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
-  assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
+  assert.match(shell, /<BrandLogo variant="verticalNoTagline" decorative \/>/);
   assert.match(shell, /aria-label=\{`\$\{brand\.name\} — Dashboard`\}/);
   assert.doesNotMatch(shell, /\/brand\/aven\//);
 
