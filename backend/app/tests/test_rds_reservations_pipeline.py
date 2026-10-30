@@ -42,7 +42,7 @@ class FakeOpportunityResult:
         }
 
 
-def _successful_inventory(**_kwargs):
+def _successful_inventory(_db: Session, **_kwargs):
     return {
         "rds_instances_found": 18,
         "reservations_found": 4,
@@ -105,7 +105,7 @@ def test_inventory_failure_skips_coverage(monkeypatch) -> None:
     monkeypatch.setattr(
         pipeline,
         "collect_rds_inventory",
-        lambda **_kwargs: {
+        lambda _db, **_kwargs: {
             "rds_instances_found": 2,
             "reservations_found": 1,
             "errors": ["describe_db_instances failed"],
