@@ -152,11 +152,21 @@
   display: grid;
   gap: var(--space-2);
   min-inline-size: 0;
+  overflow: hidden;
 }
 
 .resourceCell > * {
   max-inline-size: 100%;
   min-inline-size: 0;
+}
+
+.resourceCell > :first-child {
+  inline-size: 100%;
+  overflow: hidden;
+}
+
+.resourceCell > :last-child {
+  justify-self: start;
 }
 
 .statusStack {
@@ -165,11 +175,12 @@
   flex-direction: column;
   gap: var(--space-1);
   min-inline-size: 0;
+  overflow: hidden;
 }
 
 .statusStack > * {
   flex: none;
-  max-inline-size: none;
+  max-inline-size: 100%;
 }
 
 .secondary {
@@ -189,18 +200,183 @@
 .page :global(table[aria-label="Recomendações"]),
 .page :global(table[aria-label="Histórico de recomendações"]) {
   --table-cell-padding-inline: var(--space-3);
+  inline-size: 100%;
+  min-inline-size: 0;
+  table-layout: fixed;
+}
+
+.page :global(table[aria-label="Recomendações"]) {
+  --opportunities-column-1: 4%;
+  --opportunities-column-2: 20%;
+  --opportunities-column-3: 16%;
+  --opportunities-column-4: 15%;
+  --opportunities-column-5: 11%;
+  --opportunities-column-6: 11%;
+  --opportunities-column-7: 10%;
+  --opportunities-column-8: 13%;
+}
+
+.page :global(table[aria-label="Histórico de recomendações"]) {
+  --opportunities-column-1: 20%;
+  --opportunities-column-2: 17%;
+  --opportunities-column-3: 16%;
+  --opportunities-column-4: 11%;
+  --opportunities-column-5: 12%;
+  --opportunities-column-6: 10%;
+  --opportunities-column-7: 14%;
 }
 
 .page :global(table[aria-label="Recomendações"] th),
 .page :global(table[aria-label="Recomendações"] td),
 .page :global(table[aria-label="Histórico de recomendações"] th),
 .page :global(table[aria-label="Histórico de recomendações"] td) {
+  max-inline-size: none;
+  min-inline-size: 0;
+  overflow: hidden;
   vertical-align: top;
 }
 
 .page :global(table[aria-label="Recomendações"] th),
 .page :global(table[aria-label="Histórico de recomendações"] th) {
   white-space: normal;
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(1)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(1)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(1)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(1)) {
+  inline-size: var(--opportunities-column-1);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(2)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(2)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(2)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(2)) {
+  inline-size: var(--opportunities-column-2);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(3)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(3)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(3)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) {
+  inline-size: var(--opportunities-column-3);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(4)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(4)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(4)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(4)) {
+  inline-size: var(--opportunities-column-4);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(5)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(5)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(5)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(5)) {
+  inline-size: var(--opportunities-column-5);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(6)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(6)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(6)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(6)) {
+  inline-size: var(--opportunities-column-6);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(7)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(7)),
+.page :global(table[aria-label="Histórico de recomendações"] th:nth-child(7)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(7)) {
+  inline-size: var(--opportunities-column-7);
+}
+
+.page :global(table[aria-label="Recomendações"] th:nth-child(8)),
+.page :global(table[aria-label="Recomendações"] td:nth-child(8)) {
+  inline-size: var(--opportunities-column-8);
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(2)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(1)) {
+  overflow: hidden;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(2) > button),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(1) > button) {
+  block-size: auto;
+  display: -webkit-box;
+  inline-size: 100%;
+  justify-content: flex-start;
+  max-inline-size: 100%;
+  min-block-size: var(--control-height-compact);
+  overflow: hidden;
+  text-align: start;
+  white-space: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(2)) .secondary:first-of-type,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(1)) .secondary:first-of-type {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(2)) .secondary:last-of-type,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(1)) .secondary:last-of-type {
+  display: -webkit-box;
+  max-inline-size: 100%;
+  overflow: hidden;
+  overflow-wrap: normal;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(3)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(2)) {
+  overflow: hidden;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(4)),
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(4)) .secondary,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(3)) .secondary,
+.page :global(table[aria-label="Recomendações"] td:nth-child(6)) .secondary,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(5)) .secondary,
+.page :global(table[aria-label="Recomendações"] td:nth-child(7)) .secondary,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(6)) .secondary {
+  max-inline-size: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(5)) .statusStack,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(4)) .statusStack,
+.page :global(table[aria-label="Recomendações"] td:nth-child(7)) .statusStack,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(6)) .statusStack {
+  max-inline-size: 100%;
+  overflow: hidden;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(8)) .rowActions,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(7)) .rowActions {
+  max-inline-size: 100%;
+  overflow: hidden;
+}
+
+.page :global(table[aria-label="Recomendações"] td:nth-child(8)) .rowActions > *,
+.page :global(table[aria-label="Histórico de recomendações"] td:nth-child(7)) .rowActions > * {
+  max-inline-size: 100%;
+  min-inline-size: var(--hit-target-min);
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .paginationRow {
@@ -228,6 +404,13 @@
   .page :global(table[aria-label="Recomendações"]),
   .page :global(table[aria-label="Histórico de recomendações"]) {
     --table-cell-padding-inline: var(--space-2);
+  }
+}
+
+@media (max-width: 64rem) {
+  .page :global(table[aria-label="Recomendações"]),
+  .page :global(table[aria-label="Histórico de recomendações"]) {
+    min-inline-size: 58rem;
   }
 }
 
