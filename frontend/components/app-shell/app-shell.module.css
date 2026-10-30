@@ -87,6 +87,7 @@
   inline-size: var(--shell-brand-mark-size);
 }
 
+.brandMark > span,
 .brandMark img {
   block-size: 100%;
   display: block;
