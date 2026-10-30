@@ -26,9 +26,10 @@ test("Aven Login Experience exposes a reusable tokenized auth layout", () => {
   const source = authSource();
   assert.match(source, /export function AuthLayout/);
   assert.match(source, /<AvenLogo[\s\S]*variant="vertical"[\s\S]*surface=\{surface\}[\s\S]*priority/);
-  assert.match(source, /Complexidade por baixo\. Clareza por cima\./);
-  assert.doesNotMatch(source, /PRODUCT_TAGLINE/);
-  assert.doesNotMatch(source, /brandLogoSurface/);
+  assert.match(source, /className=\{styles\.brandHero\}/);
+  assert.doesNotMatch(source, /FINOPS MULTI-CLOUD/);
+  assert.doesNotMatch(source, /Complexidade por baixo\. Clareza por cima\./);
+  assert.doesNotMatch(source, /brandCopy|PRODUCT_TAGLINE|brandLogoSurface/);
 });
 
 test("auth branding consumes official raster Aven assets through the centralized surface-aware component", () => {
@@ -43,9 +44,11 @@ test("auth branding consumes official raster Aven assets through the centralized
   assert.match(brandLib, /aven-logo-horizontal-on-dark\.png/);
   assert.match(brandLib, /aven-logo-vertical-on-light\.png/);
   assert.match(brandLib, /aven-logo-vertical-on-dark\.png/);
-  assert.match(tokens, /--auth-brand-wordmark-inline-size:/);
+  assert.match(tokens, /--auth-brand-hero-inline-size:/);
+  assert.match(tokens, /--auth-brand-hero-medium-inline-size:/);
   assert.match(tokens, /--auth-form-max-inline-size:/);
-  assert.match(styles, /\.brandLogo img[\s\S]*var\(--auth-brand-wordmark-inline-size\)/);
+  assert.match(styles, /\.brandLogo[\s\S]*var\(--auth-brand-hero-inline-size\)/);
+  assert.match(styles, /\.brandLogo img[\s\S]*inline-size: 100%/);
   assert.doesNotMatch(styles, /background:\s*var\(--aven-color-neutral-0\)/);
 });
 
@@ -125,8 +128,10 @@ test("login follows the semantic Aven canvas across Light, Dark and System with 
   assert.doesNotMatch(styles, /gradient-background-light|gradient-background-dark/);
   assert.doesNotMatch(styles, /html\[data-theme="dark"\]/);
   assert.doesNotMatch(styles, /justify-content:\s*space-between/);
-  assert.match(styles, /@media \(max-width: 60rem\)/);
-  assert.match(styles, /@media \(max-width: 42rem\)/);
+  assert.match(styles, /\.brandPanel[\s\S]*justify-content: center/);
+  assert.match(styles, /\.brandHero[\s\S]*justify-items: center/);
+  assert.match(styles, /@media \(max-width: 60rem\)[\s\S]*--auth-brand-hero-medium-inline-size/);
+  assert.match(styles, /@media \(max-width: 42rem\)[\s\S]*\.brandPanel[\s\S]*display: none/);
   assert.match(styles, /min-block-size: 100dvh/);
   assert.match(styles, /-webkit-autofill/);
 });
