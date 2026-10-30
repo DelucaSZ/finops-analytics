@@ -15,8 +15,8 @@ test("collapsed sidebar resolves the compatibility symbol slot to the requested 
 
   assert.match(shell, /<BrandLogo variant="symbol" decorative \/>/);
   assert.match(logo, /if \(variant === "symbol"\) return "horizontal"/);
-  assert.match(brand, /aven_logo_horizontal_light_ui_4096\.png/);
-  assert.match(brand, /aven_logo_horizontal_dark_ui_4096\.png/);
+  assert.match(brand, /aven_logo_horizontal_light_ui_4096\.svg/);
+  assert.match(brand, /aven_logo_horizontal_dark_ui_4096\.svg/);
   assert.match(styles, /\.brandMark[\s\S]*var\(--shell-brand-mark-size\)/);
   assert.match(styles, /html\[data-sidebar="collapsed"\][\s\S]*\.brandMark[\s\S]*display: block/);
   assert.doesNotMatch(shell, />\s*A\s*</);
