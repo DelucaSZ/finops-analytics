@@ -5,7 +5,7 @@ import { useTheme } from "@/components/theme-provider";
 import { brand } from "@/lib/brand";
 import styles from "./brand-logo.module.css";
 
-export type AvenLogoVariant = "horizontal" | "horizontalNoTagline" | "vertical" | "mark";
+export type AvenLogoVariant = "horizontal" | "horizontalNoTagline" | "vertical" | "verticalNoTagline" | "mark";
 export type AvenLogoSurface = "light" | "dark";
 export type BrandLogoVariant = AvenLogoVariant | "wordmark" | "symbol";
 
@@ -21,6 +21,7 @@ const dimensions = {
   horizontal: { width: 240, height: 94 },
   horizontalNoTagline: { width: 240, height: 94 },
   vertical: { width: 160, height: 160 },
+  verticalNoTagline: { width: 160, height: 160 },
   mark: { width: 96, height: 96 },
 } as const;
 

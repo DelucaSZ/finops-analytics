@@ -21,6 +21,10 @@ export const brand = Object.freeze({
         onLight: "/brand/aven/aven_logo_vertical_light_ui_4096.svg",
         onDark: "/brand/aven/aven_logo_vertical_dark_ui_4096.svg",
       }),
+      verticalNoTagline: Object.freeze({
+        onLight: "/brand/aven/aven_logo_vertical_no_tagline_dark_text_4096.svg",
+        onDark: "/brand/aven/aven_logo_vertical_no_tagline_white_text_4096.svg",
+      }),
     }),
     mark: Object.freeze({
       gradient: "/brand/aven/aven-icon-gradient.svg",
