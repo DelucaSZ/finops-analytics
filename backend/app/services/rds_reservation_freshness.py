@@ -56,9 +56,7 @@ def effective_rds_inventory_snapshot_at(
     candidates: list[datetime] = []
     for model in (AwsRdsInstance, AwsRdsReservedInstance):
         collected_at = (
-            db.query(func.min(model.collected_at))
-            .filter(model.is_active.is_(True))
-            .scalar()
+            db.query(func.min(model.collected_at)).filter(model.is_active.is_(True)).scalar()
         )
         if collected_at is not None:
             candidates.append(normalize_utc(collected_at))
