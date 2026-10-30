@@ -31,14 +31,16 @@ test("Task 24.40 protects compact, badge, status, money, date and action columns
   }
 });
 
-test("Opportunities preserves financial values and status badges while allowing secondary text to wrap normally", () => {
+test("Opportunities preserves financial values and status badges within deterministic table geometry", () => {
   const styles = read("app", "opportunities", "opportunities.module.css");
 
   assert.match(styles, /\.moneyWithPeriod\s*\{[\s\S]*white-space:\s*nowrap/);
-  assert.match(styles, /\.statusStack > \*\s*\{[\s\S]*flex:\s*none[\s\S]*max-inline-size:\s*none/);
+  assert.match(styles, /\.statusStack > \*\s*\{[\s\S]*flex:\s*none[\s\S]*max-inline-size:\s*100%/);
   assert.match(styles, /\.secondary\s*\{[\s\S]*overflow-wrap:\s*break-word[\s\S]*word-break:\s*normal/);
+  assert.match(styles, /table-layout:\s*fixed/);
+  assert.match(styles, /--opportunities-column-8:/);
+  assert.match(styles, /nth-child\(8\)/);
   assert.doesNotMatch(styles, /overflow-wrap:\s*anywhere/);
-  assert.doesNotMatch(styles, /nth-child/);
 });
 
 test("Inventory metadata no longer creates letter-by-letter wrapping", () => {
