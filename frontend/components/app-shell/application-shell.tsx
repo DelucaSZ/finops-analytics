@@ -74,7 +74,7 @@ function AvenBrand({ compact = false }: { compact?: boolean }) {
       </span>
       {!compact && (
         <span className={styles.brandMark} aria-hidden="true">
-          <BrandLogo variant="symbol" decorative />
+          <BrandLogo variant="verticalNoTagline" decorative />
         </span>
       )}
       <span className={styles.srOnly}>{brand.name}</span>
