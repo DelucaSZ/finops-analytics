@@ -50,13 +50,13 @@ test("navigation preserves the current product destinations in one shared config
   for (const route of [
     "\"/\"",
     "\"/opportunities\"",
-    "\"/opportunities/history-cycles\"",
     "\"/flow\"",
     "\"/billing\"",
     "\"/rds/reservations\"",
     "\"/collections\"",
     "\"/settings\"",
   ]) assert.match(navigation, new RegExp(route.replaceAll("/", "\\/")));
+  assert.doesNotMatch(navigation, /\/opportunities\/history-cycles/);
 
   const shell = read("application-shell.tsx");
   assert.match(shell, /navigation\.map/);
