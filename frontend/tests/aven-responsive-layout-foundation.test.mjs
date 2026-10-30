@@ -98,7 +98,8 @@ test("constrained and fluid page modes remain explicit instead of depending on s
 
   assert.match(component, /export type PageWidth = "standard" \| "wide" \| "full"/);
   assert.match(component, /data-width=\{width\}/);
-  assert.match(settings, /<PageContainer width="standard"/);
+  assert.match(settings, /<PageContainer width="full"/);
+  assert.doesNotMatch(settings, /<PageContainer width="standard"/);
 
   for (const page of [
     ["app", "billing", "page.tsx"],
