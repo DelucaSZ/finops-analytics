@@ -23,6 +23,7 @@ from app.services.aws_auth import BOTO_CONFIG, assume_account_session
 from app.services.aws_cost_explorer import AwsBillingUpstreamError
 from app.services.rds_cost_explorer import RdsCostExplorerClient
 from app.services.rds_reservation_engine import RdsReservationCoverageEngine
+from app.services.rds_reservation_freshness import effective_rds_inventory_snapshot_at
 from app.services.rds_reservation_rules import (
     COVERAGE_FULL,
     COVERAGE_PARTIAL,
@@ -51,8 +52,6 @@ def _cluster_metadata(client: Any) -> dict[str, dict[str, str | None]]:
             if engine in {"aurora-mysql", "aurora-postgresql"}:
                 topology = "aurora_cluster"
             elif cluster.get("DBClusterInstanceClass"):
-                # DescribeDBInstances returns the three cluster members independently.
-                # Each row therefore consumes one base unit; the cluster total is 3x.
                 topology = "multi_az_cluster_member"
             else:
                 topology = None
@@ -78,7 +77,6 @@ def enrich_rds_cluster_metadata(db: Session, instances: list[AwsRdsInstance]) ->
         )
     }
     for (cloud_account_id, region), rows in sorted(grouped.items()):
-        # Never reuse stale topology/storage metadata when this enrichment call fails.
         for row in rows:
             row.deployment_topology = None
             row.cluster_storage_type = None
@@ -157,25 +155,96 @@ def _observe_billing_coverage(
     return observed, "AVAILABLE", detail
 
 
+def _prepare_run(
+    db: Session,
+    *,
+    now: datetime,
+    run: RdsReservationCoverageRun | None,
+) -> RdsReservationCoverageRun:
+    if run is None:
+        snapshot_at = effective_rds_inventory_snapshot_at(db, fallback=now) or now
+        run = RdsReservationCoverageRun(
+            started_at=now,
+            inventory_snapshot_at=snapshot_at,
+            status="RUNNING",
+            pipeline_stage="coverage",
+            inventory_status="UNKNOWN",
+            opportunity_status="NOT_RUN",
+            reconciliation_status="NOT_AVAILABLE",
+            billing_validation_status="NOT_AVAILABLE",
+        )
+        db.add(run)
+    else:
+        run.status = "RUNNING"
+        run.pipeline_stage = "coverage"
+        run.completed_at = None
+        run.error_detail = None
+        run.reconciliation_status = "NOT_AVAILABLE"
+        run.reconciliation_detail = None
+        run.billing_validation_status = "NOT_AVAILABLE"
+        run.aws_observed_coverage_percentage = None
+    db.commit()
+    db.refresh(run)
+    return run
+
+
+def _generate_opportunities_for_completed_run(
+    db: Session,
+    *,
+    run_id: int,
+    now: datetime,
+) -> None:
+    run = db.get(RdsReservationCoverageRun, run_id)
+    if run is None:
+        return
+    run.pipeline_stage = "opportunities"
+    run.opportunity_status = "RUNNING"
+    run.opportunity_error_detail = None
+    db.commit()
+    try:
+        from app.services.rds_reservation_opportunities import (
+            generate_rds_reservation_opportunities,
+        )
+
+        result = generate_rds_reservation_opportunities(db, coverage_run_id=run_id, now=now)
+        db.commit()
+        run = db.get(RdsReservationCoverageRun, run_id)
+        if run is not None:
+            run.opportunity_status = "COMPLETED"
+            run.pipeline_stage = "completed"
+            run.completed_at = utcnow()
+            db.commit()
+        logger.info(
+            "event=rds_opportunities_completed coverage_run_id=%s created=%s updated=%s resolved=%s",
+            run_id,
+            result.created,
+            result.updated,
+            result.resolved,
+        )
+    except Exception as exc:
+        db.rollback()
+        run = db.get(RdsReservationCoverageRun, run_id)
+        if run is not None:
+            run.opportunity_status = "FAILED"
+            run.opportunity_error_detail = str(exc)[:2000]
+            run.pipeline_stage = "completed"
+            run.completed_at = utcnow()
+            db.commit()
+        logger.exception("event=rds_opportunities_failed coverage_run_id=%s", run_id)
+
+
 def run_rds_reservation_coverage(
     db: Session,
     *,
     validate_billing: bool = True,
     now: datetime | None = None,
     billing_scope: BillingScopeContext | None = None,
+    run: RdsReservationCoverageRun | None = None,
+    generate_opportunities: bool = True,
 ) -> RdsReservationCoverageRun:
     now = now or utcnow()
     started_clock = time.monotonic()
-    run = RdsReservationCoverageRun(
-        started_at=now,
-        inventory_snapshot_at=now,
-        status="RUNNING",
-        reconciliation_status="NOT_AVAILABLE",
-        billing_validation_status="NOT_AVAILABLE",
-    )
-    db.add(run)
-    db.commit()
-    db.refresh(run)
+    run = _prepare_run(db, now=now, run=run)
 
     try:
         instances = (
@@ -297,12 +366,13 @@ def run_rds_reservation_coverage(
                 )
         run.status = "COMPLETED"
         run.completed_at = utcnow()
+        run.pipeline_stage = "opportunities" if generate_opportunities else "coverage"
         run_id = run.id
         db.commit()
         logger.info(
-            "RDS coverage run completed id=%s instances=%s reservations=%s full=%s partial=%s "
-            "uncovered=%s unknown=%s required_units=%s covered_units=%s unused_reserved_units=%s "
-            "allocations=%s duration_ms=%s reconciliation=%s",
+            "event=rds_coverage_completed coverage_run_id=%s instances=%s reservations=%s full=%s "
+            "partial=%s uncovered=%s unknown=%s required_units=%s covered_units=%s "
+            "unused_reserved_units=%s allocations=%s duration_ms=%s reconciliation=%s",
             run_id,
             run.instances_analyzed,
             run.reservations_analyzed,
@@ -318,29 +388,8 @@ def run_rds_reservation_coverage(
             run.reconciliation_status,
         )
 
-        # Opportunity generation is deliberately a separate transaction. A failure here
-        # must not invalidate an already valid coverage run, but it is logged as a partial
-        # pipeline failure and can be retried through the dedicated endpoint.
-        try:
-            from app.services.rds_reservation_opportunities import (
-                generate_rds_reservation_opportunities,
-            )
-
-            opportunity_result = generate_rds_reservation_opportunities(
-                db, coverage_run_id=run_id, now=now
-            )
-            db.commit()
-            logger.info(
-                "RDS opportunity generation completed coverage_run_id=%s "
-                "created=%s updated=%s resolved=%s",
-                run_id,
-                opportunity_result.created,
-                opportunity_result.updated,
-                opportunity_result.resolved,
-            )
-        except Exception:
-            db.rollback()
-            logger.exception("RDS opportunity generation failed coverage_run_id=%s", run_id)
+        if generate_opportunities:
+            _generate_opportunities_for_completed_run(db, run_id=run_id, now=now)
 
         refreshed = db.get(RdsReservationCoverageRun, run_id)
         return refreshed or run
@@ -349,8 +398,9 @@ def run_rds_reservation_coverage(
         failed = db.get(RdsReservationCoverageRun, run.id)
         if failed is not None:
             failed.status = "FAILED"
+            failed.pipeline_stage = "coverage"
             failed.completed_at = utcnow()
             failed.error_detail = str(exc)[:2000]
             db.commit()
-        logger.exception("RDS coverage run failed id=%s", run.id)
+        logger.exception("event=rds_coverage_failed coverage_run_id=%s", run.id)
         raise
