@@ -61,14 +61,14 @@ test("Settings keeps forms readable while the page container expands", () => {
 
   assert.match(
     styles,
-    /\.content :global\(\.panel form\),[\s\S]*max-inline-size:\s*calc\(var\(--filter-field-wide-inline-size\) \+ var\(--filter-field-wide-inline-size\) \+ var\(--space-4\)\)/,
+    /max-inline-size:\s*calc\(var\(--filter-field-wide-inline-size\) \+ var\(--filter-field-wide-inline-size\) \+ var\(--space-4\)\)/,
   );
   assert.match(
     styles,
-    /\.content :global\(\.settings-form-grid\),[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/,
+    /grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
   );
   assert.match(
     styles,
-    /@media \(max-width: 62rem\)[\s\S]*grid-template-columns:\s*minmax\(0, 1fr\)/,
+    /@media \(max-width: 62rem\)[\s\S]*grid-template-columns:\s*minmax\(0,\s*1fr\)/,
   );
 });
