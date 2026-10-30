@@ -7,3 +7,4 @@ export * from "./metric-card";
 export * from "./selectors";
 export * from "./date-range-picker";
 export * from "./recommendation-card";
+export * from "./ambient-background";

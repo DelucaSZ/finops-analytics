@@ -1,5 +1,5 @@
 .page {
-  background: var(--application-background);
+  background: var(--page-background);
   color: var(--text-primary);
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);

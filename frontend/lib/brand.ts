@@ -29,6 +29,10 @@ export const brand = Object.freeze({
     mark: Object.freeze({
       gradient: "/brand/aven/aven-icon-gradient.svg",
     }),
+    ambient: Object.freeze({
+      light: "/brand/aven/aven-ambient-background-light.svg",
+      dark: "/brand/aven/aven-ambient-background-dark.svg",
+    }),
     icons: Object.freeze({
       favicon: "/brand/aven/favicon.ico",
       appleTouch: "/brand/aven/apple-touch-icon.png",

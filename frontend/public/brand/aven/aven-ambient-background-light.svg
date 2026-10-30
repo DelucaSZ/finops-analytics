@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1920" height="1080" viewBox="0 0 1920 1080" preserveAspectRatio="xMidYMid slice" fill="none">
+  <defs>
+    <linearGradient id="light-base" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FCFEFF"/>
+      <stop offset=".55" stop-color="#F4F9FF"/>
+      <stop offset="1" stop-color="#EAF3FE"/>
+    </linearGradient>
+    <radialGradient id="light-ambient-blue" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1900 1080) scale(1470 1020)">
+      <stop stop-color="#97C5F5" stop-opacity=".28"/>
+      <stop offset=".5" stop-color="#BADAF9" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#BADAF9" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="light-ambient-violet" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(1710 230) scale(1020 680)">
+      <stop stop-color="#C5C0F2" stop-opacity=".1"/>
+      <stop offset=".55" stop-color="#D5D0F6" stop-opacity=".035"/>
+      <stop offset="1" stop-color="#D5D0F6" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="light-depth" x1="240" y1="460" x2="1780" y2="1120" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".58"/>
+      <stop offset=".56" stop-color="#F8FCFF" stop-opacity=".38"/>
+      <stop offset="1" stop-color="#E0EEFF" stop-opacity=".06"/>
+    </linearGradient>
+    <linearGradient id="light-flow-upper" x1="0" y1="480" x2="1920" y2="160" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#A8C5E5" stop-opacity=".16"/>
+      <stop offset=".4" stop-color="#B7C6E7" stop-opacity=".13"/>
+      <stop offset=".76" stop-color="#A7B4DE" stop-opacity=".18"/>
+      <stop offset="1" stop-color="#B0C0E6" stop-opacity=".1"/>
+    </linearGradient>
+    <linearGradient id="light-flow-lower" x1="0" y1="440" x2="1920" y2="850" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFFFFF" stop-opacity=".78"/>
+      <stop offset=".45" stop-color="#FFFFFF" stop-opacity=".32"/>
+      <stop offset=".75" stop-color="#B6D2EF" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#A9C8EB" stop-opacity=".23"/>
+    </linearGradient>
+    <linearGradient id="light-flow-horizon" x1="580" y1="1080" x2="2040" y2="760" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#AAC7EA" stop-opacity="0"/>
+      <stop offset=".65" stop-color="#9FBFE6" stop-opacity=".17"/>
+      <stop offset="1" stop-color="#BCCAEA" stop-opacity=".05"/>
+    </linearGradient>
+  </defs>
+  <rect width="1920" height="1080" fill="url(#light-base)"/>
+  <rect width="1920" height="1080" fill="url(#light-ambient-blue)"/>
+  <rect width="1920" height="1080" fill="url(#light-ambient-violet)"/>
+  <path fill="url(#light-depth)" d="M-240 425C170 245 390 845 870 920C1310 989 1730 680 2160 305V1280H-240Z"/>
+  <path id="light-flow-line-primary" d="M-240 650C230 445 690 90 1310 108C1700 119 1920 265 2170 535" stroke="url(#light-flow-upper)" stroke-width="1" vector-effect="non-scaling-stroke"/>
+  <path id="light-flow-line-secondary" d="M-240 425C170 245 390 845 870 920C1310 989 1730 680 2160 305" stroke="url(#light-flow-lower)" stroke-width=".8" vector-effect="non-scaling-stroke"/>
+  <path id="light-flow-line-horizon" d="M-260 1210C360 1050 700 1160 1200 1050C1630 955 1970 810 2230 610" stroke="url(#light-flow-horizon)" stroke-width=".75" vector-effect="non-scaling-stroke"/>
+</svg>
