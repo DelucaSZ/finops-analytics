@@ -10,26 +10,26 @@ export const brand = Object.freeze({
   assets: Object.freeze({
     logo: Object.freeze({
       horizontal: Object.freeze({
-        onLight: "/brand/aven/aven_logo_horizontal_light_ui_4096.png",
-        onDark: "/brand/aven/aven_logo_horizontal_dark_ui_4096.png",
+        onLight: "/brand/aven/aven_logo_horizontal_light_ui_4096.svg",
+        onDark: "/brand/aven/aven_logo_horizontal_dark_ui_4096.svg",
       }),
       horizontalNoTagline: Object.freeze({
-        onLight: "/brand/aven/aven_logo_horizontal_no_tagline_light_ui_4096.png",
-        onDark: "/brand/aven/aven_logo_horizontal_no_tagline_dark_ui_4096.png",
+        onLight: "/brand/aven/aven_logo_horizontal_no_tagline_light_ui_4096.svg",
+        onDark: "/brand/aven/aven_logo_horizontal_no_tagline_dark_ui_4096.svg",
       }),
       vertical: Object.freeze({
-        onLight: "/brand/aven/aven_logo_vertical_light_ui_4096.png",
-        onDark: "/brand/aven/aven_logo_vertical_dark_ui_4096.png",
+        onLight: "/brand/aven/aven_logo_vertical_light_ui_4096.svg",
+        onDark: "/brand/aven/aven_logo_vertical_dark_ui_4096.svg",
       }),
     }),
     mark: Object.freeze({
-      gradient: "/brand/aven/aven-mark-gradient.png",
+      gradient: "/brand/aven/aven-icon-gradient.svg",
     }),
     icons: Object.freeze({
       favicon: "/brand/aven/favicon.ico",
       appleTouch: "/brand/aven/apple-touch-icon.png",
     }),
-    // Technical-only compatibility assets. Runtime Login/Shell branding uses the 4096 UI lockups above.
+    // Technical-only compatibility aliases. Runtime Login/Shell branding uses the Full HD kit lockups above.
     wordmarkFallback: "/brand/aven/aven-logo-horizontal-fallback.svg",
     symbolGradient: "/brand/aven/aven-icon-gradient.svg",
   }),
