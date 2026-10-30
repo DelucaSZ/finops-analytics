@@ -96,7 +96,7 @@ def test_complete_pipeline_runs_inventory_coverage_and_opportunities(monkeypatch
     assert result["opportunities"]["created"] == 3
     run = db.get(RdsReservationCoverageRun, result["coverage_run_id"])
     assert run is not None
-    assert run.inventory_snapshot_at == SNAPSHOT.replace(tzinfo=None) or run.inventory_snapshot_at == SNAPSHOT
+    assert run.inventory_snapshot_at in {SNAPSHOT.replace(tzinfo=None), SNAPSHOT}
 
 
 def test_inventory_failure_skips_coverage(monkeypatch) -> None:
@@ -263,7 +263,9 @@ def test_refresh_api_returns_pipeline_summary(monkeypatch) -> None:
             "data_freshness": "FRESH",
         },
     )
-    response = _api_client(db).post("/api/v1/rds/reservations/refresh?validate_billing=false")
+    response = _api_client(db).post(
+        "/api/v1/rds/reservations/refresh?validate_billing=false"
+    )
     assert response.status_code == 200
     assert response.json()["coverage_run_id"] == 42
 
