@@ -223,6 +223,6 @@ dig +short A DOMINIO
 dig +short AAAA DOMINIO
 ```
 
-Para múltiplos A/AAAA, valide cada endpoint relevante, sempre usando o hostname correto como SNI, e compare o fingerprint apresentado com o exibido pelo DeepOps.
+Para múltiplos A/AAAA, valide cada endpoint relevante, sempre usando o hostname correto como SNI, e compare o fingerprint apresentado com o exibido pelo Aven.
 
 O script `scripts/check-external-readiness.py` continua validando o host/Compose e o handshake local de readiness. A confirmação definitiva do endpoint público deve ser realizada externamente.
