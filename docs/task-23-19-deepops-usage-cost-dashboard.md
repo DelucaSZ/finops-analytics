@@ -1,16 +1,18 @@
-# Etapa 23.19 — Dashboard de Usage & Costs do DeepOps
+# Etapa 23.19 — Dashboard de Usage & Costs do Aven
+
+> Registro histórico da implementação. Para funcionalidades atuais, consulte o [README](../README.md).
 
 ## Objetivo
 
-Esta etapa disponibiliza em Configurações uma visão administrativa do uso técnico de CloudWatch produzido pelo próprio DeepOps e do custo operacional estimado pela Task 23.18.
+Esta etapa disponibiliza em Configurações uma visão administrativa do uso técnico de CloudWatch produzido pelo próprio Aven e do custo operacional estimado pela Task 23.18.
 
-> O dashboard apresenta uma estimativa do custo CloudWatch gerado pelo próprio DeepOps, e não o custo total de CloudWatch da conta AWS nem a fatura final da AWS.
+> O dashboard apresenta uma estimativa do custo CloudWatch gerado pelo próprio Aven, e não o custo total de CloudWatch da conta AWS nem a fatura final da AWS.
 
-> Por padrão, o valor apresentado é a estimativa bruta calculada pela Task 23.18 e não desconta free tier compartilhado quando o DeepOps não possui visibilidade completa sobre o consumo da conta.
+> Por padrão, o valor apresentado é a estimativa bruta calculada pela Task 23.18 e não desconta free tier compartilhado quando o Aven não possui visibilidade completa sobre o consumo da conta.
 
 > O frontend não reproduz fórmulas de pricing; todos os valores monetários são calculados pelo CloudWatch Cost Engine.
 
-> Billing via Cost Explorer e Usage & Costs do DeepOps são domínios independentes.
+> Billing via Cost Explorer e Usage & Costs do Aven são domínios independentes.
 
 > Nenhuma conversão cambial é realizada.
 
@@ -30,7 +32,7 @@ A área foi adicionada em:
 ```text
 Configurações
 └── Uso e custos
-    └── CloudWatch do DeepOps
+    └── CloudWatch do Aven
 ```
 
 A rota é `/settings/usage-costs`. Ela integra a navegação administrativa existente de Configurações e não cria item principal na sidebar. O mesmo mecanismo de `settingsTabsForRole()`/`isAdminOnlySettingsPath()` mantém a área visível somente para administradores.
@@ -79,7 +81,7 @@ Accounts são apresentadas com nome amigável e AWS Account ID quando disponíve
 
 A visão inicial usa no máximo quatro KPIs:
 
-- **Custo estimado do DeepOps**: usa exatamente `gross_estimated_cost` retornado pelo Cost Engine;
+- **Custo estimado do Aven**: usa exatamente `gross_estimated_cost` retornado pelo Cost Engine;
 - **Requests CloudWatch**: soma técnica sobre grupos disjuntos do read model de usage;
 - **Metric queries**: apresentada separadamente de requests;
 - **Falhas**: eventos CloudWatch com `success=false`.
@@ -92,7 +94,7 @@ Quando mais de uma currency estiver presente, valores monetários são renderiza
 
 O dashboard identifica o custo como **estimativa bruta**. `free_tier_applied` é exibido diretamente conforme a resposta da Task 23.18.
 
-Quando `free_tier_applied=false`, a interface explica que o DeepOps observa seu próprio uso e pode não conhecer o consumo CloudWatch de outras workloads da conta, portanto não tenta inferir o saldo compartilhado de free tier.
+Quando `free_tier_applied=false`, a interface explica que o Aven observa seu próprio uso e pode não conhecer o consumo CloudWatch de outras workloads da conta, portanto não tenta inferir o saldo compartilhado de free tier.
 
 Nenhum desconto, credit, EDP, private pricing ou free tier é reaplicado no browser.
 
@@ -230,7 +232,7 @@ Nenhuma migration ou índice novo foi necessário: as consultas usam as dimensõ
 
 Esta etapa não consulta Cost Explorer e não altera Billing 23.14–23.16. Também não lê ou muta o ledger de Fluxo, não cria Opportunity/Finding, não altera Pricing OCI e não realiza FX.
 
-Não existe reconciliação automática entre DeepOps estimate e line items de CloudWatch no Cost Explorer.
+Não existe reconciliação automática entre Aven estimate e line items de CloudWatch no Cost Explorer.
 
 Não existe KPI global de ROI porque savings e custo operacional podem possuir currency e base temporal incompatíveis.
 
