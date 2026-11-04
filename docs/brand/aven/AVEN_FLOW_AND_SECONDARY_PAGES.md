@@ -330,7 +330,7 @@ Hardcoded border radius: 0
 Hardcoded typography: 0
 ```
 
-`npm run lint:brand` also passes. No new visible DeepOps or NuvemIQ branding is introduced.
+`npm run lint:brand` also passes. No new visible Aven or Aven branding is introduced.
 
 ## Task 24.17 Readiness
 
