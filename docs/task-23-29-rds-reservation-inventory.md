@@ -9,7 +9,7 @@ or expiration alerts.
 
 ## Inventory
 
-The collector inventories every enabled AWS account registered in DeepOps and
+The collector inventories every enabled AWS account registered in Aven and
 every region configured for that account.
 
 ### DB Instances
@@ -57,7 +57,7 @@ best-effort and never discards the parent DB Instance.
 
 ## API
 
-All endpoints use the existing DeepOps administrator authorization dependency.
+All endpoints use the existing Aven administrator authorization dependency.
 
 - `POST /api/v1/rds/collect`
 - `GET /api/v1/rds/instances`
