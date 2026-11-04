@@ -1,6 +1,8 @@
-# DeepOps implementation roadmap
+# Aven implementation roadmap
 
-Este documento registra o estado real das etapas estruturais do DeepOps para que futuras implementações não dependam do histórico de conversa.
+> Este roadmap preserva decisões históricas por etapa. Para o estado funcional e operacional vigente, consulte [README](../README.md) e [PROJECT_STATE](../PROJECT_STATE.md); nomes de contratos técnicos legados citados em exemplos continuam válidos quando presentes no código.
+
+Este documento registra o estado real das etapas estruturais do Aven para que futuras implementações não dependam do histórico de conversa.
 
 ## Etapa 1 — CollectionRun
 
@@ -445,7 +447,7 @@ O detalhe foi implementado em drawer, identificado por `opportunity_id` na URL. 
 - `GET /opportunities/{id}/history`;
 - `GET /opportunities/{id}/status-history`.
 
-O drawer mostra contexto comum de cloud/conta/região/serviço/recurso/regra, status, severidade, impacto, custo, primeira/última detecção, total real de observações e decisão atual. A seção de evidência foi renomeada para **“Por que o DeepOps chegou nessa conclusão?”** e continua usando somente a evidência real já persistida; nenhuma explicação factual é inventada no frontend.
+O drawer mostra contexto comum de cloud/conta/região/serviço/recurso/regra, status, severidade, impacto, custo, primeira/última detecção, total real de observações e decisão atual. A seção de evidência foi renomeada para **“Por que o Aven chegou nessa conclusão?”** e continua usando somente a evidência real já persistida; nenhuma explicação factual é inventada no frontend.
 
 Histórico de detecção e histórico de decisões permanecem visualmente separados. O histórico técnico carrega inicialmente somente 8 observações; `Ver histórico completo` habilita paginação de 50 itens por página sob demanda. O histórico de decisão continua separado e limitado à página solicitada da API.
 
@@ -503,7 +505,7 @@ Execução local do módulo de testes antes do PR: **9 testes aprovados, 0 falha
 
 ### Estado anterior
 
-A Etapa 5 já apresentava a seção **“Por que o DeepOps chegou nessa conclusão?”**, porém a interpretação de cada payload de `evidence` acontecia no frontend. `Finding.evidence` e `OpportunityObservation.evidence` continham JSONs específicos por analyzer, incluindo a configuração completa da policy. O detalhe não expunha `latest_observation` de forma explícita e o frontend precisava consultar o histórico separadamente para acessar uma observation. A listagem também carregava o JSON completo de `evidence` em cada item.
+A Etapa 5 já apresentava a seção **“Por que o Aven chegou nessa conclusão?”**, porém a interpretação de cada payload de `evidence` acontecia no frontend. `Finding.evidence` e `OpportunityObservation.evidence` continham JSONs específicos por analyzer, incluindo a configuração completa da policy. O detalhe não expunha `latest_observation` de forma explícita e o frontend precisava consultar o histórico separadamente para acessar uma observation. A listagem também carregava o JSON completo de `evidence` em cada item.
 
 ### Contrato de evidência adotado
 
@@ -628,7 +630,7 @@ Validação automatizada do PR #12 concluída em 25/09/2026:
 - security: validações de readiness, exposição pública do Compose e template de Security Group aprovadas;
 - Auto Deploy Tests: workflow aprovado.
 
-O teste operacional ponta a ponta contra uma conta AWS real, com backend/worker/frontend do ambiente implantado e duas coletas reais, não foi executado a partir desta sessão. A execução atual possui acesso ao repositório/CI, mas não uma sessão shell no host DeepOps com as credenciais cloud nem um browser conectado ao ambiente implantado. A cobertura automatizada valida explicitamente duas `OpportunityObservation` de `CollectionRun` diferentes e confirma que a segunda evidência não sobrescreve a primeira.
+O teste operacional ponta a ponta contra uma conta AWS real, com backend/worker/frontend do ambiente implantado e duas coletas reais, não foi executado a partir desta sessão. A execução atual possui acesso ao repositório/CI, mas não uma sessão shell no host Aven com as credenciais cloud nem um browser conectado ao ambiente implantado. A cobertura automatizada valida explicitamente duas `OpportunityObservation` de `CollectionRun` diferentes e confirma que a segunda evidência não sobrescreve a primeira.
 
 ### Fora de escopo preservado
 
@@ -2127,7 +2129,7 @@ nova `OpportunityObservation` é efetivamente criada; retry da mesma CollectionR
 incrementa. O cleanup nunca decrementa esse campo.
 
 Na migration o valor é backfilled com o número de observations conhecidas naquele
-momento. O DeepOps não inventa ocorrências anteriores ao modelo histórico da Etapa 2 que
+momento. O Aven não inventa ocorrências anteriores ao modelo histórico da Etapa 2 que
 não estejam materializadas no banco; essa é uma limitação de dados legados, não uma
 contagem sintetizada.
 
@@ -3153,7 +3155,7 @@ Os resultados são desacoplados do SDK em `OciMetricSeries`, `OciResourceMetrics
 
 Coverage distingue dados disponíveis, ausência de datapoints e falhas de query. Erros 403/404 são cobertura/autorização incompleta do serviço e não alteram automaticamente `CloudAccount.connection_status`. Falhas 401/configuração de signing continuam fatais conforme a taxonomia OCI compartilhada. Recursos STOPPED e recursos criados dentro da janela recebem razões factuais de coverage quando aplicável, sem criar Finding ou Opportunity.
 
-Nenhuma persistência nova foi adicionada e nenhuma migration foi criada. Não foram adicionados thresholds, analyzer OCI, rightsizing, saving DeepOps, Finding, Opportunity, OpportunityObservation ou `CollectionRun` OCI. As capabilities permanecem `manual_collection=false` e `scheduling=false`, e não existe `OciCollectionExecutor` registrado.
+Nenhuma persistência nova foi adicionada e nenhuma migration foi criada. Não foram adicionados thresholds, analyzer OCI, rightsizing, saving Aven, Finding, Opportunity, OpportunityObservation ou `CollectionRun` OCI. As capabilities permanecem `manual_collection=false` e `scheduling=false`, e não existe `OciCollectionExecutor` registrado.
 
 A próxima atividade é **22.9 — OCI Correlation Engine**, que unificará Inventory + Cloud Advisor + Usage/Cost + Monitoring em um contexto analítico por recurso antes dos analyzers OCI.
 
@@ -3219,7 +3221,7 @@ requests de rede, não persiste snapshots e não cria Finding ou Opportunity.
 ### Limites preservados
 
 - Nenhum Finding ou Opportunity OCI é criado.
-- Nenhum fingerprint, severity, confidence, priority, rank, threshold ou saving DeepOps é calculado.
+- Nenhum fingerprint, severity, confidence, priority, rank, threshold ou saving Aven é calculado.
 - Nenhum analyzer OCI foi implementado.
 - Nenhuma migration foi criada.
 - OCI continua com manual_collection=false, scheduling=false e fora do executor público.
@@ -3915,13 +3917,13 @@ As chaves são determinísticas e as unidades distinguem `OCPU_HOUR`, `GB_RAM_HO
 
 > os valores OCI anteriormente fornecidos ao projeto estão denominados em **BRL (reais brasileiros)**.
 
-> o pricing AWS atualmente utilizado pelo DeepOps está em **USD**. O sistema não assume uma moeda global única e não soma valores de moedas diferentes sem uma camada explícita de conversão, que está fora do escopo desta etapa.
+> o pricing AWS atualmente utilizado pelo Aven está em **USD**. O sistema não assume uma moeda global única e não soma valores de moedas diferentes sem uma camada explícita de conversão, que está fora do escopo desta etapa.
 
 Todos os itens OCI seedados possuem `currency = BRL`. O resolver valida a moeda esperada e trata divergência como erro de configuração. Não existe conversão cambial nesta etapa.
 
 ### Seed inicial e migration
 
-A migration `0024_pricing_catalog` cria a tabela, constraints e índice e popula deterministicamente os nove valores já utilizados pelo DeepOps, com `source = IMPORTED_OCI_CALCULATOR`, `enabled = true`, vigência aberta e `effective_from` explícito. O deploy não depende de cadastro manual nem de API externa.
+A migration `0024_pricing_catalog` cria a tabela, constraints e índice e popula deterministicamente os nove valores já utilizados pelo Aven, com `source = IMPORTED_OCI_CALCULATOR`, `enabled = true`, vigência aberta e `effective_from` explícito. O deploy não depende de cadastro manual nem de API externa.
 
 Itens migrados:
 
@@ -3971,7 +3973,7 @@ A Etapa 23.8 adiciona administração do catálogo persistente criado na 23.7 se
 
 A entidade permanece provider-neutral. A apresentação e os endpoints desta etapa são OCI-only, mas as regras centrais de listagem, vigência, conflito e versionamento ficam em `PricingCatalogAdminService`, parametrizado por provider. Não foi criada tabela ou service duplicado de preço OCI.
 
-> os preços OCI atualmente administrados pelo DeepOps estão denominados em BRL.
+> os preços OCI atualmente administrados pelo Aven estão denominados em BRL.
 
 AWS continua usando USD no mecanismo já existente. Não existe conversão cambial nem administração de pricing AWS nesta etapa.
 
@@ -4417,7 +4419,7 @@ A 23.14 introduz o backend de Billing AWS usando o AWS Cost Explorer (`GetCostAn
 
 > Billing e Fluxo são domínios distintos. Dados do Cost Explorer não criam automaticamente savings ou movimentações no ledger.
 
-> O DeepOps preserva a unidade/moeda retornada pelo Cost Explorer e não realiza conversão cambial nesta etapa.
+> O Aven preserva a unidade/moeda retornada pelo Cost Explorer e não realiza conversão cambial nesta etapa.
 
 ### Arquitetura AWS encontrada
 
@@ -4425,13 +4427,13 @@ O cadastro existente usa `CloudAccount` como identidade interna e `AwsAccount` p
 
 O modelo atual sabe se uma conta é management, mas não persiste uma relação confiável entre payer/management e member accounts. Também não existe Redis no stack atual e a API roda em processo único no Compose, portanto a primeira estratégia de cache é process-local e não exige infraestrutura distribuída adicional.
 
-A autorização atual do produto é por usuário autenticado sobre o conjunto de contas cadastradas no DeepOps; ainda não existe ACL persistida por usuário/conta. A API de Billing aceita somente IDs internos de `CloudAccount`, resolve AWS Account IDs no servidor e não expõe um seletor arbitrário de `LINKED_ACCOUNT` ao cliente.
+A autorização atual do produto é por usuário autenticado sobre o conjunto de contas cadastradas no Aven; ainda não existe ACL persistida por usuário/conta. A API de Billing aceita somente IDs internos de `CloudAccount`, resolve AWS Account IDs no servidor e não expõe um seletor arbitrário de `LINKED_ACCOUNT` ao cliente.
 
 ### Documentação AWS e decisões
 
 A implementação foi validada contra a documentação atual do `GetCostAndUsage`, `DateInterval`, dimensões/charge types do Cost Explorer, permissões IAM, acesso de management/member accounts e pricing da API.
 
-`TimePeriod.Start` é inclusivo e `End` é exclusivo. O domínio DeepOps expõe somente `DAILY` e `MONTHLY` nesta etapa, embora a API AWS também possua `HOURLY`. As métricas suportadas são `AmortizedCost`, `NetAmortizedCost` e `UnblendedCost`. A exclusão de crédito usa a dimensão `RECORD_TYPE` com o valor exato `Credit`. Os agrupamentos expostos pelo produto são `SERVICE` e `ACCOUNT`, sendo `ACCOUNT` traduzido internamente para `LINKED_ACCOUNT`.
+`TimePeriod.Start` é inclusivo e `End` é exclusivo. O domínio Aven expõe somente `DAILY` e `MONTHLY` nesta etapa, embora a API AWS também possua `HOURLY`. As métricas suportadas são `AmortizedCost`, `NetAmortizedCost` e `UnblendedCost`. A exclusão de crédito usa a dimensão `RECORD_TYPE` com o valor exato `Credit`. Os agrupamentos expostos pelo produto são `SERVICE` e `ACCOUNT`, sendo `ACCOUNT` traduzido internamente para `LINKED_ACCOUNT`.
 
 O client do Cost Explorer é criado em `us-east-1`, conforme o endpoint global de billing da AWS. Todas as páginas de `NextPageToken` são consumidas e existe proteção contra repetição de token. `Amount` é convertido diretamente de string para `Decimal`; `Unit` e `Estimated` são preservados.
 
@@ -4441,7 +4443,7 @@ A API do Cost Explorer tem custo operacional por requisição paginada. A refer�
 
 Como não existe no banco uma associação payer/member confiável, cada role cadastrada é tratada como um billing scope derivado independente nesta primeira versão. Member/standalone accounts são consultadas com a própria role e retornam seu próprio escopo de Cost Explorer, sujeito às preferências de acesso configuradas pela management account.
 
-Para uma conta marcada como management, o DeepOps assume a role cadastrada, mas adiciona filtro `LINKED_ACCOUNT` para o próprio AWS Account ID daquela conta. Isso impede que uma consulta limitada a uma conta DeepOps vaze custos de members visíveis ao payer.
+Para uma conta marcada como management, o Aven assume a role cadastrada, mas adiciona filtro `LINKED_ACCOUNT` para o próprio AWS Account ID daquela conta. Isso impede que uma consulta limitada a uma conta Aven vaze custos de members visíveis ao payer.
 
 Uma requisição com múltiplas contas consulta cada billing scope registrado separadamente e agrega somente quando todas as consultas terminam com sucesso. Se qualquer scope falhar, a resposta agregada falha explicitamente; não existe total silenciosamente parcial. A otimização de usar uma management account para consultar vários members em uma única chamada fica condicionada a uma futura relação payer/member persistida e confiável.
 
@@ -4463,7 +4465,7 @@ Breakdown por `SERVICE` preserva a chave retornada pela AWS. Breakdown por `ACCO
 
 ### Cache, retries, paginação e observabilidade
 
-O cache é process-local e thread-safe, coerente com o deployment single-process atual. `AWS_BILLING_CACHE_TTL_CURRENT_SECONDS` tem default de 3600 segundos e `AWS_BILLING_CACHE_TTL_HISTORICAL_SECONDS` default de 86400 segundos; ambos são configuráveis. Períodos fechados anteriores ao mês corrente usam o TTL histórico; demais períodos usam o TTL corrente. Como o DeepOps não muta dados de Cost Explorer, TTL é suficiente e não foi criado mecanismo de invalidation complexo.
+O cache é process-local e thread-safe, coerente com o deployment single-process atual. `AWS_BILLING_CACHE_TTL_CURRENT_SECONDS` tem default de 3600 segundos e `AWS_BILLING_CACHE_TTL_HISTORICAL_SECONDS` default de 86400 segundos; ambos são configuráveis. Períodos fechados anteriores ao mês corrente usam o TTL histórico; demais períodos usam o TTL corrente. Como o Aven não muta dados de Cost Explorer, TTL é suficiente e não foi criado mecanismo de invalidation complexo.
 
 A cache key inclui billing scope, ID interno da conta autorizada, intervalo, granularidade, métrica, grouping e record types excluídos. O client reutiliza os retries adaptativos já definidos em `BOTO_CONFIG` (`max_attempts=6`) e não implementa loop de retry próprio.
 
@@ -4507,7 +4509,7 @@ Billing continua independente de Fluxo. Nenhum profile cria savings, movimentaç
 
 ### Modelo, ownership e autorização
 
-A arquitetura atual não possui tenant nem ACL persistida por usuário/conta. Por isso `BillingProfile` é global ao ambiente DeepOps, seguindo o mesmo escopo operacional global já usado pela autorização de contas da 23.14, sem inventar multi-tenancy.
+A arquitetura atual não possui tenant nem ACL persistida por usuário/conta. Por isso `BillingProfile` é global ao ambiente Aven, seguindo o mesmo escopo operacional global já usado pela autorização de contas da 23.14, sem inventar multi-tenancy.
 
 O modelo persiste `id`, `name`, `description`, `granularity`, `metric`, `group_by`, `exclude_record_types`, `is_default`, `enabled`, `is_system`, `created_by`, `created_at` e `updated_at`. `created_by` é preenchido server-side em profiles criados pela API; o profile de sistema não falsifica ator.
 
@@ -4683,22 +4685,22 @@ O CI do PR da 23.16 executa `ruff check .`, `ruff format --check .`, `pytest -q`
 
 ### Limitações deliberadamente preservadas
 
-A Etapa 23.16 não implementa Forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, Pricing Catalog como fonte de Billing, geração automática de savings/ledger, integração automática com Opportunities, export pipeline novo, materialização financeira nem redesign global. Custos operacionais do próprio DeepOps permanecem para as Tasks 23.17–23.19 e a revisão estrutural de UX/navegação permanece para a 23.20.
+A Etapa 23.16 não implementa Forecast, AWS Budgets, CUR/Athena, OCI Billing, FX, Pricing Catalog como fonte de Billing, geração automática de savings/ledger, integração automática com Opportunities, export pipeline novo, materialização financeira nem redesign global. Custos operacionais do próprio Aven permanecem para as Tasks 23.17–23.19 e a revisão estrutural de UX/navegação permanece para a 23.20.
 
 
-## Etapa 23.17 — Instrumentação de chamadas CloudWatch do DeepOps
+## Etapa 23.17 — Instrumentação de chamadas CloudWatch do Aven
 
 **Status:** implementada na branch `feat/23-17-cloudwatch-usage-telemetry` e publicada em PR dedicado; merge na `main` depende de solicitação explícita posterior.
 
 ### Objetivo e separação de domínios
 
-Esta etapa mede uso técnico do CloudWatch realizado pelo DeepOps; ela não calcula custo monetário.
+Esta etapa mede uso técnico do CloudWatch realizado pelo Aven; ela não calcula custo monetário.
 
-Billing via Cost Explorer e custo operacional das chamadas CloudWatch do DeepOps são domínios distintos. Nenhum preço, free tier, moeda ou valor de custo foi adicionado nesta etapa. A transformação de usage em custo estimado pertence à 23.18 e o dashboard Usage & Costs pertence à 23.19.
+Billing via Cost Explorer e custo operacional das chamadas CloudWatch do Aven são domínios distintos. Nenhum preço, free tier, moeda ou valor de custo foi adicionado nesta etapa. A transformação de usage em custo estimado pertence à 23.18 e o dashboard Usage & Costs pertence à 23.19.
 
 ### Inventário CloudWatch da implementação atual
 
-A revisão da `main` confirmou que o DeepOps usa hoje somente `GetMetricStatistics`, centralizado pelo helper `_metric_statistics()` de `collectors.py`:
+A revisão da `main` confirmou que o Aven usa hoje somente `GetMetricStatistics`, centralizado pelo helper `_metric_statistics()` de `collectors.py`:
 
 - `load_balancer_no_traffic`: `AWS/ApplicationELB/RequestCount`, `AWS/NetworkELB/ProcessedBytes` e `AWS/ELB/RequestCount`;
 - `rds_nonprod_idle`: `AWS/RDS/CPUUtilization` e `AWS/RDS/DatabaseConnections`.
@@ -4759,7 +4761,7 @@ A documentação detalhada da implementação e da pesquisa AWS está em `docs/t
 A 23.17 não cria tabela de preços CloudWatch, não calcula USD/BRL, não aplica free tier, não calcula estimated operational cost e não cria dashboard. A 23.18 aplicará pricing à telemetria observada; a 23.19 consumirá esse domínio para visualização. Fluxo, Opportunities, Billing/Cost Explorer e OCI Pricing permanecem independentes.
 
 
-## Etapa 23.18 — CloudWatch Cost Engine do DeepOps
+## Etapa 23.18 — CloudWatch Cost Engine do Aven
 
 **Status:** implementada na branch `feat/23-18-cloudwatch-cost-engine` e publicada no PR #72; merge na `main` depende de solicitação explícita posterior.
 
@@ -4767,7 +4769,7 @@ A 23.17 não cria tabela de preços CloudWatch, não calcula USD/BRL, não aplic
 
 A Etapa 23.18 transforma o usage técnico observado pela 23.17 em custo monetário operacional estimado do próprio DeepOps. Raw usage continua sendo a fonte factual; pricing versionado é uma fonte separada; o custo é uma derivação reproduzível.
 
-> o custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo DeepOps e nas regras oficiais de pricing verificadas.
+> o custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo Aven e nas regras oficiais de pricing verificadas.
 
 > Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio DeepOps.
 
@@ -4793,7 +4795,7 @@ A fórmula corrente é `request_count / 1000 × USD 0.01`, sem arredondar cada e
 
 A métrica principal é `gross_estimated_cost`.
 
-> por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o DeepOps não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
+> por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o Aven não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
 
 A API retorna `free_tier_applied=false`. EDP, private pricing, descontos empresariais, taxes, credits e negotiated rates também não são aplicados.
 
@@ -4836,19 +4838,19 @@ Documentação detalhada: `docs/task-23-18-cloudwatch-cost-engine.md`.
 A 23.18 não implementa dashboard completo em Settings, gráficos, ROI, FX, reconciliação com Cost Explorer, scraper/auto-update de pricing, pricing admin UI, savings, findings ou redesign global. A 23.19 consumirá os read models desta etapa para a experiência de Usage & Costs.
 
 
-## Etapa 23.19 — Dashboard de Usage & Costs do DeepOps
+## Etapa 23.19 — Dashboard de Usage & Costs do Aven
 
 ## Objetivo
 
-Esta etapa disponibiliza em Configurações uma visão administrativa do uso técnico de CloudWatch produzido pelo próprio DeepOps e do custo operacional estimado pela Task 23.18.
+Esta etapa disponibiliza em Configurações uma visão administrativa do uso técnico de CloudWatch produzido pelo próprio Aven e do custo operacional estimado pela Task 23.18.
 
-> O dashboard apresenta uma estimativa do custo CloudWatch gerado pelo próprio DeepOps, e não o custo total de CloudWatch da conta AWS nem a fatura final da AWS.
+> O dashboard apresenta uma estimativa do custo CloudWatch gerado pelo próprio Aven, e não o custo total de CloudWatch da conta AWS nem a fatura final da AWS.
 
-> Por padrão, o valor apresentado é a estimativa bruta calculada pela Task 23.18 e não desconta free tier compartilhado quando o DeepOps não possui visibilidade completa sobre o consumo da conta.
+> Por padrão, o valor apresentado é a estimativa bruta calculada pela Task 23.18 e não desconta free tier compartilhado quando o Aven não possui visibilidade completa sobre o consumo da conta.
 
 > O frontend não reproduz fórmulas de pricing; todos os valores monetários são calculados pelo CloudWatch Cost Engine.
 
-> Billing via Cost Explorer e Usage & Costs do DeepOps são domínios independentes.
+> Billing via Cost Explorer e Usage & Costs do Aven são domínios independentes.
 
 > Nenhuma conversão cambial é realizada.
 
@@ -4868,7 +4870,7 @@ A área foi adicionada em:
 ```text
 Configurações
 └── Uso e custos
-    └── CloudWatch do DeepOps
+    └── CloudWatch do Aven
 ```
 
 A rota é `/settings/usage-costs`. Ela integra a navegação administrativa existente de Configurações e não cria item principal na sidebar. O mesmo mecanismo de `settingsTabsForRole()`/`isAdminOnlySettingsPath()` mantém a área visível somente para administradores.
@@ -4917,7 +4919,7 @@ Accounts são apresentadas com nome amigável e AWS Account ID quando disponíve
 
 A visão inicial usa no máximo quatro KPIs:
 
-- **Custo estimado do DeepOps**: usa exatamente `gross_estimated_cost` retornado pelo Cost Engine;
+- **Custo estimado do Aven**: usa exatamente `gross_estimated_cost` retornado pelo Cost Engine;
 - **Requests CloudWatch**: soma técnica sobre grupos disjuntos do read model de usage;
 - **Metric queries**: apresentada separadamente de requests;
 - **Falhas**: eventos CloudWatch com `success=false`.
@@ -4930,7 +4932,7 @@ Quando mais de uma currency estiver presente, valores monetários são renderiza
 
 O dashboard identifica o custo como **estimativa bruta**. `free_tier_applied` é exibido diretamente conforme a resposta da Task 23.18.
 
-Quando `free_tier_applied=false`, a interface explica que o DeepOps observa seu próprio uso e pode não conhecer o consumo CloudWatch de outras workloads da conta, portanto não tenta inferir o saldo compartilhado de free tier.
+Quando `free_tier_applied=false`, a interface explica que o Aven observa seu próprio uso e pode não conhecer o consumo CloudWatch de outras workloads da conta, portanto não tenta inferir o saldo compartilhado de free tier.
 
 Nenhum desconto, credit, EDP, private pricing ou free tier é reaplicado no browser.
 
@@ -5068,7 +5070,7 @@ Nenhuma migration ou índice novo foi necessário: as consultas usam as dimensõ
 
 Esta etapa não consulta Cost Explorer e não altera Billing 23.14–23.16. Também não lê ou muta o ledger de Fluxo, não cria Opportunity/Finding, não altera Pricing OCI e não realiza FX.
 
-Não existe reconciliação automática entre DeepOps estimate e line items de CloudWatch no Cost Explorer.
+Não existe reconciliação automática entre Aven estimate e line items de CloudWatch no Cost Explorer.
 
 Não existe KPI global de ROI porque savings e custo operacional podem possuir currency e base temporal incompatíveis.
 
