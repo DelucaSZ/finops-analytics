@@ -122,3 +122,11 @@ Reservations reuses Dashboard page rhythm, PageHeader, Section hierarchy, metric
 - **Expired Reservation** — reservation whose expiration state/date is already past; not the same as expiring.
 - **Reservation Opportunity** — backend-generated finding representing a coverage gap, partial coverage, unused capacity or approaching expiration.
 - **Potential Savings** — a future financial estimate only when supplied by a trustworthy backend calculation; not currently fabricated by this page.
+
+## Atualização operacional — pipeline de reservas RDS
+
+O backend orquestra a atualização de reservas em três etapas sequenciais: **inventário RDS → cobertura de reservas → oportunidades**. O inventário é obrigatório e, quando falha, impede cobertura com dados possivelmente incompletos. A reconciliação opcional com Cost Explorer não invalida cobertura técnica já calculada. Falha posterior na geração de oportunidades preserva o resultado da cobertura e produz status de aviso.
+
+A API administrativa expõe `POST /api/v1/rds/reservations/refresh` e `GET /api/v1/rds/reservations/operational-status`; a operação também existe em `app.commands.rds_reservations_refresh` no backend. A interface apresenta estados de execução e data efetiva do snapshot de inventário, além da classificação de freshness. O pipeline usa proteção contra concorrência e recuperação de execuções abandonadas.
+
+A autenticação destas rotas é **administrativa**; o disparo não executa compras, alterações nem cancelamentos de Reserved DB Instances. O resumo funcional e os comandos estão no [README principal](../../../README.md).
