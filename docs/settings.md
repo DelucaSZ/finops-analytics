@@ -106,8 +106,8 @@ A liberação externa do host permanece fora desta etapa.
 
 `CloudAccount` é o cadastro administrativo comum. Seu ID não substitui a identidade nativa do provider nem o ID legado da configuração AWS. Nome, habilitação e estado de conexão pertencem à conta comum; Role ARN, External ID, regiões e agendamento pertencem à configuração AWS.
 
-A tela `/settings/accounts` consome `/api/v1/cloud-accounts`. O onboarding disponível continua somente AWS. OCI é reconhecido estruturalmente para permitir OCIDs longos no domínio, mas o cadastro operacional é recusado até a implementação de autenticação/configuração OCI.
+A tela `/settings/accounts` consome `/api/v1/cloud-accounts`. O onboarding operacional contempla AWS e OCI: na AWS utiliza Role ARN, External ID e regiões; na OCI utiliza API Signing Key, fingerprint, Tenancy/User OCID, região e compartments. Ambas podem usar coleta manual e agendada conforme as capabilities do provider. Para OCI, as credenciais sensíveis são criptografadas e o scope precisa ser explícito. Consulte [onboarding OCI](oci-onboarding.md).
 
-Policies e scans continuam usando explicitamente `aws_configuration.id`. O histórico operacional permanece identificado por `provider + account_id` nativo e não depende de existir um cadastro administrativo.
+A configuração de políticas AWS mantém os contratos existentes; a coleta comum usa `CloudAccount` e o pipeline provider-aware para AWS/OCI. O histórico operacional preserva a identidade nativa do provedor (`provider + account_id`) e os vínculos de `CollectionRun`. Não assuma que as mesmas policies de eficiência estão disponíveis em todos os providers.
 
 A migration 0014 não possui downgrade seguro. Para atualização: faça backup, pause o worker, publique a API para aplicar a migration, valide a paridade das contas e então publique worker/web da mesma versão. Rollback depois da 0014 requer restauração do backup pré-migration.
