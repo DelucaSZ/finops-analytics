@@ -132,4 +132,4 @@ All arithmetic is performed with `Decimal`. Rounding is left to presentation.
 
 ## Known limitation
 
-The current DeepOps AWS account schema stores whether an account is a management account, but it does not persist a verified Organization/payer billing-scope identifier plus RI discount-sharing preference. For that reason, cross-account matching is implemented and unit-tested through `BillingScopeContext`, but default production runs do not infer cross-account eligibility from tenant membership or `is_management_account` alone. This intentionally prevents false-positive coverage until verified billing-scope metadata is available.
+The current Aven AWS account schema stores whether an account is a management account, but it does not persist a verified Organization/payer billing-scope identifier plus RI discount-sharing preference. For that reason, cross-account matching is implemented and unit-tested through `BillingScopeContext`, but default production runs do not infer cross-account eligibility from tenant membership or `is_management_account` alone. This intentionally prevents false-positive coverage until verified billing-scope metadata is available.
