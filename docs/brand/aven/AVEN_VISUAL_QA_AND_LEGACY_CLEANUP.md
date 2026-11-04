@@ -210,8 +210,8 @@ Accessibility bypasses introduced: **0**.
 
 Final user-visible result:
 
-- visible Aven product branding: **0**;
-- visible Aven product branding: **0**;
+- visible outdated product-brand references: **0**;
+- unclassified historical brand references in runtime: **0**;
 - Aven metadata/logo/login/sidebar identity: **active**.
 
 Historical names that remain are classified technical contracts, not visible product identity.
@@ -398,8 +398,8 @@ System theme complete? YES
 Unexpected global horizontal overflow? NO
 Clipped overlays? NO
 Broken page scroll? NO
-Visible legacy Aven branding? NO
-Visible legacy Aven product branding? NO
+Visible outdated product branding? NO
+Visible discontinued product branding? NO
 ```
 
 ### Functional Freeze Gate
