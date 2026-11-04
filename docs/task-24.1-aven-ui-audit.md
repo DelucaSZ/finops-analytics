@@ -27,7 +27,7 @@ The largest blockers for a token-only Aven component architecture are:
 - `AppShell` combines visual shell, navigation, authentication gating, preference persistence and responsive state;
 - chart implementations are custom and have visual rules embedded in TSX/CSS;
 - responsive breakpoints and spacing/radius scales are inconsistent;
-- legacy identidades anteriores identifiers exist in both user-visible branding and compatibility/infrastructure code and cannot be blindly renamed.
+- historical-brand identifiers exist in both user-visible branding and compatibility/infrastructure code and cannot be blindly renamed.
 
 ### Decision
 
@@ -486,8 +486,8 @@ Legacy branding appears in multiple categories and must be migrated selectively.
 | Sidebar storage | `deepops.sidebar.collapsed` | No | compatibility migration in 24.8 | Medium |
 | Custom events | `deepops:theme-change`, session event | No | rename only with dual compatibility | Medium |
 | Local storage cleanup | `nuvemiq_token` | No | retain until auth compatibility verified | High |
-| Infrastructure filenames/templates | identidades anteriores names | No | out of visual task; rename only with infra plan | High |
-| API/config identifiers | possible identidades anteriores technical identifiers | No | do not blindly rename | High |
+| Infrastructure filenames/templates | historical identifiers | No | out of visual task; rename only with infra plan | High |
+| API/config identifiers | possible historical technical identifiers | No | do not blindly rename | High |
 | Tests/docs | legacy terminology | Mixed | update with owning implementation | Medium |
 
 Rule: visible branding can migrate on the planned rebrand tasks. Storage keys, environment variables, APIs, infrastructure identifiers, database fields and compatibility names require an explicit migration strategy and may intentionally remain legacy internally.
@@ -608,7 +608,7 @@ Product components must consume primitives; pages should compose product compone
 | Removing legacy globals too early | Broad visual regression | Compatibility aliases + route-by-route removal |
 | Changing semantic meaning of existing variables | Theme regressions | New Aven namespace/contract first, aliases second |
 | Theme FOUC/hydration regression | Visible startup defect | Preserve pre-hydration theme application with centralized resolver |
-| Blind identidades anteriores renames | Auth/config/infra breakage | Separate visible rebrand from technical identifier migration |
+| Blind historical-identifier renames | Auth/config/infra breakage | Separate visible rebrand from technical identifier migration |
 | AppShell rewrite affects auth/navigation | Functional regression | Extract/preserve auth/nav/persistence behavior; shell tests |
 | Chart redesign before chart contract | Duplicate/inconsistent work | Execute chart foundation before Dashboard/Billing migration |
 | Large monolithic pages | High review/QA blast radius | Extract product components before/while visually migrating route |
