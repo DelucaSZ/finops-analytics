@@ -1,6 +1,6 @@
 # Dashboard executivo
 
-O Dashboard (`/`) é a visão executiva do estado FinOps atual do DeepOps. Ele responde principalmente onde existe backlog acionável e de onde vem o potencial de economia, sem funcionar como monitor operacional permanente de coletas.
+O Dashboard (`/`) é a visão executiva do estado FinOps atual do Aven. Ele responde principalmente onde existe backlog acionável e de onde vem o potencial de economia, sem funcionar como monitor operacional permanente de coletas.
 
 ## Responsabilidade do Dashboard
 
