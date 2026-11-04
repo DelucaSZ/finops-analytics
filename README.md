@@ -1,159 +1,295 @@
-# DeepOps
+# Aven
 
-Formerly NuvemIQ. Existing `NUVEMIQ_*` environment variables, database names,
-and IAM role names remain compatible. The users migration imports the existing
-admin credentials once; old browser tokens require a new login.
+**Clarity. Flow. Control.**
 
-DeepOps is a self-hosted, multi-account AWS FinOps platform focused on finding
-waste, explaining evidence and prioritizing savings opportunities.
+Aven é uma plataforma **FinOps multi-cloud, self-hosted**, voltada à visibilidade de recursos, análise de custos, identificação de desperdícios e acompanhamento de oportunidades de otimização em **AWS e Oracle Cloud Infrastructure (OCI)**.
 
-## Current milestone
+O sistema centraliza inventário, coletas, evidências, custos, reservas e decisões operacionais em uma única experiência web. Aven **não aplica remediações automaticamente**: não encerra, redimensiona nem exclui recursos nas contas cloud. Alterações de configuração e decisões sobre oportunidades são persistidas no próprio sistema, conforme as permissões dos usuários.
 
-This repository contains the first functional foundation of the MVP:
+> **Estado do projeto:** este documento descreve as capacidades presentes no repositório em 04/11/2026. Recursos e cobertura variam por provedor, permissões IAM e dados disponíveis. Não confunda economia potencial com economia realizada nem ausência de dados com custo zero.
 
-- Next.js dashboard;
-- FastAPI API;
-- PostgreSQL persistence with versioned Alembic migrations;
-- individual users with Argon2id passwords and admin/operator/viewer permissions;
-- revocable cookie sessions, invitations, password recovery and personal security screens;
-- TOTP MFA, administrative settings and HTTPS/certificate management;
-- durable scan worker;
-- EC2 instance-profile + cross-account `AssumeRole` authentication;
-- global policies with account-level overrides;
-- account onboarding and connection validation;
-- nine configurable efficiency and waste detectors;
-- evidence summaries on every opportunity, with expandable observations and policy criteria;
-- cost growth comparisons with dates, normalized baseline, and top billing usage-type increases;
-- optional AI explanations through Amazon Bedrock;
-- Docker Compose deployment for Linux.
+## Sumário
 
-The application is read-only. It does not stop, resize or delete AWS resources.
+- [Funcionalidades](#funcionalidades)
+- [Arquitetura](#arquitetura)
+- [Instalação rápida](#instalação-rápida)
+- [Integração com AWS e OCI](#integração-com-aws-e-oci)
+- [Operação e atualização](#operação-e-atualização)
+- [Segurança e permissões](#segurança-e-permissões)
+- [Desenvolvimento e testes](#desenvolvimento-e-testes)
+- [Documentação técnica](#documentação-técnica)
+- [Limitações e interpretação dos dados](#limitações-e-interpretação-dos-dados)
 
-Opportunity evidence is explained without requiring Bedrock. Existing findings use
-their stored evidence; run a new scan after updating to capture policy snapshots,
-exact cost periods, and usage-type breakdowns. Cost breakdowns add a paginated
-Cost Explorer query per detected service/region anomaly (normal AWS API charges
-apply), using the existing `ce:GetCostAndUsage` permission. If this optional query
-fails, the primary comparison is retained and the UI reports missing detail.
-Billing growth is not proof of higher consumption or a specific resource change.
+## Funcionalidades
 
-## Architecture
+### Dashboard executivo (`/`)
 
-```text
-Browser -> Caddy -> Next.js / FastAPI -> PostgreSQL
-                                  |
-                                  +-> Worker -> STS AssumeRole -> AWS accounts
-```
+- Visão consolidada do backlog de oportunidades acionáveis e do potencial de economia mensal por moeda.
+- Indicadores de oportunidades abertas, tratadas, rejeitadas e novas desde a coleta anterior.
+- Distribuição por prioridade/severidade, provedor, conta, serviço e regra.
+- Destaques de oportunidades relevantes e alertas condicionais sobre falhas operacionais recentes.
+- Foco em situação atual; detalhes de execução e investigação ficam no módulo de Coletas.
 
-The EC2 instance receives temporary base credentials from its IAM instance
-profile. For each registered AWS account, DeepOps calls STS `AssumeRole` with a
-unique External ID. No AWS access key is stored by the application.
+### Oportunidades (`/opportunities`)
 
-## Quick start
+- Descoberta de desperdícios e ineficiências a partir de evidências coletadas.
+- Detalhes técnicos por recurso, regra, conta, região, severidade, confiança e impacto financeiro estimado.
+- Filtros, busca, paginação e navegação contextual da coleta que detectou o achado.
+- Tratamento, rejeição, reabertura, arquivamento e restauração, com ações em lote conforme permissão.
+- Ciclo de vida separado entre **decisão humana** e **presença técnica** do recurso, com observações históricas persistidas.
+- Política administrativa de retenção e arquivamento lógico; o histórico técnico pode continuar disponível mesmo quando uma tela não aparece na navegação principal.
+- Explicações determinísticas com evidências e critérios; explicação adicional por Amazon Bedrock é opcional.
 
-1. Copy the environment template:
+O catálogo AWS inclui detectores de volumes EBS sem uso, Elastic IPs ociosos, snapshots antigos, instâncias EC2 e recursos relacionados, load balancers, RDS não produtivo, conformidade de tags e anomalias de crescimento de custos. A disponibilidade de cada regra depende da conta, das APIs e das políticas configuradas.
 
-   ```bash
-   cp .env.example .env
-   ```
+### Inventory (`/inventory`)
 
-2. Replace every password and secret in `.env`.
+- Inventário persistido de recursos descobertos em AWS e OCI, independente da existência de oportunidades.
+- Pesquisa, filtros por provedor/conta/região/serviço/tipo/estado, ordenação e paginação no servidor.
+- Identificadores técnicos extensos, como ARNs e OCIDs, com contexto de conta, localização e última observação.
+- Diferenciação entre recursos observados, ausentes em coletas subsequentes e seus estados de ciclo de vida.
+- Histórico de observações de inventário. A ausência em uma coleta não significa exclusão automática do recurso.
 
-3. Start the stack:
+### FinOps Flow (`/flow`)
 
-   ```bash
-   docker compose up --build -d
-   ```
+- Fluxo operacional de acompanhamento do tratamento das oportunidades.
+- Integração com o ledger FinOps e movimentações manuais já suportadas.
+- Acompanhamento de estados, contexto financeiro e decisões, sem confundir projeções com economia comprovada.
+- Rota de compatibilidade `/finops/ledger` redirecionada para o fluxo principal.
 
-4. Open `http://SERVER_IP` and sign in with the admin credentials configured in
-   `.env` (imported once into the database on the first startup).
+### Billing (`/billing`)
 
-For a UI-only evaluation without connecting AWS, set `NUVEMIQ_DEMO_MODE=true`
-before the first start. Demo data is never loaded when the option is false.
+- Consultas de custos **AWS Cost Explorer**, com seleção explícita das contas cadastradas.
+- Resumo financeiro, evolução temporal, gráficos por serviço/conta e detalhamento por agrupamento.
+- Períodos predefinidos e personalizados, granularidade, métricas e Billing Profiles.
+- Distinção entre dados **realizados, estimados e forecast**, inclusive períodos parcialmente estimados.
+- Consulta condicionada à seleção de contas: nenhuma conta selecionada não é interpretada como todas.
+- Respeito à moeda retornada pelo provedor e à integridade de períodos incompletos.
 
-See [Users and permissions](docs/users-and-permissions.md) for the migration,
-API administration and rollback limits. [Authentication lifecycle](docs/authentication-lifecycle.md)
-covers the current cookie API, invitations, recovery and personal security screens.
-Administrators can manage users, MFA and HTTPS from **Configurações**. The external
-exposure stage includes production-mode validation, proxy security headers and a
-minimal 80/443 Security Group. See [HTTPS and certificates](docs/https.md) and
-[External access](docs/external-access.md).
+### Reservas Amazon RDS (`/rds/reservations`)
 
-## AWS setup
+- Inventário de DB Instances provisionadas e Reserved DB Instances das contas AWS habilitadas.
+- Análise de **cobertura, utilização, capacidade não coberta/parcialmente coberta e vencimento de reservas**.
+- Compatibilidade e associação de capacidade conforme regras implementadas no backend; a interface não inventa correspondências.
+- Oportunidades derivadas de cobertura insuficiente, capacidade não utilizada e expiração próxima.
+- Pipeline de atualização: **inventário → cobertura → oportunidades**, com status operacional, data real do snapshot e classificação de atualização/desatualização.
+- Falha do inventário bloqueia o cálculo de cobertura; indisponibilidade da validação opcional via Cost Explorer não transforma cobertura válida em falha; falha de geração de oportunidades não apaga cobertura concluída.
+- Atualização por API administrativa ou pelo comando operacional abaixo, além do processamento integrado ao worker.
 
-1. Attach an IAM role to the EC2 instance hosting DeepOps.
-2. Allow that central role to call `sts:AssumeRole` on the account roles.
-3. Deploy
-   `infrastructure/cloudformation/nuvemiq-readonly-role.yaml` in every target
-   account.
-4. Register the resulting Role ARN and the matching External ID in DeepOps.
-5. Use **Test connection** before running the first scan.
+~~~bash
+docker compose exec api python -m app.commands.rds_reservations_refresh
+# Opcional: restringir a uma conta cadastrada
+docker compose exec api python -m app.commands.rds_reservations_refresh --cloud-account-id 123
+~~~
 
-The central instance role can be created with
-`infrastructure/cloudformation/nuvemiq-central-role.yaml`. The target-account
-role is created with `nuvemiq-readonly-role.yaml`.
+O identificador informado é o ID interno da conta, não o AWS Account ID. A API administrativa oferece `POST /api/v1/rds/reservations/refresh` e `GET /api/v1/rds/reservations/operational-status`. A validação de Billing pode ser desabilitada explicitamente quando necessário, sem alterar o modelo de cobertura.
 
-## AI explanations
+### Coletas (`/collections`)
 
-The calculations and detection rules are deterministic. AI is only used to
-explain evidence and recommend validation steps. To enable Amazon Bedrock:
+- Execuções manuais e agendadas em contas compatíveis, com fila persistente e worker.
+- Status, erros, avisos de cobertura parcial, escopo e momento de execução.
+- Investigação de oportunidades por coleta e comparação entre execuções.
+- Processamento com contexto de provedor e isolamento de falhas onde suportado.
+- A rota `/scans` permanece como acesso operacional secundário/de compatibilidade.
 
-1. deploy the central-role stack with `EnableBedrock=true`;
-2. enable model access in the configured Bedrock region;
-3. set `NUVEMIQ_AI_PROVIDER=bedrock`;
-4. set `NUVEMIQ_BEDROCK_MODEL_ID` to an enabled model or inference profile.
+### Configurações (`/settings`)
 
-Cost Explorer must be enabled in the relevant account. Consolidated organization
-cost analysis should be performed through the management/payer account.
+| Área | Capacidades |
+| --- | --- |
+| Aparência | Tema claro, escuro ou automático pelo sistema; identidade visual Aven |
+| Contas | Cadastro, regiões/escopos, credenciais de integração, teste de conexão e agendamento conforme o provedor |
+| Políticas | Regras globais e sobrescritas por conta, com edição administrativa |
+| Minha segurança | Senha, reautenticação, TOTP e códigos de recuperação |
+| Sessões | Consulta e encerramento das próprias sessões |
+| Usuários | Convites, criação, edição, perfis, desativação/reativação e recuperação de acesso |
+| Auditoria | Eventos de autenticação, segurança e operações administrativas |
+| HTTPS | Domínio, certificado automático via Caddy ou certificado próprio, validação e aplicação controlada |
+| Pricing OCI | Catálogo e preços efetivos por vigência, com administração e auditoria |
+| Billing Profiles | Perfis salvos para consulta de custos |
+| Uso e custos | Telemetria de chamadas CloudWatch e estimativas do custo operacional associado |
+| Retenção e histórico | Políticas administrativas de retenção de observações e oportunidades |
 
-Detailed instructions are available in [AWS onboarding](docs/aws-onboarding.md)
-and [Linux deployment](docs/deployment.md).
+Áreas e ações são condicionadas ao perfil do usuário e às capacidades do provedor. OCI possui onboarding, coleta manual/agendada e descoberta; o conjunto de regras, a cobertura de serviços e os dados de custos **não são necessariamente idênticos aos da AWS**.
 
-For automatic EC2 updates from `main`, health validation and image-based rollback,
-see [Automatic deployment](docs/auto-deploy.md). Install once with
-`sudo bash scripts/install-auto-deploy.sh` after pulling the repository.
+## Arquitetura
 
-## Development
+~~~text
+Navegador
+   │
+   ▼
+Caddy (HTTP/HTTPS)
+   ├── Next.js 15 + React 19 (web)
+   └── FastAPI (API /api/v1)
+          │
+          ├── PostgreSQL 17 (dados, filas, auditoria e migrations)
+          └── Worker Python (coletas, agendamentos e rotinas operacionais)
+                 ├── AWS: STS AssumeRole, inventário, CloudWatch, Cost Explorer, RDS
+                 └── OCI: API Signing Key, discovery, métricas e serviços disponíveis
+~~~
 
-Backend:
+| Componente | Localização | Responsabilidade |
+| --- | --- | --- |
+| Frontend | `frontend/` | Páginas, Aven Design System, Theme Engine e integração com a API |
+| Backend | `backend/app/` | Domínios, autenticação, endpoints e serviços de coleta/análise |
+| Worker | `backend/app/worker_runtime.py` | Processamento assíncrono, scheduler e tarefas periódicas |
+| Persistência | PostgreSQL + Alembic | Modelos, histórico, políticas, contas, filas e auditoria |
+| Proxy | `proxy/` | HTTPS, certificados e roteamento |
+| Infraestrutura | `infrastructure/cloudformation/` | Templates de permissões/roles e exposição AWS |
+| Compose | `compose.yaml` | Stack `db`, `api`, `worker`, `web` e `proxy` |
 
-```bash
+As APIs de provedores são consultadas em modo de leitura; os usuários autorizados podem alterar somente o **estado administrativo interno** do Aven.
+
+## Instalação rápida
+
+### Pré-requisitos
+
+- Host Linux com Docker Engine e plugin Docker Compose.
+- Acesso à origem do repositório.
+- Recursos compatíveis com os serviços da stack, acesso ao PostgreSQL interno e saída de rede para os provedores configurados.
+- Para AWS em produção: credenciais temporárias via **EC2 Instance Profile** e delegação `sts:AssumeRole` nas contas-alvo.
+- Para OCI: chave de criptografia estável e material API Signing Key cadastrado, conforme guia específico.
+- DNS e certificados válidos se o serviço for exposto externamente.
+
+### Inicialização
+
+~~~bash
+git clone https://github.com/DelucaSZ/finops-analytics.git
+cd finops-analytics
+
+cp .env.example .env
+# Edite .env com os segredos, senhas, URL pública e opções do seu ambiente.
+# Não reutilize os valores de demonstração do template.
+
+docker compose up -d --build
+docker compose ps
+~~~
+
+Acesse a URL configurada no proxy e autentique-se com o administrador provisionado na primeira inicialização. O bootstrap inicial do usuário não redefine automaticamente uma senha já persistida apenas porque o arquivo `.env` mudou.
+
+O template `.env.example` é a **fonte operacional dos nomes exatos das variáveis de ambiente**. Os identificadores internos existentes são mantidos para compatibilidade com bancos, roles, cookies e instalações já em execução; alterar prefixos de configuração diretamente pode impedir o startup.
+
+Para ambientes de avaliação, o template inclui uma opção explícita de modo demonstração. Ela deve permanecer desativada em produção.
+
+**Produção:** antes da publicação, configure TLS/HTTPS, origem pública, segredos, MFA obrigatório, acesso mínimo na rede e backups. Consulte [deploy Linux](docs/deployment.md), [HTTPS](docs/https.md) e [acesso externo](docs/external-access.md).
+
+## Integração com AWS e OCI
+
+### AWS
+
+1. Prepare a role central de execução e o Instance Profile na conta que hospeda a aplicação.
+2. Implemente o template de role somente leitura nas contas analisadas, usando um External ID exclusivo por integração.
+3. Cadastre no Aven o Account ID, Role ARN, External ID e regiões pretendidas.
+4. Execute **Testar conexão** antes da coleta.
+5. Habilite Cost Explorer quando for necessário consultar Billing ou validações financeiras; confirme as permissões específicas do inventário RDS.
+
+**Atenção:** permissões IAM e visibilidade de Billing dependem do tipo de conta (management, member ou standalone). Aven não deve misturar indevidamente escopos de faturamento. Os templates existentes de CloudFormation permanecem no diretório `infrastructure/cloudformation/`; verifique seus parâmetros antes de aplicá-los.
+
+Guia: [Onboarding AWS](docs/aws-onboarding.md).
+
+### OCI
+
+1. Crie um usuário/grupo de integração com políticas read-only no escopo autorizado.
+2. Cadastre Tenancy OCID, User OCID, fingerprint, regiões, compartments e a chave privada de assinatura da API.
+3. Configure uma chave de criptografia Fernet estável para API e worker; mantenha backup fora do banco e do Git.
+4. Teste a conexão e habilite a coleta manual ou agendada se a capability estiver disponível.
+5. Interprete warnings de permissões/métricas como cobertura parcial, nunca como custo zero.
+
+Guia: [Onboarding OCI](docs/oci-onboarding.md) e [pricing OCI](docs/oci-pricing.md).
+
+## Operação e atualização
+
+~~~bash
+# Estado da aplicação
+docker compose ps
+
+# Logs relevantes
+docker compose logs -f api worker web
+
+# Reconstruir e recriar os serviços da aplicação sem apagar volumes
+docker compose up -d --build api worker web proxy
+
+# Health da API dentro do serviço
+docker compose exec api python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/health').read().decode())"
+
+# Testes e inspeção da configuração consolidada
+docker compose config
+~~~
+
+O banco e seus volumes persistentes não devem ser removidos em atualizações regulares. Faça backup antes de migrations e valide os serviços após o deploy. Há também um [controlador de atualização automática opcional](docs/auto-deploy.md); não assuma que seu timer está habilitado na instalação atual. Para operação manual, use Compose diretamente.
+
+## Segurança e permissões
+
+- **Perfis:** `admin` (administração), `operator` (operações permitidas) e `viewer` (consulta).
+- **Sessões:** cookies HttpOnly revogáveis; autenticação via senha com Argon2id e MFA TOTP quando configurado/obrigatório.
+- **Proteção de alterações:** validação CSRF, sessão autenticada, reautenticação em operações sensíveis e controle de permissões no backend.
+- **Usuários:** convites temporários, recuperação de senha, desativação e encerramento de sessões.
+- **Auditoria:** trilhas de eventos de autenticação, MFA e operações administrativas.
+- **Segredos:** nunca faça commit de `.env`, chaves OCI, senhas, material TLS ou credenciais cloud. Use armazenamento seguro e backup externo.
+- **Privilégios mínimos:** restrinja IAM, Security Groups, rede e acesso ao banco; prefira HTTPS e mecanismos seguros de administração do host.
+
+Aven **não é um sistema multi-tenant de segregação de clientes por usuário**: usuários autorizados acessam as contas cadastradas conforme o contrato atual de permissões. Consulte [usuários e permissões](docs/users-and-permissions.md), [autenticação](docs/authentication-lifecycle.md), [MFA](docs/mfa-totp.md) e [configurações](docs/settings.md).
+
+## Desenvolvimento e testes
+
+Backend (Python 3.12 recomendado pelo alvo do Ruff):
+
+~~~bash
 cd backend
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements-dev.txt
-pytest
+ruff check .
+ruff format --check .
+pytest -q
 uvicorn app.main:app --reload
-```
+~~~
 
-Frontend:
+Frontend (Node.js compatível com Next.js 15):
 
-```bash
+~~~bash
 cd frontend
-npm install
+npm ci
 npm run dev
-```
 
-## Security notes
+# Verificações do frontend
+npm run lint:brand
+npm run lint:design-system
+npm run lint
+npm run typecheck
+npm test
+npm run build
+~~~
 
-- Never commit `.env`, AWS credentials, certificates or SSH keys.
-- Restrict the EC2 security group and place the application behind HTTPS before
-  production use.
-- Replace the broad AWS managed read-only policies with a least-privilege policy
-  after validating the APIs used by the collectors.
-- Store production secrets in AWS Secrets Manager or SSM Parameter Store.
-- Prefer Session Manager over exposing TCP/22 to the internet.
+O CI contém verificações adicionais de segurança, migrações e smoke tests. Uma execução local parcial não substitui a validação integrada contra AWS/OCI e ambiente de produção.
 
-### MFA TOTP
+## Documentação técnica
 
-Em **Minha segurança**, configure o autenticador pelo QR code ou chave manual e
-salve os dez códigos de recuperação. O login passa a exigir senha + segundo fator.
-Para exigir o cadastro de todos, configure `NUVEMIQ_MFA_REQUIRED=true` no servidor.
-Consulte [MFA e recuperação](docs/mfa-totp.md) para chaves, operação e migração.
+| Tema | Referência |
+| --- | --- |
+| Estado atual e decisões | [PROJECT_STATE.md](PROJECT_STATE.md) e [roadmap](docs/implementation-roadmap.md) |
+| Design System e branding | [Fonte oficial Aven](docs/brand/aven/README.md) |
+| Instalação / HTTPS / acesso externo | [Deployment](docs/deployment.md), [HTTPS](docs/https.md), [External access](docs/external-access.md) |
+| AWS e reservas RDS | [Onboarding AWS](docs/aws-onboarding.md), [inventário RDS](docs/task-23-29-rds-reservation-inventory.md), [cobertura RDS](docs/task-23-30-rds-reservation-coverage.md) |
+| OCI e preços | [Onboarding OCI](docs/oci-onboarding.md), [Pricing](docs/oci-pricing.md) |
+| Inventory | [Modelo de inventário](docs/inventory-domain.md), [Query API](docs/inventory-query-api.md) |
+| Oportunidades | [Lifecycle](docs/opportunity-lifecycle.md), [Políticas](docs/opportunity-management-policy.md), [Retenção](docs/opportunity-operational-archiving.md) |
+| Dashboard e coletas | [Dashboard](docs/dashboard.md), [Investigação por coleta](docs/collection-investigation.md) |
+| Governança | [Auditoria](docs/audit-events.md), [Usuários](docs/users-and-permissions.md), [Settings](docs/settings.md) |
+| Qualidade visual | [Regressão visual](frontend/docs/visual-regression.md) |
 
-### Configurações
+Os documentos de tarefas numeradas registram decisões históricas. Para o comportamento **atual**, prefira código, APIs, testes e guias operacionais mantidos.
 
-O menu **Configurações** reúne Minha segurança e Sessões para todos os usuários.
-Administradores também acessam Usuários (cadastro, convites, recuperação, perfis e
-sessões), Auditoria e HTTPS. Veja o [guia de administração](docs/settings.md) e
-[HTTPS e certificados](docs/https.md).
+## Limitações e interpretação dos dados
+
+- **Economia potencial não equivale a economia realizada.** Estimativas de oportunidades dependem da regra e das evidências disponíveis.
+- **Billing e oportunidades têm semânticas distintas.** Crescimento de custo não comprova, isoladamente, aumento de consumo nem uma mudança específica em recurso.
+- **Moedas diferentes não devem ser somadas silenciosamente** e ausência de preço não deve ser convertida em zero.
+- **Reservas RDS dependem de inventário consistente** e compatibilidade técnica; validações opcionais de Cost Explorer não tornam cobertura inválida quando indisponíveis.
+- **OCI e AWS têm cobertura funcional diferente.** Uma capability não documentada para um provedor não deve ser presumida.
+- **O produto não executa remediação cloud.** Tratar ou arquivar uma oportunidade modifica seu acompanhamento no Aven, não o recurso do provedor.
+- **Histórico técnico e visão operacional não são a mesma coisa.** Estados atuais, snapshots e decisões devem ser interpretados conforme os respectivos domínios.
+
+---
+
+**Identidade oficial:** Aven — *Clarity. Flow. Control.*  
+**Repositório:** [DelucaSZ/finops-analytics](https://github.com/DelucaSZ/finops-analytics)
