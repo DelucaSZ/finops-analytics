@@ -144,7 +144,7 @@ component
 ### Debt / risk
 
 - Theme application logic exists in three places: `layout.tsx`, `app-shell.tsx`, and `theme-selector.tsx`.
-- Storage key and custom event names contain legacy `deepops` branding.
+- Persisted browser keys and custom event names contain historical compatibility identifiers.
 - The server does not know the preference; the system is browser/localStorage centric.
 - Legacy selectors need compatibility overrides to respect light mode.
 - Some page styles still use literal dark surfaces/rgba values rather than semantic theme values.
