@@ -19,7 +19,7 @@ The initial OCI rows are inserted deterministically by Alembic migration `0024_p
 - regional/tenant/contract price variation: not implemented in Task 23.7
 - Oracle Price List API / automatic public-price import / FX conversion: not implemented
 
-The values OCI previously supplied to the project are denominated in **BRL (Brazilian reais)**. The AWS pricing currently used by DeepOps is denominated in **USD**. DeepOps does not assume one global currency and must not sum BRL and USD without an explicit conversion layer; FX is outside Task 23.7.
+The values OCI previously supplied to the project are denominated in **BRL (Brazilian reais)**. The AWS pricing currently used by Aven is denominated in **USD**. Aven does not assume one global currency and must not sum BRL and USD without an explicit conversion layer; FX is outside Task 23.7.
 
 ## Seeded OCI pricing items
 
