@@ -145,7 +145,7 @@ O endpoint HTTPS gerenciado aplica:
 - remoção do cabeçalho `Server`.
 
 HSTS é enviado somente no endpoint HTTPS. Não foi usado `includeSubDomains` para
-não impor HTTPS a subdomínios que não pertencem ao DeepOps.
+não impor HTTPS a subdomínios que não pertencem ao Aven.
 
 ## Critério de conclusão
 
