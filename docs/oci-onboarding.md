@@ -1,6 +1,6 @@
 # OCI onboarding — API Signing Key e coleta read-only
 
-O DeepOps suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada**.
+O Aven suporta cadastro, armazenamento seguro, teste de conexão e coleta OCI read-only **manual e agendada**.
 
 Estado operacional atual:
 
@@ -23,7 +23,7 @@ São necessários: Tenancy OCID, User OCID, fingerprint da API Signing Key, regi
 
 O Tenancy OCID existe em `CloudAccount.native_account_id`; ele é também o identificador nativo gravado em `CollectionRun.account_id` e nas Opportunities OCI. O UUID/PK interno da conta e o User OCID não substituem essa identidade.
 
-## Chave de criptografia do DeepOps
+## Chave de criptografia do Aven
 
 Configure API e worker com a mesma chave estável:
 
@@ -134,7 +134,7 @@ Use a categoria e o estágio para separar os casos mais comuns:
 - `configuration` em `credentials`: verifique configuração local, presença da chave de criptografia e material cadastrado, sem copiar o secret para logs ou chamados;
 - `authentication` em `credentials`: valide tenancy, user, fingerprint e API Signing Key;
 - `authorization` em `cloud_advisor`, `usage` ou `monitoring`: revise IAM da fonte específica; uma autorização parcial não significa que a credencial inteira é inválida;
-- `rate_limit`, `timeout` ou `provider_service`: falha operacional do acesso ao provider; `retryable` pode aparecer quando a natureza do erro for conhecida, mas o DeepOps não cria retry automático de Scan nesta etapa;
+- `rate_limit`, `timeout` ou `provider_service`: falha operacional do acesso ao provider; `retryable` pode aparecer quando a natureza do erro for conhecida, mas o Aven não cria retry automático de Scan nesta etapa;
 - `data_coverage` ou evento `collection_stage_partial`: preserve o dado válido e trate o warning como cobertura incompleta, nunca como zero fabricado;
 - `persistence` ou `internal`: investigue API/worker/PostgreSQL e use `scan_id`/`collection_run_id` para correlacionar. Esses erros não invalidam automaticamente a conexão OCI.
 
@@ -149,18 +149,18 @@ O trigger scheduled não exige nenhuma permissão OCI adicional. O `OciCollectio
 Exemplos de permissões read-only que podem ser necessárias conforme o escopo efetivamente coletado:
 
 ```text
-Allow group DeepOpsIntegration to inspect tenancies in tenancy
-Allow group DeepOpsIntegration to inspect users in tenancy
-Allow group DeepOpsIntegration to inspect compartments in tenancy
-Allow group DeepOpsIntegration to inspect instance-family in compartment <compartment>
-Allow group DeepOpsIntegration to inspect volume-family in compartment <compartment>
-Allow group DeepOpsIntegration to inspect virtual-network-family in compartment <compartment>
-Allow group DeepOpsIntegration to read optimizer-api-family in tenancy
-Allow group DeepOpsIntegration to read usage-reports in tenancy
-Allow group DeepOpsIntegration to read metrics in compartment <compartment>
+Allow group AvenIntegration to inspect tenancies in tenancy
+Allow group AvenIntegration to inspect users in tenancy
+Allow group AvenIntegration to inspect compartments in tenancy
+Allow group AvenIntegration to inspect instance-family in compartment <compartment>
+Allow group AvenIntegration to inspect volume-family in compartment <compartment>
+Allow group AvenIntegration to inspect virtual-network-family in compartment <compartment>
+Allow group AvenIntegration to read optimizer-api-family in tenancy
+Allow group AvenIntegration to read usage-reports in tenancy
+Allow group AvenIntegration to read metrics in compartment <compartment>
 ```
 
-Adapte as policies ao menor escopo necessário. O DeepOps não chama operações de apply/update/dismiss do Cloud Advisor nem altera recursos OCI.
+Adapte as policies ao menor escopo necessário. O Aven não chama operações de apply/update/dismiss do Cloud Advisor nem altera recursos OCI.
 
 ## Segurança operacional
 
@@ -176,6 +176,6 @@ A suíte cumulativa revisada na 22.17 cobre migração em PostgreSQL 17/SQLite, 
 
 Quando essa validação operacional futura ocorrer, deverá ser registrada separadamente, identificando ambiente autorizado, conta/tenancy, escopo, execução manual/agendada, evidências e resultado. Até lá, este documento não afirma que houve smoke real contra cloud.
 
-Limitações operacionais reais permanecem: a primeira Wave OCI possui somente os analyzers atualmente implementados; métricas de memória dependem da disponibilidade do agent; custo sem `resourceId` permanece unallocated; Cloud Advisor/Usage/Monitoring dependem de permissões read-only específicas; native estimated savings do Advisor não é convertido automaticamente em saving DeepOps; não há conversão cambial implícita, rightsizing avançado ou auto-remediation.
+Limitações operacionais reais permanecem: a primeira Wave OCI possui somente os analyzers atualmente implementados; métricas de memória dependem da disponibilidade do agent; custo sem `resourceId` permanece unallocated; Cloud Advisor/Usage/Monitoring dependem de permissões read-only específicas; native estimated savings do Advisor não é convertido automaticamente em saving Aven; não há conversão cambial implícita, rightsizing avançado ou auto-remediation.
 
 Não foram introduzidos retries automáticos, nova fila, novo worker, novo scheduler, novo provider, nova página de observabilidade ou operação write na OCI. Fingerprint e lifecycle continuam no pipeline comum e a coleta OCI permanece estritamente read-only.
