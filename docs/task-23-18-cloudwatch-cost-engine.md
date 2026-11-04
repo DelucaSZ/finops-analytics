@@ -8,7 +8,7 @@ Esta etapa transforma a telemetria técnica criada na 23.17 em uma **estimativa 
 
 Uso e custo permanecem conceitos separados: `cloudwatch_usage_events` é a fonte factual de usage observado; `cloudwatch_pricing_rules` representa pricing público versionado; o `CloudWatchCostEngine` combina ambos sem alterar a telemetria bruta.
 
-> Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio DeepOps.
+> Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio Aven.
 
 > Nenhuma conversão cambial é realizada.
 
@@ -122,7 +122,7 @@ A métrica principal é `gross_estimated_cost`.
 
 > Por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o Aven não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
 
-`free_tier_applied=false` é retornado pela API. Não existe tentativa de inferir o saldo do free tier apenas a partir das chamadas produzidas pelo DeepOps.
+`free_tier_applied=false` é retornado pela API. Não existe tentativa de inferir o saldo do free tier apenas a partir das chamadas produzidas pelo Aven.
 
 Também não são aplicados EDP, private pricing, enterprise discounts, tax, credits ou negotiated rates.
 
