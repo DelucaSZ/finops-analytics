@@ -1,10 +1,10 @@
-# Etapa 23.18 — CloudWatch Cost Engine do DeepOps
+# Etapa 23.18 — CloudWatch Cost Engine do Aven
 
 ## Objetivo
 
-Esta etapa transforma a telemetria técnica criada na 23.17 em uma **estimativa operacional do custo CloudWatch gerado pelo próprio DeepOps**.
+Esta etapa transforma a telemetria técnica criada na 23.17 em uma **estimativa operacional do custo CloudWatch gerado pelo próprio Aven**.
 
-> O custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo DeepOps e nas regras oficiais de pricing verificadas.
+> O custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo Aven e nas regras oficiais de pricing verificadas.
 
 Uso e custo permanecem conceitos separados: `cloudwatch_usage_events` é a fonte factual de usage observado; `cloudwatch_pricing_rules` representa pricing público versionado; o `CloudWatchCostEngine` combina ambos sem alterar a telemetria bruta.
 
@@ -14,7 +14,7 @@ Uso e custo permanecem conceitos separados: `cloudwatch_usage_events` é a fonte
 
 ## Estado da telemetria 23.17
 
-A 23.17 está presente na `main` e o inventário atual do DeepOps usa somente `GetMetricStatistics`:
+A 23.17 está presente na `main` e o inventário atual do Aven usa somente `GetMetricStatistics`:
 
 - `rds_nonprod_idle`: `AWS/RDS` para CPU e conexões;
 - `load_balancer_no_traffic`: métricas de Application Load Balancer, Network Load Balancer e Classic Load Balancer.
@@ -33,7 +33,7 @@ Pricing verificado em 16/10/2026 nas fontes oficiais:
 
 A documentação classifica `GetMetricStatistics` em `UsageType=Requests`. O preço público corrente usado nesta etapa é **USD 0,01 por 1.000 API requests**. A página de pricing também documenta 1.000.000 de API requests no free tier para as APIs genéricas, enquanto operações como `GetMetricData` possuem estrutura diferente.
 
-`GetMetricStatistics` é uma API single-metric e não é paginada por `NextToken`. `GetMetricData` é uma operação distinta e tem pricing por métricas solicitadas; ela não é precificada nesta etapa porque o DeepOps não a utiliza hoje.
+`GetMetricStatistics` é uma API single-metric e não é paginada por `NextToken`. `GetMetricData` é uma operação distinta e tem pricing por métricas solicitadas; ela não é precificada nesta etapa porque o Aven não a utiliza hoje.
 
 ## Pricing model
 
@@ -120,7 +120,7 @@ Isso evita N+1 de pricing por event e mantém a possibilidade de recomputar hist
 
 A métrica principal é `gross_estimated_cost`.
 
-> Por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o DeepOps não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
+> Por padrão, a estimativa é bruta e não desconta free tier compartilhado da conta quando o Aven não possui visibilidade suficiente sobre o consumo CloudWatch de outras workloads.
 
 `free_tier_applied=false` é retornado pela API. Não existe tentativa de inferir o saldo do free tier apenas a partir das chamadas produzidas pelo DeepOps.
 
