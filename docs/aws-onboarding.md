@@ -34,7 +34,7 @@ For each AWS account:
 1. Generate or copy the External ID from the Aven account form.
 2. Deploy `infrastructure/cloudformation/nuvemiq-readonly-role.yaml`.
 3. Supply the central role ARN and that account's External ID.
-4. Copy the target stack's `RoleArn` output to DeepOps.
+4. Copy the target stack's `RoleArn` output to Aven.
 5. Select the regions that should be inventoried.
 6. Save and run **Test connection**.
 
