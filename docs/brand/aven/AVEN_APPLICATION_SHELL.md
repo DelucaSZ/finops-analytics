@@ -258,7 +258,7 @@ Browser smoke testing should cover Light/Dark/System, desktop expanded/collapsed
 | inline local nav array | REPLACED by shared `navigation.ts` |
 | route-active rendering | REFACTORED into `isNavigationItemActive()` |
 | manual sidebar tooltip spans | REPLACED by Tooltip primitive |
-| legacy DeepOps shell mark | REPLACED in shell by versioned Aven fallback asset |
+| legacy Aven shell mark | REPLACED in shell by versioned Aven fallback asset |
 | Theme Engine | REUSED |
 | Button/IconButton/Dropdown/Avatar/Divider/Drawer/Tooltip | REUSED |
 | logout/session API behavior | REUSED without protocol change |
