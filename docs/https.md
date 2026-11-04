@@ -1,6 +1,6 @@
 # HTTPS / TLS
 
-O DeepOps gerencia HTTPS pelo Caddy sem expor a Admin API do Caddy para fora da rede interna do Compose. A configuração pode usar certificado automático (ACME) ou material TLS fornecido pelo administrador.
+O Aven gerencia HTTPS pelo Caddy sem expor a Admin API do Caddy para fora da rede interna do Compose. A configuração pode usar certificado automático (ACME) ou material TLS fornecido pelo administrador.
 
 ## Modos disponíveis
 
@@ -21,7 +21,7 @@ O contrato padrão da API é equivalente a:
 ```json
 {
   "mode": "custom",
-  "domain": "deepops.exemplo.com",
+  "domain": "aven.exemplo.com",
   "server_certificate": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
   "intermediate_chain": "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----",
   "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----"
@@ -60,7 +60,7 @@ Um certificado TLS custom normalmente é entregue pelo fornecedor em arquivos se
 
 O **Root CA** é a raiz da cadeia de confiança. Em certificados públicos, essa raiz já está presente na trust store do sistema operacional/navegador e normalmente **não deve ser enviada pelo servidor**.
 
-O DeepOps não concatena cegamente o conteúdo recebido. No modo custom ele valida a relação criptográfica da cadeia, ordena as intermediárias e constrói internamente:
+O Aven não concatena cegamente o conteúdo recebido. No modo custom ele valida a relação criptográfica da cadeia, ordena as intermediárias e constrói internamente:
 
 ```text
 fullchain.pem =
@@ -102,13 +102,13 @@ Uma cadeia estruturalmente consistente pode terminar sem uma raiz presente na tr
 
 ### CA pública
 
-Quando a cadeia termina em uma raiz presente na trust store padrão, o DeepOps informa `PUBLIC_TRUSTED` e o handshake com verificação padrão deve ser confiável.
+Quando a cadeia termina em uma raiz presente na trust store padrão, o Aven informa `PUBLIC_TRUSTED` e o handshake com verificação padrão deve ser confiável.
 
 ### CA privada / corporativa
 
 O Caddy pode apresentar corretamente o leaf e suas intermediárias e, ainda assim, navegadores exibirem alerta caso o Root CA corporativo não esteja instalado nas máquinas clientes.
 
-Nesse cenário, o DeepOps não declara o HTTPS como publicamente confiável. O estado informa que a CA é privada/não pública ou que a cadeia não é confiável pela trust store local. O DeepOps **não instala CAs privadas automaticamente** no host nem nos clientes.
+Nesse cenário, o Aven não declara o HTTPS como publicamente confiável. O estado informa que a CA é privada/não pública ou que a cadeia não é confiável pela trust store local. O Aven **não instala CAs privadas automaticamente** no host nem nos clientes.
 
 ## Caddyfile gerenciado
 
@@ -119,11 +119,11 @@ http://proxy {
     # rotas internas
 }
 
-http://deepops.exemplo.com {
-    redir https://deepops.exemplo.com{uri} 308
+http://aven.exemplo.com {
+    redir https://aven.exemplo.com{uri} 308
 }
 
-https://deepops.exemplo.com {
+https://aven.exemplo.com {
     tls /config/deepops/certs/.../fullchain.pem /config/deepops/certs/.../private-key.pem
     # API, /health e frontend
 }
