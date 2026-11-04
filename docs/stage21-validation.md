@@ -65,9 +65,9 @@ O worker AWS-only recebe `NUVEMIQ_OCI_CREDENTIALS_KEY=""` no Compose para não a
 O teste de conexão atual usa somente OCI Identity. O grupo do usuário de integração precisa de capacidade equivalente a:
 
 ```text
-Allow group DeepOpsIntegration to inspect tenancies in tenancy
-Allow group DeepOpsIntegration to inspect users in tenancy
-Allow group DeepOpsIntegration to inspect compartments in tenancy
+Allow group AvenIntegration to inspect tenancies in tenancy
+Allow group AvenIntegration to inspect users in tenancy
+Allow group AvenIntegration to inspect compartments in tenancy
 ```
 
 Em tenancies com Identity Domains, adapte a referência do grupo à sintaxe qualificada aplicável. Essas permissões **não** autorizam futuros coletores de Compute, Database, Object Storage ou Billing.
