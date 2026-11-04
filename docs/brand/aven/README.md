@@ -1,6 +1,6 @@
 # Aven — Official Brand Source
 
-This directory is the canonical source of truth for Aven visual identity and for the product rebrand from migração para Aven.
+This directory is the canonical source of truth for Aven visual identity and the product's Design System.
 
 Before implementing any Task 24.x that changes UI, branding, layout, components, charts, navigation, authentication screens, metadata, favicon, or other visual behavior, read:
 
@@ -129,11 +129,11 @@ New Aven UI should use semantic tokens such as `--surface-primary`, `--text-prim
 
 ## Aven Technical Rebrand
 
-Task 24.8 makes Aven the public runtime identity without renaming technical contracts purely for aesthetics. `frontend/lib/brand.ts` is the public-name/asset source of truth, `BrandLogo` centralizes runtime logo behavior, root metadata and auth surfaces use Aven, and `npm run lint:brand` rejects unexplained identidades anteriores runtime references.
+Task 24.8 makes Aven the public runtime identity without renaming technical contracts purely for aesthetics. `frontend/lib/brand.ts` is the public-name/asset source of truth, `BrandLogo` centralizes runtime logo behavior, root metadata and auth surfaces use Aven, and `npm run lint:brand` rejects unclassified historical brand references in runtime code.
 
 Legacy storage keys, environment variables, API paths/headers and infrastructure identifiers remain only when compatibility requires them and are documented in `AVEN_TECHNICAL_REBRAND.md` plus the brand-lint allowlist.
 
-Official raster wordmarks/favicons/app icons remain blocked until the Brand Kit raster masters listed in `ASSET_INVENTORY.md` are uploaded through a binary-safe path. They must not be reconstructed from SVG fallbacks or screenshots.
+The current runtime uses versioned official high-resolution Aven SVG lockups, surface-aware variants, favicon and application icons. Original raster masters remain documented in `ASSET_INVENTORY.md` as separate source files; do not use approximate fallback artwork as the production wordmark.
 
 ## Aven Application Shell
 
@@ -315,7 +315,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 ## Implementation principles
 
 - Treat this directory as the authoritative brand source. Do not recreate the Aven wordmark using text.
-- Prefer approved production assets for the wordmark; the fallback SVG remains an approximation where documented.
+- Use the approved surface-aware high-resolution Aven SVG lockups for the wordmark; the approximate technical fallback remains reserved for compatibility.
 - Inter is the UI family and Sora is the display family delivered through the framework-native font loader; neither is the Aven wordmark.
 - `lucide-react` is the canonical functional icon library. Aven/provider marks remain separate assets.
 - Light and Dark are first-class themes; Dark is not a color inversion and uses surface/border contrast before shadow.
@@ -340,7 +340,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 
 ## Repository note
 
-Textual specifications, tokens and vector fallbacks are versioned here so every Task/PR can inspect them without external context. Production raster assets supplied in Aven Brand Kit v1 remain the visual master where the guide says raster output is authoritative.
+Specifications and tokens are versioned here. Production runtime assets and exact mappings are in `frontend/public/brand/aven/` and `frontend/lib/brand.ts`; the original source kit is retained as the artwork reference.
 
 ## Version
 
