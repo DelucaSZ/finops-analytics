@@ -540,9 +540,9 @@ Task 24.4 does not mass-replace existing hardcodes. Legacy typography, spacing, 
 
 Compatibility rules:
 
-- existing DeepOps variables stay in `ui-system.css` / `legacy-theme-compat.css` until their owners migrate;
+- existing Aven variables stay in `ui-system.css` / `legacy-theme-compat.css` until their owners migrate;
 - Brand Kit aliases stay in `tokens/legacy.css`;
-- new Aven primitives must consume the Aven token/foundation API, not the transitional DeepOps variables;
+- new Aven primitives must consume the Aven token/foundation API, not the transitional Aven variables;
 - `--radius-md` remains 9px because that primitive name currently overlaps the transitional scale; new components should use semantic radius roles so the overlap does not become a new dependency;
 - no page-specific aliases are introduced to disguise legacy hardcodes.
 
