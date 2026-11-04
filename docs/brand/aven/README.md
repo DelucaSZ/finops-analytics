@@ -1,6 +1,6 @@
 # Aven — Official Brand Source
 
-This directory is the canonical source of truth for Aven visual identity and for the product rebrand from DeepOps to Aven.
+This directory is the canonical source of truth for Aven visual identity and for the product rebrand from migração para Aven.
 
 Before implementing any Task 24.x that changes UI, branding, layout, components, charts, navigation, authentication screens, metadata, favicon, or other visual behavior, read:
 
@@ -129,7 +129,7 @@ New Aven UI should use semantic tokens such as `--surface-primary`, `--text-prim
 
 ## Aven Technical Rebrand
 
-Task 24.8 makes Aven the public runtime identity without renaming technical contracts purely for aesthetics. `frontend/lib/brand.ts` is the public-name/asset source of truth, `BrandLogo` centralizes runtime logo behavior, root metadata and auth surfaces use Aven, and `npm run lint:brand` rejects unexplained DeepOps/NuvemIQ runtime references.
+Task 24.8 makes Aven the public runtime identity without renaming technical contracts purely for aesthetics. `frontend/lib/brand.ts` is the public-name/asset source of truth, `BrandLogo` centralizes runtime logo behavior, root metadata and auth surfaces use Aven, and `npm run lint:brand` rejects unexplained identidades anteriores runtime references.
 
 Legacy storage keys, environment variables, API paths/headers and infrastructure identifiers remain only when compatibility requires them and are documented in `AVEN_TECHNICAL_REBRAND.md` plus the brand-lint allowlist.
 
@@ -324,7 +324,7 @@ The shell and Auth Layout are composition layers, not domain layers. `frontend/c
 - Semantic success/warning/danger/info states remain recognizable and are not replaced by purple.
 - Institutional gradients/glow are atmospheric and controlled, not neon or pervasive.
 - Data visualization uses dedicated semantic chart tokens rather than raw brand colors.
-- Existing DeepOps UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
+- Existing Aven UI aliases remain temporary compatibility infrastructure; do not use them in new Aven components.
 - New generic interaction patterns consume `frontend/components/ui/`; reusable FinOps/product patterns consume `frontend/components/aven/`.
 - Persistent authenticated navigation/chrome consumes `frontend/components/app-shell/`.
 - Authentication layout composition consumes `frontend/components/auth/` while auth state/API behavior stays in the existing page/service/session layers.
