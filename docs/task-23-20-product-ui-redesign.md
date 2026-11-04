@@ -1,20 +1,22 @@
 # Etapa 23.20 — Redesign global, navegação e experiência multi-cloud
 
+> Registro histórico de uma etapa anterior à identidade visual atual. O Design System vigente está documentado em [Aven](brand/aven/README.md).
+
 **Status:** concluída, validada e incorporada à `main` pelo PR #74; merge commit `029a1b579ac6c91f8adee14ac9748a91eb7c8ef4`.
 
 ## Objetivo e auditoria visual
 
-A etapa consolida visualmente o DeepOps sem criar novos domínios e sem alterar contratos financeiros, lifecycle, pricing, coleta ou regras de oportunidade. A auditoria encontrou uma base predominantemente dark-only, sidebar desktop de largura fixa, branding residual AWS em autenticação/metadata, a mensagem decorativa `Ambiente protegido`, estilos de superfície hardcoded e densidade divergente entre áreas construídas incrementalmente.
+A etapa consolida visualmente o Aven sem criar novos domínios e sem alterar contratos financeiros, lifecycle, pricing, coleta ou regras de oportunidade. A auditoria encontrou uma base predominantemente dark-only, sidebar desktop de largura fixa, branding residual AWS em autenticação/metadata, a mensagem decorativa `Ambiente protegido`, estilos de superfície hardcoded e densidade divergente entre áreas construídas incrementalmente.
 
 O redesign evolui a biblioteca e os componentes existentes. `PageHeader`, botões, panels/cards, badges, tabelas, filtros, forms, modals/drawers e estados de feedback convergem para tokens semânticos compartilhados e para escalas mais consistentes de radius, spacing e tipografia.
 
-> o DeepOps passa a se apresentar visualmente como uma plataforma FinOps multi-cloud, e não como uma ferramenta exclusivamente AWS.
+> o Aven passa a se apresentar visualmente como uma plataforma FinOps multi-cloud, e não como uma ferramenta exclusivamente AWS.
 
 > AWS e OCI continuam identificados sempre que o provider faz parte do contexto do dado, mas o branding global do produto permanece provider-neutral.
 
 ## Branding, navegação e sidebar
 
-O shell global usa `DeepOps` e `FINOPS MULTI-CLOUD`. O login deixa de exibir `AWS FINOPS INTELLIGENCE`, o metadata deixa de descrever o produto como exclusivo de ambientes AWS e `Ambiente protegido` é removido sem badge decorativo substituto. Menções a AWS continuam preservadas quando representam contexto factual.
+O shell global usa `Aven` e `FINOPS MULTI-CLOUD`. O login deixa de exibir `AWS FINOPS INTELLIGENCE`, o metadata deixa de descrever o produto como exclusivo de ambientes AWS e `Ambiente protegido` é removido sem badge decorativo substituto. Menções a AWS continuam preservadas quando representam contexto factual.
 
 A navegação principal permanece compacta: Dashboard, Oportunidades, Fluxo, Billing, Coletas e Configurações. A sidebar desktop suporta expanded/collapsed com larguras centralizadas em tokens, transição curta, botão acessível, active state perceptível e tooltips quando collapsed. A preferência `deepops.sidebar.collapsed` persiste localmente e falha de storage usa expanded como fallback.
 
@@ -49,7 +51,7 @@ Charts usam palette semântica em vez de depender de cores de provider. Legends/
 - **Settings:** navegação única e compacta, nova área Aparência, mantendo Pricing OCI, Billing Profiles e Usage & Costs separados.
 - **Pricing OCI:** tabela administrativa, form/modal, paginação e histórico tematizados; BRL permanece BRL.
 - **Billing Profiles:** permanece área administrativa própria sob Settings e herda tokens/componentes compartilhados.
-- **Usage & Costs:** preserva a distinção entre DeepOps cost estimate e AWS Billing e seus estados de incomplete/erro.
+- **Usage & Costs:** preserva a distinção entre Aven cost estimate e AWS Billing e seus estados de incomplete/erro.
 - **Login/auth:** branding global provider-neutral e temas compartilhados sem reimplementar autenticação.
 
 ## Acessibilidade, responsividade e performance
