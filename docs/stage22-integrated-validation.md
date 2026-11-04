@@ -120,7 +120,7 @@ O Discovery é read-only, pagina APIs, respeita regiões/compartments/root/subco
 
 ### Cloud Advisor
 
-Usa `OptimizerClient`, `list_recommendations` e `list_resource_actions`; preserva recommendations/actions separadas, pagina, correlaciona por resource ID quando disponível e mantém native savings como evidência Oracle, não como saving DeepOps. Não chama apply/dismiss/postpone.
+Usa `OptimizerClient`, `list_recommendations` e `list_resource_actions`; preserva recommendations/actions separadas, pagina, correlaciona por resource ID quando disponível e mantém native savings como evidência Oracle, não como saving Aven. Não chama apply/dismiss/postpone.
 
 ### Usage API
 
@@ -213,7 +213,7 @@ Esses itens não são pendências da 22.17 e não reduzem seu status de conclus�
 - métricas de memória dependem da disponibilidade do agent/dados no OCI Monitoring;
 - Usage sem resource ID permanece unallocated e não é atribuído heuristically;
 - Cloud Advisor/Usage/Monitoring dependem das permissões read-only específicas de cada fonte;
-- native estimated savings do Advisor não é automaticamente DeepOps saving;
+- native estimated savings do Advisor não é automaticamente Aven saving;
 - rightsizing avançado, novos analyzers e auto-remediation não fazem parte da Etapa 22;
 - não existe conversão cambial implícita.
 
