@@ -17,7 +17,7 @@ O contrato de scheduling é provider-neutral em `CloudAccount`: `schedule_enable
 
 ## Identidade e API Signing Key
 
-Crie ou selecione um usuário OCI dedicado à integração e associe-o a um grupo de menor privilégio. Cadastre no usuário somente a chave pública correspondente à chave privada usada pelo DeepOps.
+Crie ou selecione um usuário OCI dedicado à integração e associe-o a um grupo de menor privilégio. Cadastre no usuário somente a chave pública correspondente à chave privada usada pelo Aven.
 
 São necessários: Tenancy OCID, User OCID, fingerprint da API Signing Key, região de conexão, regiões pretendidas, compartments pretendidos, chave privada RSA PEM e, quando aplicável, a passphrase.
 
