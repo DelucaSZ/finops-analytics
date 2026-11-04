@@ -2,7 +2,7 @@
 
 ## Conceitos
 
-O DeepOps mantém três dimensões independentes sobre uma oportunidade (`Finding`):
+O Aven mantém três dimensões independentes sobre uma oportunidade (`Finding`):
 
 - **lifecycle humano**: `open`, `treated` ou `rejected`;
 - **presença técnica**: `active`, `missing` ou `resolved_externally`;
