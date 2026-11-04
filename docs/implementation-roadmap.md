@@ -3097,7 +3097,7 @@ Foi adicionada uma camada interna read-only `OciCloudAdvisorService`, separada d
 
 A coleta usa exclusivamente `list_recommendations()` e `list_resource_actions()`, com paginação por `opc-next-page`. O serviço não chama `Get` por recommendation/action e não executa endpoints de aplicação, update, dismiss ou postpone. Recommendations e Resource Actions permanecem entidades distintas e são deduplicadas pelos respectivos IDs nativos da OCI.
 
-Os contratos normalizados preservam IDs, nomes, descrição, category ID, importance, lifecycle/status OCI, timestamps, relação recommendation -> resource action, resource ID/type, action metadata e `estimated_cost_saving` como `native_estimated_savings`. Esse valor continua sendo evidência nativa da Oracle e não é tratado como saving DeepOps. O SDK expõe o saving em "dollars", mas não fornece um campo de currency/currency code nesses modelos; por isso `currency` permanece `None` e nenhuma moeda é inferida.
+Os contratos normalizados preservam IDs, nomes, descrição, category ID, importance, lifecycle/status OCI, timestamps, relação recommendation -> resource action, resource ID/type, action metadata e `estimated_cost_saving` como `native_estimated_savings`. Esse valor continua sendo evidência nativa da Oracle e não é tratado como saving Aven. O SDK expõe o saving em "dollars", mas não fornece um campo de currency/currency code nesses modelos; por isso `currency` permanece `None` e nenhuma moeda é inferida.
 
 ### Escopo, correlação e cobertura
 
@@ -3126,7 +3126,7 @@ A janela temporal é explícita e UTC-aware. O padrão interno é os últimos 30
 
 O dataset principal usa `query_type=COST` e `groupBy=[resourceId, service, region, compartmentId]`. Como a Usage API aceita no máximo quatro dimensões, um breakdown auxiliar independente usa `groupBy=[resourceId, service, skuPartNumber, unit]` para preservar SKU/unidade/quantidade quando disponíveis. O breakdown auxiliar nunca é concatenado ao dataset principal para somar custo, evitando dupla contagem. Todas as páginas `opc-next-page` são percorridas.
 
-Os contratos `OciUsageRecord` e `OciUsageResult` normalizam período, resource ID, serviço, região, compartment, SKU, unidade, quantidade, custo observado, moeda, coverage, páginas, warnings/errors e correlação factual com Inventory. `Decimal(str(value))` é usado no boundary de normalização para evitar cálculos monetários internos em `float`. Moeda ausente permanece ausente; totais são mantidos por moeda e múltiplas moedas não são somadas. Valores negativos/créditos são preservados sem virar saving DeepOps.
+Os contratos `OciUsageRecord` e `OciUsageResult` normalizam período, resource ID, serviço, região, compartment, SKU, unidade, quantidade, custo observado, moeda, coverage, páginas, warnings/errors e correlação factual com Inventory. `Decimal(str(value))` é usado no boundary de normalização para evitar cálculos monetários internos em `float`. Moeda ausente permanece ausente; totais são mantidos por moeda e múltiplas moedas não são somadas. Valores negativos/créditos são preservados sem virar saving Aven.
 
 Registros sem `resourceId` são preservados. Quando Inventory é fornecido, `inventory_match` representa apenas a presença factual do OCID atual; custo histórico de recurso removido continua válido. Scope é marcado como `in`, `out` ou `unknown`; ausência de metadata não é convertida em descarte silencioso.
 
@@ -3134,7 +3134,7 @@ Registros sem `resourceId` são preservados. Quando Inventory é fornecido, `inv
 
 A quantidade de requests da Usage API é constante em relação ao número de recursos: normalmente duas consultas agregadas, acrescidas apenas de suas páginas. Não há query por recurso. Expansão de subcompartments, quando configurada, reutiliza a resolução de scope da 22.5 e pode adicionar chamadas de Identity proporcionais à configuração de compartments, não ao inventário.
 
-Nenhuma migration ou tabela de billing foi criada. A Usage API não cria Opportunity, OpportunityObservation, Finding, analyzer, fingerprint OCI, CollectionRun OCI ou saving DeepOps. Monitoring/MQL e correlation engine completo permanecem fora do escopo.
+Nenhuma migration ou tabela de billing foi criada. A Usage API não cria Opportunity, OpportunityObservation, Finding, analyzer, fingerprint OCI, CollectionRun OCI ou saving Aven. Monitoring/MQL e correlation engine completo permanecem fora do escopo.
 
 OCI continua com `manual_collection=false`, `scheduling=false` e `finops_policies=false`, permanece fora do `CollectionExecutorRegistry` e sem Scan público. Discovery e Cloud Advisor continuam como camadas internas existentes. AWS permanece como único executor operacional público.
 
@@ -3201,7 +3201,7 @@ requests de rede, não persiste snapshots e não cria Finding ou Opportunity.
 
 - ResourceActions continuam vinculadas à Recommendation pai; múltiplas actions/recommendations por
   recurso são preservadas.
-- Lifecycle/status nativos e native estimated savings continuam fatos OCI e não viram decisão DeepOps.
+- Lifecycle/status nativos e native estimated savings continuam fatos OCI e não viram decisão Aven.
 - Monitoring preserva summaries, séries, missing metrics, sample counts e coverage sem transformar
   ausência de métrica em zero.
 - Inventory conserva suas fontes (compute_api, resource_search etc.); Advisor, Usage e Monitoring
@@ -3233,7 +3233,7 @@ requests de rede, não persiste snapshots e não cria Finding ou Opportunity.
 por regras objetivas de alta confiança (volumes sem attachment, Public IP sem associação, Compute
 parado com storage/custo e conformidade de tags). Rightsizing permanece posterior e deverá combinar
 métricas, custo e recomendações nativas sem transformar automaticamente Cloud Advisor em decisão
-DeepOps.
+Aven.
 
 
 
@@ -3561,7 +3561,7 @@ A cobertura automatizada inclui primeira ausência, threshold 3, collector faile
 
 Esta etapa não cria histórico auditável completo de `active -> missing -> resolved_externally -> active`. Os campos adicionados representam o estado corrente e o mínimo necessário para idempotência/monotonicidade. A trilha histórica detalhada permanece para a Etapa 23.3.
 
-> `resolved_externally` representa somente que a condição deixou de ser observada de forma confirmada. Ele não representa treatment nem saving realizado pelo DeepOps.
+> `resolved_externally` representa somente que a condição deixou de ser observada de forma confirmada. Ele não representa treatment nem saving realizado pelo Aven.
 
 
 ## Etapa 23.3 — Histórico auditável do lifecycle técnico das oportunidades
@@ -4767,11 +4767,11 @@ A 23.17 não cria tabela de preços CloudWatch, não calcula USD/BRL, não aplic
 
 ### Objetivo e separação de domínios
 
-A Etapa 23.18 transforma o usage técnico observado pela 23.17 em custo monetário operacional estimado do próprio DeepOps. Raw usage continua sendo a fonte factual; pricing versionado é uma fonte separada; o custo é uma derivação reproduzível.
+A Etapa 23.18 transforma o usage técnico observado pela 23.17 em custo monetário operacional estimado do próprio Aven. Raw usage continua sendo a fonte factual; pricing versionado é uma fonte separada; o custo é uma derivação reproduzível.
 
 > o custo calculado nesta etapa é uma estimativa operacional baseada no uso CloudWatch observado pelo Aven e nas regras oficiais de pricing verificadas.
 
-> Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio DeepOps.
+> Cost Explorer Billing e CloudWatch Cost Engine são domínios distintos: o primeiro consulta custos AWS consolidados; o segundo estima especificamente o custo das chamadas geradas pelo próprio Aven.
 
 > nenhuma conversão cambial é realizada.
 
