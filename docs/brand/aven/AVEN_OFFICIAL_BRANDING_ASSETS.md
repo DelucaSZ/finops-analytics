@@ -8,8 +8,10 @@ Task 24.31 makes `frontend/public/brand/aven/` the runtime source for approved A
 
 The production variants are:
 
-- `horizontal` — approved horizontal lockup for compact brand placement;
-- `vertical` — approved vertical lockup containing the official brand signature;
+- `horizontal` — approved horizontal lockup;
+- `horizontalNoTagline` — official horizontal lockup without signature;
+- `vertical` — approved vertical lockup;
+- `verticalNoTagline` — official vertical lockup without signature;
 - `mark` — approved isolated Aven symbol;
 - `surface="light" | "dark"` — selects artwork prepared for the actual rendering surface.
 
@@ -17,12 +19,12 @@ When a consumer knows its surface, it should pass `surface` explicitly. The comp
 
 ## Official production assets
 
-The PNG files under `frontend/public/brand/aven/` are downsampled, browser-appropriate derivatives of the approved Aven Brand Kit v1 masters. Downsampling preserves aspect ratio and artwork; no wordmark, symbol, color, composition or typography is reconstructed. The supplied `favicon.ico` and `apple-touch-icon.png` are copied from the kit unchanged.
+The current runtime asset map (`frontend/lib/brand.ts`) selects official 4096-resolution SVG lockups for light/dark surfaces. The product uses those mapped paths in Login, Shell and other branded surfaces; it must not substitute approximate text-rendered marks. The isolated vector icon, ambient SVG backgrounds, `favicon.ico` and `apple-touch-icon.png` are also exposed from the versioned runtime directory.
 
-The Brand Kit masters remain the visual source of truth. No production derivative is artificially upscaled or altered with AI.
+The original Brand Kit remains the artwork source of truth. Do not upscale low-resolution images, fabricate wordmarks or replace official surface variants with CSS filters.
 
 ## SVG fallback policy
 
-`aven-logo-horizontal-fallback.svg` and `aven-icon-gradient.svg` remain in the repository only as technical vector fallbacks for compatibility or contexts that strictly require vector output. The horizontal SVG contains an approximate technical wordmark and must not be used as the primary Login or Application Shell representation.
+`aven-logo-horizontal-fallback.svg` remains an approximate technical compatibility fallback and must not be used for primary Login or Application Shell branding. `aven-icon-gradient.svg` is the official isolated mark and may be used where an icon, rather than a wordmark, is required.
 
 Do not recreate the AVEN wordmark with HTML text, CSS `invert()`, `brightness()`, `mix-blend-mode`, opacity tricks, or other transformations intended to synthesize a missing surface variant.

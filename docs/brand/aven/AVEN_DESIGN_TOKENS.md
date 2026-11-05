@@ -340,7 +340,7 @@ These derive from the shared token/foundation system. Page-specific component to
 Two compatibility domains remain deliberately separate:
 
 1. `frontend/app/styles/tokens/legacy.css` keeps Brand Kit v1 alias names such as `--aven-blue`, `--aven-radius-card` and `--aven-font-ui`.
-2. `frontend/app/ui-system.css` and `legacy-theme-compat.css` continue to own existing DeepOps application variables during incremental migration.
+2. `frontend/app/ui-system.css` and `legacy-theme-compat.css` continue to own existing Aven application variables during incremental migration.
 
 Do not use transitional names such as `--bg`, `--accent`, `--surface-2`, `--radius` or the legacy application palette in new Aven primitives.
 

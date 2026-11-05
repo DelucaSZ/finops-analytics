@@ -262,7 +262,7 @@ Compatibility decisions:
 - normalize invalid values to `system`;
 - remove the old `deepops:theme-change` custom-event dependency because provider state is now the same-tab source of truth;
 - remove theme mutation/listener logic from `AppShell` and `ThemeSelector`;
-- retain existing legacy CSS/DeepOps variables because broad visual migration is explicitly outside Task 24.3.
+- retain existing legacy CSS compatibility variables because broad visual migration is explicitly outside Task 24.3.
 
 The storage-key branding migration can occur later with an explicit one-time compatibility strategy.
 

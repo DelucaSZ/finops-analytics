@@ -2,7 +2,7 @@
 
 ## Scope
 
-Task 24.5 creates the first official Aven component layer on top of Tasks 24.2–24.4. It does not migrate entire product pages, create product-domain components, rebuild the Application Shell, or perform the DeepOps → Aven technical rebrand.
+Task 24.5 creates the first official Aven component layer on top of Tasks 24.2–24.4. It does not migrate entire product pages, create product-domain components, rebuild the Application Shell, or perform the migração para Aven technical rebrand.
 
 ## Components created
 
@@ -207,7 +207,7 @@ Not part of Task 24.5:
 
 - MetricCard, RecommendationCard, AccountSelector, FilterBar, DateRangePicker, ChartCard, provider/status domain mapping, and other Product Components — Task 24.6;
 - new Sidebar, Topbar, Navigation, Application Shell — Task 24.7;
-- global DeepOps/NuvemIQ rebrand — Task 24.8;
+- global identidades anteriores rebrand — Task 24.8;
 - full page migrations and legacy CSS removal — later Task 24.x migrations;
 - advanced DataTable behaviors such as sorting, filtering, virtualization, column visibility — product layer;
 - searchable combobox — defer until a concrete product requirement or existing infrastructure exists.

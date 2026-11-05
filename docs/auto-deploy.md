@@ -1,5 +1,7 @@
 # Deploy automático na EC2 com rollback
 
+> **Opcional:** não presuma que o timer esteja ativo. Para instalação sem agendamento automático, use Docker Compose. Os nomes do controlador e dos serviços abaixo são identificadores reais do deploy, preservados para compatibilidade.
+
 A EC2 consulta `origin/main` a cada minuto (90 segundos após boot/instalação).
 As mudanças publicadas no GitHub passam a chegar automaticamente à aplicação.
 Não é necessário abrir portas, configurar webhook nem fornecer acesso SSH ao ChatGPT.

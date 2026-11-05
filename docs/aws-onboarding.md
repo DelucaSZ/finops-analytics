@@ -1,8 +1,10 @@
-# AWS onboarding
+# AWS onboarding — Aven
+
+> The IAM role names and CloudFormation template filenames shown below are deployed technical contracts, not the public brand. Do not rename them without a dedicated migration.
 
 ## Authentication model
 
-DeepOps uses two role layers:
+Aven uses two role layers:
 
 1. `NuvemIQCentralRole` is attached to the EC2 instance through an instance
    profile.
@@ -29,14 +31,14 @@ Attach the stack's `InstanceProfileName` output to the EC2 instance. Keep the
 
 For each AWS account:
 
-1. Generate or copy the External ID from the DeepOps account form.
+1. Generate or copy the External ID from the Aven account form.
 2. Deploy `infrastructure/cloudformation/nuvemiq-readonly-role.yaml`.
 3. Supply the central role ARN and that account's External ID.
-4. Copy the target stack's `RoleArn` output to DeepOps.
+4. Copy the target stack's `RoleArn` output to Aven.
 5. Select the regions that should be inventoried.
 6. Save and run **Test connection**.
 
-The Account ID entered in DeepOps must match the account contained in the Role
+The Account ID entered in Aven must match the account contained in the Role
 ARN. The API rejects mismatched values.
 
 ## 3. Amazon RDS inventory
@@ -64,12 +66,12 @@ Reserved DB Instances. The target role needs these actions:
 The repository's `NuvemIQReadOnly` CloudFormation template declares these
 permissions explicitly. It does not grant RDS write operations.
 
-Inventory collection uses only the regions selected for each DeepOps AWS
+Inventory collection uses only the regions selected for each Aven AWS
 account. A failure in one region is recorded and does not stop the remaining
 accounts or regions. Tags are best-effort: failure in `ListTagsForResource`
 does not discard the DB Instance itself.
 
-The collector can be started by an authenticated DeepOps administrator through
+The collector can be started by an authenticated Aven administrator through
 `POST /api/v1/rds/collect`. For operational use it can also be run inside the
 backend container with:
 
@@ -103,11 +105,11 @@ For Task 23.14, the only IAM action required by the new Billing backend is:
 
 The repository's `NuvemIQReadOnly` CloudFormation template already grants this
 action. It also contains other Cost Explorer/Pricing actions used by existing or
-separate DeepOps capabilities; those broader permissions are not required by
+separate Aven capabilities; those broader permissions are not required by
 the Task 23.14 Billing query itself.
 
 AWS Cost Explorer is exposed through the `us-east-1` billing endpoint even when
-the analyzed resources live in other regions. DeepOps therefore creates the
+the analyzed resources live in other regions. Aven therefore creates the
 Cost Explorer client in `us-east-1` while continuing to assume the target
 account role using the existing authentication path.
 
@@ -118,7 +120,7 @@ account normally has only its own cost data. Member Cost Explorer access can
 also be disabled centrally in Cost Explorer preferences, in which case IAM
 permission alone is not sufficient.
 
-The current DeepOps data model records whether an AWS account is a management
+The current Aven data model records whether an AWS account is a management
 account, but it does not persist a payer/member relationship between registered
 accounts. To avoid inventing or mixing billing scopes, Task 23.14 treats every
 registered role as an independent billing scope:
@@ -127,13 +129,13 @@ registered role as an independent billing scope:
   Explorer data;
 - management account: assume its configured role and constrain the Cost
   Explorer query to that management account's own `LINKED_ACCOUNT` ID;
-- multi-account DeepOps requests aggregate only complete results from the
+- multi-account Aven requests aggregate only complete results from the
   explicitly requested registered accounts; if one account fails, the aggregate
   request fails instead of returning a silently partial total.
 
 This strategy intentionally does not use a management account to query arbitrary
-member IDs until DeepOps has an explicit, trustworthy payer/member relationship.
-The Billing API accepts DeepOps internal account IDs, resolves the corresponding
+member IDs until Aven has an explicit, trustworthy payer/member relationship.
+The Billing API accepts Aven internal account IDs, resolves the corresponding
 AWS Account IDs server-side, and never accepts a raw linked-account selector from
 the client.
 

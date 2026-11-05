@@ -16,8 +16,8 @@ Antes de alterar o Security Group:
 
 ```dotenv
 NUVEMIQ_ENVIRONMENT=production
-NUVEMIQ_PUBLIC_URL=https://deepops.seudominio.com
-NUVEMIQ_CORS_ORIGINS=https://deepops.seudominio.com
+NUVEMIQ_PUBLIC_URL=https://aven.seudominio.com
+NUVEMIQ_CORS_ORIGINS=https://aven.seudominio.com
 NUVEMIQ_COOKIE_SECURE=true
 NUVEMIQ_MFA_REQUIRED=true
 NUVEMIQ_DEMO_MODE=false
@@ -39,7 +39,7 @@ O SG criado permite somente:
 | Porta | Protocolo | Origem | Finalidade |
 | --- | --- | --- | --- |
 | 80 | TCP | CIDR configurado | redirect HTTPS e desafio ACME |
-| 443 | TCP | CIDR configurado | aplicação DeepOps |
+| 443 | TCP | CIDR configurado | aplicação Aven |
 
 Não há regra para 22, 2019, 3000, 5432 ou 8000. Use Session Manager em vez de SSH
 público. Se SSH for indispensável, use outro SG com CIDR administrativo específico,
@@ -117,7 +117,7 @@ Ele não altera firewall, DNS ou Security Group.
 A última validação precisa partir de outra rede/host, não da própria EC2:
 
 ```bash
-curl -fsS -D - https://deepops.seudominio.com/health
+curl -fsS -D - https://aven.seudominio.com/health
 ```
 
 Esperado: HTTP 200, JSON com `"status":"ok"`, HSTS e certificado válido.
@@ -126,7 +126,7 @@ Também teste que as portas internas não estão disponíveis externamente:
 
 ```bash
 for port in 2019 3000 5432 8000; do
-  nc -zvw3 deepops.seudominio.com "$port" && echo "ERRO: $port acessível"
+  nc -zvw3 aven.seudominio.com "$port" && echo "ERRO: $port acessível"
 done
 ```
 
@@ -145,7 +145,7 @@ O endpoint HTTPS gerenciado aplica:
 - remoção do cabeçalho `Server`.
 
 HSTS é enviado somente no endpoint HTTPS. Não foi usado `includeSubDomains` para
-não impor HTTPS a subdomínios que não pertencem ao DeepOps.
+não impor HTTPS a subdomínios que não pertencem ao Aven.
 
 ## Critério de conclusão
 

@@ -1,6 +1,6 @@
 # Auditoria administrativa
 
-O DeepOps mantém duas trilhas com responsabilidades diferentes:
+O Aven mantém duas trilhas com responsabilidades diferentes:
 
 - `SecurityEvent`: autenticação, identidade, MFA, sessões e eventos de segurança;
 - `AuditEvent`: alterações administrativas e operacionais persistentes do produto.

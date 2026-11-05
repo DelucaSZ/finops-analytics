@@ -1,4 +1,6 @@
-# Deploying DeepOps on Linux
+# Deploying Aven on Linux
+
+> Existing environment variables and IAM identifiers are maintained for deployment compatibility; consult the configuration template before changing them.
 
 The recommended first deployment is one Ubuntu 24.04 LTS EC2 instance running
 Docker Compose. PostgreSQL is containerized for the MVP; moving it to RDS is a
@@ -18,10 +20,10 @@ straightforward later step.
 ## Application deployment
 
 ```bash
-sudo mkdir -p /opt/nuvemiq
-sudo chown "$USER":"$USER" /opt/nuvemiq
-git clone YOUR_REPOSITORY_URL /opt/nuvemiq
-cd /opt/nuvemiq
+sudo mkdir -p /opt/aven
+sudo chown "$USER":"$USER" /opt/aven
+git clone YOUR_REPOSITORY_URL /opt/aven
+cd /opt/aven
 cp .env.example .env
 ```
 
@@ -58,7 +60,7 @@ for cookie, SMTP and current migration/rollback behavior.
 ## Updating
 
 ```bash
-./scripts/deploy.sh /opt/nuvemiq
+./scripts/deploy.sh /opt/aven
 ```
 
 The deployment script refuses tracked local modifications, runs `git pull --ff-only`,

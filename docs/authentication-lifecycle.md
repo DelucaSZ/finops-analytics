@@ -78,7 +78,7 @@ recente. Convites permitem que o próprio usuário escolha a senha. Um convite p
 com perfil admin não conta como administrador disponível para a proteção do último admin.
 
 O administrador entrega convites/links manuais por canal privado. Defina
-`NUVEMIQ_PUBLIC_URL=https://deepops.seudominio.com.br` para links absolutos. Sem essa
+`NUVEMIQ_PUBLIC_URL=https://aven.seudominio.com.br` para links absolutos. Sem essa
 configuração, a API retorna caminhos relativos, que devem ser anexados ao endereço
 real da aplicação; nunca usa o header Host para formar links enviados por e-mail.
 

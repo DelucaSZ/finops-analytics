@@ -5,7 +5,7 @@
 1. Abra **Minha segurança → Autenticação em duas etapas** e confirme sua senha.
 2. Escaneie o QR code com Google Authenticator, Microsoft Authenticator ou outro
    aplicativo TOTP. Também é possível cadastrar a chave manualmente (SHA-1,
-   seis dígitos, intervalo de 30 segundos, emissor DeepOps).
+   seis dígitos, intervalo de 30 segundos, emissor Aven).
 3. Confirme com um código do novo autenticador em até dez minutos. Só então o MFA
    fica ativo. As outras sessões e links de acesso anteriores são invalidados.
 4. Guarde os dez códigos de recuperação exibidos uma única vez. Cada código

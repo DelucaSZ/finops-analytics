@@ -1,10 +1,10 @@
-# Etapa 23.17 — Instrumentação de chamadas CloudWatch do DeepOps
+# Etapa 23.17 — Instrumentação de chamadas CloudWatch do Aven
 
 ## Objetivo
 
-Esta etapa mede o uso técnico do Amazon CloudWatch realizado pelo DeepOps. Ela não calcula custo monetário, não aplica free tier, não cria tabela de preços e não implementa dashboard de custos.
+Esta etapa mede o uso técnico do Amazon CloudWatch realizado pelo Aven. Ela não calcula custo monetário, não aplica free tier, não cria tabela de preços e não implementa dashboard de custos.
 
-Billing via AWS Cost Explorer e custo operacional das chamadas CloudWatch do DeepOps são domínios distintos.
+Billing via AWS Cost Explorer e custo operacional das chamadas CloudWatch do Aven são domínios distintos.
 
 ## Inventário atual
 

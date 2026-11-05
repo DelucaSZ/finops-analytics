@@ -44,9 +44,13 @@ test("technical compatibility identifiers remain explicit and unchanged", () => 
   assert.match(backend, /nuvemiq-api/);
 });
 
-test("technical rebrand documentation records raster and next-task readiness", () => {
+test("Aven technical identity documentation reflects current official assets and compatibility contracts", () => {
   const docs = read("docs/brand/aven/AVEN_TECHNICAL_REBRAND.md");
-  assert.match(docs, /Technical rebrand: COMPLETE/);
-  assert.match(docs, /Raster-dependent runtime branding: PARTIAL/);
-  assert.match(docs, /Is Task 24\.9 ready to start\? YES/);
+  assert.match(docs, /^# Aven — Identidade pública e compatibilidade técnica/m);
+  assert.match(docs, /Clarity\. Flow\. Control\./);
+  assert.match(docs, /lockups oficiais em SVG de alta resolução/);
+  assert.match(docs, /frontend\/lib\/brand\.ts/);
+  assert.match(docs, /## Identificadores técnicos mantidos/);
+  assert.match(docs, /npm run lint:brand/);
+  assert.doesNotMatch(docs, /Technical rebrand: COMPLETE|Raster-dependent runtime branding: PARTIAL/);
 });

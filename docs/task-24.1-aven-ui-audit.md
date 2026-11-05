@@ -1,8 +1,10 @@
 # Task 24.1 — Aven UI Audit
 
+> Auditoria histórica do estado pré-migração visual. O estado atual está descrito em [Aven](brand/aven/README.md) e no [README principal](../README.md). Identificadores técnicos apresentados neste registro só devem ser alterados mediante migração dedicada.
+
 ## 1. Executive Summary
 
-This audit establishes the current frontend baseline before the DeepOps → Aven visual migration. No visual behavior is changed by this task.
+This audit establishes the current frontend baseline before the migração para Aven visual migration. No visual behavior is changed by this task.
 
 The frontend is a Next.js 15.2 / React 19 / TypeScript application using the App Router. Styling is built from global CSS plus CSS Modules, with no Tailwind, CSS-in-JS framework, component library, or chart library. `lucide-react` is the only explicit UI/icon dependency.
 
@@ -25,7 +27,7 @@ The largest blockers for a token-only Aven component architecture are:
 - `AppShell` combines visual shell, navigation, authentication gating, preference persistence and responsive state;
 - chart implementations are custom and have visual rules embedded in TSX/CSS;
 - responsive breakpoints and spacing/radius scales are inconsistent;
-- legacy DeepOps/NuvemIQ identifiers exist in both user-visible branding and compatibility/infrastructure code and cannot be blindly renamed.
+- historical-brand identifiers exist in both user-visible branding and compatibility/infrastructure code and cannot be blindly renamed.
 
 ### Decision
 
@@ -142,7 +144,7 @@ component
 ### Debt / risk
 
 - Theme application logic exists in three places: `layout.tsx`, `app-shell.tsx`, and `theme-selector.tsx`.
-- Storage key and custom event names contain legacy `deepops` branding.
+- Persisted browser keys and custom event names contain historical compatibility identifiers.
 - The server does not know the preference; the system is browser/localStorage centric.
 - Legacy selectors need compatibility overrides to respect light mode.
 - Some page styles still use literal dark surfaces/rgba values rather than semantic theme values.
@@ -236,7 +238,7 @@ The App Router exposes 31 page routes.
 | `/finops/ledger` | Ledger | FinOps/domain visuals | High | 24.17 | High |
 | `/flow` | FinOps Flow | `flow-layout.module.css` + global selectors | Very high | 24.17 | High |
 | `/forgot-password` | Auth | Legacy auth/global CSS | Medium | 24.9 | Medium |
-| `/login` | Auth | Legacy login global CSS + DeepOps branding | High | 24.9 | High |
+| `/login` | Auth | Legacy login global CSS + Aven branding | High | 24.9 | High |
 | `/mfa-setup` | Auth/Security | Auth/global CSS | Medium | 24.9/24.16 | Medium |
 | `/opportunities` | Opportunities | `opportunities-stage5.css`, large page | Very high | 24.14 | High |
 | `/opportunities/collection/[collectionId]` | Opportunities | Opportunity product components | High | 24.14 | High |
@@ -476,16 +478,16 @@ Legacy branding appears in multiple categories and must be migrated selectively.
 
 | Occurrence/category | Example | User-visible? | Rename strategy | Risk |
 |---|---|---:|---|---|
-| Metadata | `DeepOps | FinOps Multi-Cloud` in root layout | Yes | 24.8 | Low |
-| App shell brand | `DeepOps`, navigation ARIA label | Yes | 24.7/24.8 | Medium |
-| Login brand/copy | `DeepOps`, CloudCog mark | Yes | 24.9 | Low |
-| Appearance copy | “tema visual do DeepOps” | Yes | 24.8/24.16 | Low |
+| Metadata | `Aven | FinOps Multi-Cloud` in root layout | Yes | 24.8 | Low |
+| App shell brand | `Aven`, navigation ARIA label | Yes | 24.7/24.8 | Medium |
+| Login brand/copy | `Aven`, CloudCog mark | Yes | 24.9 | Low |
+| Appearance copy | “tema visual do Aven” | Yes | 24.8/24.16 | Low |
 | Theme storage | `deepops.theme` | No | compatibility migration in 24.8 | Medium |
 | Sidebar storage | `deepops.sidebar.collapsed` | No | compatibility migration in 24.8 | Medium |
 | Custom events | `deepops:theme-change`, session event | No | rename only with dual compatibility | Medium |
 | Local storage cleanup | `nuvemiq_token` | No | retain until auth compatibility verified | High |
-| Infrastructure filenames/templates | DeepOps/NuvemIQ names | No | out of visual task; rename only with infra plan | High |
-| API/config identifiers | possible DeepOps/NuvemIQ technical identifiers | No | do not blindly rename | High |
+| Infrastructure filenames/templates | historical identifiers | No | out of visual task; rename only with infra plan | High |
+| API/config identifiers | possible historical technical identifiers | No | do not blindly rename | High |
 | Tests/docs | legacy terminology | Mixed | update with owning implementation | Medium |
 
 Rule: visible branding can migrate on the planned rebrand tasks. Storage keys, environment variables, APIs, infrastructure identifiers, database fields and compatibility names require an explicit migration strategy and may intentionally remain legacy internally.
@@ -606,7 +608,7 @@ Product components must consume primitives; pages should compose product compone
 | Removing legacy globals too early | Broad visual regression | Compatibility aliases + route-by-route removal |
 | Changing semantic meaning of existing variables | Theme regressions | New Aven namespace/contract first, aliases second |
 | Theme FOUC/hydration regression | Visible startup defect | Preserve pre-hydration theme application with centralized resolver |
-| Blind DeepOps/NuvemIQ renames | Auth/config/infra breakage | Separate visible rebrand from technical identifier migration |
+| Blind historical-identifier renames | Auth/config/infra breakage | Separate visible rebrand from technical identifier migration |
 | AppShell rewrite affects auth/navigation | Functional regression | Extract/preserve auth/nav/persistence behavior; shell tests |
 | Chart redesign before chart contract | Duplicate/inconsistent work | Execute chart foundation before Dashboard/Billing migration |
 | Large monolithic pages | High review/QA blast radius | Extract product components before/while visually migrating route |
@@ -630,7 +632,7 @@ Recommended execution:
 24.5 — Aven UI primitives
 24.6 — Product components
 24.7 — Application Shell + Sidebar + Topbar
-24.8 — Technical rebrand DeepOps → Aven
+24.8 — Technical rebrand migração para Aven
 24.9 — Login Aven
 24.18A — Data Visualization foundation (chart semantic tokens, axes/grid/tooltip/legend/status contracts)
 24.10 — Dashboard Aven (golden reference)
@@ -793,7 +795,7 @@ Before 24.10, primitives and product components should already be stable enough 
 - active-route detection;
 - desktop sidebar and collapse persistence;
 - mobile overlay/topbar state;
-- current DeepOps logo/brand markup;
+- current Aven logo/brand markup;
 - theme synchronization listener;
 - user email display;
 - logout action;
