@@ -96,8 +96,8 @@ test("main navigation uses product Flow route and legacy ledger route redirects"
   const navigation = await readFile(navigationUrl, "utf8");
   const legacy = await readFile(legacyUrl, "utf8");
   assert.ok(navigation.includes('href: "/flow"'));
-  assert.ok(navigation.includes('label: "Fluxo"'));
+  assert.ok(navigation.includes('labelKey: "flow"'));
   assert.ok(navigation.includes('href: "/opportunities"'));
-  assert.ok(navigation.includes('label: "Oportunidades"'));
+  assert.ok(navigation.includes('labelKey: "opportunities"'));
   assert.ok(legacy.includes('redirect("/flow")'));
 });

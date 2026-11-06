@@ -10,10 +10,53 @@
     }
   },
   "shell": {
+    "navigation": {
+      "dashboard": "Overview",
+      "opportunities": "Opportunities",
+      "inventory": "Inventory",
+      "flow": "Flow",
+      "billing": "Billing",
+      "reservations": "RDS Reservations",
+      "collections": "Collections",
+      "settings": "Settings"
+    },
+    "sidebar": {
+      "mainNavigation": "Main navigation",
+      "mobileNavigation": "Mobile navigation",
+      "expand": "Expand navigation",
+      "collapse": "Collapse navigation",
+      "open": "Open navigation"
+    },
+    "theme": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System",
+      "select": "Select theme",
+      "current": "Theme: {theme}",
+      "optionSelected": "{option}, selected"
+    },
     "language": {
       "select": "Select language",
-      "portugueseBrazil": "Portuguese (Brazil)",
-      "englishUnitedStates": "English (United States)"
+      "portugueseBrazil": "Português (Brasil)",
+      "englishUnitedStates": "English (US)",
+      "current": "Language: {language}",
+      "changeFailed": "Could not change the language. Please try again."
+    },
+    "user": {
+      "menu": "User menu",
+      "actions": "User actions",
+      "authenticatedAccount": "Authenticated account",
+      "signOut": "Sign out",
+      "signingOut": "Signing out…"
+    },
+    "accessibility": {
+      "skipToContent": "Skip to content"
+    },
+    "session": {
+      "verificationFailed": "Unable to verify your session. Please try again.",
+      "signOutFailed": "Unable to sign out.",
+      "checkingAccess": "Checking access",
+      "checkingAccessProgress": "Checking access…"
     }
   },
   "errors": {

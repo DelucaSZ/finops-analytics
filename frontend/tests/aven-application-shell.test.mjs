@@ -32,7 +32,7 @@ test("sidebar branding uses the central BrandLogo contract for expanded and coll
 
   assert.match(shell, /<BrandLogo variant="wordmark" decorative \/>/);
   assert.match(shell, /<BrandLogo variant="verticalNoTagline" decorative \/>/);
-  assert.match(shell, /aria-label=\{`\$\{brand\.name\} — Dashboard`\}/);
+  assert.match(shell, /aria-label=\{`\$\{brand\.name\} — \$\{t\("dashboard"\)\}`\}/);
   assert.doesNotMatch(shell, /\/brand\/aven\//);
 
   assert.match(brandLogo, /brand\.assets\.wordmarkFallback/);
@@ -123,10 +123,10 @@ test("authentication gate preserves public routes and current session compatibil
 test("shell exposes navigation accessibility and current-page semantics", () => {
   const source = read("application-shell.tsx");
   assert.match(source, /aria-current=\{active \? "page" : undefined\}/);
-  assert.match(source, /aria-label="Navegação principal"/);
+  assert.match(source, /aria-label=\{t\("sidebar\.mainNavigation"\)\}/);
   assert.match(source, /href="#main-content"/);
-  assert.match(source, /aria-label="Abrir navegação"/);
-  assert.match(source, /aria-label="Menu do usuário"/);
+  assert.match(source, /aria-label=\{t\("open"\)\}/);
+  assert.match(source, /aria-label=\{t\("menu"\)\}/);
 });
 
 test("shell owns the main scroll container and keeps persistent navigation outside it", () => {
