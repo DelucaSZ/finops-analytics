@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useContext,
@@ -61,6 +62,7 @@ export interface DrawerContentProps extends DialogHTMLAttributes<HTMLDialogEleme
 
 export function DrawerContent({ side = "right", size = "default", className, children, onCancel, onClose, onClick, ...props }: DrawerContentProps) {
   const { open, setOpen, titleId, descriptionId } = useDrawer();
+  const t = useTranslations("accessibility");
   const ref = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => {
@@ -94,7 +96,7 @@ export function DrawerContent({ side = "right", size = "default", className, chi
     >
       <div className={styles.drawerInner}>
         {children}
-        <button type="button" className={styles.drawerClose} aria-label="Fechar painel" onClick={() => setOpen(false)}>
+        <button type="button" className={styles.drawerClose} aria-label={t("drawerClose")} onClick={() => setOpen(false)}>
           <X {...iconDefaults} />
         </button>
       </div>
@@ -120,7 +122,8 @@ export function DrawerFooter({ className, ...props }: HTMLAttributes<HTMLDivElem
   return <div className={cx(styles.drawerFooter, className)} {...props} />;
 }
 
-export function DrawerClose({ children = "Fechar", ...props }: ButtonProps) {
+export function DrawerClose({ children, ...props }: ButtonProps) {
   const { setOpen } = useDrawer();
-  return <Button variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children}</Button>;
+  const t = useTranslations("common.actions");
+  return <Button variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children === undefined ? t("close") : children}</Button>;
 }
