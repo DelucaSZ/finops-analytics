@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import {
   Check,
@@ -16,6 +17,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState, type ReactNode } from "react";
 import { BrandLogo } from "@/components/brand/brand-logo";
+import { LanguageControl } from "./language-control";
 import { useTheme } from "@/components/theme-provider";
 import {
   Avatar,
@@ -58,17 +60,17 @@ interface ApplicationShellProps {
 
 const themeOptions: ReadonlyArray<{
   value: ThemePreference;
-  label: string;
   icon: LucideIcon;
 }> = [
-  { value: "light", label: "Claro", icon: Sun },
-  { value: "dark", label: "Escuro", icon: Moon },
-  { value: "system", label: "Sistema", icon: Monitor },
+  { value: "light", icon: Sun },
+  { value: "dark", icon: Moon },
+  { value: "system", icon: Monitor },
 ];
 
 function AvenBrand({ compact = false }: { compact?: boolean }) {
+  const t = useTranslations("shell.navigation");
   return (
-    <Link className={styles.brandLink} href="/" aria-label={`${brand.name} — Dashboard`}>
+    <Link className={styles.brandLink} href="/" aria-label={`${brand.name} — ${t("dashboard")}`}>
       <span className={compact ? styles.brandWordmarkMobile : styles.brandWordmark} aria-hidden="true">
         <BrandLogo variant="wordmark" decorative />
       </span>
@@ -84,11 +86,13 @@ function AvenBrand({ compact = false }: { compact?: boolean }) {
 
 function NavigationLink({
   item,
+  label,
   pathname,
   collapsed,
   onNavigate,
 }: {
   item: NavigationItem;
+  label: string;
   pathname: string;
   collapsed: boolean;
   onNavigate?: () => void;
@@ -100,15 +104,15 @@ function NavigationLink({
       className={styles.navItem}
       href={item.href}
       aria-current={active ? "page" : undefined}
-      aria-label={collapsed ? item.label : undefined}
+      aria-label={collapsed ? label : undefined}
       onClick={onNavigate}
     >
       <Icon {...iconDefaults} size={iconSizes.lg} aria-hidden="true" />
-      <span className={styles.navLabel}>{item.label}</span>
+      <span className={styles.navLabel}>{label}</span>
     </Link>
   );
 
-  return collapsed ? <Tooltip className={styles.navTooltip} content={item.label}>{link}</Tooltip> : link;
+  return collapsed ? <Tooltip className={styles.navTooltip} content={label}>{link}</Tooltip> : link;
 }
 
 function SidebarNavigation({
@@ -120,12 +124,15 @@ function SidebarNavigation({
   collapsed: boolean;
   onNavigate?: () => void;
 }) {
+  const tNavigation = useTranslations("shell.navigation");
+  const tSidebar = useTranslations("shell.sidebar");
   return (
-    <nav className={styles.navigation} aria-label="Navegação principal">
+    <nav className={styles.navigation} aria-label={tSidebar("mainNavigation")}>
       {navigation.map((item) => (
         <NavigationLink
           key={item.href}
           item={item}
+          label={tNavigation(item.labelKey)}
           pathname={pathname}
           collapsed={collapsed}
           onNavigate={onNavigate}
@@ -144,6 +151,7 @@ function Sidebar({
   collapsed: boolean;
   onToggleCollapsed(): void;
 }) {
+  const t = useTranslations("shell.sidebar");
   return (
     <div className={styles.sidebarBody}>
       <div className={styles.brandRow}>
@@ -156,8 +164,8 @@ function Sidebar({
         <Divider />
         <div className={styles.sidebarUtility}>
           <IconButton
-            aria-label={collapsed ? "Expandir navegação" : "Recolher navegação"}
-            tooltip={collapsed ? "Expandir navegação" : "Recolher navegação"}
+            aria-label={collapsed ? t("expand") : t("collapse")}
+            tooltip={collapsed ? t("expand") : t("collapse")}
             onClick={onToggleCollapsed}
             aria-expanded={!collapsed}
             aria-controls="aven-desktop-sidebar"
@@ -168,7 +176,7 @@ function Sidebar({
               <ChevronLeft {...iconDefaults} aria-hidden="true" />
             )}
           </IconButton>
-          <span className={styles.collapseLabel}>Recolher navegação</span>
+          <span className={styles.collapseLabel}>{t("collapse")}</span>
         </div>
       </div>
     </div>
@@ -176,28 +184,30 @@ function Sidebar({
 }
 
 function ThemeControl() {
+  const t = useTranslations("shell.theme");
   const { theme, setTheme } = useTheme();
   const current = themeOptions.find((option) => option.value === theme) ?? themeOptions[2];
   const CurrentIcon = current.icon;
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className={styles.topbarControl} aria-label={`Tema: ${current.label}`}>
+      <DropdownMenuTrigger className={styles.topbarControl} aria-label={t("current", { theme: t(current.value) })}>
         <CurrentIcon {...iconDefaults} aria-hidden="true" />
-        <span className={styles.topbarControlLabel}>{current.label}</span>
+        <span className={styles.topbarControlLabel}>{t(current.value)}</span>
         <ChevronDown {...iconDefaults} size={iconSizes.sm} aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className={styles.themeMenu} aria-label="Selecionar tema">
+      <DropdownMenuContent className={styles.themeMenu} aria-label={t("select")}>
         {themeOptions.map((option) => {
           const Icon = option.icon;
+          const label = t(option.value);
           return (
             <DropdownMenuItem
               key={option.value}
               icon={<Icon {...iconDefaults} aria-hidden="true" />}
               onClick={() => setTheme(option.value)}
-              aria-label={theme === option.value ? `${option.label}, selecionado` : option.label}
+              aria-label={theme === option.value ? t("optionSelected", { option: label }) : label}
             >
-              <span className={styles.themeMenuLabel}>{option.label}</span>
+              <span className={styles.themeMenuLabel}>{label}</span>
               {theme === option.value && <Check {...iconDefaults} size={iconSizes.sm} aria-hidden="true" />}
             </DropdownMenuItem>
           );
@@ -218,14 +228,15 @@ function UserControl({
   leaving,
   onLogout,
 }: Pick<ApplicationShellProps, "user" | "leaving" | "onLogout">) {
+  const t = useTranslations("shell.user");
   const displayName = user?.name || user?.full_name || user?.email || null;
   const secondary = user?.email && user.email !== displayName ? user.email : user?.role;
-  const identityLabel = displayName || "Conta autenticada";
+  const identityLabel = displayName || t("authenticatedAccount");
   const initials = displayName ? getInitials(displayName) : "?";
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className={styles.userTrigger} aria-label="Menu do usuário">
+      <DropdownMenuTrigger className={styles.userTrigger} aria-label={t("menu")}>
         <Avatar fallback={initials} alt={identityLabel} size="sm" />
         {(displayName || secondary) && (
           <span className={styles.userTriggerCopy}>
@@ -235,7 +246,7 @@ function UserControl({
         )}
         <ChevronDown {...iconDefaults} size={iconSizes.sm} aria-hidden="true" />
       </DropdownMenuTrigger>
-      <DropdownMenuContent className={styles.userMenu} aria-label="Ações do usuário">
+      <DropdownMenuContent className={styles.userMenu} aria-label={t("actions")}>
         <div className={styles.userSummary}>
           <strong>{identityLabel}</strong>
           {secondary && <span>{secondary}</span>}
@@ -247,7 +258,7 @@ function UserControl({
           icon={<LogOut {...iconDefaults} aria-hidden="true" />}
           onClick={() => void onLogout()}
         >
-          {leaving ? "Saindo…" : "Sair"}
+          {leaving ? t("signingOut") : t("signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -262,13 +273,14 @@ function Topbar({
 }: Pick<ApplicationShellProps, "user" | "leaving" | "onLogout"> & {
   onOpenMobileNavigation(): void;
 }) {
+  const t = useTranslations("shell.sidebar");
   return (
     <header className={styles.topbar}>
       <div className={styles.topbarLeading}>
         <IconButton
           className={styles.mobileMenuTrigger}
-          aria-label="Abrir navegação"
-          tooltip="Abrir navegação"
+          aria-label={t("open")}
+          tooltip={t("open")}
           onClick={onOpenMobileNavigation}
         >
           <Menu {...iconDefaults} size={iconSizes.xl} aria-hidden="true" />
@@ -280,6 +292,7 @@ function Topbar({
 
       <div className={styles.topbarUtilities}>
         <ThemeControl />
+        <LanguageControl />
         <UserControl user={user} leaving={leaving} onLogout={onLogout} />
       </div>
     </header>
@@ -294,6 +307,7 @@ export function ApplicationShell({
   onLogout,
 }: ApplicationShellProps) {
   const pathname = usePathname();
+  const t = useTranslations("shell");
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
@@ -326,9 +340,9 @@ export function ApplicationShell({
 
   return (
     <div className={styles.shell}>
-      <a className={styles.skipLink} href="#main-content">Pular para o conteúdo</a>
+      <a className={styles.skipLink} href="#main-content">{t("accessibility.skipToContent")}</a>
 
-      <aside id="aven-desktop-sidebar" className={styles.desktopSidebar} aria-label="Navegação principal">
+      <aside id="aven-desktop-sidebar" className={styles.desktopSidebar} aria-label={t("sidebar.mainNavigation")}>
         <Sidebar pathname={pathname} collapsed={collapsed} onToggleCollapsed={toggleSidebar} />
       </aside>
 
@@ -349,7 +363,7 @@ export function ApplicationShell({
       </div>
 
       <Drawer open={mobileOpen} onOpenChange={setMobileOpen}>
-        <DrawerContent side="left" className={styles.mobileDrawer} aria-label="Navegação móvel">
+        <DrawerContent side="left" className={styles.mobileDrawer} aria-label={t("sidebar.mobileNavigation")}>
           <div className={styles.mobileSidebar}>
             <div className={styles.mobileBrandRow}>
               <AvenBrand compact />

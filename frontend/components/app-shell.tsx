@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter, usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useState, type ReactNode } from "react";
 import { ApplicationShell, type ShellUser } from "@/components/app-shell/application-shell";
 import { Button, Spinner } from "@/components/ui";
@@ -18,6 +19,8 @@ const publicRoutes = [
 
 export function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname();
+  const tSession = useTranslations("shell.session");
+  const tCommon = useTranslations("common.actions");
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [session, setSession] = useState<ShellUser | null>(null);
@@ -57,7 +60,7 @@ export function AppShell({ children }: { children: ReactNode }) {
           clearApiQueryCache();
           router.replace("/login");
         } else {
-          setError("Não foi possível verificar sua sessão. Tente novamente.");
+          setError("SESSION_VERIFICATION_FAILED");
         }
       });
 
@@ -74,17 +77,21 @@ export function AppShell({ children }: { children: ReactNode }) {
       clearApiQueryCache();
       router.replace("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível sair.");
+      setError(err instanceof Error ? err.message : "SIGN_OUT_FAILED");
     } finally {
       setLeaving(false);
     }
   }
 
+  const displayError = error === "SESSION_VERIFICATION_FAILED"
+    ? tSession("verificationFailed")
+    : error === "SIGN_OUT_FAILED" ? tSession("signOutFailed") : error;
+
   if (error && !ready) {
     return (
       <main className={styles.bootScreen}>
-        <p role="alert">{error}</p>
-        <Button onClick={() => setRetry((value) => value + 1)}>Tentar novamente</Button>
+        <p role="alert">{displayError}</p>
+        <Button onClick={() => setRetry((value) => value + 1)}>{tCommon("retry")}</Button>
       </main>
     );
   }
@@ -92,8 +99,8 @@ export function AppShell({ children }: { children: ReactNode }) {
   if (!ready) {
     return (
       <main className={styles.bootScreen} aria-live="polite">
-        <Spinner label="Verificando acesso" />
-        <span>Verificando acesso…</span>
+        <Spinner label={tSession("checkingAccess")} />
+        <span>{tSession("checkingAccessProgress")}</span>
       </main>
     );
   }
@@ -104,7 +111,7 @@ export function AppShell({ children }: { children: ReactNode }) {
     <ApplicationShell
       user={session}
       leaving={leaving}
-      statusMessage={error}
+      statusMessage={displayError}
       onLogout={logout}
     >
       {children}
