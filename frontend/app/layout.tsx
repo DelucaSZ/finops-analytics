@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { getLocale, getMessages } from "next-intl/server";
+import { LocaleProvider } from "@/components/locale-provider";
 import { Inter, Sora } from "next/font/google";
 import { AppShell } from "@/components/app-shell";
 import { AvenAmbientBackground } from "@/components/aven/ambient-background";
@@ -56,10 +58,13 @@ const sidebarBootstrap = `
 
 const appearanceBootstrap = `${getThemeBootstrapScript()}${sidebarBootstrap}`;
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
+
   return (
     <html
-      lang="pt-BR"
+      lang={locale}
       className={`${inter.variable} ${sora.variable}`}
       suppressHydrationWarning
     >
@@ -67,13 +72,15 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <script dangerouslySetInnerHTML={{ __html: appearanceBootstrap }} />
       </head>
       <body>
-        <ThemeProvider>
+        <LocaleProvider locale={locale} messages={messages}>
+          <ThemeProvider>
           <AvenAmbientBackground>
             <ToastProvider>
               <AppShell>{children}</AppShell>
             </ToastProvider>
           </AvenAmbientBackground>
-        </ThemeProvider>
+          </ThemeProvider>
+        </LocaleProvider>
       </body>
     </html>
   );
