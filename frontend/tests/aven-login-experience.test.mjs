@@ -86,12 +86,12 @@ test("login keeps native form semantics, password-manager metadata and keyboard 
 
 test("password visibility is accessible and MFA recovery remains available", () => {
   const source = loginSource();
-  assert.match(source, /showPassword \? "Ocultar senha" : "Mostrar senha"/);
+  assert.match(source, /showPassword \? t\("login.hidePassword"\) : t\("login.showPassword"\)/);
   assert.match(source, /<EyeOff/);
   assert.match(source, /<Eye/);
-  assert.match(source, /Usar código de recuperação/);
-  assert.match(source, /Usar autenticador/);
-  assert.match(source, /Voltar ao login/);
+  assert.match(source, /t\("mfa.useRecovery"\)/);
+  assert.match(source, /t\("mfa.useAuthenticator"\)/);
+  assert.match(source, /t\("mfa.backToLogin"\)/);
 });
 
 test("MFA enrollment uses the same Aven auth shell and official primitives", () => {
