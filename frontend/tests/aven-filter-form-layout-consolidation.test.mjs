@@ -19,11 +19,11 @@ function block(source, start, end) {
 test("single selectors keep empty-state copy inside the select and do not render loose clear actions", () => {
   const source = read("components", "aven", "selectors.tsx");
 
-  assert.match(source, /clearable \? \[\{ value: "", label: placeholder \}\] : \[\]/);
-  assert.match(source, /placeholder=\{!clearable && hasOptions \? placeholder : undefined\}/);
+  assert.match(source, /clearable \? \[\{ value: "", label: resolvedPlaceholder \}\] : \[\]/);
+  assert.match(source, /placeholder=\{!clearable && hasOptions \? resolvedPlaceholder : undefined\}/);
   assert.doesNotMatch(source, /styles\.selectorActions/);
   assert.match(source, /selection\.onChange\(\[\]\)/);
-  assert.match(source, /\{clearLabel\}/);
+  assert.match(source, /\{clearLabel \?\? t\("clear"\)\}/);
 });
 
 test("AccountSelector search is opt-in for single selection and remains available for multi-select", () => {

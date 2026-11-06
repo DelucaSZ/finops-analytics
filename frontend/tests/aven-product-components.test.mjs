@@ -82,8 +82,8 @@ test("selectors support single, multi, search, clear, localized actions, and exp
   assert.match(source, /selection\.onChange\(\[\]\)/);
   assert.match(source, /selectAllLabel \?\? t\("selectAll"\)/);
   assert.match(source, /clearLabel \?\? t\("clear"\)/);
-  assert.match(source, /\{selectAllLabel\}/);
-  assert.match(source, /\{clearLabel\}/);
+  assert.match(source, /\{selectAllLabel \?\? t\("selectAll"\)\}/);
+  assert.match(source, /\{clearLabel \?\? t\("clear"\)\}/);
   assert.doesNotMatch(source, /value\.length === 0.*all/i);
 });
 
