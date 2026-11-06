@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type HTMLAttributes } from "react";
+import { useTranslations } from "next-intl";
 import { Button, Input, Select } from "@/components/ui";
 import styles from "./product-components.module.css";
 import type { DateRangePreset, DateRangeValue } from "./types";
@@ -46,11 +47,11 @@ export function DateRangePicker({
   presets = [],
   presetValue,
   onPresetChange,
-  startLabel = "Start date",
-  endLabel = "End date",
-  presetLabel = "Period",
-  presetPlaceholder = "Choose a period",
-  clearLabel = "Clear dates",
+  startLabel,
+  endLabel,
+  presetLabel,
+  presetPlaceholder,
+  clearLabel,
   minDate,
   maxDate,
   disabled = false,
@@ -60,6 +61,7 @@ export function DateRangePicker({
   className,
   ...props
 }: DateRangePickerProps) {
+  const t = useTranslations("common.dateRange");
   const [internalPreset, setInternalPreset] = useState("");
   const activePreset = presetValue ?? internalPreset;
   const activePresetDefinition = presets.find((preset) => preset.value === activePreset);
@@ -88,8 +90,8 @@ export function DateRangePicker({
     >
       {presets.length > 0 && (
         <Select
-          label={presetLabel}
-          placeholder={presetPlaceholder}
+          label={presetLabel ?? t("period")}
+          placeholder={presetPlaceholder ?? t("choose")}
           options={presets.map((preset) => ({ value: preset.value, label: preset.label }))}
           value={activePreset}
           disabled={disabled}
@@ -101,7 +103,7 @@ export function DateRangePicker({
         <div className={styles.dateRangeFields}>
           <Input
             type="date"
-            label={startLabel}
+            label={startLabel ?? t("start")}
             value={value.startDate ?? ""}
             min={minDate}
             max={earlierDate(value.endDate, maxDate)}
@@ -115,7 +117,7 @@ export function DateRangePicker({
           />
           <Input
             type="date"
-            label={endLabel}
+            label={endLabel ?? t("end")}
             value={value.endDate ?? ""}
             min={laterDate(value.startDate, minDate)}
             max={maxDate}
@@ -137,7 +139,7 @@ export function DateRangePicker({
             disabled={disabled || (!value.startDate && !value.endDate)}
             onClick={clear}
           >
-            {clearLabel}
+            {clearLabel ?? t("clear")}
           </Button>
         </div>
       )}

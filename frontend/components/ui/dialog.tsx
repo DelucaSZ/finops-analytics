@@ -1,6 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useContext,
@@ -56,6 +57,7 @@ export function DialogTrigger(props: ButtonProps) {
 
 export function DialogContent({ className, children, onCancel, onClose, onClick, ...props }: DialogHTMLAttributes<HTMLDialogElement>) {
   const { open, setOpen, titleId, descriptionId } = useDialog();
+  const t = useTranslations("accessibility");
   const ref = useRef<HTMLDialogElement | null>(null);
 
   useEffect(() => {
@@ -87,7 +89,7 @@ export function DialogContent({ className, children, onCancel, onClose, onClick,
     >
       <div className={styles.dialogInner}>
         {children}
-        <button type="button" className={styles.dialogClose} aria-label="Fechar diálogo" onClick={() => setOpen(false)}>
+        <button type="button" className={styles.dialogClose} aria-label={t("dialogClose")} onClick={() => setOpen(false)}>
           <X {...iconDefaults} />
         </button>
       </div>
@@ -113,7 +115,8 @@ export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElem
   return <div className={cx(styles.dialogFooter, className)} {...props} />;
 }
 
-export function DialogClose({ children = "Fechar", ...props }: ButtonProps) {
+export function DialogClose({ children, ...props }: ButtonProps) {
   const { setOpen } = useDialog();
-  return <Button variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children}</Button>;
+  const t = useTranslations("common.actions");
+  return <Button variant="secondary" {...props} onClick={(event) => { props.onClick?.(event); if (!event.defaultPrevented) setOpen(false); }}>{children === undefined ? t("close") : children}</Button>;
 }

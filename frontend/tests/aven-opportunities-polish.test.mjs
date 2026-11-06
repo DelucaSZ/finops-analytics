@@ -21,7 +21,7 @@ test("Opportunities uses deterministic table sizing while keeping long identifie
   assert.match(resourceIdentifier, /Tooltip content=\{primaryText\}/);
   assert.match(resourceIdentifier, /Tooltip content=\{technicalId\}/);
   assert.match(resourceIdentifier, /navigator\.clipboard\.writeText\(valueToCopy\)/);
-  assert.match(resourceIdentifier, /aria-label=\{copied \? copiedLabel : copyLabel\}/);
+  assert.match(resourceIdentifier, /aria-label=\{copied \? \(copiedLabel \?\? t\("copied"\)\) : \(copyLabel \?\? t\("copy"\)\)\}/);
 
   assert.match(opportunitiesStyles, /table-layout:\s*fixed/);
   assert.match(opportunitiesStyles, /--opportunities-column-1:/);

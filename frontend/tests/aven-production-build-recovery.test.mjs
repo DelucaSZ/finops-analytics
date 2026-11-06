@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
+import { createTranslator } from "next-intl";
 import { fileURLToPath } from "node:url";
 
 const FRONTEND = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -27,23 +28,31 @@ test("single and multiple selector behavior remains covered by explicit branches
   assert.match(selectors, /if \(!selection\.multiple\) selection\.onChange\(event\.currentTarget\.value\)/);
   assert.match(selectors, /selection\.onChange\(\[\]\)/);
   assert.match(selectors, /\(selection as SingleSelectorProps\)\.onChange\(""\)/);
-  assert.match(selectors, /selection\.value\.length > 0 \? `\$\{selection\.value\.length\} selected` : placeholder/);
+  assert.match(selectors, /selection\.value\.length > 0 \? t\("selected", \{ count: selection\.value\.length \}\) : resolvedPlaceholder/);
   assert.ok(selectors.includes("selection.onChange(selectableOptions.map((option) => option.value));"));
   assert.ok(selectors.includes("new Set([...selection.value, option.value])"));
   assert.ok(selectors.includes("selection.value.filter((value) => value !== option.value)"));
-  assert.match(selectors, /emptyLabel = "No options available"/);
+  assert.match(selectors, /const resolvedEmptyLabel = emptyLabel \?\? t\("empty"\)/);
   assert.match(selectors, /filteredOptions\.length > 0/);
 });
 
 test("AccountSelector keeps zero, one, many, all, metadata, search, clear and partial-selection semantics", () => {
-  assert.match(selectors, /Nenhuma conta selecionada/);
-  assert.match(selectors, /1 conta selecionada/);
-  assert.match(selectors, /\$\{selectedOptions\.length\} contas selecionadas/);
-  assert.match(selectors, /Todas as contas selecionadas/);
+  assert.match(selectors, /return t\("noneAccount"\)/);
+  assert.match(selectors, /return t\("accountCount", \{ count: selectedOptions\.length \}\)/);
+  assert.match(selectors, /return t\("allAccounts"\)/);
   assert.match(selectors, /account\.accountId, account\.environment, account\.provider\?\.toUpperCase\(\)/);
   assert.match(selectors, /searchable=\{props\.searchable \?\? Boolean\(props\.multiple\)\}/);
   assert.match(selectors, /indeterminate=\{partiallySelected\}/);
   assert.match(selectors, /disabled=\{disabled \|\| !hasSelection\}/);
+  for (const [locale, one, many] of [
+    ["pt-BR", "1 conta selecionada", "4 contas selecionadas"],
+    ["en-US", "1 account selected", "4 accounts selected"],
+  ]) {
+    const messages = JSON.parse(readFrontend(`i18n/messages/${locale}.json`));
+    const t = createTranslator({ locale, messages, namespace: "common.selectors" });
+    assert.equal(t("accountCount", { count: 1 }), one);
+    assert.equal(t("accountCount", { count: 4 }), many);
+  }
 });
 
 test("manual deployment is fail-fast and verifies the running web revision", () => {

@@ -3,10 +3,70 @@
     "actions": {
       "save": "Save",
       "cancel": "Cancel",
-      "retry": "Try again"
+      "retry": "Try again",
+      "close": "Close",
+      "clear": "Clear",
+      "selectAll": "Select all"
     },
     "results": {
       "count": "{count, plural, =0 {No results} one {# result} other {# results}}"
+    },
+    "pagination": {
+      "label": "Pagination",
+      "previous": "Previous page",
+      "next": "Next page",
+      "page": "Page {page}"
+    },
+    "feedback": {
+      "dismiss": "Dismiss notification"
+    },
+    "dataState": {
+      "noData": "No data",
+      "noChartData": "No chart data",
+      "loadError": "Unable to load data",
+      "loadingContent": "Loading content",
+      "loadingMetric": "Loading metric"
+    },
+    "selectors": {
+      "select": "Select",
+      "search": "Search",
+      "clear": "Clear",
+      "selectAll": "Select all",
+      "empty": "No options available",
+      "selected": "{count, plural, one {# selected} other {# selected}}",
+      "loading": "Loading {label}",
+      "searchLabel": "Search {label}",
+      "optionsLabel": "{label} options",
+      "noneAccount": "No account selected",
+      "allAccounts": "All accounts selected",
+      "accountCount": "{count, plural, one {# account selected} other {# accounts selected}}"
+    },
+    "dateRange": {
+      "start": "Start date",
+      "end": "End date",
+      "period": "Period",
+      "choose": "Choose a period",
+      "clear": "Clear dates"
+    },
+    "recommendation": {
+      "potentialSavings": "Potential savings",
+      "impact": "Impact",
+      "confidence": "Confidence",
+      "resource": "Resource"
+    },
+    "resource": {
+      "copy": "Copy resource identifier",
+      "copied": "Copied"
+    },
+    "trend": {
+      "label": "Trend",
+      "up": "up",
+      "down": "down",
+      "flat": "flat",
+      "positive": "positive",
+      "negative": "negative",
+      "neutral": "neutral",
+      "announcement": "{label}: {direction}, {sentiment}, {value}"
     }
   },
   "shell": {
@@ -61,5 +121,109 @@
   },
   "errors": {
     "translationUnavailable": "Translation unavailable"
+  },
+  "auth": {
+    "login": {
+      "title": "Welcome back",
+      "description": "Sign in to your {product} account to continue.",
+      "email": "Email",
+      "password": "Password",
+      "submit": "Sign in",
+      "submitting": "Signing in…",
+      "showPassword": "Show password",
+      "hidePassword": "Hide password",
+      "forgotPassword": "Forgot your password?"
+    },
+    "mfa": {
+      "verifyTitle": "Verify second factor",
+      "totpInstruction": "Enter the six-digit code from your authenticator.",
+      "recoveryInstruction": "Enter one of your saved recovery codes. Each code can be used only once.",
+      "recoveryCode": "Recovery code",
+      "authenticatorCode": "Authenticator code",
+      "useRecovery": "Use a recovery code",
+      "useAuthenticator": "Use authenticator",
+      "backToLogin": "Back to sign in",
+      "verify": "Verify",
+      "verifying": "Verifying…",
+      "setupPageTitle": "Secure your {product} account",
+      "setupPageDescription": "Complete second-factor setup before accessing the platform.",
+      "logout": "Sign out",
+      "loggingOut": "Signing out…",
+      "title": "Multi-factor authentication",
+      "description": "Use Google Authenticator, Microsoft Authenticator, or another TOTP-compatible app.",
+      "loading": "Loading MFA settings",
+      "enabled": "MFA enabled",
+      "notEnabled": "MFA not enabled yet",
+      "recoveryRemaining": "{count, plural, =0 {No recovery codes available.} one {# recovery code available.} other {# recovery codes available.}}",
+      "enrollmentRequired": "Set up your authenticator to access the platform.",
+      "enterPlatform": "Access platform",
+      "saveCodesTitle": "Save your recovery codes",
+      "saveCodesDescription": "These codes are shown only now. Store them in a password manager. Each code can replace an authenticator code once.",
+      "savedCodes": "I saved the codes in a secure place",
+      "finish": "Finish",
+      "qrInstructions": "Scan the QR code in your authenticator or enter the key manually. Setup expires in ten minutes.",
+      "qrAlt": "QR code to set up your {product} authenticator",
+      "setupSecret": "Setup key",
+      "totpDetails": "Type: time-based (TOTP) · 6 digits · 30 seconds. Do not share this key.",
+      "newAuthenticatorCode": "New authenticator code",
+      "confirmActivation": "Confirm activation",
+      "back": "Back",
+      "replaceWarning": "To change the authenticator or generate new recovery codes, confirm your password and a second factor. This will end other sessions and invalidate previous codes.",
+      "yourPassword": "Your password",
+      "currentCode": "Current or recovery code",
+      "replaceAuthenticator": "Change authenticator",
+      "setupAuthenticator": "Set up authenticator",
+      "newRecoveryCodes": "Generate new codes"
+    },
+    "access": {
+      "forgot": {
+        "title": "Recover access",
+        "description": "Enter your account email to request a password reset.",
+        "submit": "Request recovery",
+        "success": "If the account is active and email delivery is configured, you will receive a link. Otherwise, contact your administrator."
+      },
+      "reset": {
+        "title": "Set new password",
+        "submit": "Save password",
+        "success": "Password set. Sign in with your email and new password."
+      },
+      "invite": {
+        "title": "Activate your account",
+        "submit": "Save password",
+        "success": "Account activated. Sign in with your email and new password."
+      },
+      "passwordInstructions": "Choose a password between {min} and {max} characters. Once complete, sign in from the login page.",
+      "email": "Email",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm password",
+      "backToLogin": "Back to sign in",
+      "passwordMismatch": "Passwords do not match.",
+      "invalidLink": "Invalid link. Open the full link you received or request a new one."
+    },
+    "errors": {
+      "invalidCredentials": "Invalid email or password.",
+      "invalidCode": "Invalid or expired code. Check it and try again.",
+      "invalidLink": "This link is invalid, expired, or already used. Request a new link.",
+      "tooManyRequests": "Too many attempts. Wait and try again.",
+      "sessionExpired": "Your session has expired. Sign in again.",
+      "accessDenied": "This action could not be authorized.",
+      "requestFailed": "Unable to complete the request. Please try again.",
+      "timeout": "The request timed out. Please try again.",
+      "networkUnavailable": "Unable to connect. Check your connection and try again."
+    },
+    "identity": {
+      "title": "Confirm identity",
+      "description": "When prompted, enter your password and MFA code (if enabled). Confirmation authorizes changes for five minutes.",
+      "password": "Password",
+      "code": "MFA or recovery code",
+      "submit": "Confirm identity",
+      "submitting": "Confirming…",
+      "success": "Identity confirmed. Retry the action you intended."
+    }
+  },
+  "accessibility": {
+    "authPanel": "Authentication",
+    "dialogClose": "Close dialog",
+    "drawerClose": "Close panel"
   }
 }

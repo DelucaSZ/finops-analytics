@@ -1,6 +1,7 @@
 "use client";
 
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   createContext,
   useCallback,
@@ -81,6 +82,7 @@ function ToastItem({
   dismiss(id: number): void;
   setToasts: Dispatch<SetStateAction<ToastRecord[]>>;
 }) {
+  const t = useTranslations("common.feedback");
   const variant = item.variant ?? "info";
   const Icon = toastIcons[variant];
 
@@ -109,7 +111,7 @@ function ToastItem({
         <span className={styles.toastTitle}>{item.title}</span>
         {item.description && <span className={styles.toastDescription}>{item.description}</span>}
       </span>
-      <button className={styles.toastDismiss} type="button" aria-label="Dispensar notificação" onClick={() => dismiss(item.id)}>
+      <button className={styles.toastDismiss} type="button" aria-label={t("dismiss")} onClick={() => dismiss(item.id)}>
         <X {...iconDefaults} />
       </button>
     </div>

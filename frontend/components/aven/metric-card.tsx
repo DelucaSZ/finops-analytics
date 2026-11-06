@@ -1,4 +1,7 @@
+"use client";
+
 import { isValidElement, type HTMLAttributes, type ReactElement, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import {
   Card,
   CardContent,
@@ -42,6 +45,7 @@ export function MetricCard({
   className,
   ...props
 }: MetricCardProps) {
+  const t = useTranslations("common.dataState");
   return (
     <Card className={classNames(styles.metricCard, className)} {...props}>
       <CardHeader className={styles.metricHeader}>
@@ -52,7 +56,7 @@ export function MetricCard({
       </CardHeader>
       <CardContent className={styles.metricContent}>
         {loading ? (
-          <div className={styles.metricLoading} role="status" aria-label="Loading metric">
+          <div className={styles.metricLoading} role="status" aria-label={t("loadingMetric")}>
             <Skeleton />
             <Skeleton />
           </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { ArrowRight, Eye, EyeOff, LockKeyhole } from "lucide-react";
@@ -16,25 +17,27 @@ import {
   Input,
 } from "@/components/ui";
 import { api } from "@/lib/api";
+import { authErrorKey, type AuthErrorKey } from "@/lib/auth-error";
 import { PRODUCT_NAME } from "@/lib/brand";
 import { iconDefaults } from "@/lib/iconography";
 import styles from "./login.module.css";
 
 export default function LoginPage() {
   const router = useRouter();
+  const t = useTranslations("auth");
   const [challenge, setChallenge] = useState("");
   const [code, setCode] = useState("");
   const [recovery, setRecovery] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState<AuthErrorKey | null>(null);
   const [loading, setLoading] = useState(false);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
     setLoading(true);
-    setError("");
+    setError(null);
     try {
       if (challenge) {
         await api("/auth/mfa/verify", {
@@ -62,18 +65,16 @@ export default function LoginPage() {
         }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível entrar");
+      setError(authErrorKey(err, challenge ? "verify" : "login"));
     } finally {
       setLoading(false);
     }
   }
 
-  const title = challenge ? "Verificar segundo fator" : "Bem-vindo de volta";
+  const title = challenge ? t("mfa.verifyTitle") : t("login.title");
   const description = challenge
-    ? recovery
-      ? "Informe um dos códigos de recuperação que você guardou. Cada código pode ser usado uma vez."
-      : "Informe o código de seis dígitos do seu autenticador."
-    : `Acesse sua conta ${PRODUCT_NAME} para continuar.`;
+    ? recovery ? t("mfa.recoveryInstruction") : t("mfa.totpInstruction")
+    : t("login.description", { product: PRODUCT_NAME });
 
   return (
     <AuthLayout>
@@ -92,7 +93,7 @@ export default function LoginPage() {
               <div className={styles.fields}>
                 <Input
                   type="email"
-                  label="E-mail"
+                  label={t("login.email")}
                   autoComplete="username"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
@@ -100,15 +101,15 @@ export default function LoginPage() {
                 />
                 <Input
                   type={showPassword ? "text" : "password"}
-                  label="Senha"
+                  label={t("login.password")}
                   autoComplete="current-password"
                   value={password}
                   onChange={(event) => setPassword(event.target.value)}
                   required
                   trailingAction={
                     <IconButton
-                      aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                      tooltip={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                      aria-label={showPassword ? t("login.hidePassword") : t("login.showPassword")}
+                      tooltip={showPassword ? t("login.hidePassword") : t("login.showPassword")}
                       size="sm"
                       onClick={() => setShowPassword((visible) => !visible)}
                     >
@@ -118,14 +119,14 @@ export default function LoginPage() {
                 />
                 <div className={styles.auxiliary}>
                   <Link className={styles.link} href="/forgot-password">
-                    Esqueci minha senha
+                    {t("login.forgotPassword")}
                   </Link>
                 </div>
               </div>
             ) : (
               <div className={styles.fields}>
                 <Input
-                  label={recovery ? "Código de recuperação" : "Código do autenticador"}
+                  label={recovery ? t("mfa.recoveryCode") : t("mfa.authenticatorCode")}
                   autoComplete="one-time-code"
                   inputMode={recovery ? "text" : "numeric"}
                   pattern={recovery ? undefined : "[0-9]{6}"}
@@ -142,10 +143,10 @@ export default function LoginPage() {
                     onClick={() => {
                       setRecovery((current) => !current);
                       setCode("");
-                      setError("");
+                      setError(null);
                     }}
                   >
-                    {recovery ? "Usar autenticador" : "Usar código de recuperação"}
+                    {recovery ? t("mfa.useAuthenticator") : t("mfa.useRecovery")}
                   </Button>
                   <Button
                     variant="ghost"
@@ -153,17 +154,17 @@ export default function LoginPage() {
                     onClick={() => {
                       setChallenge("");
                       setCode("");
-                      setError("");
+                      setError(null);
                       setRecovery(false);
                     }}
                   >
-                    Voltar ao login
+                    {t("mfa.backToLogin")}
                   </Button>
                 </div>
               </div>
             )}
 
-            {error && <Alert variant="danger" description={error} />}
+            {error && <Alert variant="danger" description={t(`errors.${error}`)} />}
           </CardContent>
 
           <CardFooter className={styles.footer}>
@@ -174,7 +175,7 @@ export default function LoginPage() {
               loading={loading}
               trailingIcon={<ArrowRight {...iconDefaults} />}
             >
-              {challenge ? "Verificar" : "Entrar"}
+              {challenge ? (loading ? t("mfa.verifying") : t("mfa.verify")) : (loading ? t("login.submitting") : t("login.submit"))}
             </Button>
           </CardFooter>
         </Card>

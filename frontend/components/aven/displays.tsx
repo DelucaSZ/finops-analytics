@@ -1,3 +1,6 @@
+"use client";
+
+import { useLocale, useTranslations } from "next-intl";
 import {
   AlertCircle,
   AlertTriangle,
@@ -33,7 +36,7 @@ export interface CurrencyDisplayProps extends Omit<HTMLAttributes<HTMLSpanElemen
 export function CurrencyDisplay({
   value,
   currency,
-  locale = "en-US",
+  locale,
   compact = false,
   minimumFractionDigits,
   maximumFractionDigits,
@@ -42,11 +45,12 @@ export function CurrencyDisplay({
   className,
   ...props
 }: CurrencyDisplayProps) {
+  const activeLocale = useLocale();
   if (value == null) {
     return <span className={classNames(styles.numeric, className)} {...props}>{nullDisplay}</span>;
   }
 
-  const formatted = new Intl.NumberFormat(locale, {
+  const formatted = new Intl.NumberFormat(locale ?? activeLocale, {
     style: "currency",
     currency,
     currencyDisplay,
@@ -71,7 +75,7 @@ export interface PercentageDisplayProps extends Omit<HTMLAttributes<HTMLSpanElem
 export function PercentageDisplay({
   value,
   valueMode = "percent",
-  locale = "en-US",
+  locale,
   minimumFractionDigits,
   maximumFractionDigits = 2,
   signDisplay = "auto",
@@ -79,12 +83,13 @@ export function PercentageDisplay({
   className,
   ...props
 }: PercentageDisplayProps) {
+  const activeLocale = useLocale();
   if (value == null) {
     return <span className={classNames(styles.numeric, className)} {...props}>{nullDisplay}</span>;
   }
 
   const normalized = valueMode === "percent" ? value / 100 : value;
-  const formatted = new Intl.NumberFormat(locale, {
+  const formatted = new Intl.NumberFormat(locale ?? activeLocale, {
     style: "percent",
     minimumFractionDigits,
     maximumFractionDigits,
@@ -121,23 +126,26 @@ export function TrendIndicator({
   direction,
   sentiment,
   unit = "percent",
-  locale = "en-US",
+  locale,
   maximumFractionDigits = 2,
-  label = "Trend",
+  label,
   className,
   ...props
 }: TrendIndicatorProps) {
+  const activeLocale = useLocale();
+  const t = useTranslations("common.trend");
   const Icon = trendIcons[direction];
   const formattedValue = typeof value === "number"
     ? unit === "percent"
-      ? new Intl.NumberFormat(locale, {
+      ? new Intl.NumberFormat(locale ?? activeLocale, {
           style: "percent",
           maximumFractionDigits,
         }).format(Math.abs(value) / 100)
-      : new Intl.NumberFormat(locale, { maximumFractionDigits }).format(Math.abs(value))
+      : new Intl.NumberFormat(locale ?? activeLocale, { maximumFractionDigits }).format(Math.abs(value))
     : value;
-  const accessibleDirection = direction === "flat" ? "flat" : direction;
-  const accessibleLabel = `${label}: ${accessibleDirection}, ${sentiment}, ${formattedValue}`;
+  const accessibleLabel = t("announcement", {
+    label: label ?? t("label"), direction: t(direction), sentiment: t(sentiment), value: formattedValue,
+  });
 
   return (
     <span className={classNames(styles.inlineDisplay, className)} aria-label={accessibleLabel} {...props}>

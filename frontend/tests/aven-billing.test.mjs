@@ -58,10 +58,10 @@ test("Billing AccountSelector is compact by default and opens an Aven checkbox d
   assert.ok(selector.includes("<DropdownMenuContent"));
   assert.ok(selector.includes("<Checkbox"));
   assert.ok(selector.includes("indeterminate={partiallySelected}"));
-  assert.ok(selector.includes('placeholder={props.placeholder ?? "Nenhuma conta selecionada"}'));
-  assert.ok(selector.includes('return "Todas as contas selecionadas"'));
-  assert.ok(selector.includes('return "1 conta selecionada"'));
-  assert.ok(selector.includes("contas selecionadas"));
+  assert.ok(selector.includes('placeholder={props.placeholder ?? t("noneAccount")}'));
+  assert.ok(selector.includes('return t("allAccounts")'));
+  assert.ok(selector.includes('return t("noneAccount")'));
+  assert.ok(selector.includes('return t("accountCount", { count: selectedOptions.length })'));
   assert.ok(!selector.includes("multiple={selection.multiple}"));
   assert.ok(!selector.includes("styles.multiSelect"));
   assert.match(css, /\.selectorTrigger\s*\{[\s\S]*?block-size:\s*var\(--control-height-compact\)/);
