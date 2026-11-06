@@ -40,7 +40,7 @@ test("login, MFA and access flows use semantic translation keys, not stored tran
   assert.match(login, /t\("mfa.recoveryInstruction"\)/);
   assert.match(access, /useTranslations\("auth"\)/);
   assert.match(access, /setMessage\(true\)/);
-  assert.match(access, /t\(`access.${mode}.success`\)/);
+  assert.ok(access.includes("t(`access.${mode}.success`)"));
   assert.match(access, /window\.location\.hash\.slice\(1\)/);
   assert.match(access, /window\.history\.replaceState\(null, "", window\.location\.pathname\)/);
   assert.match(mfa, /t\("recoveryRemaining", \{ count: status\.recovery_codes_remaining \}\)/);
@@ -59,7 +59,6 @@ test("auth endpoint payloads and security-critical URL fragments are unchanged",
   for (const endpoint of ["/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]) {
     assert.ok(access.includes(endpoint));
   }
-  assert.match(access, /token\.length !== 43/);
   assert.match(access, /token\.length !== 43/);
   assert.match(mfa, /setCodes\(result\.recovery_codes\)/);
   assert.match(mfa, /setSetup\(result\)/);
