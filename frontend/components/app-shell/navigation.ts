@@ -1,3 +1,4 @@
+import type messages from "@/i18n/messages/pt-BR.json";
 import {
   Activity,
   Boxes,
@@ -12,27 +13,27 @@ import {
 
 export interface NavigationItem {
   href: string;
-  label: string;
+  labelKey: keyof typeof messages.shell.navigation;
   icon: LucideIcon;
   exact?: boolean;
   activePrefixes?: readonly string[];
 }
 
 export const navigation = [
-  { href: "/", label: "Dashboard", icon: LayoutDashboard, exact: true },
+  { href: "/", labelKey: "dashboard", icon: LayoutDashboard, exact: true },
   {
     href: "/opportunities",
-    label: "Oportunidades",
+    labelKey: "opportunities",
     icon: ScanSearch,
     exact: true,
     activePrefixes: ["/opportunities/collection/"],
   },
-  { href: "/inventory", label: "Inventory", icon: Boxes },
-  { href: "/flow", label: "Fluxo", icon: WalletCards },
-  { href: "/billing", label: "Billing", icon: ReceiptText },
-  { href: "/rds/reservations", label: "Reservas RDS", icon: Database },
-  { href: "/collections", label: "Coletas", icon: Activity },
-  { href: "/settings", label: "Configurações", icon: Settings2 },
+  { href: "/inventory", labelKey: "inventory", icon: Boxes },
+  { href: "/flow", labelKey: "flow", icon: WalletCards },
+  { href: "/billing", labelKey: "billing", icon: ReceiptText },
+  { href: "/rds/reservations", labelKey: "reservations", icon: Database },
+  { href: "/collections", labelKey: "collections", icon: Activity },
+  { href: "/settings", labelKey: "settings", icon: Settings2 },
 ] satisfies readonly NavigationItem[];
 
 export function isNavigationItemActive(pathname: string, item: NavigationItem) {

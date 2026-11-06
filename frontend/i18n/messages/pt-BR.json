@@ -10,10 +10,53 @@
     }
   },
   "shell": {
+    "navigation": {
+      "dashboard": "Visão geral",
+      "opportunities": "Oportunidades",
+      "inventory": "Inventário",
+      "flow": "Fluxo",
+      "billing": "Uso e custos",
+      "reservations": "Reservas RDS",
+      "collections": "Coletas",
+      "settings": "Configurações"
+    },
+    "sidebar": {
+      "mainNavigation": "Navegação principal",
+      "mobileNavigation": "Navegação móvel",
+      "expand": "Expandir navegação",
+      "collapse": "Recolher navegação",
+      "open": "Abrir navegação"
+    },
+    "theme": {
+      "light": "Claro",
+      "dark": "Escuro",
+      "system": "Sistema",
+      "select": "Selecionar tema",
+      "current": "Tema: {theme}",
+      "optionSelected": "{option}, selecionado"
+    },
     "language": {
       "select": "Selecionar idioma",
       "portugueseBrazil": "Português (Brasil)",
-      "englishUnitedStates": "Inglês (Estados Unidos)"
+      "englishUnitedStates": "English (US)",
+      "current": "Idioma: {language}",
+      "changeFailed": "Não foi possível alterar o idioma. Tente novamente."
+    },
+    "user": {
+      "menu": "Menu do usuário",
+      "actions": "Ações do usuário",
+      "authenticatedAccount": "Conta autenticada",
+      "signOut": "Sair",
+      "signingOut": "Saindo…"
+    },
+    "accessibility": {
+      "skipToContent": "Pular para o conteúdo"
+    },
+    "session": {
+      "verificationFailed": "Não foi possível verificar sua sessão. Tente novamente.",
+      "signOutFailed": "Não foi possível sair.",
+      "checkingAccess": "Verificando acesso",
+      "checkingAccessProgress": "Verificando acesso…"
     }
   },
   "errors": {

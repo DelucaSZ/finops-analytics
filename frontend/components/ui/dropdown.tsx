@@ -170,7 +170,7 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
 
   useEffect(() => {
     if (!open || !mounted) return;
-    const first = contentRef.current?.querySelector<HTMLButtonElement>("[role='menuitem']:not(:disabled)");
+    const first = contentRef.current?.querySelector<HTMLButtonElement>(":is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox']):not(:disabled)");
     first?.focus();
   }, [contentRef, mounted, open]);
 
@@ -196,7 +196,7 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
       onKeyDown={(event) => {
         onKeyDown?.(event);
         if (event.defaultPrevented) return;
-        const items = Array.from(contentRef.current?.querySelectorAll<HTMLButtonElement>("[role='menuitem']:not(:disabled)") ?? []);
+        const items = Array.from(contentRef.current?.querySelectorAll<HTMLButtonElement>(":is([role='menuitem'], [role='menuitemradio'], [role='menuitemcheckbox']):not(:disabled)") ?? []);
         const index = items.indexOf(document.activeElement as HTMLButtonElement);
         if (event.key === "Escape") {
           event.preventDefault();
