@@ -1,27 +1,30 @@
 "use client";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
+import { authErrorKey, type AuthErrorKey } from "@/lib/auth-error";
 import { api } from "@/lib/api";
 
 export function IdentityProof() {
+  const t = useTranslations("auth.identity");
+  const tErrors = useTranslations("auth.errors");
   const [password, setPassword] = useState("");
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState<AuthErrorKey | null>(null);
+  const [message, setMessage] = useState(false);
   return (
     <section className="security-card" id="identity-proof" tabIndex={-1}>
-      <h2>Confirmar identidade</h2>
+      <h2>{t("title")}</h2>
       <p>
-        Se solicitado, confirme sua senha e seu código MFA (quando ativado). A
-        confirmação autoriza alterações por cinco minutos.
+        {t("description")}
       </p>
       <form
         className="settings-inline-form"
         onSubmit={async (e) => {
           e.preventDefault();
           setBusy(true);
-          setError("");
-          setMessage("");
+          setError(null);
+          setMessage(false);
           try {
             await api("/auth/reauthenticate", {
               method: "POST",
@@ -29,20 +32,16 @@ export function IdentityProof() {
             });
             setPassword("");
             setCode("");
-            setMessage("Identidade confirmada. Repita a ação desejada.");
+            setMessage(true);
           } catch (err) {
-            setError(
-              err instanceof Error
-                ? err.message
-                : "Não foi possível confirmar.",
-            );
+            setError(authErrorKey(err, "configure"));
           } finally {
             setBusy(false);
           }
         }}
       >
         <label>
-          Senha
+          {t("password")}
           <input
             type="password"
             autoComplete="current-password"
@@ -52,7 +51,7 @@ export function IdentityProof() {
           />
         </label>
         <label>
-          Código MFA ou de recuperação
+          {t("code")}
           <input
             autoComplete="one-time-code"
             maxLength={64}
@@ -61,17 +60,17 @@ export function IdentityProof() {
           />
         </label>
         <button className="button" disabled={busy}>
-          Confirmar identidade
+          {busy ? t("submitting") : t("submit")}
         </button>
       </form>
       {error && (
         <p className="form-error" role="alert">
-          {error}
+          {tErrors(error)}
         </p>
       )}
       {message && (
         <p className="form-success" role="status">
-          {message}
+          {t("success")}
         </p>
       )}
     </section>

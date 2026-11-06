@@ -207,6 +207,15 @@
       "requestFailed": "Unable to complete the request. Please try again.",
       "timeout": "The request timed out. Please try again.",
       "networkUnavailable": "Unable to connect. Check your connection and try again."
+    },
+    "identity": {
+      "title": "Confirm identity",
+      "description": "When prompted, enter your password and MFA code (if enabled). Confirmation authorizes changes for five minutes.",
+      "password": "Password",
+      "code": "MFA or recovery code",
+      "submit": "Confirm identity",
+      "submitting": "Confirming…",
+      "success": "Identity confirmed. Retry the action you intended."
     }
   },
   "accessibility": {

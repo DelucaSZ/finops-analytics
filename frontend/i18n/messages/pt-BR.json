@@ -207,6 +207,15 @@
       "requestFailed": "Não foi possível concluir a solicitação. Tente novamente.",
       "timeout": "A solicitação excedeu o tempo limite. Tente novamente.",
       "networkUnavailable": "Não foi possível conectar. Verifique sua conexão e tente novamente."
+    },
+    "identity": {
+      "title": "Confirmar identidade",
+      "description": "Se solicitado, confirme sua senha e seu código MFA (quando ativado). A confirmação autoriza alterações por cinco minutos.",
+      "password": "Senha",
+      "code": "Código MFA ou de recuperação",
+      "submit": "Confirmar identidade",
+      "submitting": "Confirmando…",
+      "success": "Identidade confirmada. Repita a ação desejada."
     }
   },
   "accessibility": {
