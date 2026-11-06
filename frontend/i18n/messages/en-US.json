@@ -1,6 +1,9 @@
 {
   "common": {
     "actions": {
+      "save": "Save",
+      "cancel": "Cancel",
+      "retry": "Try again",
       "close": "Close",
       "clear": "Clear",
       "selectAll": "Select all"

@@ -17,7 +17,11 @@ const identity = read("components/identity-proof.tsx");
 
 test("25.4 catalogs have equivalent keys, valid ICU and bilingual authentication copy", () => {
   const result = validateCatalogFiles();
-  assert.ok(result.keys >= 160);
+  assert.ok(result.keys >= 167);
+  for (const locale of ["pt-BR", "en-US"]) {
+    const t = createTranslator({ locale, messages: catalog(locale), namespace: "common.actions" });
+    for (const key of ["save", "cancel", "retry"]) assert.equal(typeof t(key), "string");
+  }
   for (const [locale, title, signIn, remaining] of [
     ["pt-BR", "Bem-vindo de volta", "Entrar", "2 códigos de recuperação disponíveis."],
     ["en-US", "Welcome back", "Sign in", "2 recovery codes available."],
