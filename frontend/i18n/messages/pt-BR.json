@@ -1,12 +1,69 @@
 {
   "common": {
     "actions": {
-      "save": "Salvar",
-      "cancel": "Cancelar",
-      "retry": "Tentar novamente"
+      "close": "Fechar",
+      "clear": "Limpar",
+      "selectAll": "Selecionar tudo"
     },
     "results": {
       "count": "{count, plural, =0 {Nenhum resultado} one {# resultado} other {# resultados}}"
+    },
+    "pagination": {
+      "label": "Paginação",
+      "previous": "Página anterior",
+      "next": "Próxima página",
+      "page": "Página {page}"
+    },
+    "feedback": {
+      "dismiss": "Dispensar notificação"
+    },
+    "dataState": {
+      "noData": "Sem dados",
+      "noChartData": "Sem dados para o gráfico",
+      "loadError": "Não foi possível carregar os dados",
+      "loadingContent": "Carregando conteúdo",
+      "loadingMetric": "Carregando métrica"
+    },
+    "selectors": {
+      "select": "Selecionar",
+      "search": "Pesquisar",
+      "clear": "Limpar",
+      "selectAll": "Selecionar tudo",
+      "empty": "Nenhuma opção disponível",
+      "selected": "{count, plural, one {# selecionado} other {# selecionados}}",
+      "loading": "Carregando {label}",
+      "searchLabel": "Pesquisar em {label}",
+      "optionsLabel": "Opções de {label}",
+      "noneAccount": "Nenhuma conta selecionada",
+      "allAccounts": "Todas as contas selecionadas",
+      "accountCount": "{count, plural, one {# conta selecionada} other {# contas selecionadas}}"
+    },
+    "dateRange": {
+      "start": "Data inicial",
+      "end": "Data final",
+      "period": "Período",
+      "choose": "Selecione um período",
+      "clear": "Limpar datas"
+    },
+    "recommendation": {
+      "potentialSavings": "Economia potencial",
+      "impact": "Impacto",
+      "confidence": "Confiança",
+      "resource": "Recurso"
+    },
+    "resource": {
+      "copy": "Copiar identificador do recurso",
+      "copied": "Copiado"
+    },
+    "trend": {
+      "label": "Tendência",
+      "up": "alta",
+      "down": "queda",
+      "flat": "estável",
+      "positive": "positiva",
+      "negative": "negativa",
+      "neutral": "neutra",
+      "announcement": "{label}: {direction}, {sentiment}, {value}"
     }
   },
   "shell": {
@@ -61,5 +118,100 @@
   },
   "errors": {
     "translationUnavailable": "Tradução indisponível"
+  },
+  "auth": {
+    "login": {
+      "title": "Bem-vindo de volta",
+      "description": "Acesse sua conta {product} para continuar.",
+      "email": "E-mail",
+      "password": "Senha",
+      "submit": "Entrar",
+      "submitting": "Entrando…",
+      "showPassword": "Mostrar senha",
+      "hidePassword": "Ocultar senha",
+      "forgotPassword": "Esqueceu sua senha?"
+    },
+    "mfa": {
+      "verifyTitle": "Verificar segundo fator",
+      "totpInstruction": "Informe o código de seis dígitos do seu autenticador.",
+      "recoveryInstruction": "Informe um dos códigos de recuperação que você guardou. Cada código pode ser usado uma vez.",
+      "recoveryCode": "Código de recuperação",
+      "authenticatorCode": "Código do autenticador",
+      "useRecovery": "Usar código de recuperação",
+      "useAuthenticator": "Usar autenticador",
+      "backToLogin": "Voltar ao login",
+      "verify": "Verificar",
+      "verifying": "Verificando…",
+      "setupPageTitle": "Proteja sua conta {product}",
+      "setupPageDescription": "Conclua a configuração do segundo fator antes de acessar a plataforma.",
+      "logout": "Sair",
+      "loggingOut": "Saindo…",
+      "title": "Autenticação multifator",
+      "description": "Use Google Authenticator, Microsoft Authenticator ou outro aplicativo compatível com TOTP.",
+      "loading": "Carregando configuração de MFA",
+      "enabled": "MFA ativado",
+      "notEnabled": "MFA ainda não ativado",
+      "recoveryRemaining": "{count, plural, =0 {Nenhum código de recuperação disponível.} one {# código de recuperação disponível.} other {# códigos de recuperação disponíveis.}}",
+      "enrollmentRequired": "Cadastre seu autenticador para acessar a plataforma.",
+      "enterPlatform": "Acessar plataforma",
+      "saveCodesTitle": "Guarde seus códigos de recuperação",
+      "saveCodesDescription": "Estes códigos aparecem somente agora. Guarde-os em um gerenciador de senhas. Cada um substitui o código do autenticador uma única vez.",
+      "savedCodes": "Guardei os códigos em um local seguro",
+      "finish": "Concluir",
+      "qrInstructions": "Escaneie o QR code no autenticador ou informe a chave manualmente. A configuração expira em dez minutos.",
+      "qrAlt": "QR code para cadastrar seu autenticador {product}",
+      "setupSecret": "Chave de configuração",
+      "totpDetails": "Tipo: baseado em tempo (TOTP) · 6 dígitos · 30 segundos. Não compartilhe a chave.",
+      "newAuthenticatorCode": "Código do novo autenticador",
+      "confirmActivation": "Confirmar ativação",
+      "back": "Voltar",
+      "replaceWarning": "Para trocar o autenticador ou gerar novos códigos de recuperação, confirme sua senha e um segundo fator. A troca encerra as outras sessões e invalida os códigos anteriores.",
+      "yourPassword": "Sua senha",
+      "currentCode": "Código atual ou de recuperação",
+      "replaceAuthenticator": "Trocar autenticador",
+      "setupAuthenticator": "Configurar autenticador",
+      "newRecoveryCodes": "Gerar novos códigos"
+    },
+    "access": {
+      "forgot": {
+        "title": "Recuperar acesso",
+        "description": "Informe o e-mail da sua conta para solicitar a recuperação.",
+        "submit": "Solicitar recuperação",
+        "success": "Se a conta estiver ativa e o envio de e-mail estiver configurado, você receberá um link. Caso contrário, contate o administrador."
+      },
+      "reset": {
+        "title": "Definir nova senha",
+        "submit": "Salvar senha",
+        "success": "Senha definida. Entre com seu e-mail e a nova senha."
+      },
+      "invite": {
+        "title": "Ativar sua conta",
+        "submit": "Salvar senha",
+        "success": "Conta ativada. Entre com seu e-mail e a nova senha."
+      },
+      "passwordInstructions": "Escolha uma senha de {min} a {max} caracteres. Após concluir, entre pela página de login.",
+      "email": "E-mail",
+      "newPassword": "Nova senha",
+      "confirmPassword": "Confirmar senha",
+      "backToLogin": "Voltar para o login",
+      "passwordMismatch": "As senhas não conferem.",
+      "invalidLink": "Link inválido. Abra o link completo recebido ou solicite um novo."
+    },
+    "errors": {
+      "invalidCredentials": "E-mail ou senha inválidos.",
+      "invalidCode": "Código inválido ou expirado. Verifique e tente novamente.",
+      "invalidLink": "Link inválido, expirado ou já utilizado. Solicite um novo link.",
+      "tooManyRequests": "Muitas tentativas. Aguarde e tente novamente.",
+      "sessionExpired": "Sessão expirada. Entre novamente.",
+      "accessDenied": "Não foi possível autorizar esta ação.",
+      "requestFailed": "Não foi possível concluir a solicitação. Tente novamente.",
+      "timeout": "A solicitação excedeu o tempo limite. Tente novamente.",
+      "networkUnavailable": "Não foi possível conectar. Verifique sua conexão e tente novamente."
+    }
+  },
+  "accessibility": {
+    "authPanel": "Autenticação",
+    "dialogClose": "Fechar diálogo",
+    "drawerClose": "Fechar painel"
   }
 }

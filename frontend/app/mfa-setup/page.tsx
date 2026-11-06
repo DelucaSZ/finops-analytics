@@ -2,26 +2,29 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { MfaSettings } from "@/components/mfa-settings";
 import { Alert, Button } from "@/components/ui";
 import { api } from "@/lib/api";
+import { authErrorKey, type AuthErrorKey } from "@/lib/auth-error";
 import { PRODUCT_NAME } from "@/lib/brand";
 import styles from "./mfa-setup.module.css";
 
 export default function MfaSetupPage() {
   const router = useRouter();
-  const [error, setError] = useState("");
+  const t = useTranslations("auth");
+  const [error, setError] = useState<AuthErrorKey | null>(null);
   const [leaving, setLeaving] = useState(false);
 
   async function logout() {
-    setError("");
+    setError(null);
     setLeaving(true);
     try {
       await api("/auth/logout", { method: "POST" });
       router.replace("/login");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível sair.");
+      setError(authErrorKey(err, "logout"));
     } finally {
       setLeaving(false);
     }
@@ -30,20 +33,20 @@ export default function MfaSetupPage() {
   return (
     <AuthLayout>
       <div className={styles.heading}>
-        <h1 className={styles.title}>Proteja sua conta {PRODUCT_NAME}</h1>
+        <h1 className={styles.title}>{t("mfa.setupPageTitle", { product: PRODUCT_NAME })}</h1>
         <p className={styles.description}>
-          Conclua a configuração do segundo fator antes de acessar a plataforma.
+          {t("mfa.setupPageDescription")}
         </p>
       </div>
       <MfaSettings enrollment />
-      {error && <Alert variant="danger" description={error} />}
+      {error && <Alert variant="danger" description={t(`errors.${error}`)} />}
       <Button
         className={styles.logout}
         variant="outline"
         loading={leaving}
         onClick={() => void logout()}
       >
-        Sair
+        {leaving ? t("mfa.loggingOut") : t("mfa.logout")}
       </Button>
     </AuthLayout>
   );

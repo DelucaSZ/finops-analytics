@@ -1,12 +1,14 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { AvenLogo, type AvenLogoSurface } from "@/components/brand/brand-logo";
 import { useTheme } from "@/components/theme-provider";
 import styles from "./auth-layout.module.css";
 
 export function AuthLayout({ children }: { children: ReactNode }) {
   const { resolvedTheme } = useTheme();
+  const t = useTranslations("accessibility");
   const surface: AvenLogoSurface = resolvedTheme === "dark" ? "dark" : "light";
 
   return (
@@ -22,7 +24,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         </div>
       </section>
 
-      <section className={styles.formPanel} aria-label="Autenticação">
+      <section className={styles.formPanel} aria-label={t("authPanel")}>
         <div className={styles.formFrame}>
           <div className={styles.mobileBrand}>
             <AvenLogo

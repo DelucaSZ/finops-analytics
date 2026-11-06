@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { LockKeyhole } from "lucide-react";
 import { AuthLayout } from "@/components/auth/auth-layout";
@@ -14,17 +15,19 @@ import {
   Input,
 } from "@/components/ui";
 import { api } from "@/lib/api";
+import { authErrorKey, type AuthErrorKey } from "@/lib/auth-error";
 import { iconDefaults } from "@/lib/iconography";
 import styles from "./access-form.module.css";
 
 export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
+  const t = useTranslations("auth");
   const initialized = useRef("");
   const [token, setToken] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [error, setError] = useState<AuthErrorKey | "passwordMismatch" | "invalidLink" | null>(null);
+  const [message, setMessage] = useState(false);
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(mode === "forgot");
 
@@ -35,16 +38,16 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
     setToken(value);
     window.history.replaceState(null, "", window.location.pathname);
     if (value.length !== 43) {
-      setError("Link inválido. Abra o link completo recebido ou solicite um novo.");
+      setError("invalidLink");
     }
     setReady(true);
   }, [mode]);
 
   async function submit(event: FormEvent) {
     event.preventDefault();
-    setError("");
+    setError(null);
     if (mode !== "forgot" && password !== confirm) {
-      setError("As senhas não conferem.");
+      setError("passwordMismatch");
       return;
     }
     setLoading(true);
@@ -54,30 +57,26 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
         : mode === "invite"
           ? "/auth/accept-invitation"
           : "/auth/reset-password";
-      const result = await api<{ message: string }>(path, {
+      await api<{ message: string }>(path, {
         method: "POST",
         body: JSON.stringify(mode === "forgot" ? { email } : { token, password }),
       });
-      setMessage(result.message);
+      setMessage(true);
       setPassword("");
       setConfirm("");
       setToken("");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+      setError(authErrorKey(err, "access"));
     } finally {
       setLoading(false);
     }
   }
 
-  const title = mode === "forgot"
-    ? "Recuperar acesso"
-    : mode === "invite"
-      ? "Ativar sua conta"
-      : "Definir nova senha";
+  const title = t(`access.${mode}.title`);
   const description = mode === "forgot"
-    ? "Informe o e-mail da sua conta para solicitar a recuperação."
-    : "Escolha uma senha de 12 a 128 caracteres. Após concluir, entre pela página de login.";
-  const submitLabel = mode === "forgot" ? "Solicitar recuperação" : "Salvar senha";
+    ? t("access.forgot.description")
+    : t("access.passwordInstructions", { min: 12, max: 128 });
+  const submitLabel = t(`access.${mode}.submit`);
   const submitDisabled = !ready || (mode !== "forgot" && token.length !== 43);
 
   return (
@@ -93,13 +92,13 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
 
         <CardContent className={styles.content}>
           {message ? (
-            <Alert variant="success" description={message} />
+            <Alert variant="success" description={t(`access.${mode}.success`)} />
           ) : (
             <form className={styles.form} onSubmit={submit}>
               {mode === "forgot" ? (
                 <Input
                   type="email"
-                  label="E-mail"
+                  label={t("access.email")}
                   autoComplete="email"
                   maxLength={254}
                   value={email}
@@ -110,7 +109,7 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
                 <>
                   <Input
                     type="password"
-                    label="Nova senha"
+                    label={t("access.newPassword")}
                     autoComplete="new-password"
                     minLength={12}
                     maxLength={128}
@@ -120,7 +119,7 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
                   />
                   <Input
                     type="password"
-                    label="Confirmar senha"
+                    label={t("access.confirmPassword")}
                     autoComplete="new-password"
                     minLength={12}
                     maxLength={128}
@@ -141,12 +140,12 @@ export function AccessForm({ mode }: { mode: "forgot" | "reset" | "invite" }) {
             </form>
           )}
 
-          {error && <Alert variant="danger" description={error} />}
+          {error && <Alert variant="danger" description={error === "passwordMismatch" ? t("access.passwordMismatch") : error === "invalidLink" ? t("access.invalidLink") : t(`errors.${error}`)} />}
         </CardContent>
 
         <CardFooter className={styles.footer}>
           <Link className={styles.link} href="/login">
-            Voltar para o login
+            {t("access.backToLogin")}
           </Link>
         </CardFooter>
       </Card>
