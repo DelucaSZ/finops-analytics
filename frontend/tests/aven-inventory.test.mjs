@@ -110,7 +110,7 @@ test("Inventory preserves technical identifiers and independent presence semanti
 
 test("Inventory route is part of the shared Application Shell navigation", async () => {
   const navigation = await source("../components/app-shell/navigation.ts");
-  assert.ok(navigation.includes('{ href: "/inventory", label: "Inventory", icon: Boxes }'));
+  assert.ok(navigation.includes('{ href: "/inventory", labelKey: "inventory", icon: Boxes }'));
 });
 
 test("Inventory page does not take scroll ownership from Application Shell", async () => {

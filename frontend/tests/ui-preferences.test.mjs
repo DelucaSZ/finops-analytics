@@ -62,15 +62,15 @@ test("global shell is provider-neutral and exposes accessible persistent collaps
   ]);
   const shellContract = `${visualShell}\n${navigation}`;
 
-  assert.ok(navigation.includes('label: "Dashboard"'));
-  assert.ok(navigation.includes('label: "Fluxo"'));
+  assert.ok(navigation.includes('labelKey: "dashboard"'));
+  assert.ok(navigation.includes('labelKey: "flow"'));
   assert.ok(!shellContract.includes("Ambiente protegido"));
   assert.ok(!shellContract.includes("AWS FinOps"));
-  assert.ok(visualShell.includes("Recolher navegação"));
-  assert.ok(visualShell.includes("Expandir navegação"));
+  assert.ok(visualShell.includes('t("collapse")'));
+  assert.ok(visualShell.includes('t("expand")'));
   assert.ok(visualShell.includes("<Tooltip"));
   assert.ok(visualShell.includes("serializeSidebarCollapsed"));
-  assert.ok(visualShell.includes('aria-label="Abrir navegação"'));
+  assert.ok(visualShell.includes('aria-label={t("open")}'));
   assert.ok(visualShell.includes("<Drawer open={mobileOpen}"));
   assert.ok(visualShell.includes("onOpenChange={setMobileOpen}"));
   assert.ok(!rootShell.includes("resolveThemePreference"));
