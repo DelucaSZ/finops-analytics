@@ -9,6 +9,7 @@ import {
 } from "@/components/ui";
 import styles from "./product-components.module.css";
 import { DataState } from "./data-state";
+import { LocalizedDataLabel } from "./localized-data-label";
 
 function classNames(...values: Array<string | undefined | false>) {
   return values.filter(Boolean).join(" ");
@@ -260,7 +261,7 @@ export function ChartCard({
   loading = false,
   error,
   empty = false,
-  emptyTitle = "No chart data",
+  emptyTitle = <LocalizedDataLabel id="noChartData" />,
   emptyDescription,
   className,
   ...props

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   useId,
   useMemo,
@@ -66,21 +67,24 @@ type ProductSelectorProps<T extends ProductSelectorOption> = SelectorCommonProps
 function ProductSelector<T extends ProductSelectorOption>({
   options,
   label,
-  placeholder = "Select",
+  placeholder,
   searchable = false,
-  searchPlaceholder = "Search",
+  searchPlaceholder,
   clearable = true,
-  clearLabel = "Clear",
-  selectAllLabel = "Select all",
+  clearLabel,
+  selectAllLabel,
   disabled = false,
   loading = false,
-  emptyLabel = "No options available",
+  emptyLabel,
   getOptionLabel = (option) => option.label,
   getOptionDescription = (option) => option.description,
   formatSelectionSummary,
   className,
   ...selection
 }: ProductSelectorProps<T>) {
+  const t = useTranslations("common.selectors");
+  const resolvedPlaceholder = placeholder ?? t("select");
+  const resolvedEmptyLabel = emptyLabel ?? t("empty");
   const triggerId = useId();
   const [search, setSearch] = useState("");
   const filteredOptions = useMemo(() => {
@@ -104,10 +108,10 @@ function ProductSelector<T extends ProductSelectorOption>({
   const hasOptions = selectOptions.length > 0;
   const singleSelectOptions = hasOptions
     ? [
-        ...(clearable ? [{ value: "", label: placeholder }] : []),
+        ...(clearable ? [{ value: "", label: resolvedPlaceholder }] : []),
         ...selectOptions,
       ]
-    : [{ value: "__empty__", label: emptyLabel, disabled: true }];
+    : [{ value: "__empty__", label: resolvedEmptyLabel, disabled: true }];
 
   const handleSingleChange = (event: ChangeEvent<HTMLSelectElement>) => {
     if (!selection.multiple) selection.onChange(event.currentTarget.value);
@@ -137,7 +141,7 @@ function ProductSelector<T extends ProductSelectorOption>({
   const hasSelection = selection.multiple ? selection.value.length > 0 : Boolean(selection.value);
   const selectionSummary = selection.multiple
     ? formatSelectionSummary?.(selectedOptions, allSelected)
-      ?? (selection.value.length > 0 ? `${selection.value.length} selected` : placeholder)
+      ?? (selection.value.length > 0 ? t("selected", { count: selection.value.length }) : resolvedPlaceholder)
     : "";
 
   const handleSelectAll = (checked: boolean) => {
@@ -165,7 +169,7 @@ function ProductSelector<T extends ProductSelectorOption>({
   return (
     <div className={classNames(styles.selector, className)}>
       {loading ? (
-        <div className={styles.selectorLoading} role="status" aria-label={`Loading ${label}`}>
+        <div className={styles.selectorLoading} role="status" aria-label={t("loading", { label })}>
           <Skeleton />
         </div>
       ) : selection.multiple ? (
@@ -187,8 +191,8 @@ function ProductSelector<T extends ProductSelectorOption>({
               <div className={styles.selectorDropdownHeader}>
                 <Input
                   autoFocus
-                  aria-label={`${label} search`}
-                  placeholder={searchPlaceholder}
+                  aria-label={t("searchLabel", { label })}
+                  placeholder={searchPlaceholder ?? t("search")}
                   value={search}
                   disabled={disabled}
                   onChange={(event) => setSearch(event.target.value)}
@@ -203,11 +207,11 @@ function ProductSelector<T extends ProductSelectorOption>({
                   checked={allSelected}
                   indeterminate={partiallySelected}
                   onChange={(event) => handleSelectAll(event.target.checked)}
-                  label={selectAllLabel}
+                  label={selectAllLabel ?? t("selectAll")}
                 />
               </div>
             )}
-            <div className={styles.selectorOptionList} role="group" aria-label={`${label} options`}>
+            <div className={styles.selectorOptionList} role="group" aria-label={t("optionsLabel", { label })}>
               {filteredOptions.length > 0 ? (
                 filteredOptions.map((option) => {
                   const description = getOptionDescription(option);
@@ -228,14 +232,14 @@ function ProductSelector<T extends ProductSelectorOption>({
                   );
                 })
               ) : (
-                <div className={styles.selectorEmpty} role="status">{emptyLabel}</div>
+                <div className={styles.selectorEmpty} role="status">{resolvedEmptyLabel}</div>
               )}
             </div>
             <div className={styles.selectorDropdownFooter}>
               <span className={styles.selectorSelectionCount}>{selectionSummary}</span>
               {clearable && (
                 <Button variant="ghost" size="sm" disabled={disabled || !hasSelection} onClick={handleClear}>
-                  {clearLabel}
+                  {clearLabel ?? t("clear")}
                 </Button>
               )}
             </div>
@@ -245,8 +249,8 @@ function ProductSelector<T extends ProductSelectorOption>({
         <>
           {searchable && (
             <Input
-              aria-label={`${label} search`}
-              placeholder={searchPlaceholder}
+              aria-label={t("searchLabel", { label })}
+              placeholder={searchPlaceholder ?? t("search")}
               value={search}
               disabled={disabled}
               onChange={(event) => setSearch(event.target.value)}
@@ -255,7 +259,7 @@ function ProductSelector<T extends ProductSelectorOption>({
           )}
           <Select
             label={label}
-            placeholder={!clearable && hasOptions ? placeholder : undefined}
+            placeholder={!clearable && hasOptions ? resolvedPlaceholder : undefined}
             options={singleSelectOptions}
             value={selection.value}
             disabled={disabled || !hasOptions}
@@ -270,10 +274,11 @@ function ProductSelector<T extends ProductSelectorOption>({
 export type AccountSelectorProps = SelectorCommonProps<AccountSelectorOption> & (SingleSelectorProps | MultipleSelectorProps);
 
 export function AccountSelector(props: AccountSelectorProps) {
+  const t = useTranslations("common.selectors");
   return (
     <ProductSelector
       {...props}
-      placeholder={props.placeholder ?? "Nenhuma conta selecionada"}
+      placeholder={props.placeholder ?? t("noneAccount")}
       searchable={props.searchable ?? Boolean(props.multiple)}
       getOptionLabel={(account) => {
         const metadata = [account.accountId, account.environment, account.provider?.toUpperCase()].filter(Boolean);
@@ -285,12 +290,11 @@ export function AccountSelector(props: AccountSelectorProps) {
         const metadata = [account.accountId, account.environment, account.provider?.toUpperCase()].filter(Boolean);
         return metadata.length ? metadata.join(" · ") : undefined;
       }}
-      formatSelectionSummary={(selectedOptions, allSelected) => {
-        if (allSelected) return "Todas as contas selecionadas";
-        if (selectedOptions.length === 0) return "Nenhuma conta selecionada";
-        if (selectedOptions.length === 1) return "1 conta selecionada";
-        return `${selectedOptions.length} contas selecionadas`;
-      }}
+      formatSelectionSummary={props.formatSelectionSummary ?? ((selectedOptions, allSelected) => {
+        if (allSelected) return t("allAccounts");
+        if (selectedOptions.length === 0) return t("noneAccount");
+        return t("accountCount", { count: selectedOptions.length });
+      })}
     />
   );
 }

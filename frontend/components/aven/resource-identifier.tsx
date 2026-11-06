@@ -1,6 +1,7 @@
 "use client";
 
 import { Check, Copy } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState, type HTMLAttributes, type ReactNode } from "react";
 import { IconButton, Tooltip } from "@/components/ui";
 import { iconDefaults } from "@/lib/iconography";
@@ -35,12 +36,13 @@ export function ResourceIdentifier({
   technicalId,
   copyValue,
   copyable = true,
-  copyLabel = "Copy resource identifier",
-  copiedLabel = "Copied",
+  copyLabel,
+  copiedLabel,
   onCopy,
   className,
   ...props
 }: ResourceIdentifierProps) {
+  const t = useTranslations("common.resource");
   const [copied, setCopied] = useState(false);
   const timeoutRef = useRef<number | null>(null);
   const valueToCopy = copyValue ?? technicalId ?? "";
@@ -84,8 +86,8 @@ export function ResourceIdentifier({
       </div>
       {copyable && valueToCopy && (
         <IconButton
-          aria-label={copied ? copiedLabel : copyLabel}
-          tooltip={copied ? copiedLabel : copyLabel}
+          aria-label={copied ? (copiedLabel ?? t("copied")) : (copyLabel ?? t("copy"))}
+          tooltip={copied ? (copiedLabel ?? t("copied")) : (copyLabel ?? t("copy"))}
           size="sm"
           onClick={handleCopy}
         >

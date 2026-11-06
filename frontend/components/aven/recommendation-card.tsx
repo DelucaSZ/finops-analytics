@@ -1,3 +1,5 @@
+"use client";
+
 import type { HTMLAttributes, ReactNode } from "react";
 import {
   Card,
@@ -7,6 +9,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui";
+import { useTranslations } from "next-intl";
 import styles from "./product-components.module.css";
 import { ProviderBadge, StatusIndicator } from "./displays";
 import type { ProductStatus } from "./types";
@@ -46,6 +49,7 @@ export function RecommendationCard({
   className,
   ...props
 }: RecommendationCardProps) {
+  const t = useTranslations("common.recommendation");
   return (
     <Card className={classNames(styles.recommendationCard, className)} {...props}>
       <CardHeader>
@@ -65,19 +69,19 @@ export function RecommendationCard({
           <div className={styles.recommendationMetrics}>
             {potentialSavings && (
               <div className={styles.recommendationMetric}>
-                <span className={styles.recommendationMetricLabel}>Potential savings</span>
+                <span className={styles.recommendationMetricLabel}>{t("potentialSavings")}</span>
                 <span className={styles.recommendationSavings}>{potentialSavings}</span>
               </div>
             )}
             {impact && (
               <div className={styles.recommendationMetric}>
-                <span className={styles.recommendationMetricLabel}>Impact</span>
+                <span className={styles.recommendationMetricLabel}>{t("impact")}</span>
                 <span className={styles.recommendationMetricValue}>{impact}</span>
               </div>
             )}
             {confidence && (
               <div className={styles.recommendationMetric}>
-                <span className={styles.recommendationMetricLabel}>Confidence</span>
+                <span className={styles.recommendationMetricLabel}>{t("confidence")}</span>
                 <span className={styles.recommendationMetricValue}>{confidence}</span>
               </div>
             )}
@@ -85,7 +89,7 @@ export function RecommendationCard({
         )}
         {resource && (
           <div className={styles.recommendationResource}>
-            <span className={styles.recommendationMetricLabel}>Resource</span>
+            <span className={styles.recommendationMetricLabel}>{t("resource")}</span>
             {resource}
           </div>
         )}
