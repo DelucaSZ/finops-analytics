@@ -1,3 +1,4 @@
+import createNextIntlPlugin from "next-intl/plugin";
 import { legacySettingsRedirects } from "./lib/settings-navigation.mjs";
 
 /** @type {import('next').NextConfig} */
@@ -14,4 +15,6 @@ const nextConfig = {
   },
 };
 
-export default nextConfig;
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+export default withNextIntl(nextConfig);
