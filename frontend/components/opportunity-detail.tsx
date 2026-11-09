@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BrainCircuit, Check, Copy, RotateCcw } from "lucide-react";
+import { useLocale, useTranslations } from "next-intl";
 import { FindingEvidence } from "@/components/finding-evidence";
 import { OpportunityArchiveHistory } from "@/components/opportunity-archive-history";
 import { OpportunityPresenceHistory } from "@/components/opportunity-presence-history";
@@ -45,20 +46,6 @@ import type {
 } from "@/lib/types";
 import styles from "./opportunity-detail.module.css";
 
-const rejectionReasonLabels: Record<string, string> = {
-  FALSE_POSITIVE: "Falso positivo",
-  OPERATIONAL_EXCEPTION: "Exceção operacional",
-  ACCEPTABLE_COST: "Custo aceitável",
-  RESOURCE_REQUIRED: "Recurso necessário",
-  RISK_ACCEPTED: "Risco aceito",
-  OTHER: "Outro",
-};
-
-const archiveReasonLabels: Record<string, string> = {
-  MANUAL: "Manual",
-  RETENTION_POLICY: "Política de retenção",
-};
-
 type HistoricalOpportunityDetail = OpportunityDetailType & {
   archived: boolean;
   archived_at: string | null;
@@ -79,16 +66,6 @@ function numericValue(value: string | number | null | undefined) {
   if (value == null || value === "") return null;
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : null;
-}
-
-function statusLabel(value: string) {
-  if (value === "open") return "Aberta";
-  if (value === "treated") return "Tratada";
-  if (value === "rejected") return "Rejeitada";
-  if (value === "active") return "Ativa";
-  if (value === "missing") return "Ausente";
-  if (value === "resolved_externally") return "Resolvida externamente";
-  return value;
 }
 
 function statusTone(value: string): ProductStatus {
@@ -127,17 +104,27 @@ function technicalValue(value: unknown): string {
 }
 
 function MoneyValue({ value, currency }: { value: string | number | null | undefined; currency: string }) {
+  const locale = useLocale();
   const amount = numericValue(value);
   if (!currency || amount == null) return <span>—</span>;
-  return <CurrencyDisplay value={amount} currency={currency} locale="pt-BR" maximumFractionDigits={2} />;
+  return <CurrencyDisplay value={amount} currency={currency} locale={locale} maximumFractionDigits={2} />;
 }
 
 function MonthlySavings({ detail }: { detail: OpportunityDetailType }) {
-  if (detail.rule_key === "cost_growth_anomaly") return <span>Não estimada</span>;
-  return <><MoneyValue value={detail.estimated_monthly_savings} currency={detail.currency} />/mês</>;
+  const t = useTranslations("opportunities.detail");
+  if (detail.rule_key === "cost_growth_anomaly") return <span>{t("savings.notEstimated")}</span>;
+  return <><MoneyValue value={detail.estimated_monthly_savings} currency={detail.currency} />{t("savings.perMonth")}</>;
 }
 
 export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive }: Props) {
+  const t = useTranslations("opportunities.detail");
+  const status = useTranslations("opportunities.status");
+  const severity = useTranslations("opportunities.severity");
+  const reason = useTranslations("opportunities.decision.reason");
+  const statusLabel = (value: string) => value === "resolved_externally" ? status("resolvedExternally") : ["open","treated","rejected","active","missing"].includes(value) ? status(value as "open" | "treated" | "rejected" | "active" | "missing") : humanize(value);
+  const severityLabel = (value: string) => ["high","medium","low"].includes(value.toLowerCase()) ? severity(value.toLowerCase() as "high" | "medium" | "low") : humanize(value);
+  const rejectionReasonLabels: Record<string,string> = {FALSE_POSITIVE:reason("falsePositive"),OPERATIONAL_EXCEPTION:reason("operationalException"),ACCEPTABLE_COST:reason("acceptableCost"),RESOURCE_REQUIRED:reason("resourceRequired"),RISK_ACCEPTED:reason("riskAccepted"),OTHER:reason("other")};
+  const archiveReasonLabels: Record<string,string> = {MANUAL:t("archiveReason.manual"),RETENTION_POLICY:t("archiveReason.retentionPolicy")};
   const [selectedObservation, setSelectedObservation] = useState<OpportunityObservation | null>(null);
   const [actionError, setActionError] = useState("");
   const [historyExpanded, setHistoryExpanded] = useState(false);
@@ -173,8 +160,8 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
   const decisions = decisionRequest.data ?? null;
   const loading = detailRequest.isLoading;
   const detailError = detailRequest.error?.message || "";
-  const observationError = observationRequest.error ? "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível." : "";
-  const decisionError = decisionRequest.error ? "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível." : "";
+  const observationError = observationRequest.error ? t("observationError") : "";
+  const decisionError = decisionRequest.error ? t("decisionError") : "";
   const error = actionError || detailError || observationError || decisionError;
 
   useEffect(() => {
@@ -223,7 +210,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
       const result = await api<{ explanation: string }>(`/findings/${detail.id}/explain`, { method: "POST" });
       setAiInsight(result.explanation);
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : "Falha na análise por IA");
+      setActionError(err instanceof Error ? err.message : t("aiError"));
     } finally {
       setAiLoading(false);
     }
@@ -245,7 +232,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
       setRestoreOpen(false);
       onClose();
     } catch (err) {
-      setActionError(err instanceof Error ? err.message : isRejected ? "Não foi possível reabrir a oportunidade." : "Não foi possível desarquivar a oportunidade.");
+      setActionError(err instanceof Error ? err.message : isRejected ? t("reopenError") : t("unarchiveError"));
     } finally {
       setUnarchiveSaving(false);
     }
@@ -256,82 +243,82 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
       <Drawer open onOpenChange={(open) => { if (!open) onClose(); }}>
         <DrawerContent side="right" size="wide">
           <DrawerHeader>
-            <DrawerTitle>{detail?.title || "Carregando oportunidade…"}</DrawerTitle>
-            <DrawerDescription>{detail ? detail.description : "Carregando contexto, evidências e histórico."}</DrawerDescription>
+            <DrawerTitle>{detail?.title || t("loadingTitle")}</DrawerTitle>
+            <DrawerDescription>{detail ? detail.description : t("loadingDescription")}</DrawerDescription>
           </DrawerHeader>
 
           <div className={styles.body}>
-            {error ? <Alert variant="danger" title="Não foi possível carregar ou atualizar todo o contexto" description={error} /> : null}
+            {error ? <Alert variant="danger" title={t("contextError")} description={error} /> : null}
             {loading && !detail ? <><Skeleton /><Skeleton /><Skeleton /></> : null}
 
             {detail ? (
               <>
-                <section className={styles.overview} aria-label="Resumo da oportunidade">
+                <section className={styles.overview} aria-label=t("overviewAria")>
                   <div className={styles.statusLine}>
                     <ProviderBadge provider={detail.provider} />
                     <StatusIndicator status={statusTone(detail.status)} label={statusLabel(detail.status)} />
                     <StatusIndicator status={statusTone(detail.presence_status)} label={statusLabel(detail.presence_status)} />
-                    <StatusIndicator status={severityTone(detail.severity)} label={`Impacto: ${humanize(detail.severity)}`} />
-                    {detail.confidence ? <StatusIndicator status={confidenceTone(detail.confidence)} label={`Confiança: ${humanize(detail.confidence)}`} /> : null}
-                    {detail.archived ? <StatusIndicator status="neutral" label="Arquivada" /> : null}
-                    {detail.needs_review ? <StatusIndicator status="warning" label="Detectada novamente após tratamento" /> : null}
+                    <StatusIndicator status={severityTone(detail.severity)} label={t("impact",{value:severityLabel(detail.severity)})} />
+                    {detail.confidence ? <StatusIndicator status={confidenceTone(detail.confidence)} label={t("confidence",{value:severityLabel(detail.confidence)})} /> : null}
+                    {detail.archived ? <StatusIndicator status="neutral" label=t("archived") /> : null}
+                    {detail.needs_review ? <StatusIndicator status="warning" label=t("detectedAgain") /> : null}
                   </div>
 
                   <ResourceIdentifier
                     primary={detail.resource_name || detail.resource_id}
                     technicalId={detail.resource_name ? detail.resource_id : undefined}
                     copyValue={detail.resource_id}
-                    copyLabel="Copiar identificador do recurso"
-                    copiedLabel="Identificador copiado"
+                    copyLabel=t("copyResource")
+                    copiedLabel=t("copiedResource")
                   />
 
                   {detail.status === "rejected" && detail.archived && detail.presence_status === "active" ? (
-                    <Alert variant="warning" title="Oportunidade rejeitada ainda observada" description="A presença técnica continua ativa, mas a recomendação permanece suprimida pela decisão humana registrada." />
+                    <Alert variant="warning" title=t("rejectedActiveTitle") description=t("rejectedActiveDescription") />
                   ) : null}
 
                   <dl className={styles.detailGrid}>
-                    <div><dt>Conta</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
-                    <div><dt>Região</dt><dd>{detail.region || "—"}</dd></div>
-                    <div><dt>Serviço</dt><dd>{detail.service || "—"}</dd></div>
-                    {detail.resource_type ? <div><dt>Tipo de recurso</dt><dd>{detail.resource_type}</dd></div> : null}
-                    <div><dt>Regra</dt><dd>{detail.rule.name}<span className={styles.secondary}>{detail.rule.description}</span></dd></div>
-                    <div><dt>Economia potencial</dt><dd><MonthlySavings detail={detail} /></dd></div>
-                    <div><dt>Custo mensal atual</dt><dd><MoneyValue value={detail.current_monthly_cost} currency={detail.currency} /></dd></div>
-                    <div><dt>Confiança</dt><dd>{detail.confidence || "—"}</dd></div>
-                    <div><dt>Primeira identificação</dt><dd>{formatDate(detail.first_seen_at)}{detail.first_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>Abrir primeira coleta {detail.first_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
-                    <div><dt>Última detecção</dt><dd>{formatDate(detail.last_seen_at)}{detail.last_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>Abrir última coleta {detail.last_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
-                    {detail.treated_at ? <div><dt>Tratada em</dt><dd>{formatDate(detail.treated_at)}</dd></div> : null}
-                    {detail.rejected_at ? <div><dt>Rejeitada em</dt><dd>{formatDate(detail.rejected_at)}</dd></div> : null}
-                    {detail.resolved_externally_at ? <div><dt>Resolvida externamente em</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div> : null}
-                    {detail.archived ? <div><dt>Arquivada em</dt><dd>{formatDate(detail.archived_at)}</dd></div> : null}
-                    {detail.archived ? <div><dt>Motivo do arquivamento</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div> : null}
-                    <div><dt>Ocorrências históricas</dt><dd>{detail.total_occurrence_count}</dd></div>
-                    <div><dt>Detalhes retidos</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
+                    <div><dt>{t("field.account")}</dt><dd>{formatAccountLabel(detail.account_name, detail.account_id)}</dd></div>
+                    <div><dt>{t("field.region")}</dt><dd>{detail.region || "—"}</dd></div>
+                    <div><dt>{t("field.service")}</dt><dd>{detail.service || "—"}</dd></div>
+                    {detail.resource_type ? <div><dt>{t("field.resourceType")}</dt><dd>{detail.resource_type}</dd></div> : null}
+                    <div><dt>{t("field.rule")}</dt><dd>{detail.rule.name}<span className={styles.secondary}>{detail.rule.description}</span></dd></div>
+                    <div><dt>{t("field.potential")}</dt><dd><MonthlySavings detail={detail} /></dd></div>
+                    <div><dt>{t("field.currentCost")}</dt><dd><MoneyValue value={detail.current_monthly_cost} currency={detail.currency} /></dd></div>
+                    <div><dt>{t("field.confidence")}</dt><dd>{detail.confidence ? severityLabel(detail.confidence) : "—"}</dd></div>
+                    <div><dt>{t("field.firstSeen")}</dt><dd>{formatDate(detail.first_seen_at)}{detail.first_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>{t("openFirstCollection")} {detail.first_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    <div><dt>{t("field.lastSeen")}</dt><dd>{formatDate(detail.last_seen_at)}{detail.last_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>{t("openLastCollection")} {detail.last_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    {detail.treated_at ? <div><dt>{t("field.treatedAt")}</dt><dd>{formatDate(detail.treated_at)}</dd></div> : null}
+                    {detail.rejected_at ? <div><dt>{t("field.rejectedAt")}</dt><dd>{formatDate(detail.rejected_at)}</dd></div> : null}
+                    {detail.resolved_externally_at ? <div><dt>{t("field.resolvedExternallyAt")}</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div> : null}
+                    {detail.archived ? <div><dt>{t("field.archivedAt")}</dt><dd>{formatDate(detail.archived_at)}</dd></div> : null}
+                    {detail.archived ? <div><dt>{t("field.archiveReason")}</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div> : null}
+                    <div><dt>{t("field.occurrences")}</dt><dd>{detail.total_occurrence_count}</dd></div>
+                    <div><dt>{t("field.retained")}</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
                   </dl>
                 </section>
 
                 {(detail.status === "treated" || detail.status === "rejected") ? (
                   <section className={styles.section} aria-labelledby="decision-summary-title">
                     <div className={styles.sectionHeader}>
-                      <div><h3 id="decision-summary-title">Decisão atual</h3><p>Estado humano e contexto de auditoria registrados.</p></div>
+                      <div><h3 id="decision-summary-title">{t("decision.title")}</h3><p>{t("decision.description")}</p></div>
                       <StatusIndicator status={statusTone(detail.status)} label={statusLabel(detail.status)} />
                     </div>
                     <dl className={styles.decisionGrid}>
-                      <div><dt>Decidido por</dt><dd>{currentDecision?.changed_by_name || "Não registrado"}</dd></div>
-                      <div><dt>Data</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null)}</dd></div>
-                      {detail.status === "rejected" ? <div><dt>Motivo</dt><dd>{rejectionReasonLabels[detail.rejection_reason || ""] || detail.rejection_reason || "Não registrado"}</dd></div> : null}
-                      <div className={styles.decisionNote}><dt>Observação</dt><dd>{currentDecision?.note || (detail.status === "treated" ? detail.treatment_note : detail.rejection_note) || "Sem observação registrada."}</dd></div>
+                      <div><dt>{t("decision.by")}</dt><dd>{currentDecision?.changed_by_name || t("decision.notRecorded")}</dd></div>
+                      <div><dt>{t("decision.date")}</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null)}</dd></div>
+                      {detail.status === "rejected" ? <div><dt>{t("decision.reason")}</dt><dd>{rejectionReasonLabels[detail.rejection_reason || ""] || detail.rejection_reason || t("decision.notRecorded")}</dd></div> : null}
+                      <div className={styles.decisionNote}><dt>{t("decision.note")}</dt><dd>{currentDecision?.note || (detail.status === "treated" ? detail.treatment_note : detail.rejection_note) || t("decision.noNote")}</dd></div>
                     </dl>
                   </section>
                 ) : null}
 
                 <section className={styles.section} aria-labelledby="evidence-title">
-                  <div className={styles.sectionHeader}><div><h3 id="evidence-title">Evidências</h3><p>Métricas e fatos persistidos pela recomendação; nenhum valor é recalculado na interface.</p></div></div>
+                  <div className={styles.sectionHeader}><div><h3 id="evidence-title">{t("evidence.title")}</h3><p>Métricas e fatos persistidos pela recomendação; nenhum valor é recalculado na interface.</p></div></div>
                   {selectedObservation ? (
                     <div className={styles.historicalBanner}>
-                      <strong>Evidência histórica</strong>
-                      <span>Exibindo a coleta de {formatDate(selectedObservation.observed_at)}.</span>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(null)}>Voltar à evidência mais recente</Button>
+                      <strong>{t("evidence.historical")}</strong>
+                      <span>{t("evidence.collectionDate",{date:formatDate(selectedObservation.observed_at)})}</span>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(null)}>{t("evidence.backToLatest")}</Button>
                     </div>
                   ) : null}
                   <FindingEvidence
@@ -340,36 +327,36 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     collectionRunId={selectedObservation?.collection_run_id ?? detail.latest_observation?.collection_run_id ?? null}
                   />
                   <div className={styles.actions}>
-                    <Button variant="outline" size="sm" leadingIcon={<BrainCircuit {...iconDefaults} />} loading={aiLoading} onClick={() => void explain()}>Aprofundar com IA</Button>
+                    <Button variant="outline" size="sm" leadingIcon={<BrainCircuit {...iconDefaults} />} loading={aiLoading} onClick={() => void explain()}>{t("evidence.ai")}</Button>
                   </div>
                   {aiInsight ? <div className={styles.aiResult}>{aiInsight}</div> : null}
                 </section>
 
                 <section className={styles.section} aria-labelledby="detection-history-title">
                   <div className={styles.sectionHeader}>
-                    <div><h3 id="detection-history-title">Histórico de detecção</h3><p>Observações factuais registradas pelas coletas, da mais recente para a mais antiga.</p></div>
-                    {observations ? <span className={styles.secondary}>{observations.retained_total} detalhe(s) retido(s) de {observations.total_occurrence_count} ocorrência(s)</span> : null}
+                    <div><h3 id="detection-history-title">{t("detection.title")}</h3><p>{t("detection.description")}</p></div>
+                    {observations ? <span className={styles.secondary}>{t("detection.retained",{details:observations.retained_total,occurrences:observations.total_occurrence_count})}</span> : null}
                   </div>
-                  {observations && !observations.history_complete ? <Alert variant="warning" title="Histórico detalhado parcialmente expirado" description={`A configuração atual retém observações por ${observations.retention_days} dias. Identidade, primeira/última detecção e decisões humanas continuam preservadas.`} /> : null}
+                  {observations && !observations.history_complete ? <Alert variant="warning" title=t("detection.partialTitle") description={t("detection.partialDescription",{days:observations.retention_days})} /> : null}
                   {observationRequest.isLoading ? <Skeleton /> : observations?.items.length ? (
                     <div className={styles.historyList}>
                       {observations.items.map((item) => (
                         <article key={item.id} className={styles.historyItem} data-selected={selectedObservation?.id === item.id || undefined}>
                           <div className={styles.historyTop}>
                             <div className={styles.historyMetric}><strong>{formatDate(item.observed_at)}</strong><span className={styles.secondary}>{item.collection_provider} · {item.collection_account_id}</span></div>
-                            <StatusIndicator status={severityTone(item.severity)} label={`Impacto: ${humanize(item.severity)}`} />
-                            <div className={styles.historyMetric}><strong><MoneyValue value={item.estimated_monthly_savings} currency={item.currency} />/mês</strong><span className={styles.secondary}>economia estimada</span></div>
+                            <StatusIndicator status={severityTone(item.severity)} label={t("impact",{value:severityLabel(item.severity)})} />
+                            <div className={styles.historyMetric}><strong><MoneyValue value={item.estimated_monthly_savings} currency={item.currency} />{t("savings.perMonth")}</strong><span className={styles.secondary}>{t("detection.estimatedSavings")}</span></div>
                           </div>
                           <p className={styles.secondary}>{item.evidence.summary}</p>
                           <div className={styles.historyActions}>
-                            <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(item)}>Ver evidência desta coleta</Button>
-                            <Button variant="ghost" size="sm" onClick={() => { window.location.href = `/collections/${encodeURIComponent(item.collection_run_id)}`; }}>Abrir coleta {item.collection_run_id.slice(0, 8)}</Button>
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(item)}>{t("detection.viewEvidence")}</Button>
+                            <Button variant="ghost" size="sm" onClick={() => { window.location.href = `/collections/${encodeURIComponent(item.collection_run_id)}`; }}>{t("detection.openCollection")} {item.collection_run_id.slice(0, 8)}</Button>
                           </div>
                         </article>
                       ))}
                     </div>
-                  ) : <p className={styles.secondary}>{observations && !observations.history_complete ? "Nenhuma observação detalhada permanece na janela atualmente retida." : "Nenhuma observação histórica disponível."}</p>}
-                  {observations && !historyExpanded && observations.retained_total > 8 ? <Button variant="ghost" size="sm" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>Ver histórico completo</Button> : null}
+                  ) : <p className={styles.secondary}>{observations && !observations.history_complete ? t("detection.noRetained") : t("detection.empty")}</p>}
+                  {observations && !historyExpanded && observations.retained_total > 8 ? <Button variant="ghost" size="sm" onClick={() => { setHistoryPage(1); setHistoryExpanded(true); }}>{t("detection.full")}</Button> : null}
                   {observations && historyExpanded && observations.total_pages > 1 ? <Pagination page={observations.page} pageCount={observations.total_pages} onPageChange={setHistoryPage} /> : null}
                 </section>
 
@@ -377,14 +364,14 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 <OpportunityArchiveHistory opportunityId={opportunityId} />
 
                 <section className={styles.section} aria-labelledby="decision-history-title">
-                  <div className={styles.sectionHeader}><div><h3 id="decision-history-title">Histórico de decisões</h3><p>Transições manuais de estado, separadas das detecções técnicas.</p></div>{decisions ? <span className={styles.secondary}>{decisions.total} decisão(ões)</span> : null}</div>
+                  <div className={styles.sectionHeader}><div><h3 id="decision-history-title">{t("history.title")}</h3><p>{t("history.description")}</p></div>{decisions ? <span className={styles.secondary}>{t("history.count",{count:decisions.total})}</span> : null}</div>
                   {decisionRequest.isLoading ? <Skeleton /> : decisions?.items.length ? (
                     <div className={styles.decisionHistory}>
                       {decisions.items.map((item) => (
                         <article key={item.id} className={styles.decisionItem}>
-                          <strong>{formatDate(item.changed_at)} · {item.changed_by_name || "Usuário não registrado"}</strong>
+                          <strong>{formatDate(item.changed_at)} · {item.changed_by_name || t("history.unknownUser")}</strong>
                           <div className={styles.metadataLine}><StatusIndicator status={statusTone(item.from_status)} label={statusLabel(item.from_status)} /><span aria-hidden="true">→</span><StatusIndicator status={statusTone(item.to_status)} label={statusLabel(item.to_status)} /></div>
-                          {item.reason ? <span className={styles.secondary}>Motivo: {rejectionReasonLabels[item.reason] || item.reason}</span> : null}
+                          {item.reason ? <span className={styles.secondary}>{t("history.reason")} {rejectionReasonLabels[item.reason] || item.reason}</span> : null}
                           {item.note ? <p className={styles.secondary}>{item.note}</p> : null}
                         </article>
                       ))}
@@ -393,28 +380,28 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 </section>
 
                 <details className={styles.technicalDetails}>
-                  <summary>Informações técnicas</summary>
+                  <summary>{t("technical.title")}</summary>
                   <dl className={styles.technicalGrid}>
                     <div>
-                      <dt>ID do recurso</dt>
-                      <dd><code>{detail.resource_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "resource-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("resource-id", detail.resource_id)}>{copiedTechnicalKey === "resource-id" ? "Copiado" : "Copiar"}</Button></dd>
+                      <dt>{t("technical.resourceId")}</dt>
+                      <dd><code>{detail.resource_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "resource-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("resource-id", detail.resource_id)}>{copiedTechnicalKey === "resource-id" ? t("technical.copied") : t("technical.copy")}</Button></dd>
                     </div>
                     <div>
-                      <dt>ID da conta</dt>
-                      <dd><code>{detail.account_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "account-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("account-id", detail.account_id)}>{copiedTechnicalKey === "account-id" ? "Copiado" : "Copiar"}</Button></dd>
+                      <dt>{t("technical.accountId")}</dt>
+                      <dd><code>{detail.account_id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "account-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("account-id", detail.account_id)}>{copiedTechnicalKey === "account-id" ? t("technical.copied") : t("technical.copy")}</Button></dd>
                     </div>
                     <div>
-                      <dt>ID da oportunidade</dt>
-                      <dd><code>{detail.id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "opportunity-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("opportunity-id", detail.id)}>{copiedTechnicalKey === "opportunity-id" ? "Copiado" : "Copiar"}</Button></dd>
+                      <dt>{t("technical.opportunityId")}</dt>
+                      <dd><code>{detail.id}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "opportunity-id" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("opportunity-id", detail.id)}>{copiedTechnicalKey === "opportunity-id" ? t("technical.copied") : t("technical.copy")}</Button></dd>
                     </div>
                     <div>
                       <dt>Fingerprint</dt>
-                      <dd><code>{detail.fingerprint}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "fingerprint" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("fingerprint", detail.fingerprint)}>{copiedTechnicalKey === "fingerprint" ? "Copiado" : "Copiar"}</Button></dd>
+                      <dd><code>{detail.fingerprint}</code><Button variant="ghost" size="sm" leadingIcon={copiedTechnicalKey === "fingerprint" ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />} onClick={() => void copyTechnical("fingerprint", detail.fingerprint)}>{copiedTechnicalKey === "fingerprint" ? t("technical.copied") : t("technical.copy")}</Button></dd>
                     </div>
-                    <div><dt>Regra técnica</dt><dd><code>{detail.rule.key}</code></dd></div>
-                    <div><dt>Scan legado</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
-                    <div><dt>Primeira CollectionRun</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
-                    <div><dt>Última CollectionRun</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
+                    <div><dt>{t("technical.rule")}</dt><dd><code>{detail.rule.key}</code></dd></div>
+                    <div><dt>{t("technical.legacyScan")}</dt><dd><code>{detail.scan_id || "—"}</code></dd></div>
+                    <div><dt>{t("technical.firstCollection")}</dt><dd><code>{detail.first_seen_collection_run_id || "—"}</code></dd></div>
+                    <div><dt>{t("technical.lastCollection")}</dt><dd><code>{detail.last_seen_collection_run_id || "—"}</code></dd></div>
                     {providerMetadataEntries.map(([key, value]) => {
                       const formattedValue = technicalValue(value);
                       const copyKey = `provider-${key}`;
@@ -431,7 +418,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                                 leadingIcon={copiedTechnicalKey === copyKey ? <Check {...iconDefaults} /> : <Copy {...iconDefaults} />}
                                 onClick={() => void copyTechnical(copyKey, formattedValue)}
                               >
-                                {copiedTechnicalKey === copyKey ? "Copiado" : "Copiar"}
+                                {copiedTechnicalKey === copyKey ? t("technical.copied") : t("technical.copy")}
                               </Button>
                             ) : null}
                           </dd>
@@ -447,17 +434,17 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
           {detail ? (
             <DrawerFooter>
               {detail.archived ? (
-                <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => setRestoreOpen(true)}>{detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar"}</Button>
+                <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => setRestoreOpen(true)}>{detail.status === "rejected" ? t("actions.reopenOpportunity") : t("actions.unarchive")}</Button>
               ) : detail.status === "open" ? (
                 <div className={styles.actions}>
-                  <Button variant="outline" onClick={() => onAction("treat", detail.id)}>Marcar como tratada</Button>
-                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>Arquivar</Button>
-                  <Button variant="danger" onClick={() => onAction("reject", detail.id)}>Rejeitar</Button>
+                  <Button variant="outline" onClick={() => onAction("treat", detail.id)}>{t("actions.treat")}</Button>
+                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>{t("actions.archive")}</Button>
+                  <Button variant="danger" onClick={() => onAction("reject", detail.id)}>{t("actions.reject")}</Button>
                 </div>
               ) : (
                 <div className={styles.actions}>
-                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>Arquivar</Button>
-                  <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => onAction("reopen", detail.id)}>Reabrir</Button>
+                  <Button variant="ghost" onClick={() => onArchive(detail.id)}>{t("actions.archive")}</Button>
+                  <Button variant="primary" leadingIcon={<RotateCcw {...iconDefaults} />} onClick={() => onAction("reopen", detail.id)}>{t("actions.reopen")}</Button>
                 </div>
               )}
             </DrawerFooter>
@@ -469,17 +456,17 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
         <Dialog open={restoreOpen} onOpenChange={(open) => { if (!unarchiveSaving) setRestoreOpen(open); }}>
           <DialogContent onCancel={(event) => { if (unarchiveSaving) event.preventDefault(); }}>
             <DialogHeader>
-              <DialogTitle>{detail.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar oportunidade"}</DialogTitle>
+              <DialogTitle>{detail.status === "rejected" ? t("actions.reopenOpportunity") : t("actions.unarchiveOpportunity")}</DialogTitle>
               <DialogDescription>
                 {detail.status === "rejected"
-                  ? "A decisão de rejeição será removida e a oportunidade voltará ao backlog operacional. O histórico permanecerá registrado."
-                  : "A oportunidade voltará para a visão operacional correspondente sem alterar status humano ou presença técnica."}
+                  ? t("actions.reopenDescription")
+                  : t("actions.unarchiveDescription")}
               </DialogDescription>
             </DialogHeader>
-            {actionError ? <Alert variant="danger" title="Não foi possível restaurar" description={actionError} /> : null}
+            {actionError ? <Alert variant="danger" title=t("actions.restoreError") description={actionError} /> : null}
             <DialogFooter>
-              <Button variant="secondary" disabled={unarchiveSaving} onClick={() => setRestoreOpen(false)}>Cancelar</Button>
-              <Button variant="primary" loading={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>{detail.status === "rejected" ? "Reabrir" : "Desarquivar"}</Button>
+              <Button variant="secondary" disabled={unarchiveSaving} onClick={() => setRestoreOpen(false)}>{t("actions.cancel")}</Button>
+              <Button variant="primary" loading={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>{detail.status === "rejected" ? t("actions.reopen") : t("actions.unarchive")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
