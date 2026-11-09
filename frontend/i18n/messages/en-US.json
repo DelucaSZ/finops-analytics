@@ -853,7 +853,8 @@
       "distribution": "Coverage distribution",
       "chartDescription": "Current RDS workloads by backend coverage status.",
       "noWorkloads": "No RDS workloads in scope",
-      "noEligible": "No eligible workloads are available for the current filters."
+      "noEligible": "No eligible workloads are available for the current filters.",
+      "chartAria": "Coverage distribution: {values}"
     },
     "capacity": {
       "title": "Reserved capacity",
