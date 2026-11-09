@@ -414,7 +414,7 @@ export default function BillingPage() {
         const enabledProfiles = profileItems.filter((profile) => profile.enabled);
         const awsAccounts = accountItems.filter((account) => account.provider === "aws");
         if (!enabledProfiles.length) {
-          setBootstrapError("Nenhum Billing Profile habilitado está disponível.");
+          setBootstrapError("errors.noEnabledProfile");
           return;
         }
 
