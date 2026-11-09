@@ -346,5 +346,143 @@
       "displayed": "{count, plural, one {# exibida} other {# exibidas}}",
       "truncated": "Exibindo {shown} de {total} contas. Use Coletas para consultar todas."
     }
+  },
+  "billing": {
+    "title": "Uso e custos",
+    "description": "Analise custos do AWS Cost Explorer por conta, período, serviço e metodologia.",
+    "actions": {
+      "refresh": "Atualizar",
+      "manageProfiles": "Gerenciar perfis",
+      "restore": "Restaurar perfil"
+    },
+    "sections": {
+      "accounts": "Contas",
+      "accountsDescription": "Selecione explicitamente uma ou mais contas. Sem seleção, nenhuma consulta de custo é executada.",
+      "filters": "Filtros",
+      "filtersDescription": "Refine período, perfil e metodologia para o escopo de contas selecionado.",
+      "summary": "Resumo financeiro",
+      "summaryDescription": "Resumo do período selecionado.",
+      "costEvolution": "Evolução de custos",
+      "costEvolutionDescription": "Acompanhe a evolução temporal e a composição do custo.",
+      "costByService": "Custo por serviço",
+      "serviceDescription": "Detalhamento preciso dos serviços com maior impacto no período.",
+      "costByAccount": "Custo por conta",
+      "accountDescription": "Compare a concentração do custo entre as contas selecionadas."
+    },
+    "filters": {
+      "accounts": "Contas AWS",
+      "selectAll": "Selecionar todas",
+      "clearSelection": "Limpar seleção",
+      "searchAccounts": "Buscar contas",
+      "profile": "Perfil",
+      "metric": "Métrica",
+      "granularity": "Granularidade",
+      "groupBy": "Agrupamento",
+      "period": "Período",
+      "choosePeriod": "Escolha um período",
+      "start": "Data inicial",
+      "end": "Data final",
+      "clearDates": "Limpar datas",
+      "more": "Mais filtros",
+      "excludeTypes": "Excluir tipos de registro",
+      "current": "Consulta atual:",
+      "noExclusions": "Sem exclusões",
+      "noExclusionsByType": "Sem exclusões por tipo",
+      "awsAccount": "Conta AWS",
+      "account": "Conta",
+      "service": "Serviço",
+      "selected": "{count, plural, one {# conta selecionada} other {# contas selecionadas}}",
+      "query": "{count, plural, one {# conta} other {# contas}} · {period} · {granularity} · {grouping} · {metric} · {exclusions}",
+      "excluded": "Exclui {types}"
+    },
+    "metrics": {
+      "amortized": "Custo amortizado",
+      "netAmortized": "Custo amortizado líquido",
+      "unblended": "Custo não combinado",
+      "period": "Custo do período",
+      "periodCurrency": "Custo do período · {currency}"
+    },
+    "granularity": {
+      "daily": "Diária",
+      "monthly": "Mensal"
+    },
+    "group": {
+      "none": "Sem agrupamento"
+    },
+    "periods": {
+      "thisMonth": "Este mês",
+      "previousMonth": "Mês anterior",
+      "last30Days": "Últimos 30 dias",
+      "last3Months": "Últimos 3 meses",
+      "last6Months": "Últimos 6 meses",
+      "thisYear": "Este ano",
+      "custom": "Personalizado"
+    },
+    "profile": {
+      "applied": "Perfil aplicado",
+      "temporary": "Consulta com override temporário",
+      "overridden": "Sobrescrito",
+      "default": " · padrão"
+    },
+    "empty": {
+      "noAccounts": "Nenhuma conta AWS disponível",
+      "selectHint": "Selecione ao menos uma conta para consultar os custos.",
+      "select": "Selecione uma ou mais contas",
+      "selectDescription": "Selecione ao menos uma conta para consultar os custos. Nenhuma consulta ao Cost Explorer é executada enquanto a seleção estiver vazia.",
+      "noCost": "Nenhum custo encontrado",
+      "noCostDescription": "Nenhum custo foi retornado para o período e os filtros selecionados.",
+      "noSeries": "Nenhum custo no período",
+      "noSeriesDescription": "Não há pontos de custo para os filtros selecionados.",
+      "noService": "Nenhum serviço com custo",
+      "noServiceDescription": "Nenhum serviço com custo foi retornado para esta consulta.",
+      "noAccount": "Nenhum custo por conta",
+      "noAccountDescription": "Nenhum custo por conta foi retornado para esta consulta.",
+      "noSelected": "Nenhuma conta selecionada"
+    },
+    "errors": {
+      "bootstrapTitle": "Não foi possível preparar o Billing",
+      "summaryTitle": "Falha ao carregar o resumo financeiro",
+      "customTitle": "Período personalizado incompleto",
+      "customDescription": "Informe um intervalo válido, sem datas futuras.",
+      "accessDenied": "As credenciais configuradas não possuem permissão para consultar Billing neste escopo.",
+      "costExplorerUnavailable": "O AWS Cost Explorer não está disponível para este escopo. Verifique a habilitação e as preferências de acesso da conta.",
+      "invalidScope": "As contas selecionadas não puderam ser consultadas em um billing scope válido. Nenhum total parcial foi apresentado.",
+      "throttled": "A AWS limitou temporariamente as consultas de Billing. Tente atualizar novamente mais tarde.",
+      "accountUnavailable": "Uma das contas selecionadas não está disponível para Billing AWS.",
+      "invalidPeriod": "O período selecionado não é válido para uma consulta histórica do Cost Explorer.",
+      "upstreamData": "O Cost Explorer retornou dados que não puderam ser interpretados com segurança.",
+      "upstream": "A AWS não respondeu à consulta de Billing como esperado. Tente novamente.",
+      "bootstrap": "Falha ao preparar a área de Billing.",
+      "summary": "Falha ao carregar o custo do período.",
+      "previous": "Falha ao carregar o período anterior.",
+      "timeseries": "Falha ao carregar a evolução de custos.",
+      "service": "Falha ao carregar o custo por serviço.",
+      "account": "Falha ao carregar o custo por conta.",
+      "generic": "Falha ao consultar Billing."
+    },
+    "comparison": {
+      "loading": "Carregando comparação com o período anterior…",
+      "unavailable": "Comparação com o período anterior indisponível.",
+      "sameCurrency": "Período anterior sem valor na mesma moeda/unidade.",
+      "newCost": "Novo custo em relação ao período anterior.",
+      "noVariation": "Variação não aplicável para esta comparação.",
+      "trend": "Variação vs período anterior",
+      "range": "Comparação: {previous} → {current}",
+      "previous": "Anterior: "
+    },
+    "breakdown": {
+      "share": "Participação",
+      "amount": "Valor",
+      "state": "Estado",
+      "top": "Top {shown} de {total}"
+    },
+    "status": {
+      "actual": "Realizado",
+      "estimated": "Estimado",
+      "partial": "Parcialmente estimado",
+      "forecast": "Forecast",
+      "includesForecast": "Inclui forecast"
+    },
+    "disclaimer": "Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Forecast e estimativas são identificados apenas quando informados pelo contrato de dados."
   }
 }
