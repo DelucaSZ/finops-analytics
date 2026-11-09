@@ -768,5 +768,191 @@
       "terminated": "Encerrado",
       "deleted": "Excluído"
     }
+  },
+  "reservations": {
+    "title": "Reservas RDS",
+    "description": "Analise a cobertura das reservas, a utilização da capacidade reservada, os vencimentos e as oportunidades de reservas RDS.",
+    "actions": {
+      "refresh": "Atualizar",
+      "clear": "Limpar filtros"
+    },
+    "tabs": {
+      "coverage": "Cobertura",
+      "reservations": "Reservas ativas",
+      "expiring": "Reservas expirando",
+      "opportunities": "Oportunidades de reservas"
+    },
+    "expiration": {
+      "le7": "Até 7 dias",
+      "le15": "Até 15 dias",
+      "le30": "Até 30 dias",
+      "gt30": "Mais de 30 dias",
+      "expired": "Expirada",
+      "expiringSoon": "Vence em breve",
+      "expiring": "Expirando",
+      "past": "{days, plural, one {# dia após o vencimento} other {# dias após o vencimento}}",
+      "today": "Vence hoje",
+      "remaining": "{days, plural, one {# dia restante} other {# dias restantes}}"
+    },
+    "errors": {
+      "notCalculated": "A cobertura das reservas RDS ainda não foi calculada.",
+      "forbidden": "Você não tem permissão para visualizar dados de reservas RDS.",
+      "rateLimit": "As solicitações de reservas estão temporariamente limitadas. Tente novamente em instantes.",
+      "rejected": "A consulta de reservas foi rejeitada para o escopo ou filtros atuais.",
+      "providerUnavailable": "A API do provedor de reservas está temporariamente indisponível.",
+      "loadData": "Não foi possível carregar os dados de reservas RDS.",
+      "loadPipeline": "Não foi possível carregar o status do pipeline de reservas RDS.",
+      "loadSummary": "Não foi possível carregar o resumo das reservas.",
+      "loadOptions": "Não foi possível carregar as opções de filtros de reservas."
+    },
+    "states": {
+      "loadError": "Não foi possível carregar os dados das reservas",
+      "operationalUnavailable": "Status operacional indisponível",
+      "summaryUnavailable": "Resumo de reservas indisponível",
+      "optionsUnavailable": "Algumas opções de filtro estão indisponíveis",
+      "updating": "Atualizando"
+    },
+    "pipeline": {
+      "neverTitle": "Os dados de reservas ainda não foram processados",
+      "neverDescription": "O pipeline de reservas RDS ainda não concluiu a primeira execução de inventário e cobertura. O worker o iniciará automaticamente nas contas AWS configuradas.",
+      "runningTitle": "Os dados de reservas estão sendo atualizados",
+      "runningDescription": "O pipeline de reservas RDS está em execução{stage}. A última cobertura concluída permanece disponível durante a atualização.",
+      "failedTitle": "Falha na última atualização de reservas",
+      "failedWithSnapshot": "A última execução do pipeline falhou. O último snapshot de cobertura bem-sucedido permanece disponível abaixo.",
+      "failedNoSnapshot": "A última execução do pipeline falhou antes de produzir um snapshot de cobertura válido.",
+      "staleTitle": "Os dados podem estar desatualizados",
+      "staleDescription": "O último inventário RDS válido ultrapassou o limite de atualização configurado de {hours} horas. O worker fará a atualização automaticamente.",
+      "warningTitle": "Cobertura atualizada com alerta no processamento de oportunidades",
+      "warningDescription": "O snapshot de cobertura é válido, mas a geração de oportunidades não foi concluída. É possível tentar novamente sem invalidar a cobertura.",
+      "sectionTitle": "Status dos dados",
+      "sectionDescription": "O estado operacional é calculado pelo backend; as visualizações usam o último snapshot de cobertura concluído com sucesso.",
+      "label": "Pipeline",
+      "freshness": "Atualidade dos dados",
+      "lastCollection": "Última coleta AWS",
+      "lastCoverage": "Último cálculo de cobertura",
+      "status": {
+        "COMPLETED": "Concluído",
+        "RUNNING": "Em execução",
+        "FAILED": "Falhou",
+        "STALE": "Desatualizado",
+        "COMPLETED_WITH_WARNINGS": "Concluído com avisos",
+        "NEVER_EXECUTED": "Nunca executado"
+      },
+      "fresh": {
+        "FRESH": "Atualizado",
+        "STALE": "Desatualizado"
+      }
+    },
+    "coverage": {
+      "full": "Cobertura total",
+      "partial": "Cobertura parcial",
+      "uncovered": "Sem cobertura",
+      "unknown": "Desconhecida",
+      "fullShort": "Total",
+      "partialShort": "Parcial",
+      "distribution": "Distribuição da cobertura",
+      "chartDescription": "Workloads RDS atuais por status de cobertura calculado pelo backend.",
+      "noWorkloads": "Nenhuma workload RDS neste escopo",
+      "noEligible": "Não há workloads elegíveis para os filtros atuais."
+    },
+    "capacity": {
+      "title": "Capacidade reservada",
+      "description": "A utilização representa a capacidade reservada alocada, diferente da cobertura das workloads.",
+      "utilization": "Utilização",
+      "reserved": "Reservada",
+      "allocated": "Alocada",
+      "unused": "Não utilizada"
+    },
+    "filters": {
+      "aria": "Contexto e filtros",
+      "account": "Conta",
+      "region": "Região",
+      "engine": "Engine",
+      "family": "Família",
+      "class": "Classe",
+      "coverage": "Cobertura",
+      "expiration": "Vencimento",
+      "opportunity": "Oportunidade",
+      "allAccounts": "Todas as contas autorizadas",
+      "allRegions": "Todas as regiões",
+      "allEngines": "Todas as engines",
+      "allFamilies": "Todas as famílias",
+      "allClasses": "Todas as classes",
+      "allStatuses": "Todos os status",
+      "allExpirations": "Todos os vencimentos",
+      "allOpportunityTypes": "Todos os tipos de oportunidade"
+    },
+    "table": {
+      "resource": "Recurso",
+      "technology": "Tecnologia",
+      "accountRegion": "Conta / região",
+      "coverage": "Cobertura",
+      "status": "Status",
+      "reservation": "Reserva",
+      "technologyClass": "Tecnologia / classe",
+      "quantity": "Quantidade",
+      "utilization": "Utilização",
+      "expiration": "Vencimento",
+      "opportunity": "Oportunidade",
+      "recommendation": "Recomendação",
+      "versionUnavailable": "Versão indisponível",
+      "regionUnavailable": "Região indisponível",
+      "noCoverage": "Nenhuma cobertura de reservas encontrada",
+      "noCoverageDescription": "Nenhuma workload RDS elegível corresponde aos filtros atuais.",
+      "noReservations": "Nenhuma reserva ativa encontrada",
+      "noReservationsDescription": "Nenhuma Reserved DB Instance ativa corresponde aos filtros atuais.",
+      "noExpiring": "Nenhuma reserva vence no período selecionado",
+      "noExpiringDescription": "Nenhuma reserva corresponde ao período de vencimento e filtros atuais.",
+      "noOpportunities": "Nenhuma oportunidade de reserva identificada",
+      "noOpportunitiesDescription": "Nenhuma oportunidade de reserva RDS ativa corresponde aos filtros atuais.",
+      "reviewCoverage": "Revise o contexto de cobertura antes de agir.",
+      "savingsNotCalculated": "As economias potenciais não são calculadas por este contrato."
+    },
+    "opportunityTypes": {
+      "uncovered": "Capacidade sem cobertura",
+      "partial": "Cobertura parcial",
+      "unused": "Capacidade não utilizada",
+      "expiring": "Reserva próxima do vencimento"
+    },
+    "severity": {
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    },
+    "metrics": {
+      "active": "Reservas ativas",
+      "activeDescription": "Reserved DB Instances atualmente ativas",
+      "coverage": "Cobertura das reservas",
+      "covered": "{covered} / {required} cobertas",
+      "utilization": "Utilização",
+      "allocated": "{allocated} / {reserved} alocadas",
+      "expiring": "Vencem em até 30 dias",
+      "expiringDescription": "Reservas ativas classificadas pelo backend",
+      "uncovered": "RDS sem cobertura",
+      "unknown": "{count} sem classificação"
+    },
+    "overview": {
+      "title": "Visão geral das reservas",
+      "description": "Estado operacional atual do escopo de reservas AWS selecionado.",
+      "aria": "Resumo de reservas RDS"
+    },
+    "analysis": {
+      "title": "Cobertura e utilização",
+      "description": "A cobertura mede a capacidade de workload elegível protegida por reservas compatíveis. A utilização mede quanto da capacidade reservada está alocada."
+    },
+    "explorer": {
+      "title": "Explorador de reservas",
+      "description": "As tabelas operacionais preservam os contratos atuais de API e correspondência.",
+      "aria": "Visualizações de reservas RDS",
+      "expiringDescription": "Período padrão: reservas que vencem em até 30 dias. Reservas expiradas permanecem um estado distinto.",
+      "defaultDescription": "Os dados são produzidos pelos serviços existentes de cobertura e oportunidades de reservas."
+    },
+    "scope": {
+      "title": "Escopo das recomendações",
+      "description": "Esta visualização identifica a cobertura e as oportunidades de reservas. Ela não calcula economia com aquisições, não inventa moedas, não compra Reserved DB Instances nem recalcula a correspondência de reservas na interface."
+    },
+    "presence": {
+      "active": "Ativa"
+    }
   }
 }
