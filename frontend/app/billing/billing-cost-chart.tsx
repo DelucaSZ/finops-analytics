@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { CSSProperties } from "react";
 import { CurrencyDisplay, PercentageDisplay, StatusIndicator, type ProductStatus } from "@/components/aven";
 import type { BillingGranularity, BillingGroupBy } from "@/lib/billing";
@@ -8,7 +9,6 @@ import {
   aggregateBillingStatuses,
   billingStatusHasForecast,
   billingStatusIsEstimated,
-  billingStatusLabel,
   formatBillingAxisDate,
   formatBillingAxisMoney,
   formatBillingDate,
@@ -21,16 +21,9 @@ import type {
 } from "@/lib/billing-dashboard.mjs";
 import styles from "./billing.module.css";
 
-const GRANULARITY_LABELS: Record<BillingGranularity, string> = {
-  DAILY: "Diária",
-  MONTHLY: "Mensal",
-};
+const GRANULARITY_KEYS = { DAILY: "granularity.daily", MONTHLY: "granularity.monthly" } as const satisfies Record<BillingGranularity, string>;
 
-const GROUP_BY_LABELS: Record<BillingGroupBy, string> = {
-  NONE: "Sem agrupamento",
-  SERVICE: "Serviço",
-  ACCOUNT: "Conta",
-};
+const GROUP_BY_KEYS = { NONE: "group.none", SERVICE: "filters.service", ACCOUNT: "filters.account" } as const satisfies Record<BillingGroupBy, string>;
 
 const SERIES_COLORS = [
   "var(--chart-series-1)",
@@ -178,6 +171,22 @@ export function BillingCostChart({
   granularity: BillingGranularity;
   groupBy: BillingGroupBy;
 }) {
+  const t = useTranslations("billing");
+  const locale = useLocale();
+  const statusLabel = (status: BillingDataStatus) => {
+    switch (status) {
+      case "ESTIMATED": return t("status.estimated");
+      case "PARTIALLY_ESTIMATED": return t("status.partial");
+      case "FORECAST": return t("status.forecast");
+      case "INCLUDES_FORECAST": return t("status.includesForecast");
+      default: return t("status.actual");
+    }
+  };
+  const seriesLabel = (item: { key: string; label: string }) =>
+    item.key === OTHER_SERIES_KEY ? t("charts.other") :
+    item.key === "__total__" ? t("charts.totalCost") : item.label;
+  const granularityLabel = t(GRANULARITY_KEYS[granularity]);
+  const groupingLabel = t(GROUP_BY_KEYS[groupBy]);
   const [hovered, setHovered] = useState<HoveredBucket | null>(null);
   const chartDataset = useMemo(
     () => compactServiceDataset(dataset, groupBy),
@@ -222,15 +231,15 @@ export function BillingCostChart({
     : [];
 
   return (
-    <section className={styles.chartGroup} aria-label={`Análise de custos em ${currency}`}>
+    <section className={styles.chartGroup} aria-label={t("charts.title", { currency })}>
       <div className={styles.chartContextGrid}>
         <div>
-          <span>Custo total</span>
+          <span>{t("charts.totalCost")}</span>
           <strong>
             <CurrencyDisplay
               value={chartDataset.total}
               currency={currency}
-              locale="pt-BR"
+              
               currencyDisplay="code"
               minimumFractionDigits={2}
               maximumFractionDigits={2}
@@ -238,31 +247,31 @@ export function BillingCostChart({
           </strong>
         </div>
         <div>
-          <span>Período</span>
-          <strong>{formatBillingRange(periodRange)}</strong>
+          <span>{t("charts.period")}</span>
+          <strong>{formatBillingRange(periodRange, locale)}</strong>
         </div>
         <div>
-          <span>Granularidade</span>
-          <strong>{GRANULARITY_LABELS[granularity]}</strong>
+          <span>{t("charts.granularity")}</span>
+          <strong>{granularityLabel}</strong>
         </div>
         <div>
-          <span>Agrupamento</span>
-          <strong>{GROUP_BY_LABELS[groupBy]}</strong>
+          <span>{t("charts.groupBy")}</span>
+          <strong>{groupingLabel}</strong>
         </div>
         {chartDataset.status !== "ACTUAL" && (
           <StatusIndicator
             status={statusSemantic(chartDataset.status)}
-            label={billingStatusLabel(chartDataset.status)}
+            label={statusLabel(chartDataset.status)}
           />
         )}
       </div>
 
       {groupBy !== "NONE" && series.length > 0 && (
-        <div className={styles.chartLegend} aria-label="Legenda de séries">
+        <div className={styles.chartLegend} aria-label={t("charts.seriesLegend")}>
           {series.map((item) => (
-            <span key={item.key} title={item.label}>
+            <span key={item.key} title={seriesLabel(item)}>
               <i style={{ background: seriesColor(item.key) }} aria-hidden="true" />
-              <b>{item.label}</b>
+              <b>{seriesLabel(item)}</b>
             </span>
           ))}
         </div>
@@ -276,7 +285,7 @@ export function BillingCostChart({
           className={styles.chart}
           viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}
           role="img"
-          aria-label={`Custos em ${currency}, ${GRANULARITY_LABELS[granularity].toLowerCase()}, agrupamento ${GROUP_BY_LABELS[groupBy].toLowerCase()}. Use Tab para percorrer os períodos e consultar valores detalhados.`}
+          aria-label={t("charts.aria", { currency, granularity: granularityLabel.toLowerCase(), grouping: groupingLabel.toLowerCase() })}
           preserveAspectRatio="xMidYMid meet"
         >
           <text
@@ -286,7 +295,7 @@ export function BillingCostChart({
             className={styles.axisTitle}
             transform={`rotate(-90 18 ${VIEWBOX_HEIGHT / 2})`}
           >
-            Custo ({currency})
+            {t("charts.axisCost", { currency })}
           </text>
 
           {yTicks.map((tick) => {
@@ -306,7 +315,7 @@ export function BillingCostChart({
                   textAnchor="end"
                   className={styles.axisLabel}
                 >
-                  {formatBillingAxisMoney(tick, currency)}
+                  {formatBillingAxisMoney(tick, currency, locale)}
                 </text>
               </g>
             );
@@ -325,7 +334,7 @@ export function BillingCostChart({
             const marker = statusMarker(period.status);
             let positiveBase = 0;
             let negativeBase = 0;
-            const periodLabel = `${formatBillingDate(period.start_date)} · ${billingStatusLabel(period.status)}`;
+            const periodLabel = `${formatBillingDate(period.start_date, locale)} · ${statusLabel(period.status)}`;
             return (
               <g key={`${period.start_date}-${period.end_date}`}>
                 <rect
@@ -336,7 +345,7 @@ export function BillingCostChart({
                   className={styles.hoverBand}
                   tabIndex={0}
                   role="button"
-                  aria-label={`${periodLabel}. Total ${currency} ${period.total}.`}
+                  aria-label={t("charts.bucketAria", { period: periodLabel, currency, total: period.total })}
                   onFocus={() => setHovered({ periodIndex, seriesKey: null })}
                   onBlur={() => setHovered(null)}
                   onMouseEnter={() => setHovered({ periodIndex, seriesKey: null })}
@@ -365,7 +374,7 @@ export function BillingCostChart({
                       className={styles.chartBar}
                       onMouseEnter={() => setHovered({ periodIndex, seriesKey: item.key })}
                     >
-                      <title>{`${periodLabel} · ${item.label} · ${currency} ${item.amount}`}</title>
+                      <title>{`${periodLabel} · ${seriesLabel(item)} · ${currency} ${item.amount}`}</title>
                     </rect>
                   );
                 })}
@@ -377,7 +386,7 @@ export function BillingCostChart({
                     className={styles.axisLabel}
                     transform={rotateLabels ? `rotate(-28 ${centerX} ${VIEWBOX_HEIGHT - 24})` : undefined}
                   >
-                    {formatBillingAxisDate(period.start_date, granularity)}
+                    {formatBillingAxisDate(period.start_date, granularity, locale)}
                   </text>
                 )}
                 {marker && (
@@ -387,7 +396,7 @@ export function BillingCostChart({
                     textAnchor="middle"
                     className={styles.estimatedMark}
                   >
-                    <title>{billingStatusLabel(period.status)}</title>
+                    <title>{statusLabel(period.status)}</title>
                     {marker}
                   </text>
                 )}
@@ -404,10 +413,10 @@ export function BillingCostChart({
             style={{ "--billing-tooltip-left": `${hoveredXPercent}%` } as CSSProperties}
           >
             <div className={styles.tooltipHeading}>
-              <strong>{formatBillingDate(hoveredPeriod.start_date)}</strong>
+              <strong>{formatBillingDate(hoveredPeriod.start_date, locale)}</strong>
               <StatusIndicator
                 status={statusSemantic(hoveredPeriod.status)}
-                label={billingStatusLabel(hoveredPeriod.status)}
+                label={statusLabel(hoveredPeriod.status)}
               />
             </div>
             {hoveredSeries.length > 0 && (
@@ -421,12 +430,12 @@ export function BillingCostChart({
                       onMouseEnter={() => setHovered((current) => current ? { ...current, seriesKey: item.key } : current)}
                     >
                       <i style={{ background: seriesColor(item.key) }} aria-hidden="true" />
-                      <span title={item.label}>{item.label}</span>
+                      <span title={seriesLabel(item)}>{item.label}</span>
                       <strong>
                         <CurrencyDisplay
                           value={item.amount}
                           currency={currency}
-                          locale="pt-BR"
+                          
                           currencyDisplay="code"
                           minimumFractionDigits={2}
                           maximumFractionDigits={2}
@@ -437,7 +446,7 @@ export function BillingCostChart({
                             <PercentageDisplay
                               value={share}
                               valueMode="fraction"
-                              locale="pt-BR"
+                              
                               maximumFractionDigits={1}
                             />
                           </>
@@ -449,12 +458,12 @@ export function BillingCostChart({
               </div>
             )}
             <div className={styles.tooltipTotal}>
-              <span>Total do período</span>
+              <span>{t("charts.periodTotal")}</span>
               <strong>
                 <CurrencyDisplay
                   value={hoveredPeriod.total}
                   currency={currency}
-                  locale="pt-BR"
+                  
                   currencyDisplay="code"
                   minimumFractionDigits={2}
                   maximumFractionDigits={2}
@@ -467,13 +476,13 @@ export function BillingCostChart({
 
       <div className={styles.chartNotes}>
         {dataset.series.length > series.length && groupBy === "SERVICE" && (
-          <p>Serviços de menor custo foram consolidados em “Outros” para manter a leitura do gráfico.</p>
+          <p>{t("charts.noteOther")}</p>
         )}
         {chartDataset.estimated && (
-          <p>* / ≈ identificam somente buckets estimados ou parcialmente estimados informados pelo Cost Explorer.</p>
+          <p>{t("charts.noteEstimate")}</p>
         )}
         {billingStatusHasForecast(chartDataset.status) && (
-          <p>F identifica forecast; os buckets previstos mantêm a cor da série e usam contorno tracejado.</p>
+          <p>{t("charts.noteForecast")}</p>
         )}
       </div>
     </section>
