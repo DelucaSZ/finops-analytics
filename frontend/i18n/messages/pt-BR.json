@@ -1428,6 +1428,104 @@
         "manual": "Manual",
         "retentionPolicy": "Política de retenção"
       }
+    },
+    "cycles": {
+      "title": "Histórico de ciclos",
+      "description": "Snapshots imutáveis por período fechado, separados do backlog e do arquivamento operacional.",
+      "metadata": "OPORTUNIDADES",
+      "refresh": "Atualizar",
+      "refreshing": "Atualizando…",
+      "navAria": "Visões de histórico",
+      "nav": {
+        "closed": "Ciclos fechados",
+        "legacy": "Arquivadas atualmente / Histórico legado",
+        "backlog": "Backlog operacional"
+      },
+      "errorTitle": "Não foi possível carregar o histórico",
+      "errors": {
+        "cycles": "Não foi possível carregar os ciclos históricos.",
+        "snapshots": "Não foi possível carregar os snapshots do ciclo.",
+        "refresh": "Não foi possível atualizar o histórico.",
+        "close": "Não foi possível fechar o ciclo."
+      },
+      "filters": {
+        "period": "Período histórico",
+        "cloud": "Cloud",
+        "allFeminine": "Todas",
+        "allMasculine": "Todos",
+        "status": "Status no fechamento",
+        "severity": "Severidade",
+        "search": "Buscar no snapshot",
+        "searchPlaceholder": "Recurso, título, conta ou ID"
+      },
+      "cycle": {
+        "closed": "Fechado",
+        "open": "Aberto",
+        "closedAt": "fechado em {date}",
+        "preview": "Prévia — período ainda não fechado",
+        "close": "Fechar ciclo",
+        "coverage": "{success} coletas concluídas · {failed} falhas · {running} em andamento"
+      },
+      "summary": {
+        "title": "Resumo do ciclo",
+        "description": "Indicadores persistidos no contexto histórico selecionado.",
+        "opportunities": "Oportunidades no snapshot",
+        "immutable": "Registros imutáveis materializados no fechamento",
+        "afterClose": "Disponível após o fechamento do ciclo",
+        "potential": "Economia potencial",
+        "noFx": "Moedas preservadas sem conversão",
+        "current": "Custo atual no fechamento",
+        "captured": "Valor capturado no ciclo selecionado",
+        "collections": "Cobertura de coletas",
+        "coverage": "{success} sucesso · {failed} falha · {running} em andamento"
+      },
+      "snapshot": {
+        "previewDescription": "Snapshots definitivos são materializados somente no fechamento do ciclo.",
+        "title": "Snapshots do ciclo",
+        "description": "Estado histórico imutável das oportunidades no fechamento do período.",
+        "aria": "Snapshots do histórico de oportunidades",
+        "opportunity": "Oportunidade",
+        "accountCloud": "Conta / Cloud",
+        "status": "Status",
+        "severity": "Severidade",
+        "cost": "Custo",
+        "savings": "Economia",
+        "observations": "Observações",
+        "lastObserved": "Última observação",
+        "empty": "Nenhum snapshot encontrado para este ciclo e filtros.",
+        "page": "{count} snapshots · página {page} de {total}",
+        "previous": "Anterior",
+        "next": "Próxima"
+      },
+      "detail": {
+        "close": "Fechar detalhe",
+        "cloud": "Cloud",
+        "account": "Conta",
+        "resource": "Recurso",
+        "rule": "Regra",
+        "serviceRegion": "Serviço / Região",
+        "status": "Status no fechamento",
+        "presence": "Presença no fechamento",
+        "severityConfidence": "Severidade / confiança",
+        "archived": "Arquivada operacionalmente",
+        "yes": "Sim",
+        "no": "Não",
+        "periodCost": "Custo no período",
+        "estimatedSavings": "Economia estimada",
+        "firstObserved": "Primeira observação no ciclo",
+        "lastObserved": "Última observação no ciclo",
+        "occurrences": "Observações no ciclo",
+        "firstSeen": "Primeira detecção histórica",
+        "lastSeen": "Última detecção conhecida no fechamento",
+        "lastCollection": "Última CollectionRun do ciclo",
+        "rejectReason": "Motivo da rejeição:",
+        "treatment": "Tratamento:",
+        "openCurrent": "Ver oportunidade atual",
+        "independent": "— o estado atual é independente deste snapshot.",
+        "perMonth": "/mês",
+        "periodTo": "até",
+        "timezone": "timezone"
+      }
     }
   }
 }
