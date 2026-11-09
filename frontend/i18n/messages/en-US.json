@@ -1039,6 +1039,43 @@
       "high": "High",
       "medium": "Medium",
       "low": "Low"
+    },
+    "evidence": {
+      "why": "Why did {product} reach this conclusion?",
+      "aria": "Opportunity explanation",
+      "unavailable": "Additional details are not available for this analysis.",
+      "observedAt": "Evidence observed on {date}",
+      "metricsAria": "Key metrics",
+      "estimate": "estimate",
+      "projection": "projection",
+      "criterion": "Criterion applied in this collection",
+      "contributors": "Main drivers of growth",
+      "contributorsAria": "Main contributions to the change",
+      "contributor": "Contributor",
+      "previous": "Previous",
+      "current": "Current",
+      "delta": "Change",
+      "seeTechnical": "View technical evidence",
+      "observedDetails": "Observed details",
+      "parameters": "Parameters used",
+      "historicalUnavailable": "Additional historical parameters are unavailable.",
+      "source": "Source:",
+      "evaluatedAt": "Evaluated on {date}",
+      "notRecorded": "Not recorded",
+      "yes": "Yes",
+      "no": "No",
+      "none": "None",
+      "observedUnavailable": "observed value unavailable",
+      "perMonth": "/month",
+      "unit": {
+        "days": "days",
+        "volumes": "volumes",
+        "requests": "requests",
+        "connections": "connections",
+        "datapoints": "samples",
+        "associations": "associations",
+        "tags": "tags"
+      }
     }
   }
 }
