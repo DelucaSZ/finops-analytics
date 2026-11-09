@@ -1315,6 +1315,118 @@
     "savings": {
       "notEstimated": "Not estimated",
       "perMonth": "/month"
+    },
+    "detail": {
+      "loadingTitle": "Loading opportunity…",
+      "loadingDescription": "Loading context, evidence and history.",
+      "contextError": "Unable to load or update all context",
+      "observationError": "The opportunity details were loaded, but detection history is temporarily unavailable.",
+      "decisionError": "The opportunity details were loaded, but decision history is temporarily unavailable.",
+      "aiError": "AI analysis failed",
+      "reopenError": "Unable to reopen the opportunity.",
+      "unarchiveError": "Unable to unarchive the opportunity.",
+      "overviewAria": "Opportunity summary",
+      "impact": "Impact: {value}",
+      "confidence": "Confidence: {value}",
+      "archived": "Archived",
+      "detectedAgain": "Detected again after treatment",
+      "copyResource": "Copy resource identifier",
+      "copiedResource": "Identifier copied",
+      "rejectedActiveTitle": "Rejected opportunity still observed",
+      "rejectedActiveDescription": "Technical presence remains active, but the recommendation is suppressed by the recorded human decision.",
+      "field": {
+        "account": "Account",
+        "region": "Region",
+        "service": "Service",
+        "resourceType": "Resource type",
+        "rule": "Rule",
+        "potential": "Potential savings",
+        "currentCost": "Current monthly cost",
+        "confidence": "Confidence",
+        "firstSeen": "First identified",
+        "lastSeen": "Last detected",
+        "treatedAt": "Treated on",
+        "rejectedAt": "Rejected on",
+        "resolvedExternallyAt": "Resolved externally on",
+        "archivedAt": "Archived on",
+        "archiveReason": "Archive reason",
+        "occurrences": "Historical occurrences",
+        "retained": "Retained details"
+      },
+      "openFirstCollection": "Open first collection",
+      "openLastCollection": "Open last collection",
+      "decision": {
+        "title": "Current decision",
+        "description": "Recorded human state and audit context.",
+        "by": "Decided by",
+        "date": "Date",
+        "reason": "Reason",
+        "note": "Note",
+        "noNote": "No note recorded.",
+        "notRecorded": "Not recorded"
+      },
+      "evidence": {
+        "title": "Evidence",
+        "description": "Metrics and facts persisted by the recommendation; no values are recalculated in the UI.",
+        "historical": "Historical evidence",
+        "collectionDate": "Showing the collection from {date}.",
+        "backToLatest": "Back to latest evidence",
+        "ai": "Analyze further with AI"
+      },
+      "detection": {
+        "title": "Detection history",
+        "description": "Factual observations recorded by collections, newest first.",
+        "retained": "{details, plural, one {# detail} other {# details}} retained out of {occurrences, plural, one {# occurrence} other {# occurrences}}",
+        "partialTitle": "Detailed history partially expired",
+        "partialDescription": "The current configuration retains observations for {days, plural, one {# day} other {# days}}. Identity, first/last detection and human decisions remain preserved.",
+        "estimatedSavings": "estimated savings",
+        "viewEvidence": "View evidence from this collection",
+        "openCollection": "Open collection",
+        "noRetained": "No detailed observations remain in the current retention window.",
+        "empty": "No historical observations available.",
+        "full": "View full history"
+      },
+      "history": {
+        "title": "Decision history",
+        "description": "Manual state transitions, separate from technical detections.",
+        "count": "{count, plural, one {# decision} other {# decisions}}",
+        "unknownUser": "Unknown user",
+        "reason": "Reason:",
+        "empty": "No manual decisions recorded."
+      },
+      "technical": {
+        "title": "Technical information",
+        "resourceId": "Resource ID",
+        "accountId": "Account ID",
+        "opportunityId": "Opportunity ID",
+        "rule": "Technical rule",
+        "legacyScan": "Legacy scan",
+        "firstCollection": "First CollectionRun",
+        "lastCollection": "Last CollectionRun",
+        "copy": "Copy",
+        "copied": "Copied"
+      },
+      "actions": {
+        "treat": "Mark as treated",
+        "archive": "Archive",
+        "reject": "Reject",
+        "reopen": "Reopen",
+        "reopenOpportunity": "Reopen opportunity",
+        "unarchive": "Unarchive",
+        "unarchiveOpportunity": "Unarchive opportunity",
+        "cancel": "Cancel",
+        "restoreError": "Unable to restore",
+        "reopenDescription": "The rejection decision will be removed and the opportunity will return to the operational backlog. History remains recorded.",
+        "unarchiveDescription": "The opportunity will return to the corresponding operational view without changing human status or technical presence."
+      },
+      "savings": {
+        "notEstimated": "Not estimated",
+        "perMonth": "/month"
+      },
+      "archiveReason": {
+        "manual": "Manual",
+        "retentionPolicy": "Retention policy"
+      }
     }
   }
 }
