@@ -483,6 +483,22 @@
       "forecast": "Forecast",
       "includesForecast": "Includes forecast"
     },
-    "disclaimer": "Displayed values come from AWS Cost Explorer, preserve the currency/unit returned by AWS, and may be delayed during processing. No currency conversion is performed. Forecast and estimated data are identified only when provided by the data contract."
+    "disclaimer": "Displayed values come from AWS Cost Explorer, preserve the currency/unit returned by AWS, and may be delayed during processing. No currency conversion is performed. Forecast and estimated data are identified only when provided by the data contract.",
+    "charts": {
+      "title": "Cost analysis in {currency}",
+      "totalCost": "Total cost",
+      "period": "Period",
+      "granularity": "Granularity",
+      "groupBy": "Group by",
+      "other": "Other",
+      "seriesLegend": "Series legend",
+      "aria": "Costs in {currency}, {granularity}, grouped by {grouping}. Use Tab to navigate periods and review detailed values.",
+      "axisCost": "Cost ({currency})",
+      "periodTotal": "Period total",
+      "bucketAria": "{period}. Total {currency} {total}.",
+      "noteOther": "Lower-cost services were consolidated into “Other” to keep the chart readable.",
+      "noteEstimate": "* / ≈ indicate only estimated or partially estimated periods reported by Cost Explorer.",
+      "noteForecast": "F indicates forecast; forecast periods retain the series color and use a dashed border."
+    }
   }
 }
