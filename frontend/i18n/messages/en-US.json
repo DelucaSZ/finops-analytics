@@ -1526,6 +1526,46 @@
         "periodTo": "to",
         "timezone": "timezone"
       }
+    },
+    "collection": {
+      "eyebrow": "OPPORTUNITIES · COLLECTION INVESTIGATION",
+      "description": "Historical/technical view based on CollectionRun OpportunityObservations, without forcing current status or archive state.",
+      "backCollection": "Back to collection",
+      "openBacklog": "Open current backlog",
+      "filtersAria": "Applied filter",
+      "collection": "Collection:",
+      "classification": "Classification:",
+      "account": "Account:",
+      "notice": "This investigation may include currently treated, rejected or archived opportunities. The operational status is not changed.",
+      "error": "Unable to load this collection subset.",
+      "retry": "Try again",
+      "loading": "Loading opportunities…",
+      "noBaseline": "No comparable previous collection; this classification is not computed for the first collection.",
+      "retentionExpired": "Opportunity details required for this investigation have expired under the retention policy.",
+      "targetFailed": "The collection did not complete successfully; relative comparisons are not considered definitive results.",
+      "count": "{count, plural, one {# opportunity} other {# opportunities}}",
+      "baseline": "Baseline:",
+      "table": {
+        "opportunity": "Opportunity",
+        "cloudAccount": "Cloud / account",
+        "serviceRegion": "Service / region",
+        "currentStatus": "Current status",
+        "firstLast": "First / last detection",
+        "archived": "Archived",
+        "global": "Global"
+      },
+      "empty": "No opportunities match this classification.",
+      "page": "Page {page} of {total}",
+      "previous": "Previous",
+      "next": "Next",
+      "discovery": {
+        "observed": "Observed in this collection",
+        "firstSeen": "First identified in this collection",
+        "newVsPrevious": "New compared with previous collection",
+        "reappeared": "Reappeared in this collection",
+        "continued": "Still present",
+        "noLongerDetected": "No longer detected"
+      }
     }
   }
 }
