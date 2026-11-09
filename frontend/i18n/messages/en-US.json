@@ -768,5 +768,191 @@
       "terminated": "Terminated",
       "deleted": "Deleted"
     }
+  },
+  "reservations": {
+    "title": "RDS Reservations",
+    "description": "Analyze reservation coverage, reserved-capacity utilization, expirations and RDS reservation opportunities.",
+    "actions": {
+      "refresh": "Refresh",
+      "clear": "Clear filters"
+    },
+    "tabs": {
+      "coverage": "Coverage",
+      "reservations": "Active reservations",
+      "expiring": "Expiring reservations",
+      "opportunities": "Reservation opportunities"
+    },
+    "expiration": {
+      "le7": "≤7 days",
+      "le15": "≤15 days",
+      "le30": "≤30 days",
+      "gt30": ">30 days",
+      "expired": "Expired",
+      "expiringSoon": "Expiring soon",
+      "expiring": "Expiring",
+      "past": "{days, plural, one {# day past expiration} other {# days past expiration}}",
+      "today": "Expires today",
+      "remaining": "{days, plural, one {# day remaining} other {# days remaining}}"
+    },
+    "errors": {
+      "notCalculated": "RDS reservation coverage has not been calculated yet.",
+      "forbidden": "You do not have permission to view RDS reservation data.",
+      "rateLimit": "Reservation data is temporarily rate limited. Try again shortly.",
+      "rejected": "The reservation request was rejected for the current scope or filters.",
+      "providerUnavailable": "The reservation provider API is temporarily unavailable.",
+      "loadData": "Could not load RDS reservation data.",
+      "loadPipeline": "Could not load the RDS Reservations pipeline status.",
+      "loadSummary": "Could not load the reservation summary.",
+      "loadOptions": "Could not load reservation filter options."
+    },
+    "states": {
+      "loadError": "Unable to load reservation data",
+      "operationalUnavailable": "Operational status unavailable",
+      "summaryUnavailable": "Reservation summary unavailable",
+      "optionsUnavailable": "Some filter options are unavailable",
+      "updating": "Updating"
+    },
+    "pipeline": {
+      "neverTitle": "Reservation data has not been processed yet",
+      "neverDescription": "The RDS Reservations pipeline has not completed its first inventory and coverage run. The worker will bootstrap it automatically for configured AWS accounts.",
+      "runningTitle": "Reservation data is updating",
+      "runningDescription": "The RDS Reservations pipeline is currently running{stage}. Existing completed coverage remains available while the refresh finishes.",
+      "failedTitle": "Last reservation refresh failed",
+      "failedWithSnapshot": "The latest pipeline attempt failed. The last successful coverage snapshot remains available below.",
+      "failedNoSnapshot": "The latest pipeline attempt failed before a valid coverage snapshot was produced.",
+      "staleTitle": "Data may be outdated",
+      "staleDescription": "The latest valid RDS inventory is older than the configured {hours}-hour freshness threshold. The worker will refresh it automatically.",
+      "warningTitle": "Coverage updated with an opportunity-processing warning",
+      "warningDescription": "The coverage snapshot is valid, but opportunity generation did not complete. It can be retried without invalidating coverage.",
+      "sectionTitle": "Data status",
+      "sectionDescription": "Operational state is calculated by the backend; analytical views continue using the latest successful coverage snapshot.",
+      "label": "Pipeline",
+      "freshness": "Data freshness",
+      "lastCollection": "Last AWS collection",
+      "lastCoverage": "Last coverage calculation",
+      "status": {
+        "COMPLETED": "Completed",
+        "RUNNING": "Running",
+        "FAILED": "Failed",
+        "STALE": "Stale",
+        "COMPLETED_WITH_WARNINGS": "Completed with warnings",
+        "NEVER_EXECUTED": "Never executed"
+      },
+      "fresh": {
+        "FRESH": "Fresh",
+        "STALE": "Stale"
+      }
+    },
+    "coverage": {
+      "full": "Fully covered",
+      "partial": "Partially covered",
+      "uncovered": "Uncovered",
+      "unknown": "Unknown",
+      "fullShort": "Full",
+      "partialShort": "Partial",
+      "distribution": "Coverage distribution",
+      "chartDescription": "Current RDS workloads by backend coverage status.",
+      "noWorkloads": "No RDS workloads in scope",
+      "noEligible": "No eligible workloads are available for the current filters."
+    },
+    "capacity": {
+      "title": "Reserved capacity",
+      "description": "Utilization is allocated reserved capacity, distinct from workload coverage.",
+      "utilization": "Utilization",
+      "reserved": "Reserved",
+      "allocated": "Allocated",
+      "unused": "Unused"
+    },
+    "filters": {
+      "aria": "Context and filters",
+      "account": "Account",
+      "region": "Region",
+      "engine": "Engine",
+      "family": "Family",
+      "class": "Class",
+      "coverage": "Coverage",
+      "expiration": "Expiration",
+      "opportunity": "Opportunity",
+      "allAccounts": "All authorized accounts",
+      "allRegions": "All regions",
+      "allEngines": "All engines",
+      "allFamilies": "All families",
+      "allClasses": "All classes",
+      "allStatuses": "All statuses",
+      "allExpirations": "All expirations",
+      "allOpportunityTypes": "All opportunity types"
+    },
+    "table": {
+      "resource": "Resource",
+      "technology": "Technology",
+      "accountRegion": "Account / region",
+      "coverage": "Coverage",
+      "status": "Status",
+      "reservation": "Reservation",
+      "technologyClass": "Technology / class",
+      "quantity": "Quantity",
+      "utilization": "Utilization",
+      "expiration": "Expiration",
+      "opportunity": "Opportunity",
+      "recommendation": "Recommendation",
+      "versionUnavailable": "Version unavailable",
+      "regionUnavailable": "Region unavailable",
+      "noCoverage": "No reservation coverage found",
+      "noCoverageDescription": "No eligible RDS workloads match the current filters.",
+      "noReservations": "No active reservations found",
+      "noReservationsDescription": "No active Reserved DB Instances match the current filters.",
+      "noExpiring": "No reservations expire in the selected window",
+      "noExpiringDescription": "No reservation matches the current expiration window and filters.",
+      "noOpportunities": "No reservation opportunities identified",
+      "noOpportunitiesDescription": "No active RDS reservation opportunity matches the current filters.",
+      "reviewCoverage": "Review the coverage context before taking action.",
+      "savingsNotCalculated": "Potential savings are not calculated by this contract."
+    },
+    "opportunityTypes": {
+      "uncovered": "Uncovered capacity",
+      "partial": "Partial coverage",
+      "unused": "Unused capacity",
+      "expiring": "Expiring reservation"
+    },
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "metrics": {
+      "active": "Active reservations",
+      "activeDescription": "Reserved DB Instances currently active",
+      "coverage": "Reservation coverage",
+      "covered": "{covered} / {required} covered",
+      "utilization": "Utilization",
+      "allocated": "{allocated} / {reserved} allocated",
+      "expiring": "Expiring within 30 days",
+      "expiringDescription": "Backend-classified active reservations",
+      "uncovered": "Uncovered RDS",
+      "unknown": "{count} unable to determine"
+    },
+    "overview": {
+      "title": "Reservation overview",
+      "description": "Current operational state for the selected AWS reservation scope.",
+      "aria": "RDS reservation summary"
+    },
+    "analysis": {
+      "title": "Coverage and utilization",
+      "description": "Coverage measures eligible workload capacity protected by compatible reservations. Utilization measures how much reserved capacity is allocated."
+    },
+    "explorer": {
+      "title": "Reservation explorer",
+      "description": "Operational tables preserve the current API and matching contracts.",
+      "aria": "RDS reservation views",
+      "expiringDescription": "Default window: reservations expiring within 30 days. Expired remains a distinct state.",
+      "defaultDescription": "Data is produced by the existing reservation coverage and opportunity services."
+    },
+    "scope": {
+      "title": "Recommendation scope",
+      "description": "This view identifies reservation coverage and opportunities. It does not calculate acquisition savings, invent currency, execute Reserved DB Instance purchases, or recalculate reservation matching in the UI."
+    },
+    "presence": {
+      "active": "Active"
+    }
   }
 }
