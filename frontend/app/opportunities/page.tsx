@@ -199,14 +199,14 @@ export default function OpportunitiesPage() {
 function OpportunitiesContent() {
   const t = useTranslations("opportunities");
   const locale = useLocale();
-  const statusLabels: Record<string,string> = {open:t("status.open"), treated:t("status.treated"), rejected:t("status.rejected"), active:t("status.active"),missing:t("status.missing"),resolved_externally:t("status.resolved_externally")};
+  const statusLabels: Record<string,string> = {open:t("status.open"), treated:t("status.treated"), rejected:t("status.rejected"), active:t("status.active"),missing:t("status.missing"),resolved_externally:t("status.resolvedExternally")};
   const statusLabel = (value: string) => statusLabels[value] ?? humanize(value);
   const severityLabels: Record<string,string> = {high:t("severity.high"),medium:t("severity.medium"),low:t("severity.low")};
   const severityLabel = (value: string) => severityLabels[value.toLowerCase()] ?? humanize(value);
   const localizedTabs = statusTabs.map(tab => ({value:tab.value,label:tab.value === "open" ? t("tabs.open") : tab.value === "treated" ? t("tabs.treated") : t("tabs.rejected")}));
-  const archiveReasonLabels: Record<string,string> = {MANUAL:t("filterOptions.archiveReason.MANUAL"), RETENTION_POLICY:t("filterOptions.archiveReason.RETENTION_POLICY")};
+  const archiveReasonLabels: Record<string,string> = {MANUAL:t("filterOptions.archiveReason.manual"), RETENTION_POLICY:t("filterOptions.archiveReason.retentionPolicy")};
   const temporalPresetLabels: Record<string,string> = {today:t("filters.today"),last_24h:t("filters.last24"),last_7d:t("filters.last7"),last_30d:t("filters.last30"),custom:t("filters.customLong")};
-  const discoveryTypeLabels: Record<string,string> = {observed:t("filterOptions.discovery.observed"),first_seen:t("filterOptions.discovery.first_seen"),new_vs_previous:t("filterOptions.discovery.new_vs_previous"),reappeared:t("filterOptions.discovery.reappeared"),continued:t("filterOptions.discovery.continued")};
+  const discoveryTypeLabels: Record<string,string> = {observed:t("filterOptions.discovery.observed"),first_seen:t("filterOptions.discovery.firstSeen"),new_vs_previous:t("filterOptions.discovery.newVsPrevious"),reappeared:t("filterOptions.discovery.reappeared"),continued:t("filterOptions.discovery.continued")};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -677,7 +677,7 @@ function OpportunitiesContent() {
     );
   }
 
-  const sortOptions = (isHistory ? historySortOptions : operationalSortOptions).map(value => ({value,label: value === "archived_at" ? t("sort.archived_at") : value === "last_seen_at" ? (isHistory ? t("sort.lastObserved") : t("sort.last_seen_at")) : value === "first_seen_at" ? t("sort.first_seen_at") : value === "severity" ? t("sort.severity") : value === "estimated_savings" ? t("sort.estimated_savings") : value === "created_at" ? t("sort.created_at") : t("sort.status")}));
+  const sortOptions = (isHistory ? historySortOptions : operationalSortOptions).map(value => ({value,label: value === "archived_at" ? t("sort.archivedAt") : value === "last_seen_at" ? (isHistory ? t("sort.lastObserved") : t("sort.lastSeenAt")) : value === "first_seen_at" ? t("sort.firstSeenAt") : value === "severity" ? t("sort.severity") : value === "estimated_savings" ? t("sort.estimatedSavings") : value === "created_at" ? t("sort.createdAt") : t("sort.status")}));
   const useCards = !isHistory && !listRequest.isLoading && !listError && findings.length > 0 && total <= 6;
 
   return (
@@ -790,7 +790,7 @@ function OpportunitiesContent() {
           ) : (
             <>
               <Select label={t("filters.humanStatus")} value={state.status} onChange={(event) => updateUrl({ status: event.target.value })} options={localizedTabs.map((tab) => ({ value: tab.value, label: statusLabel(tab.value) }))} placeholder={t("filters.allStatuses")} />
-              <Select label={t("filters.technicalPresence")} value={state.presenceStatus} onChange={(event) => updateUrl({ presence_status: event.target.value })} options={[{ value: "active", label: t("status.active") }, { value: "missing", label: t("status.missing") }, { value: "resolved_externally", label: t("status.resolved_externally") }]} placeholder={t("filters.allSeverity")} />
+              <Select label={t("filters.technicalPresence")} value={state.presenceStatus} onChange={(event) => updateUrl({ presence_status: event.target.value })} options={[{ value: "active", label: t("status.active") }, { value: "missing", label: t("status.missing") }, { value: "resolved_externally", label: t("status.resolvedExternally") }]} placeholder={t("filters.allSeverity")} />
               <Input type="date" label={t("filters.archivedFrom")} value={state.archivedFrom} onChange={(event) => updateUrl({ archived_from: event.target.value })} />
               <Input type="date" label={t("filters.archivedTo")} value={state.archivedTo} onChange={(event) => updateUrl({ archived_to: event.target.value })} />
               <Select label={t("filters.archiveReason")} value={state.archiveReason} onChange={(event) => updateUrl({ archive_reason: event.target.value })} options={Object.entries(archiveReasonLabels).map(([value, label]) => ({ value, label }))} placeholder={t("filters.allStatuses")} />
