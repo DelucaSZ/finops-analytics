@@ -1,13 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Clock3 } from "lucide-react";
 import { ProviderBadge, Section, StatusIndicator } from "@/components/aven";
 import { Alert } from "@/components/ui";
-import { formatDate } from "@/lib/api";
 import {
   buildDashboardApiQuery,
   parseDashboardSearchParams,
@@ -57,6 +56,7 @@ function InsightLink({ href, children }: { href: string; children: ReactNode }) 
 
 function CollectionFailureRow({ item }: { item: CollectionFailure }) {
   const t = useTranslations("dashboard");
+  const format = useFormatter();
   const accountLabel = item.account_name || item.account_id;
   return (
     <article className={styles.item}>
@@ -71,12 +71,12 @@ function CollectionFailureRow({ item }: { item: CollectionFailure }) {
       </div>
       <div className={styles.itemCopy}>
         <strong>{accountLabel}</strong>
-        <span>{t("operational.failedAt", { date: formatDate(item.started_at) })}</span>
+        <span>{t("operational.failedAt", { date: format.dateTime(new Date(item.started_at), { dateStyle: "short", timeStyle: "short" }) })}</span>
         <p>{item.error_summary}</p>
         {item.newer_run?.status === "RUNNING" ? (
           <span className={styles.running}>
             <Clock3 {...iconDefaults} aria-hidden="true" />
-            {t("operational.newRun", { date: formatDate(item.newer_run.started_at) })}
+            {t("operational.newRun", { date: format.dateTime(new Date(item.newer_run.started_at), { dateStyle: "short", timeStyle: "short" }) })}
           </span>
         ) : null}
       </div>
