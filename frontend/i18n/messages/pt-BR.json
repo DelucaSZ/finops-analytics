@@ -831,16 +831,16 @@
       "lastCollection": "Última coleta AWS",
       "lastCoverage": "Último cálculo de cobertura",
       "status": {
-        "COMPLETED": "Concluído",
-        "RUNNING": "Em execução",
-        "FAILED": "Falhou",
-        "STALE": "Desatualizado",
-        "COMPLETED_WITH_WARNINGS": "Concluído com avisos",
-        "NEVER_EXECUTED": "Nunca executado"
+        "completed": "Concluído",
+        "running": "Em execução",
+        "failed": "Falhou",
+        "stale": "Desatualizado",
+        "completedWithWarnings": "Concluído com avisos",
+        "neverExecuted": "Nunca executado"
       },
       "fresh": {
-        "FRESH": "Atualizado",
-        "STALE": "Desatualizado"
+        "fresh": "Atualizado",
+        "stale": "Desatualizado"
       }
     },
     "coverage": {
@@ -958,12 +958,12 @@
   "opportunities": {
     "decision": {
       "reason": {
-        "FALSE_POSITIVE": "Falso positivo",
-        "OPERATIONAL_EXCEPTION": "Exceção operacional",
-        "ACCEPTABLE_COST": "Custo aceitável",
-        "RESOURCE_REQUIRED": "Recurso necessário",
-        "RISK_ACCEPTED": "Risco aceito",
-        "OTHER": "Outro"
+        "falsePositive": "Falso positivo",
+        "operationalException": "Exceção operacional",
+        "acceptableCost": "Custo aceitável",
+        "resourceRequired": "Recurso necessário",
+        "riskAccepted": "Risco aceito",
+        "other": "Outro"
       },
       "treatTitle": "Marcar como tratada",
       "treatHint": "Registre uma observação opcional sobre o tratamento realizado.",
@@ -997,9 +997,9 @@
       "unarchived": "Desarquivada",
       "reasonLabel": "Motivo:",
       "reason": {
-        "MANUAL": "Manual",
-        "RETENTION_POLICY": "Política de retenção",
-        "REAPPEARED": "Reaparecimento automático"
+        "manual": "Manual",
+        "retentionPolicy": "Política de retenção",
+        "reappeared": "Reaparecimento automático"
       },
       "autoUnarchive": "Desarquivada automaticamente porque a condição voltou a ser observada.",
       "manualUnarchive": "Desarquivada manualmente.",
@@ -1016,9 +1016,9 @@
       "error": "O histórico de presença técnica está temporariamente indisponível.",
       "loading": "Carregando histórico de presença…",
       "reason": {
-        "NOT_OBSERVED_IN_SUCCESSFUL_SCOPE": "Não observada em escopo coletado com sucesso",
-        "MISSING_THRESHOLD_REACHED": "Limite de ausências válidas atingido",
-        "OBSERVED_AGAIN": "Condição observada novamente"
+        "notObservedInSuccessfulScope": "Não observada em escopo coletado com sucesso",
+        "missingThresholdReached": "Limite de ausências válidas atingido",
+        "observedAgain": "Condição observada novamente"
       },
       "absences": "Ausências válidas: {count}",
       "threshold": "/ limite {count}",
@@ -1033,7 +1033,7 @@
       "rejected": "Rejeitada",
       "active": "Ativa",
       "missing": "Ausente",
-      "resolved_externally": "Resolvida externamente"
+      "resolvedExternally": "Resolvida externamente"
     },
     "severity": {
       "high": "Alta",
@@ -1087,24 +1087,32 @@
       "descriptionSelected": "{count, plural, one {# oportunidade selecionada será removida} other {# oportunidades selecionadas serão removidas}} do backlog sem alterar decisões humanas existentes.",
       "descriptionPeriod": "Revise a cobertura e a prévia antes de fechar o período operacional.",
       "descriptionFiltered": "Revise o escopo calculado pelo servidor antes de arquivar.",
-      "errors.preview": "Não foi possível gerar a prévia do arquivamento.",
-      "errors.opportunityMissing": "Oportunidade não informada.",
-      "errors.cycleMissing": "Ciclo histórico atual indisponível.",
-      "errors.archiveFailed": "Não foi possível arquivar as oportunidades.",
-      "success.one": "Oportunidade arquivada. O status humano e o histórico foram preservados.",
-      "success.bulk": "{count, plural, one {# oportunidade arquivada} other {# oportunidades arquivadas}}.{already, plural, =0 {} one { # já estava no Histórico.} other { # já estavam no Histórico.}}",
-      "success.period": "Período {period} fechado com {snapshots, plural, one {# snapshot} other {# snapshots}} e {archived, plural, one {# oportunidade arquivada} other {# oportunidades arquivadas}}.",
+      "errors": {
+        "preview": "Não foi possível gerar a prévia do arquivamento.",
+        "opportunityMissing": "Oportunidade não informada.",
+        "cycleMissing": "Ciclo histórico atual indisponível.",
+        "archiveFailed": "Não foi possível arquivar as oportunidades."
+      },
+      "success": {
+        "one": "Oportunidade arquivada. O status humano e o histórico foram preservados.",
+        "bulk": "{count, plural, one {# oportunidade arquivada} other {# oportunidades arquivadas}}.{already, plural, =0 {} one { # já estava no Histórico.} other { # já estavam no Histórico.}}",
+        "period": "Período {period} fechado com {snapshots, plural, one {# snapshot} other {# snapshots}} e {archived, plural, one {# oportunidade arquivada} other {# oportunidades arquivadas}}."
+      },
       "scopeAllTitle": "Escopo total",
       "scopeAllDescription": "Todas as oportunidades operacionais ativas do backlog correspondentes ao escopo serão arquivadas.",
-      "field.period": "Período",
-      "field.matched": "Correspondentes",
-      "field.toArchive": "Serão arquivadas",
-      "field.archived": "Já arquivadas",
-      "field.snapshots": "Snapshots a gerar",
-      "field.collections": "Coletas no período",
-      "field.failed": "Falhas finalizadas",
-      "aria.filters": "Filtros do arquivamento",
-      "aria.savings": "Economia potencial no escopo",
+      "field": {
+        "period": "Período",
+        "matched": "Correspondentes",
+        "toArchive": "Serão arquivadas",
+        "archived": "Já arquivadas",
+        "snapshots": "Snapshots a gerar",
+        "collections": "Coletas no período",
+        "failed": "Falhas finalizadas"
+      },
+      "aria": {
+        "filters": "Filtros do arquivamento",
+        "savings": "Economia potencial no escopo"
+      },
       "previewWarning": "O conjunto pode mudar entre a prévia e a execução; a resposta final usa a contagem efetivamente arquivada.",
       "emptyTitle": "Nenhuma oportunidade para arquivar",
       "emptyDescription": "Nenhuma oportunidade ativa corresponde aos filtros atuais.",
@@ -1223,24 +1231,24 @@
     },
     "filterOptions": {
       "archiveReason": {
-        "MANUAL": "Manual",
-        "RETENTION_POLICY": "Política de retenção"
+        "manual": "Manual",
+        "retentionPolicy": "Política de retenção"
       },
       "discovery": {
         "observed": "Observadas nesta coleta",
-        "first_seen": "Identificadas pela primeira vez nesta coleta",
-        "new_vs_previous": "Novas em relação à coleta anterior",
+        "firstSeen": "Identificadas pela primeira vez nesta coleta",
+        "newVsPrevious": "Novas em relação à coleta anterior",
         "reappeared": "Reapareceram nesta coleta",
         "continued": "Continuaram presentes"
       }
     },
     "sort": {
-      "last_seen_at": "Última detecção",
-      "first_seen_at": "Primeira detecção",
+      "lastSeenAt": "Última detecção",
+      "firstSeenAt": "Primeira detecção",
       "severity": "Severidade",
-      "estimated_savings": "Economia potencial",
-      "created_at": "Criação",
-      "archived_at": "Data de arquivamento",
+      "estimatedSavings": "Economia potencial",
+      "createdAt": "Criação",
+      "archivedAt": "Data de arquivamento",
       "lastObserved": "Última observação",
       "status": "Status humano"
     },
