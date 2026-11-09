@@ -15,11 +15,11 @@ test("opportunity detail renders backend-owned evidence and historical observati
 
   assert.match(detail, /latest_evidence/);
   assert.match(detail, /latest_observation/);
-  assert.match(detail, /Ver evidência desta coleta/);
-  assert.match(detail, /Voltar à evidência mais recente/);
-  assert.match(detail, /Histórico de decisões/);
+  assert.ok(detail.includes('t("detection.viewEvidence")'));
+  assert.ok(detail.includes('t("evidence.backToLatest")'));
+  assert.ok(detail.includes('t("history.title")'));
 
-  assert.match(evidence, /Por que o \{PRODUCT_NAME\} chegou nessa conclusão\?/);
+  assert.ok(evidence.includes('t("why", {product:PRODUCT_NAME})'));
   assert.match(evidence, /PRODUCT_NAME/);
   for (const key of ['t("why"', 't("unavailable"', 't("criterion"', 't("contributors"', 't("seeTechnical"']) assert.ok(evidence.includes(key));
   assert.doesNotMatch(evidence, /DeepOps/);
