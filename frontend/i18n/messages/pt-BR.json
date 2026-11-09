@@ -853,7 +853,8 @@
       "distribution": "Distribuição da cobertura",
       "chartDescription": "Workloads RDS atuais por status de cobertura calculado pelo backend.",
       "noWorkloads": "Nenhuma workload RDS neste escopo",
-      "noEligible": "Não há workloads elegíveis para os filtros atuais."
+      "noEligible": "Não há workloads elegíveis para os filtros atuais.",
+      "chartAria": "Distribuição da cobertura: {values}"
     },
     "capacity": {
       "title": "Capacidade reservada",
