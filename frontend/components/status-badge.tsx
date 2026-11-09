@@ -27,7 +27,7 @@ export function statusLabel(value: string): string {
   return labels[normalized] || value;
 }
 
-export function StatusBadge({ value }: { value: string }) {
+export function StatusBadge({ value, label }: { value: string; label?: string }) {
   const normalized = String(value || "").trim().toLowerCase();
   const kind = presenceStatuses.has(normalized)
     ? "presence"
@@ -40,7 +40,7 @@ export function StatusBadge({ value }: { value: string }) {
       data-status={normalized || "unknown"}
       data-status-kind={kind}
     >
-      {statusLabel(value)}
+      {label ?? statusLabel(value)}
     </span>
   );
 }
