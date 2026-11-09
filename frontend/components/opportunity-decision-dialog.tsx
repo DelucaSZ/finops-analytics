@@ -31,7 +31,14 @@ type Props = {
 
 export function OpportunityDecisionDialog({ action, count, saving, error, onClose, onSubmit }: Props) {
   const t = useTranslations("opportunities.decision");
-  const rejectionReasons = ["FALSE_POSITIVE","OPERATIONAL_EXCEPTION","ACCEPTABLE_COST","RESOURCE_REQUIRED","RISK_ACCEPTED","OTHER"].map(value => ({value, label: t(`reason.${({FALSE_POSITIVE:"falsePositive",OPERATIONAL_EXCEPTION:"operationalException",ACCEPTABLE_COST:"acceptableCost",RESOURCE_REQUIRED:"resourceRequired",RISK_ACCEPTED:"riskAccepted",OTHER:"other"} as Record<string,string>)[value]}`)}));
+  const rejectionReasons = [
+    { value: "FALSE_POSITIVE", label: t("reason.falsePositive") },
+    { value: "OPERATIONAL_EXCEPTION", label: t("reason.operationalException") },
+    { value: "ACCEPTABLE_COST", label: t("reason.acceptableCost") },
+    { value: "RESOURCE_REQUIRED", label: t("reason.resourceRequired") },
+    { value: "RISK_ACCEPTED", label: t("reason.riskAccepted") },
+    { value: "OTHER", label: t("reason.other") },
+  ];
   const copy = {
     treat:{title:t("treatTitle"), submit:t("treatTitle"), hint:t("treatHint")},
     reject:{title:t("rejectTitle"), submit:t("rejectButton"), hint:t("rejectHint")},
