@@ -346,5 +346,143 @@
       "displayed": "{count, plural, one {# displayed} other {# displayed}}",
       "truncated": "Showing {shown} of {total} accounts. Use Collections to see all."
     }
+  },
+  "billing": {
+    "title": "Usage & Costs",
+    "description": "Analyze AWS Cost Explorer costs by account, period, service, and methodology.",
+    "actions": {
+      "refresh": "Refresh",
+      "manageProfiles": "Manage profiles",
+      "restore": "Restore profile"
+    },
+    "sections": {
+      "accounts": "Accounts",
+      "accountsDescription": "Select one or more accounts explicitly. No cost query runs without a selection.",
+      "filters": "Filters",
+      "filtersDescription": "Refine period, profile, and methodology for the selected accounts.",
+      "summary": "Financial summary",
+      "summaryDescription": "Summary for the selected period.",
+      "costEvolution": "Cost evolution",
+      "costEvolutionDescription": "Track cost trends and composition over time.",
+      "costByService": "Cost by service",
+      "serviceDescription": "Detailed breakdown of services with the highest costs in the period.",
+      "costByAccount": "Cost by account",
+      "accountDescription": "Compare cost concentration across selected accounts."
+    },
+    "filters": {
+      "accounts": "AWS accounts",
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection",
+      "searchAccounts": "Search accounts",
+      "profile": "Profile",
+      "metric": "Metric",
+      "granularity": "Granularity",
+      "groupBy": "Group by",
+      "period": "Period",
+      "choosePeriod": "Choose a period",
+      "start": "Start date",
+      "end": "End date",
+      "clearDates": "Clear dates",
+      "more": "More filters",
+      "excludeTypes": "Exclude record types",
+      "current": "Current query:",
+      "noExclusions": "No exclusions",
+      "noExclusionsByType": "No excluded record types",
+      "awsAccount": "AWS account",
+      "account": "Account",
+      "service": "Service",
+      "selected": "{count, plural, one {# account selected} other {# accounts selected}}",
+      "query": "{count, plural, one {# account} other {# accounts}} · {period} · {granularity} · {grouping} · {metric} · {exclusions}",
+      "excluded": "Excludes {types}"
+    },
+    "metrics": {
+      "amortized": "Amortized cost",
+      "netAmortized": "Net amortized cost",
+      "unblended": "Unblended cost",
+      "period": "Period cost",
+      "periodCurrency": "Period cost · {currency}"
+    },
+    "granularity": {
+      "daily": "Daily",
+      "monthly": "Monthly"
+    },
+    "group": {
+      "none": "No grouping"
+    },
+    "periods": {
+      "thisMonth": "This month",
+      "previousMonth": "Previous month",
+      "last30Days": "Last 30 days",
+      "last3Months": "Last 3 months",
+      "last6Months": "Last 6 months",
+      "thisYear": "This year",
+      "custom": "Custom"
+    },
+    "profile": {
+      "applied": "Applied profile",
+      "temporary": "Query with temporary overrides",
+      "overridden": "Overridden",
+      "default": " · default"
+    },
+    "empty": {
+      "noAccounts": "No AWS accounts available",
+      "selectHint": "Select at least one account to query costs.",
+      "select": "Select one or more accounts",
+      "selectDescription": "Select at least one account to query costs. Cost Explorer is not queried without a selection.",
+      "noCost": "No costs found",
+      "noCostDescription": "No costs were returned for the selected period and filters.",
+      "noSeries": "No costs in this period",
+      "noSeriesDescription": "No cost data points for the selected filters.",
+      "noService": "No services with costs",
+      "noServiceDescription": "No services with costs were returned for this query.",
+      "noAccount": "No costs by account",
+      "noAccountDescription": "No account costs were returned for this query.",
+      "noSelected": "No accounts selected"
+    },
+    "errors": {
+      "bootstrapTitle": "Unable to initialize Billing",
+      "summaryTitle": "Unable to load financial summary",
+      "customTitle": "Incomplete custom period",
+      "customDescription": "Enter a valid date range without future dates.",
+      "accessDenied": "Configured credentials cannot query Billing for this scope.",
+      "costExplorerUnavailable": "AWS Cost Explorer is unavailable for this scope. Check account access settings.",
+      "invalidScope": "Selected accounts could not be queried under a valid Billing scope. No partial total was displayed.",
+      "throttled": "AWS temporarily rate-limited Billing queries. Try again later.",
+      "accountUnavailable": "One selected account is unavailable for AWS Billing.",
+      "invalidPeriod": "The selected period is invalid for a historical Cost Explorer query.",
+      "upstreamData": "Cost Explorer returned data that could not be interpreted safely.",
+      "upstream": "AWS did not respond to the Billing query as expected. Try again.",
+      "bootstrap": "Unable to initialize Billing.",
+      "summary": "Unable to load period cost.",
+      "previous": "Unable to load previous period.",
+      "timeseries": "Unable to load cost evolution.",
+      "service": "Unable to load costs by service.",
+      "account": "Unable to load costs by account.",
+      "generic": "Billing query failed."
+    },
+    "comparison": {
+      "loading": "Loading comparison with the previous period…",
+      "unavailable": "Comparison with the previous period unavailable.",
+      "sameCurrency": "No previous-period value in the same currency/unit.",
+      "newCost": "New cost compared with the previous period.",
+      "noVariation": "Change not applicable for this comparison.",
+      "trend": "Change vs previous period",
+      "range": "Comparison: {previous} → {current}",
+      "previous": "Previous: "
+    },
+    "breakdown": {
+      "share": "Share",
+      "amount": "Amount",
+      "state": "Status",
+      "top": "Top {shown} of {total}"
+    },
+    "status": {
+      "actual": "Actual",
+      "estimated": "Estimated",
+      "partial": "Partially estimated",
+      "forecast": "Forecast",
+      "includesForecast": "Includes forecast"
+    },
+    "disclaimer": "Displayed values come from AWS Cost Explorer, preserve the currency/unit returned by AWS, and may be delayed during processing. No currency conversion is performed. Forecast and estimated data are identified only when provided by the data contract."
   }
 }
