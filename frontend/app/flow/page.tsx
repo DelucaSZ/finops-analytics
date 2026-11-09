@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { ExternalLink, Plus, RotateCcw } from "lucide-react";
@@ -131,25 +132,15 @@ type FlowEntryPage = {
   total_pages: number;
 };
 
-const entryTypeLabels: Record<EntryType, string> = {
-  SAVING: "Saving",
-  REALLOCATION: "Realocação",
-  ADJUSTMENT: "Ajuste",
-};
+const entryTypeLabels = { SAVING: "types.saving", REALLOCATION: "types.reallocation", ADJUSTMENT: "types.adjustment" } as const satisfies Record<EntryType, string>;
 
-const basisLabels: Record<Periodicity, string> = {
-  MONTHLY: "Mensal / run-rate",
-  ONE_TIME: "Pontual",
-};
+const basisLabels = { MONTHLY: "types.monthlyBasis", ONE_TIME: "types.oneTime" } as const satisfies Record<Periodicity, string>;
 
 const periodOptions = [
-  { value: "this_month", label: "Este mês" },
-  { value: "previous_month", label: "Mês anterior" },
-  { value: "3m", label: "Últimos 3 meses" },
-  { value: "6m", label: "Últimos 6 meses" },
-  { value: "year", label: "Este ano" },
-  { value: "custom", label: "Personalizado" },
-];
+  { value: "this_month", label: "periods.thisMonth" }, { value: "previous_month", label: "periods.previousMonth" },
+  { value: "3m", label: "periods.last3" }, { value: "6m", label: "periods.last6" },
+  { value: "year", label: "periods.thisYear" }, { value: "custom", label: "periods.custom" },
+] as const;
 
 function localDateInput(date = new Date()): string {
   const offset = date.getTimezoneOffset();
@@ -185,13 +176,13 @@ function periodRange(preset: PeriodPreset, customFrom: string, customTo: string)
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
-function effectiveDate(value: string): string {
+function effectiveDate(value: string, locale: string): string {
   const [year, month, day] = value.slice(0, 10).split("-");
-  return year && month && day ? `${day}/${month}/${year}` : value;
+  return year && month && day ? new Intl.DateTimeFormat(locale, {year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Number(year),Number(month)-1,Number(day))) : value;
 }
 
-function createdAt(value: string): string {
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+function createdAt(value: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 function providerLabel(provider: string): string {
@@ -216,17 +207,16 @@ function Money({ amount, currency }: { amount: string | number; currency: string
     <CurrencyDisplay
       value={Number.isFinite(value) ? value : null}
       currency={currency}
-      locale="pt-BR"
       minimumFractionDigits={2}
       maximumFractionDigits={8}
     />
   );
 }
 
-function flowEntryStatus(entry: FlowEntry): { status: ProductStatus; label: string } {
-  if (entry.is_reversed) return { status: "warning", label: "Revertida" };
-  if (entry.is_reversal) return { status: "info", label: "Reversal" };
-  return { status: "success", label: "Registrada" };
+function flowEntryStatus(entry: FlowEntry): { status: ProductStatus; labelKey: "status.reversed" | "status.reversal" | "status.recorded" } {
+  if (entry.is_reversed) return { status: "warning", labelKey: "status.reversed" };
+  if (entry.is_reversal) return { status: "info", labelKey: "status.reversal" };
+  return { status: "success", labelKey: "status.recorded" };
 }
 
 function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
@@ -236,6 +226,8 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
   onClose: () => void;
   onSubmit: (payload: Record<string, unknown>) => Promise<void>;
 }) {
+  const t = useTranslations("flow");
+  const errorLabel = (key: string) => key === "create" ? t("errors.create") : key === "reverse" ? t("errors.reverse") : t("errors.analytics");
   const initialProvider = accounts.find((account) => account.enabled)?.provider || accounts[0]?.provider || "aws";
   const initialAccounts = accountsForProvider(accounts, initialProvider);
   const [entryType, setEntryType] = useState<EntryType>("SAVING");
@@ -263,10 +255,10 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
     event.preventDefault();
     setValidation("");
     const normalizedAmount = normalizePositiveDecimal(amount);
-    if (!cloudAccountId) return setValidation("Selecione uma conta para a movimentação.");
-    if (!normalizedAmount) return setValidation("Informe um valor positivo com até 8 casas decimais.");
-    if (!effective || effective > localDateInput()) return setValidation("A data efetiva não pode estar no futuro.");
-    if (description.trim().length < 3) return setValidation("Descreva o contexto da movimentação com pelo menos 3 caracteres.");
+    if (!cloudAccountId) return setValidation("validation.account");
+    if (!normalizedAmount) return setValidation("validation.amount");
+    if (!effective || effective > localDateInput()) return setValidation("validation.date");
+    if (description.trim().length < 3) return setValidation("validation.description");
     if (!requestId.current) requestId.current = crypto.randomUUID();
     await onSubmit({
       entry_type: entryType,
@@ -286,15 +278,15 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Nova movimentação</DialogTitle>
-          <DialogDescription>Registre um fato financeiro no ledger append-only.</DialogDescription>
+          <DialogTitle>{t("actions.new")}</DialogTitle>
+          <DialogDescription>{t("forms.newDescription")}</DialogDescription>
         </DialogHeader>
         <form className={styles.dialogForm} onSubmit={submit}>
           <Select
-            label="Tipo"
+            label={t("forms.type")}
             value={entryType}
             disabled={saving}
-            options={MANUAL_ENTRY_TYPES.map((type) => ({ value: type, label: entryTypeLabels[type as EntryType] }))}
+            options={MANUAL_ENTRY_TYPES.map((type) => ({ value: type, label: t(entryTypeLabels[type as EntryType]) }))}
             onChange={(event) => {
               const next = event.target.value as EntryType;
               setEntryType(next);
@@ -303,33 +295,33 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
           />
           {entryType === "ADJUSTMENT" ? (
             <Select
-              label="Direção"
+              label={t("forms.direction")}
               value={adjustmentDirection}
               disabled={saving}
-              options={[{ value: "CREDIT", label: "Crédito" }, { value: "DEBIT", label: "Débito" }]}
+              options={[{ value: "CREDIT", label: t("types.credit") }, { value: "DEBIT", label: t("types.debit") }]}
               onChange={(event) => setAdjustmentDirection(event.target.value as Direction)}
             />
           ) : (
-            <Input label="Direção" value={direction === "CREDIT" ? "Crédito" : "Débito"} readOnly />
+            <Input label={t("forms.direction")} value={direction === "CREDIT" ? t("types.credit") : t("types.debit")} readOnly />
           )}
           <Select
-            label="Provider"
+            label={t("forms.provider")}
             value={provider}
             disabled={saving}
             options={Array.from(new Set(accounts.map((account) => account.provider))).map((value) => ({ value, label: providerLabel(value) }))}
             onChange={(event) => changeProvider(event.target.value)}
           />
           <Select
-            label="Conta"
+            label={t("forms.account")}
             value={cloudAccountId}
             disabled={saving}
             required
-            placeholder="Selecione uma conta"
+            placeholder={t("forms.selectAccount")}
             options={visibleAccounts.map((account) => ({ value: String(account.id), label: accountLabel(account) }))}
             onChange={(event) => setCloudAccountId(event.target.value)}
           />
           <Input
-            label="Valor"
+            label={t("forms.amount")}
             value={amount}
             inputMode="decimal"
             autoComplete="off"
@@ -339,14 +331,14 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
             onChange={(event) => setAmount(event.target.value)}
           />
           <Select
-            label="Moeda"
+            label={t("forms.currency")}
             value={currency}
             disabled={saving}
-            options={[{ value: "BRL", label: "BRL — Real brasileiro" }, { value: "USD", label: "USD — Dólar americano" }]}
+            options={[{ value: "BRL", label: t("forms.brl") }, { value: "USD", label: t("forms.usd") }]}
             onChange={(event) => setCurrency(event.target.value as "BRL" | "USD")}
           />
           <Input
-            label="Data da movimentação"
+            label={t("forms.effectiveDate")}
             type="date"
             value={effective}
             max={localDateInput()}
@@ -356,27 +348,27 @@ function ManualEntryDialog({ accounts, saving, error, onClose, onSubmit }: {
           />
           {entryType === "SAVING" && (
             <Select
-              label="Periodicidade"
+              label={t("forms.periodicity")}
               value={periodicity}
               disabled={saving}
-              options={[{ value: "MONTHLY", label: "Mensal" }, { value: "ONE_TIME", label: "Pontual" }]}
+              options={[{ value: "MONTHLY", label: t("types.monthly") }, { value: "ONE_TIME", label: t("types.oneTime") }]}
               onChange={(event) => setPeriodicity(event.target.value as Periodicity)}
             />
           )}
           <Textarea
-            label="Descrição"
+            label={t("forms.description")}
             value={description}
             rows={4}
             maxLength={2000}
             disabled={saving}
             required
-            placeholder="Contexto para auditoria da movimentação"
+            placeholder={t("forms.descriptionPlaceholder")}
             onChange={(event) => setDescription(event.target.value)}
           />
-          {(validation || error) && <Alert variant="danger" description={validation || error} />}
+          {(validation || error) && <Alert variant="danger" description={validation ? t(validation as Parameters<typeof t>[0]) : errorLabel(error)} />}
           <DialogFooter className={styles.dialogActions}>
-            <Button variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button>
-            <Button type="submit" loading={saving} disabled={!visibleAccounts.length}>Registrar movimentação</Button>
+            <Button variant="secondary" disabled={saving} onClick={onClose}>{t("actions.cancel")}</Button>
+            <Button type="submit" loading={saving} disabled={!visibleAccounts.length}>{t("actions.submit")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -391,12 +383,14 @@ function ReversalDialog({ entry, saving, error, onClose, onSubmit }: {
   onClose: () => void;
   onSubmit: (reason: string) => Promise<void>;
 }) {
+  const t = useTranslations("flow");
+  const errorLabel = (key: string) => key === "create" ? t("errors.create") : key === "reverse" ? t("errors.reverse") : t("errors.analytics");
   const [reason, setReason] = useState("");
   const [validation, setValidation] = useState("");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (reason.trim().length < 3) return setValidation("Informe o motivo da reversão.");
+    if (reason.trim().length < 3) return setValidation("validation.reason");
     setValidation("");
     await onSubmit(reason.trim());
   }
@@ -405,13 +399,13 @@ function ReversalDialog({ entry, saving, error, onClose, onSubmit }: {
     <Dialog open onOpenChange={(open) => { if (!open && !saving) onClose(); }}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reverter movimentação</DialogTitle>
-          <DialogDescription>Uma nova entry oposta será criada; a original permanece no histórico.</DialogDescription>
+          <DialogTitle>{t("forms.reverseTitle")}</DialogTitle>
+          <DialogDescription>{t("forms.reverseDescription")}</DialogDescription>
         </DialogHeader>
         <form className={styles.dialogForm} onSubmit={submit}>
-          <p><strong>{entryTypeLabels[entry.logical_entry_type]}</strong> · <Money amount={entry.amount} currency={entry.currency} /></p>
+          <p><strong>{t(entryTypeLabels[entry.logical_entry_type])}</strong> · <Money amount={entry.amount} currency={entry.currency} /></p>
           <Textarea
-            label="Motivo da reversão"
+            label={t("forms.reverseReason")}
             value={reason}
             rows={4}
             maxLength={2000}
@@ -419,10 +413,10 @@ function ReversalDialog({ entry, saving, error, onClose, onSubmit }: {
             required
             onChange={(event) => setReason(event.target.value)}
           />
-          {(validation || error) && <Alert variant="danger" description={validation || error} />}
+          {(validation || error) && <Alert variant="danger" description={validation ? t(validation as Parameters<typeof t>[0]) : errorLabel(error)} />}
           <DialogFooter className={styles.dialogActions}>
-            <Button variant="secondary" disabled={saving} onClick={onClose}>Cancelar</Button>
-            <Button type="submit" loading={saving}>Confirmar reversão</Button>
+            <Button variant="secondary" disabled={saving} onClick={onClose}>{t("actions.cancel")}</Button>
+            <Button type="submit" loading={saving}>{t("actions.confirmReverse")}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -431,6 +425,7 @@ function ReversalDialog({ entry, saving, error, onClose, onSubmit }: {
 }
 
 function FlowChart({ points }: { points: TimeseriesPoint[] }) {
+  const t = useTranslations("flow");
   const width = 760;
   const height = 260;
   const pad = 34;
@@ -449,7 +444,7 @@ function FlowChart({ points }: { points: TimeseriesPoint[] }) {
 
   return (
     <div className={styles.chartScroll}>
-      <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label="Evolução temporal de savings, reutilizações e saldo acumulado">
+      <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("charts.aria")}>
         <line className={styles.chartAxis} x1={pad} y1={height - pad} x2={width - pad} y2={height - pad} />
         {points.map((point, index) => {
           const x = pad + index * step + step * 0.2;
@@ -459,7 +454,7 @@ function FlowChart({ points }: { points: TimeseriesPoint[] }) {
             <g key={`${point.bucket}-${index}`}>
               <rect className={styles.chartSaving} x={x} y={height - pad - savingHeight} width={Math.max(step * 0.22, 3)} height={savingHeight} />
               <rect className={styles.chartReallocated} x={x + step * 0.28} y={height - pad - reallocHeight} width={Math.max(step * 0.22, 3)} height={reallocHeight} />
-              <title>{`${point.bucket}: saving ${point.recognized_savings}; reutilização ${point.reallocated}; saldo ${point.cumulative_balance}`}</title>
+              <title>{t("charts.bucketTitle", {bucket:point.bucket,saving:point.recognized_savings,reallocation:point.reallocated,balance:point.cumulative_balance})}</title>
             </g>
           );
         })}
@@ -479,6 +474,9 @@ function DetailItem({ label, children }: { label: string; children: ReactNode })
 }
 
 export default function FlowPage() {
+  const t = useTranslations("flow");
+  const locale = useLocale();
+  const sourceName = (value: string) => value === "OPPORTUNITY" ? t("source.opportunity") : value === "MANUAL" ? t("source.manual") : value === "SYSTEM" ? t("source.system") : sourceLabel(value);
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [options, setOptions] = useState<FlowOptions>({ currencies: [], periodicities: [], providers: [], sources: [] });
   const [summary, setSummary] = useState<SummaryItem[]>([]);
@@ -586,7 +584,7 @@ export default function FlowPage() {
         setBreakdowns(nextBreakdowns);
       })
       .catch((error) => {
-        if (active) setAnalyticsError(error instanceof Error ? error.message : "Não foi possível carregar os indicadores do Fluxo.");
+        if (active) setAnalyticsError("analytics");
       })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
@@ -606,7 +604,7 @@ export default function FlowPage() {
     api<FlowEntryPage>(`/finops/flow/entries?${tableQuery}`)
       .then((value) => { if (active) setEntries(value); })
       .catch((error) => {
-        if (active) setTableError(error instanceof Error ? error.message : "Não foi possível carregar as movimentações.");
+        if (active) setTableError("entries");
       })
       .finally(() => { if (active) setTableLoading(false); });
     return () => { active = false; };
@@ -619,11 +617,11 @@ export default function FlowPage() {
     try {
       await api<FlowEntry>("/finops/ledger/manual", { method: "POST", body: JSON.stringify(payload) });
       setCreateOpen(false);
-      setSuccess("Movimentação registrada no Fluxo FinOps.");
+      setSuccess("created");
       setReloadToken((value) => value + 1);
       setPage(1);
     } catch (error) {
-      setMutationError(error instanceof Error ? error.message : "Não foi possível registrar a movimentação.");
+      setMutationError("create");
     } finally {
       setCreating(false);
     }
@@ -641,10 +639,10 @@ export default function FlowPage() {
       });
       setReverseTarget(null);
       setDetail(null);
-      setSuccess("Reversão registrada. A movimentação original foi preservada.");
+      setSuccess("reversed");
       setReloadToken((value) => value + 1);
     } catch (error) {
-      setMutationError(error instanceof Error ? error.message : "Não foi possível reverter a movimentação.");
+      setMutationError("reverse");
     } finally {
       setReversing(false);
     }
@@ -668,9 +666,9 @@ export default function FlowPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Fluxo"
-        description="Savings reconhecidos, reutilizações e ajustes registrados no ledger. Fluxo não representa custo faturado pela cloud."
-        metadata="FinOps Flow · ledger append-only"
+        title={t("title")}
+        description={t("description")}
+        metadata={t("metadata")}
         actions={(
           <Button
             disabled={!accounts.length}
@@ -681,92 +679,92 @@ export default function FlowPage() {
               setCreateOpen(true);
             }}
           >
-            Nova movimentação
+            {t("actions.new")}
           </Button>
         )}
       />
 
-      {success && <Alert variant="success" title="Movimentação atualizada" description={success} />}
+      {success && <Alert variant="success" title={t("success.title")} description={success === "created" ? t("success.created") : t("success.reversed")} />}
 
-      <Section title="Contexto e filtros" description="O recorte altera somente as consultas do Flow; nenhuma mudança de tema ou layout dispara mutações.">
+      <Section title={t("filters.title")} description={t("filters.description")}>
         <FilterBar>
           <Select
-            label="Período"
+            label={t("filters.period")}
             value={period}
-            options={periodOptions}
+            options={periodOptions.map((item) => ({ value: item.value, label: t(item.label) }))}
             onChange={(event) => setPeriod(event.target.value as PeriodPreset)}
           />
           <Select
-            label="Provider"
+            label={t("forms.provider")}
             value={provider}
-            options={[{ value: "all", label: "Todos" }, ...options.providers.map((value) => ({ value, label: providerLabel(value) }))]}
+            options={[{ value: "all", label: t("filters.all") }, ...options.providers.map((value) => ({ value, label: providerLabel(value) }))]}
             onChange={(event) => setProvider(event.target.value)}
           />
           <Select
-            label="Conta"
+            label={t("forms.account")}
             value={accountId}
-            options={[{ value: "all", label: "Todas as contas" }, ...visibleAccounts.map((account) => ({ value: account.native_account_id, label: accountLabel(account) }))]}
+            options={[{ value: "all", label: t("filters.allAccounts") }, ...visibleAccounts.map((account) => ({ value: account.native_account_id, label: accountLabel(account) }))]}
             onChange={(event) => setAccountId(event.target.value)}
           />
           <Select
-            label="Moeda"
+            label={t("forms.currency")}
             value={currency}
-            options={[{ value: "all", label: "Todas (sem consolidar)" }, ...options.currencies.map((value) => ({ value, label: value }))]}
+            options={[{ value: "all", label: t("filters.allCurrencies") }, ...options.currencies.map((value) => ({ value, label: value }))]}
             onChange={(event) => setCurrency(event.target.value)}
           />
           <Select
-            label="Base financeira"
+            label={t("filters.financialBasis")}
             value={periodicity}
-            options={[{ value: "all", label: "Todas (separadas)" }, ...options.periodicities.map((value) => ({ value, label: basisLabels[value as Periodicity] || value }))]}
+            options={[{ value: "all", label: t("filters.allBases") }, ...options.periodicities.map((value) => ({ value, label: t(basisLabels[value as Periodicity]) || value }))]}
             onChange={(event) => setPeriodicity(event.target.value)}
           />
           <Select
-            label="Origem"
+            label={t("filters.origin")}
             value={source}
-            options={[{ value: "all", label: "Todas" }, ...options.sources.map((value) => ({ value, label: sourceLabel(value) }))]}
+            options={[{ value: "all", label: "Todas" }, ...options.sources.map((value) => ({ value, label: sourceName(value) }))]}
             onChange={(event) => setSource(event.target.value)}
           />
         </FilterBar>
         {period === "custom" && (
           <div className={styles.filterDates}>
-            <Input label="De" type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
-            <Input label="Até" type="date" value={customTo} max={localDateInput()} onChange={(event) => setCustomTo(event.target.value)} />
+            <Input label={t("filters.from")} type="date" value={customFrom} onChange={(event) => setCustomFrom(event.target.value)} />
+            <Input label={t("filters.to")} type="date" value={customTo} max={localDateInput()} onChange={(event) => setCustomTo(event.target.value)} />
           </div>
         )}
       </Section>
 
       {analyticsError && (
-        <Alert variant="danger" title="Indicadores indisponíveis" description={analyticsError} />
+        <Alert variant="danger" title={t("errors.analyticsTitle")} description={t("errors.analytics")} />
       )}
 
-      <Section title="Resumo financeiro" description="Cada moeda e base financeira permanece separada; nenhum total entre moedas é inventado.">
+      <Section title={t("sections.summary")} description={t("sections.summaryDescription")}>
         <DataState
           loading={loading}
           empty={!loading && !analyticsError && summary.length === 0}
-          emptyTitle="Nenhuma movimentação registrada no período"
-          emptyDescription="O Flow só apresenta fatos financeiros existentes no ledger."
-          emptyAction={<Button leadingIcon={<Plus {...iconDefaults} />} onClick={() => setCreateOpen(true)}>Nova movimentação</Button>}
+          emptyTitle={t("empty.summary")}
+          emptyDescription={t("empty.summaryDescription")}
+          emptyAction={<Button leadingIcon={<Plus {...iconDefaults} />} onClick={() => setCreateOpen(true)}>{t("actions.new")}</Button>}
         >
           <div className={styles.metricGroups}>
             {summary.map((item) => (
               <div className={styles.metricGroup} key={`${item.currency}-${item.basis}`}>
-                <h3 className={styles.metricGroupHeading}>{item.currency} · {basisLabels[item.basis]}</h3>
+                <h3 className={styles.metricGroupHeading}>{item.currency} · {t(basisLabels[item.basis])}</h3>
                 <div className={styles.metricGrid}>
                   <MetricCard
-                    label="Savings reconhecidos"
-                    value={<><Money amount={item.recognized_savings} currency={item.currency} />{item.basis === "MONTHLY" ? "/mês" : ""}</>}
+                    label={t("metrics.savings")}
+                    value={<><Money amount={item.recognized_savings} currency={item.currency} />{item.basis === "MONTHLY" ? t("metrics.monthSuffix") : ""}</>}
                   />
                   <MetricCard
-                    label="Reutilizado"
-                    value={<><Money amount={item.reallocated} currency={item.currency} />{item.basis === "MONTHLY" ? "/mês" : ""}</>}
+                    label={t("metrics.reallocated")}
+                    value={<><Money amount={item.reallocated} currency={item.currency} />{item.basis === "MONTHLY" ? t("metrics.monthSuffix") : ""}</>}
                   />
                   <MetricCard
-                    label="Ajustes líquidos"
-                    value={<><Money amount={item.adjustment_net} currency={item.currency} />{item.basis === "MONTHLY" ? "/mês" : ""}</>}
+                    label={t("metrics.adjustments")}
+                    value={<><Money amount={item.adjustment_net} currency={item.currency} />{item.basis === "MONTHLY" ? t("metrics.monthSuffix") : ""}</>}
                   />
                   <MetricCard
-                    label={item.basis === "MONTHLY" ? "Saldo líquido de run-rate" : "Saldo FinOps disponível"}
-                    value={<><Money amount={item.balance} currency={item.currency} />{item.basis === "MONTHLY" ? "/mês" : ""}</>}
+                    label={item.basis === "MONTHLY" ? t("metrics.runRateBalance") : t("metrics.balance")}
+                    value={<><Money amount={item.balance} currency={item.currency} />{item.basis === "MONTHLY" ? t("metrics.monthSuffix") : ""}</>}
                   />
                 </div>
               </div>
@@ -776,34 +774,34 @@ export default function FlowPage() {
       </Section>
 
       <ChartCard
-        title="Evolução temporal"
-        description="Valores agregados no backend por moeda e base financeira; o saldo acumulado inclui o saldo anterior ao período."
+        title={t("sections.evolution")}
+        description={t("sections.evolutionDescription")}
         loading={loading}
-        error={analyticsError || undefined}
+        error={analyticsError ? t("errors.analytics") : undefined}
         empty={!loading && !analyticsError && activeSeries.length === 0}
-        emptyTitle="Sem dados para o gráfico"
-        emptyDescription="Não há série temporal no recorte selecionado."
+        emptyTitle={t("empty.chart")}
+        emptyDescription={t("empty.chartDescription")}
         legend={(
           <div className={styles.chartLegend}>
-            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendSaving}`} aria-hidden="true" />Savings</span>
-            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendReallocated}`} aria-hidden="true" />Reutilizações</span>
-            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendBalance}`} aria-hidden="true" />Saldo acumulado</span>
+            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendSaving}`} aria-hidden="true" />{t("charts.savings")}</span>
+            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendReallocated}`} aria-hidden="true" />{t("charts.reallocations")}</span>
+            <span className={styles.chartLegendItem}><span className={`${styles.legendSwatch} ${styles.legendBalance}`} aria-hidden="true" />{t("charts.balance")}</span>
           </div>
         )}
         actions={(
           <div className={styles.tableActions}>
             <Select
-              label="Moeda do gráfico"
+              label={t("filters.chartCurrency")}
               value={effectiveChartCurrency}
               disabled={currency !== "all"}
               options={options.currencies.map((value) => ({ value, label: value }))}
               onChange={(event) => setChartCurrency(event.target.value)}
             />
             <Select
-              label="Base"
+              label={t("filters.basis")}
               value={effectiveChartBasis}
               disabled={periodicity !== "all"}
-              options={options.periodicities.map((value) => ({ value, label: basisLabels[value as Periodicity] || value }))}
+              options={options.periodicities.map((value) => ({ value, label: t(basisLabels[value as Periodicity]) || value }))}
               onChange={(event) => setChartBasis(event.target.value as Periodicity)}
             />
           </div>
@@ -813,13 +811,13 @@ export default function FlowPage() {
       </ChartCard>
 
       <div className={styles.breakdownGrid}>
-        <Section appearance="card" title="Savings reconhecidos por conta">
+        <Section appearance="card" title={t("sections.byAccount")}>
           <DataState
             loading={loading}
             error={analyticsError || undefined}
             empty={!loading && !analyticsError && accountBreakdown.length === 0}
-            emptyTitle="Nenhum saving por conta"
-            emptyDescription="Nenhum saving reconhecido para este recorte."
+            emptyTitle={t("empty.byAccount")}
+            emptyDescription={t("empty.byDescription")}
           >
             <div className={styles.breakdownList}>
               {accountBreakdown.map((item) => {
@@ -839,18 +837,18 @@ export default function FlowPage() {
             </div>
           </DataState>
         </Section>
-        <Section appearance="card" title="Savings reconhecidos por origem">
+        <Section appearance="card" title={t("sections.bySource")}>
           <DataState
             loading={loading}
             error={analyticsError || undefined}
             empty={!loading && !analyticsError && sourceBreakdown.length === 0}
-            emptyTitle="Nenhum saving por origem"
-            emptyDescription="Nenhum saving reconhecido para este recorte."
+            emptyTitle={t("empty.bySource")}
+            emptyDescription={t("empty.byDescription")}
           >
             <div className={styles.breakdownList}>
               {sourceBreakdown.map((item) => (
                 <div className={styles.breakdownLine} key={`${item.currency}-${item.basis}-${item.source}`}>
-                  <span className={styles.breakdownName}>{sourceLabel(item.source || "")}</span>
+                  <span className={styles.breakdownName}>{sourceName(item.source || "")}</span>
                   <strong className={styles.breakdownValue}><Money amount={item.recognized_savings} currency={item.currency} /></strong>
                 </div>
               ))}
@@ -861,18 +859,18 @@ export default function FlowPage() {
 
       <Section
         appearance="card"
-        title="Movimentações"
-        description={`${entries.total} movimentação(ões) no escopo. Reversões permanecem visíveis.`}
+        title={t("sections.entries")}
+        description={t("sections.entryCount", {count:entries.total})}
         actions={(
           <div className={styles.tableActions}>
             <Select
-              label="Tipo"
+              label={t("forms.type")}
               value={entryType}
               options={[
-                { value: "all", label: "Todos" },
-                { value: "SAVING", label: "Saving" },
-                { value: "REALLOCATION", label: "Realocação" },
-                { value: "ADJUSTMENT", label: "Ajuste" },
+                { value: "all", label: t("filters.all") },
+                { value: "SAVING", label: t("types.saving") },
+                { value: "REALLOCATION", label: t("types.reallocation") },
+                { value: "ADJUSTMENT", label: t("types.adjustment") },
               ]}
               onChange={(event) => {
                 setEntryType(event.target.value);
@@ -880,9 +878,9 @@ export default function FlowPage() {
               }}
             />
             <Input
-              label="Busca"
+              label={t("filters.search")}
               value={search}
-              placeholder="Descrição, recurso ou oportunidade"
+              placeholder={t("filters.searchPlaceholder")}
               onChange={(event) => {
                 setSearch(event.target.value);
                 setPage(1);
@@ -893,24 +891,24 @@ export default function FlowPage() {
       >
         <DataState
           loading={tableLoading}
-          error={tableError || undefined}
+          error={tableError ? t("errors.entries") : undefined}
           empty={!tableLoading && !tableError && entries.items.length === 0}
-          emptyTitle="Nenhuma movimentação encontrada"
-          emptyDescription="Ajuste os filtros ou registre uma movimentação real no ledger."
+          emptyTitle={t("empty.entries")}
+          emptyDescription={t("empty.entriesDescription")}
         >
           <Table aria-label="Movimentações do Fluxo FinOps">
             <TableHeader>
               <TableRow staticRow>
-                <TableHead>Data</TableHead>
-                <TableHead>Tipo</TableHead>
-                <TableHead>Descrição</TableHead>
-                <TableHead>Provider</TableHead>
-                <TableHead>Conta</TableHead>
-                <TableHead>Origem</TableHead>
-                <TableHead numeric>Valor</TableHead>
-                <TableHead>Periodicidade</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                <TableHead>{t("headers.date")}</TableHead>
+                <TableHead>{t("forms.type")}</TableHead>
+                <TableHead>{t("forms.description")}</TableHead>
+                <TableHead>{t("forms.provider")}</TableHead>
+                <TableHead>{t("forms.account")}</TableHead>
+                <TableHead>{t("filters.origin")}</TableHead>
+                <TableHead numeric>{t("forms.amount")}</TableHead>
+                <TableHead>{t("forms.periodicity")}</TableHead>
+                <TableHead>{t("headers.status")}</TableHead>
+                <TableHead>{t("headers.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -918,8 +916,8 @@ export default function FlowPage() {
                 const status = flowEntryStatus(entry);
                 return (
                   <TableRow key={entry.id}>
-                    <TableCell>{effectiveDate(entry.effective_at)}</TableCell>
-                    <TableCell>{entryTypeLabels[entry.logical_entry_type]}</TableCell>
+                    <TableCell>{effectiveDate(entry.effective_at, locale)}</TableCell>
+                    <TableCell>{t(entryTypeLabels[entry.logical_entry_type])}</TableCell>
                     <TableCell>{entry.description || "—"}</TableCell>
                     <TableCell><ProviderBadge provider={entry.provider} /></TableCell>
                     <TableCell>
@@ -927,21 +925,21 @@ export default function FlowPage() {
                       <span className={styles.movementSecondary}>{entry.account_id}</span>
                     </TableCell>
                     <TableCell>
-                      <span className={styles.movementPrimary}>{sourceLabel(entry.logical_source)}</span>
-                      {entry.is_reversal && <span className={styles.movementSecondary}>Reversal do ledger</span>}
+                      <span className={styles.movementPrimary}>{sourceName(entry.logical_source)}</span>
+                      {entry.is_reversal && <span className={styles.movementSecondary}>{t("table.reversal")}</span>}
                     </TableCell>
                     <TableCell numeric>
                       <span className={styles.movementPrimary}>{entry.direction === "CREDIT" ? "+ " : "− "}<Money amount={entry.amount} currency={entry.currency} /></span>
                       <span className={styles.movementSecondary}>{entry.currency}</span>
                     </TableCell>
-                    <TableCell>{basisLabels[entry.periodicity]}</TableCell>
-                    <TableCell><StatusIndicator status={status.status} label={status.label} /></TableCell>
+                    <TableCell>{t(basisLabels[entry.periodicity])}</TableCell>
+                    <TableCell><StatusIndicator status={status.status} label={t(status.labelKey)} /></TableCell>
                     <TableCell>
                       <div className={styles.tableActions}>
-                        <Button size="sm" variant="ghost" onClick={() => setDetail(entry)}>Detalhes</Button>
+                        <Button size="sm" variant="ghost" onClick={() => setDetail(entry)}>{t("actions.details")}</Button>
                         {entry.opportunity_id && (
                           <Link className={styles.actionLink} href={`/opportunities?opportunity_id=${encodeURIComponent(entry.opportunity_id)}`}>
-                            <ExternalLink {...iconDefaults} /> Ver oportunidade
+                            <ExternalLink {...iconDefaults} /> {t("actions.viewOpportunity")}
                           </Link>
                         )}
                         {!entry.is_reversed && !entry.is_reversal && (
@@ -954,7 +952,7 @@ export default function FlowPage() {
                               setReverseTarget(entry);
                             }}
                           >
-                            Reverter
+                            {t("actions.reverse")}
                           </Button>
                         )}
                       </div>
@@ -974,40 +972,40 @@ export default function FlowPage() {
         <Dialog open onOpenChange={(open) => { if (!open) setDetail(null); }}>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Detalhes da movimentação</DialogTitle>
-              <DialogDescription>Registro persistido no ledger FinOps.</DialogDescription>
+              <DialogTitle>{t("details.title")}</DialogTitle>
+              <DialogDescription>{t("details.description")}</DialogDescription>
             </DialogHeader>
             <dl className={styles.detailGrid}>
-              <DetailItem label="Tipo">{entryTypeLabels[detail.logical_entry_type]}</DetailItem>
-              <DetailItem label="Direção">{detail.direction === "CREDIT" ? "Crédito" : "Débito"}</DetailItem>
-              <DetailItem label="Valor"><Money amount={detail.amount} currency={detail.currency} /></DetailItem>
+              <DetailItem label={t("forms.type")}>{t(entryTypeLabels[detail.logical_entry_type])}</DetailItem>
+              <DetailItem label={t("forms.direction")}>{detail.direction === "CREDIT" ? t("types.credit") : t("types.debit")}</DetailItem>
+              <DetailItem label={t("forms.amount")}><Money amount={detail.amount} currency={detail.currency} /></DetailItem>
               <DetailItem label="Currency">{detail.currency}</DetailItem>
-              <DetailItem label="Provider"><ProviderBadge provider={detail.provider} /></DetailItem>
-              <DetailItem label="Conta">{detail.account_name || detail.account_id}</DetailItem>
-              <DetailItem label="Data efetiva">{effectiveDate(detail.effective_at)}</DetailItem>
-              <DetailItem label="Criado em">{createdAt(detail.created_at)}</DetailItem>
-              <DetailItem label="Origem">{sourceLabel(detail.logical_source)}</DetailItem>
-              <DetailItem label="Criado por">{detail.created_by_name || detail.created_by || "Sistema"}</DetailItem>
-              <DetailItem label="Periodicidade">{basisLabels[detail.periodicity]}</DetailItem>
-              <DetailItem label="Status"><StatusIndicator status={flowEntryStatus(detail).status} label={flowEntryStatus(detail).label} /></DetailItem>
-              <DetailItem label="Descrição">{detail.description || "—"}</DetailItem>
-              {detail.reversal_of_id && <DetailItem label="Original">{detail.reversal_of_id}</DetailItem>}
-              {detail.reversed_by_id && <DetailItem label="Reversal">{detail.reversed_by_id}</DetailItem>}
+              <DetailItem label={t("forms.provider")}><ProviderBadge provider={detail.provider} /></DetailItem>
+              <DetailItem label={t("forms.account")}>{detail.account_name || detail.account_id}</DetailItem>
+              <DetailItem label={t("headers.effective")}>{effectiveDate(detail.effective_at, locale)}</DetailItem>
+              <DetailItem label={t("headers.createdAt")}>{createdAt(detail.created_at, locale)}</DetailItem>
+              <DetailItem label={t("filters.origin")}>{sourceName(detail.logical_source)}</DetailItem>
+              <DetailItem label={t("headers.createdBy")}>{detail.created_by_name || detail.created_by || t("source.system")}</DetailItem>
+              <DetailItem label={t("forms.periodicity")}>{t(basisLabels[detail.periodicity])}</DetailItem>
+              <DetailItem label={t("headers.status")}><StatusIndicator status={flowEntryStatus(detail).status} label={t(flowEntryStatus(detail).labelKey)} /></DetailItem>
+              <DetailItem label={t("forms.description")}>{detail.description || "—"}</DetailItem>
+              {detail.reversal_of_id && <DetailItem label={t("headers.original")}>{detail.reversal_of_id}</DetailItem>}
+              {detail.reversed_by_id && <DetailItem label={t("status.reversal")}>{detail.reversed_by_id}</DetailItem>}
             </dl>
             {detail.opportunity_id && (
-              <Section title="Oportunidade associada">
+              <Section title={t("details.associated")}>
                 <div className={styles.detailStack}>
                   <span>{detail.opportunity_title || detail.opportunity_id}</span>
-                  <span className={styles.secondaryText}>Service: {detail.opportunity_service || "Não informado"}</span>
-                  <span className={styles.secondaryText}>Treatment event: {detail.source_event_id || "—"}</span>
+                  <span className={styles.secondaryText}>{t("details.service", {service:detail.opportunity_service || t("details.notInformed")})}</span>
+                  <span className={styles.secondaryText}>{t("details.treatment", {event:detail.source_event_id || "—"})}</span>
                   <Link className={styles.actionLink} href={`/opportunities?opportunity_id=${encodeURIComponent(detail.opportunity_id)}`}>
-                    <ExternalLink {...iconDefaults} /> Ver oportunidade associada
+                    <ExternalLink {...iconDefaults} /> {t("actions.viewRelated")}
                   </Link>
                 </div>
               </Section>
             )}
             <DialogFooter className={styles.detailActions}>
-              <Button variant="secondary" onClick={() => setDetail(null)}>Fechar</Button>
+              <Button variant="secondary" onClick={() => setDetail(null)}>{t("actions.close")}</Button>
               {!detail.is_reversed && !detail.is_reversal && (
                 <Button
                   variant="danger"
@@ -1017,7 +1015,7 @@ export default function FlowPage() {
                     setReverseTarget(detail);
                   }}
                 >
-                  Reverter
+                  {t("actions.reverse")}
                 </Button>
               )}
             </DialogFooter>
