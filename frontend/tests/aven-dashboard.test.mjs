@@ -57,15 +57,15 @@ test("Dashboard keeps currencies separate and uses CurrencyDisplay metadata", ()
   assert.match(source, /totals\.map\(\(total\) =>/);
   assert.match(source, /<CurrencyDisplay[\s\S]*currency=\{total\.currency\}/);
   assert.match(source, /currencyDisplay="code"/);
-  assert.match(source, /Moedas permanecem separadas; nenhum câmbio é inferido/);
+  assert.match(source, /t\("metrics\.currenciesSeparate"\)/);
   assert.doesNotMatch(source, /totals\.reduce\(/);
 });
 
 test("Dashboard analytical visualization uses real service distribution instead of fabricating cost history", () => {
   const source = dashboardSource();
-  assert.match(source, /title="Concentração por serviço"/);
+  assert.match(source, /title=\{t\("charts\.serviceConcentration"\)\}/);
   assert.match(source, /summary\.by_service\.map/);
-  assert.match(source, /Quantidade de oportunidades em aberto por serviço/);
+  assert.match(source, /t\("charts\.serviceDescription"\)/);
   assert.doesNotMatch(source, /cost evolution|Evolução de custos/i);
 });
 
@@ -101,7 +101,7 @@ test("Dashboard standardizes loading, empty and error presentation", () => {
   assert.match(source, /<ChartCard[\s\S]*loading=\{summaryLoading\}/);
   assert.match(source, /<DataState[\s\S]*emptyTitle=\{t\("empty\.noValidScope"\)\}/);
   assert.match(source, /errorFallback=/);
-  assert.match(source, /Tentar novamente/);
+  assert.match(source, /t\("actions\.retry"\)/);
 });
 
 test("Dashboard responsive composition degrades from four columns to one through layout contracts", () => {
