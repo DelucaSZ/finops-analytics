@@ -253,27 +253,27 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
 
             {detail ? (
               <>
-                <section className={styles.overview} aria-label=t("overviewAria")>
+                <section className={styles.overview} aria-label={t("overviewAria")}>
                   <div className={styles.statusLine}>
                     <ProviderBadge provider={detail.provider} />
                     <StatusIndicator status={statusTone(detail.status)} label={statusLabel(detail.status)} />
                     <StatusIndicator status={statusTone(detail.presence_status)} label={statusLabel(detail.presence_status)} />
                     <StatusIndicator status={severityTone(detail.severity)} label={t("impact",{value:severityLabel(detail.severity)})} />
                     {detail.confidence ? <StatusIndicator status={confidenceTone(detail.confidence)} label={t("confidence",{value:severityLabel(detail.confidence)})} /> : null}
-                    {detail.archived ? <StatusIndicator status="neutral" label=t("archived") /> : null}
-                    {detail.needs_review ? <StatusIndicator status="warning" label=t("detectedAgain") /> : null}
+                    {detail.archived ? <StatusIndicator status="neutral" label={t("archived")} /> : null}
+                    {detail.needs_review ? <StatusIndicator status="warning" label={t("detectedAgain")} /> : null}
                   </div>
 
                   <ResourceIdentifier
                     primary={detail.resource_name || detail.resource_id}
                     technicalId={detail.resource_name ? detail.resource_id : undefined}
                     copyValue={detail.resource_id}
-                    copyLabel=t("copyResource")
-                    copiedLabel=t("copiedResource")
+                    copyLabel={t("copyResource")}
+                    copiedLabel={t("copiedResource")}
                   />
 
                   {detail.status === "rejected" && detail.archived && detail.presence_status === "active" ? (
-                    <Alert variant="warning" title=t("rejectedActiveTitle") description=t("rejectedActiveDescription") />
+                    <Alert variant="warning" title={t("rejectedActiveTitle")} description={t("rejectedActiveDescription")} />
                   ) : null}
 
                   <dl className={styles.detailGrid}>
@@ -337,7 +337,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     <div><h3 id="detection-history-title">{t("detection.title")}</h3><p>{t("detection.description")}</p></div>
                     {observations ? <span className={styles.secondary}>{t("detection.retained",{details:observations.retained_total,occurrences:observations.total_occurrence_count})}</span> : null}
                   </div>
-                  {observations && !observations.history_complete ? <Alert variant="warning" title=t("detection.partialTitle") description={t("detection.partialDescription",{days:observations.retention_days})} /> : null}
+                  {observations && !observations.history_complete ? <Alert variant="warning" title={t("detection.partialTitle")} description={t("detection.partialDescription",{days:observations.retention_days})} /> : null}
                   {observationRequest.isLoading ? <Skeleton /> : observations?.items.length ? (
                     <div className={styles.historyList}>
                       {observations.items.map((item) => (
@@ -463,7 +463,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                   : t("actions.unarchiveDescription")}
               </DialogDescription>
             </DialogHeader>
-            {actionError ? <Alert variant="danger" title=t("actions.restoreError") description={actionError} /> : null}
+            {actionError ? <Alert variant="danger" title={t("actions.restoreError")} description={actionError} /> : null}
             <DialogFooter>
               <Button variant="secondary" disabled={unarchiveSaving} onClick={() => setRestoreOpen(false)}>{t("actions.cancel")}</Button>
               <Button variant="primary" loading={unarchiveSaving} onClick={() => void restoreArchivedCurrent()}>{detail.status === "rejected" ? t("actions.reopen") : t("actions.unarchive")}</Button>
