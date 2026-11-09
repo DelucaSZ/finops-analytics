@@ -24,10 +24,10 @@ test("Billing moves the custom period controls into the FilterBar secondary row"
   const filterStart = page.indexOf('<FilterBar');
   const filterEnd = page.indexOf('</FilterBar>', filterStart);
   const filterSource = page.slice(filterStart, filterEnd);
-  const profileIndex = filterSource.indexOf('label="Perfil"');
-  const metricIndex = filterSource.indexOf('label="Métrica"');
-  const granularityIndex = filterSource.indexOf('label="Granularidade"');
-  const groupingIndex = filterSource.indexOf('label="Agrupamento"');
+  const profileIndex = filterSource.indexOf('label={t("filters.profile")}');
+  const metricIndex = filterSource.indexOf('label={t("filters.metric")}');
+  const granularityIndex = filterSource.indexOf('label={t("filters.granularity")}');
+  const groupingIndex = filterSource.indexOf('label={t("filters.groupBy")}');
 
   assert.ok(profileIndex >= 0);
   assert.ok(profileIndex < metricIndex);
