@@ -896,7 +896,7 @@ export default function FlowPage() {
           emptyTitle={t("empty.entries")}
           emptyDescription={t("empty.entriesDescription")}
         >
-          <Table aria-label="Movimentações do Fluxo FinOps">
+          <Table aria-label={t("table.aria")}>
             <TableHeader>
               <TableRow staticRow>
                 <TableHead>{t("headers.date")}</TableHead>
