@@ -21,11 +21,8 @@ test("opportunity detail renders backend-owned evidence and historical observati
 
   assert.match(evidence, /Por que o \{PRODUCT_NAME\} chegou nessa conclusão\?/);
   assert.match(evidence, /PRODUCT_NAME/);
+  for (const key of ['t("why"', 't("unavailable"', 't("criterion"', 't("contributors"', 't("seeTechnical"']) assert.ok(evidence.includes(key));
   assert.doesNotMatch(evidence, /DeepOps/);
-  assert.match(evidence, /Detalhes adicionais não disponíveis para esta análise/);
-  assert.match(evidence, /Critério aplicado nesta coleta/);
-  assert.match(evidence, /Principais responsáveis pelo crescimento/);
-  assert.match(evidence, /Ver evidência técnica/);
   assert.doesNotMatch(evidence, /findingExplanation/);
   assert.doesNotMatch(evidence, /JSON\.stringify/);
 
