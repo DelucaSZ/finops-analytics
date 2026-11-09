@@ -29,7 +29,7 @@ type ArchiveHistoryPage = {
 
 export function OpportunityArchiveHistory({ opportunityId }: { opportunityId: string }) {
   const t = useTranslations("opportunities.archiveHistory");
-  const reasonLabels: Record<string,string> = { MANUAL:t("reason.MANUAL"), RETENTION_POLICY:t("reason.RETENTION_POLICY"), REAPPEARED:t("reason.REAPPEARED") };
+  const reasonLabels: Record<string,string> = { MANUAL:t("reason.manual"), RETENTION_POLICY:t("reason.retentionPolicy"), REAPPEARED:t("reason.reappeared") };
   const eventDescription = (item: ArchiveHistoryEntry) => {
     if (item.action === "UNARCHIVE" && item.reason === "REAPPEARED") return t("autoUnarchive");
     if (item.action === "UNARCHIVE") return t("manualUnarchive");
