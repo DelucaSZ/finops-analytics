@@ -1526,6 +1526,46 @@
         "periodTo": "até",
         "timezone": "timezone"
       }
+    },
+    "collection": {
+      "eyebrow": "OPORTUNIDADES · INVESTIGAÇÃO DE COLETA",
+      "description": "Visão histórica/técnica baseada nas OpportunityObservations da CollectionRun, sem forçar status atual ou estado de arquivamento.",
+      "backCollection": "Voltar à coleta",
+      "openBacklog": "Abrir backlog atual",
+      "filtersAria": "Filtro aplicado",
+      "collection": "Coleta:",
+      "classification": "Classificação:",
+      "account": "Conta:",
+      "notice": "Esta investigação pode incluir oportunidades atualmente tratadas, rejeitadas ou arquivadas. O estado operacional não é alterado.",
+      "error": "Não foi possível carregar este subconjunto da coleta.",
+      "retry": "Tentar novamente",
+      "loading": "Carregando oportunidades…",
+      "noBaseline": "Sem coleta anterior comparável; esta classificação não é calculada para a primeira coleta.",
+      "retentionExpired": "Os detalhes por oportunidade necessários para esta investigação expiraram pela política de retenção.",
+      "targetFailed": "A coleta não foi concluída com sucesso; comparações relativas não são tratadas como resultado definitivo.",
+      "count": "{count, plural, one {# oportunidade} other {# oportunidades}}",
+      "baseline": "Baseline:",
+      "table": {
+        "opportunity": "Oportunidade",
+        "cloudAccount": "Cloud / conta",
+        "serviceRegion": "Serviço / região",
+        "currentStatus": "Status atual",
+        "firstLast": "Primeira / última detecção",
+        "archived": "Arquivada",
+        "global": "Global"
+      },
+      "empty": "Nenhuma oportunidade corresponde a esta classificação.",
+      "page": "Página {page} de {total}",
+      "previous": "Anterior",
+      "next": "Próxima",
+      "discovery": {
+        "observed": "Observadas nesta coleta",
+        "firstSeen": "Identificadas pela primeira vez nesta coleta",
+        "newVsPrevious": "Novas em relação à coleta anterior",
+        "reappeared": "Reapareceram nesta coleta",
+        "continued": "Continuaram presentes",
+        "noLongerDetected": "Não detectadas nesta coleta"
+      }
     }
   }
 }
