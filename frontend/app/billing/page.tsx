@@ -315,6 +315,7 @@ export default function BillingPage() {
       case "errors.upstreamData": return t("errors.upstreamData");
       case "errors.upstream": return t("errors.upstream");
       case "errors.bootstrap": return t("errors.bootstrap");
+      case "errors.noEnabledProfile": return t("errors.noEnabledProfile");
       case "errors.summary": return t("errors.summary");
       case "errors.previous": return t("errors.previous");
       case "errors.timeseries": return t("errors.timeseries");
@@ -400,7 +401,7 @@ export default function BillingPage() {
       provider: account.provider,
       searchTerms: [account.native_account_id || "", account.name || ""],
     })),
-    [accounts],
+    [accounts, t],
   );
 
   useEffect(() => {
