@@ -44,7 +44,7 @@ type PresenceHistoryPage = {
 export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: string }) {
   const t = useTranslations("opportunities.presenceHistory");
   const status = useTranslations("opportunities.status");
-  const reasonLabels: Record<PresenceReason,string> = {NOT_OBSERVED_IN_SUCCESSFUL_SCOPE:t("reason.NOT_OBSERVED_IN_SUCCESSFUL_SCOPE"),MISSING_THRESHOLD_REACHED:t("reason.MISSING_THRESHOLD_REACHED"),OBSERVED_AGAIN:t("reason.OBSERVED_AGAIN")};
+  const reasonLabels: Record<PresenceReason,string> = {NOT_OBSERVED_IN_SUCCESSFUL_SCOPE:t("reason.notObservedInSuccessfulScope"),MISSING_THRESHOLD_REACHED:t("reason.missingThresholdReached"),OBSERVED_AGAIN:t("reason.observedAgain")};
   const request = useApiQuery<PresenceHistoryPage>({
     key: ["opportunities", "presence-history", opportunityId, { page: 1, page_size: 50 }],
     path: `/opportunities/${opportunityId}/presence-history?page=1&page_size=50`,
@@ -83,8 +83,8 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
               <div>
                 <strong>{formatDate(item.occurred_at)}</strong>
                 <p>
-                  <StatusBadge value={item.from_status} label={status(item.from_status)} /> <span aria-hidden="true">→</span>{" "}
-                  <StatusBadge value={item.to_status} label={status(item.to_status)} />
+                  <StatusBadge value={item.from_status} label={status(item.from_status === "resolved_externally" ? "resolvedExternally" : item.from_status)} /> <span aria-hidden="true">→</span>{" "}
+                  <StatusBadge value={item.to_status} label={status(item.to_status === "resolved_externally" ? "resolvedExternally" : item.to_status)} />
                 </p>
                 <span>{reasonLabels[item.reason]}</span>
                 <span>
