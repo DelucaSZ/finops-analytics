@@ -93,19 +93,19 @@ test("set comparison, top N and query signature are deterministic", () => {
 test("Billing page contract keeps AWS Cost Explorer semantics and common backend datasets", async () => {
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8").catch(() => "");
   if (!page) return;
-  assert.ok(page.includes('title="Uso e custos"'));
+  assert.ok(page.includes('title={t("title")}'));
   assert.ok(page.includes('<ProviderBadge provider="aws"'));
   assert.ok(page.includes("getAwsBillingSummary"));
   assert.ok(page.includes("getAwsBillingTimeSeries"));
   assert.ok(page.includes("getAwsBillingBreakdown"));
-  assert.ok(page.includes('selectAllLabel="Selecionar todas"'));
-  assert.ok(page.includes("Restaurar perfil"));
-  assert.ok(page.includes("Custo do período"));
-  assert.ok(page.includes("Evolução de custos"));
-  assert.ok(page.includes("Custo por serviço"));
-  assert.ok(page.includes("Custo por conta"));
-  assert.ok(page.includes("billingStatusLabel(total.status)"));
-  assert.ok(page.includes("Nenhuma conversão cambial é realizada"));
+  assert.ok(page.includes('selectAllLabel={t("filters.selectAll")}'));
+  assert.ok(page.includes('t("actions.restore")'));
+  assert.ok(page.includes('t("metrics.period")'));
+  assert.ok(page.includes('t("sections.costEvolution")'));
+  assert.ok(page.includes('t("sections.costByService")'));
+  assert.ok(page.includes('t("sections.costByAccount")'));
+  assert.ok(page.includes('t(billingStatusKey(total.status))'));
+  assert.ok(page.includes('t("disclaimer")'));
   assert.ok(!page.includes("OCI Billing"));
   assert.ok(!page.includes("GetCostForecast"));
 });
