@@ -50,7 +50,7 @@ test("Opportunity rows keep realistic OCI and AWS identifiers wired to full-valu
 
   assert.match(page, /technicalId=\{finding\.resource_name \? finding\.resource_id : undefined\}/);
   assert.match(page, /copyValue=\{finding\.resource_id\}/);
-  assert.match(page, /aria-label=\{`Selecionar \$\{finding\.title\} · \$\{finding\.resource_id\}`\}/);
+  assert.match(page, /t\("table\.selectResource",\{title:finding\.title,resource:finding\.resource_id\}\)/);
   assert.match(page, /toggleSelection\(finding\.id\)/);
   assert.match(resourceIdentifier, /return `\$\{normalized\.slice\(0, COMPACT_IDENTIFIER_PREFIX\)\}…\$\{normalized\.slice\(-COMPACT_IDENTIFIER_SUFFIX\)\}`/);
   assert.match(resourceIdentifier, /tabIndex=\{primaryIsCompacted \? 0 : undefined\}/);
@@ -91,11 +91,11 @@ test("Opportunity technical detail retains full cloud identifiers with wrapping 
   const detail = source("components/opportunity-detail.tsx");
   const detailStyles = source("components/opportunity-detail.module.css");
 
-  assert.match(detail, /<dt>ID do recurso<\/dt>/);
+  assert.match(detail, /<dt>\{t\("technical\.resourceId"\)\}<\/dt>/);
   assert.match(detail, /<code>\{detail\.resource_id\}<\/code>/);
-  assert.match(detail, /<dt>ID da conta<\/dt>/);
+  assert.match(detail, /<dt>\{t\("technical\.accountId"\)\}<\/dt>/);
   assert.match(detail, /providerMetadataEntries\.map/);
-  assert.match(detail, /copiedTechnicalKey === copyKey \? "Copiado" : "Copiar"/);
+  assert.match(detail, /copiedTechnicalKey === copyKey \? t\("technical\.copied"\) : t\("technical\.copy"\)/);
   assert.match(detailStyles, /overflow-wrap:\s*anywhere/);
   assert.match(detailStyles, /word-break:\s*break-word/);
   assert.match(detailStyles, /container-type:\s*inline-size/);
