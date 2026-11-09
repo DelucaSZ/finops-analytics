@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { Suspense, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
@@ -55,13 +56,16 @@ type RunOpportunityPage = {
 
 export default function CollectionOpportunitiesPage() {
   return (
-    <Suspense fallback={<p role="status">Carregando oportunidades…</p>}>
+    <Suspense fallback={<p role="status">{t("loading")}</p>}>
       <CollectionOpportunitiesContent />
     </Suspense>
   );
 }
 
 function CollectionOpportunitiesContent() {
+  const t = useTranslations("opportunities.collection");
+  const statusT = useTranslations("opportunities.status");
+  const decisionLabel = (value:string) => value === "resolved_externally" ? statusT("resolvedExternally") : ["open","treated","rejected","active","missing"].includes(value) ? statusT(value as "open" | "treated" | "rejected" | "active" | "missing") : value;
   const { collectionId } = useParams<{ collectionId: string }>();
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -91,7 +95,8 @@ function CollectionOpportunitiesContent() {
     keepPreviousData: true,
   });
   const data = request.data;
-  const label = COLLECTION_DISCOVERY_LABELS[discoveryType] || discoveryType;
+  const discoveryLabels: Record<string,string> = { observed:t("discovery.observed"),first_seen:t("discovery.firstSeen"),new_vs_previous:t("discovery.newVsPrevious"),reappeared:t("discovery.reappeared"),continued:t("discovery.continued"),no_longer_detected:t("discovery.noLongerDetected") };
+  const label = discoveryLabels[discoveryType] || COLLECTION_DISCOVERY_LABELS[discoveryType] || discoveryType;
 
   function changePage(next: number) {
     const params = new URLSearchParams(searchParams.toString());
@@ -105,13 +110,13 @@ function CollectionOpportunitiesContent() {
   return (
     <>
       <PageHeader
-        eyebrow="OPORTUNIDADES · INVESTIGAÇÃO DE COLETA"
+        eyebrow={t("eyebrow")}
         title={label}
-        description="Visão histórica/técnica baseada nas OpportunityObservations da CollectionRun, sem forçar status atual ou estado de arquivamento."
+        description={t("description")}
       />
       <div className="collection-toolbar">
         <Link className="button ghost" href={`/collections/${encodeURIComponent(collectionId)}`}>
-          ← Voltar à coleta
+          ← {t("backCollection")}
         </Link>
         <Link className="button ghost" href="/opportunities">
           Abrir backlog atual
@@ -119,58 +124,54 @@ function CollectionOpportunitiesContent() {
       </div>
 
       <section className="panel" aria-busy={request.isLoading || request.isFetching}>
-        <div className="active-filter-summary" aria-label="Filtro aplicado">
-          <span>Coleta: {collectionId.slice(0, 8)}</span>
-          <span>Classificação: {label}</span>
+        <div className="active-filter-summary" aria-label={t("filtersAria")}>
+          <span>{t("collection")} {collectionId.slice(0, 8)}</span>
+          <span>{t("classification")} {label}</span>
           {provider && <span>Cloud: {providerLabel(provider)}</span>}
-          {accountId && <span>Conta: {formatAccountLabel(null, accountId)}</span>}
+          {accountId && <span>{t("account")} {formatAccountLabel(null, accountId)}</span>}
         </div>
         <p className="collection-note">
-          Esta investigação pode incluir oportunidades atualmente tratadas, rejeitadas ou
-          arquivadas. O estado operacional não é alterado.
+          {t("notice")}
         </p>
 
         {request.error && (
           <div className="alert error" role="alert">
-            Não foi possível carregar este subconjunto da coleta.
+            {t("error")}
             <button className="button ghost" onClick={() => void request.refetch()}>
-              Tentar novamente
+              {t("retry")}
             </button>
           </div>
         )}
         {(request.isLoading || request.isFetching) && (
-          <p role="status">Carregando oportunidades…</p>
+          <p role="status">{t("loading")}</p>
         )}
         {data?.reason === "NO_BASELINE" &&
           discoveryType !== "observed" &&
           discoveryType !== "first_seen" && (
             <div className="alert" role="status">
-              Sem coleta anterior comparável; esta classificação não é calculada para a
-              primeira coleta.
+              {t("noBaseline")}
             </div>
           )}
         {(data?.reason === "TARGET_OBSERVATIONS_EXPIRED" ||
           data?.reason === "BASELINE_OBSERVATIONS_EXPIRED") && (
           <div className="alert" role="status">
-            Os detalhes por oportunidade necessários para esta investigação expiraram pela
-            política de retenção.
+            {t("retentionExpired")}
           </div>
         )}
         {data?.reason === "TARGET_NOT_SUCCESSFUL" &&
           discoveryType !== "observed" &&
           discoveryType !== "first_seen" && (
             <div className="alert" role="status">
-              A coleta não foi concluída com sucesso; comparações relativas não são tratadas
-              como resultado definitivo.
+              {t("targetFailed")}
             </div>
           )}
 
         {data && (
           <div className="panel-heading collection-toolbar">
-            <h2>{formatNumber(data.total)} oportunidade(s)</h2>
+            <h2>{t("count",{count:data.total})}</h2>
             {data.baseline_run_id && (
               <span>
-                Baseline: <code>{data.baseline_run_id.slice(0, 8)}</code>
+                {t("baseline")} <code>{data.baseline_run_id.slice(0, 8)}</code>
               </span>
             )}
           </div>
@@ -181,11 +182,11 @@ function CollectionOpportunitiesContent() {
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Oportunidade</th>
-                  <th>Cloud / conta</th>
-                  <th>Serviço / região</th>
-                  <th>Status atual</th>
-                  <th>Primeira / última detecção</th>
+                  <th>{t("table.opportunity")}</th>
+                  <th>{t("table.cloudAccount")}</th>
+                  <th>{t("table.serviceRegion")}</th>
+                  <th>{t("table.currentStatus")}</th>
+                  <th>{t("table.firstLast")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -207,11 +208,11 @@ function CollectionOpportunitiesContent() {
                     </td>
                     <td>
                       {item.service}
-                      <span>{item.region || "Global"}</span>
+                      <span>{item.region || t("table.global")}</span>
                     </td>
                     <td>
-                      {item.status}
-                      {item.archived_at ? <span>Arquivada</span> : null}
+                      {decisionLabel(item.status)}
+                      {item.archived_at ? <span>{t("table.archived")}</span> : null}
                     </td>
                     <td>
                       {formatDate(item.first_seen_at)}
@@ -224,12 +225,12 @@ function CollectionOpportunitiesContent() {
           </div>
         )}
         {data && !request.isLoading && data.items.length === 0 && !data.reason && (
-          <div className="empty-table">Nenhuma oportunidade corresponde a esta classificação.</div>
+          <div className="empty-table">{t("empty")}</div>
         )}
         {data && (
           <div className="collection-toolbar collection-pagination">
             <span>
-              Página {data.page} de {data.total_pages || 1}
+              {t("page",{page:data.page,total:data.total_pages || 1})}
             </span>
             <button
               className="button ghost"
