@@ -1,4 +1,5 @@
 import { formatDate } from "@/lib/api";
+import { useLocale, useTranslations } from "next-intl";
 import { PRODUCT_NAME } from "@/lib/brand";
 import type {
   EvidenceCriterion,
@@ -12,68 +13,56 @@ type Props = {
   collectionRunId?: string | null;
 };
 
-const unitLabels: Record<string, string> = {
-  days: "dias",
-  volumes: "volumes",
-  requests: "requisições",
-  connections: "conexões",
-  datapoints: "amostras",
-  associations: "associações",
-  tags: "tags",
+type EvidencePresentation = {
+  locale: string;
+  notRecorded: string;
+  yes: string;
+  no: string;
+  none: string;
+  observedUnavailable: string;
+  perMonth: string;
+  units: Record<string,string>;
 };
 
-function displayScalar(value: unknown): string {
-  if (value === null || value === undefined) return "Não registrado";
-  if (typeof value === "boolean") return value ? "Sim" : "Não";
-  if (typeof value === "number") {
-    return value.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
-  }
+function displayScalar(value: unknown, labels: EvidencePresentation): string {
+  if (value === null || value === undefined) return labels.notRecorded;
+  if (typeof value === "boolean") return value ? labels.yes : labels.no;
+  if (typeof value === "number") return value.toLocaleString(labels.locale, {maximumFractionDigits:2});
   return String(value);
 }
 
-function formatValue(value: unknown, unit?: string | null): string {
-  if (value === null || value === undefined) return "Não registrado";
+function formatValue(value: unknown, unit: string | null | undefined, labels: EvidencePresentation): string {
+  if (value === null || value === undefined) return labels.notRecorded;
   const normalizedUnit = unit || "";
   const currencyMatch = normalizedUnit.match(/^([A-Z]{3})(?:_MONTH)?$/);
   if (currencyMatch && typeof value === "number") {
-    const formatted = new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: currencyMatch[1],
-      maximumFractionDigits: 2,
-    }).format(value);
-    return normalizedUnit.endsWith("_MONTH") ? `${formatted}/mês` : formatted;
+    const formatted = new Intl.NumberFormat(labels.locale, {style:"currency",currency:currencyMatch[1],maximumFractionDigits:2}).format(value);
+    return normalizedUnit.endsWith("_MONTH") ? formatted + labels.perMonth : formatted;
   }
-  const rendered = displayScalar(value);
+  const rendered = displayScalar(value, labels);
   if (!normalizedUnit) return rendered;
-  if (normalizedUnit === "%") return `${rendered}%`;
-  return `${rendered} ${unitLabels[normalizedUnit] || normalizedUnit}`;
+  if (normalizedUnit === "%") return rendered + "%";
+  return rendered + " " + (labels.units[normalizedUnit] || normalizedUnit);
 }
 
-function displayTechnical(value: unknown): string {
-  if (value === null || value === undefined) return "Não registrado";
-  if (Array.isArray(value)) {
-    if (!value.length) return "Nenhum";
-    return value.map((item) => displayTechnical(item)).join(" · ");
-  }
+function displayTechnical(value: unknown, labels: EvidencePresentation): string {
+  if (value === null || value === undefined) return labels.notRecorded;
+  if (Array.isArray(value)) return value.length ? value.map(item=>displayTechnical(item,labels)).join(" · ") : labels.none;
   if (typeof value === "object") {
     const entries = Object.entries(value as Record<string, unknown>);
-    if (!entries.length) return "Nenhum";
-    return entries.map(([key, item]) => `${key}: ${displayTechnical(item)}`).join(" · ");
+    return entries.length ? entries.map(([key,item])=>key+": "+displayTechnical(item,labels)).join(" · ") : labels.none;
   }
-  return displayScalar(value);
+  return displayScalar(value,labels);
 }
 
-function metricValue(metric: EvidenceMetric) {
-  return formatValue(metric.value, metric.unit);
+function metricValue(metric: EvidenceMetric, labels: EvidencePresentation) {
+  return formatValue(metric.value,metric.unit,labels);
 }
 
-function criterionText(criterion: EvidenceCriterion) {
-  const observed =
-    criterion.observed_value === null
-      ? "valor observado não disponível"
-      : formatValue(criterion.observed_value, criterion.unit);
-  const threshold = formatValue(criterion.threshold_value, criterion.unit);
-  return `${observed} ${criterion.operator} ${threshold}`;
+function criterionText(criterion: EvidenceCriterion, labels: EvidencePresentation) {
+  const observed = criterion.observed_value === null ? labels.observedUnavailable : formatValue(criterion.observed_value,criterion.unit,labels);
+  const threshold = formatValue(criterion.threshold_value,criterion.unit,labels);
+  return observed+" "+criterion.operator+" "+threshold;
 }
 
 export function FindingEvidence({
@@ -81,21 +70,27 @@ export function FindingEvidence({
   observedAt = null,
   collectionRunId = null,
 }: Props) {
+  const t = useTranslations("opportunities.evidence");
+  const locale = useLocale();
+  const labels: EvidencePresentation = {
+    locale, notRecorded:t("notRecorded"), yes:t("yes"), no:t("no"), none:t("none"), observedUnavailable:t("observedUnavailable"), perMonth:t("perMonth"),
+    units:{days:t("unit.days"),volumes:t("unit.volumes"),requests:t("unit.requests"),connections:t("unit.connections"),datapoints:t("unit.datapoints"),associations:t("unit.associations"),tags:t("unit.tags")}
+  };
   if (!evidence) {
     return (
-      <section className="finding-evidence" aria-label="Explicação da oportunidade">
-        <h3>Por que o {PRODUCT_NAME} chegou nessa conclusão?</h3>
-        <p>Detalhes adicionais não disponíveis para esta análise.</p>
+      <section className="finding-evidence" aria-label={t("aria")}>
+        <h3>{t("why", {product:PRODUCT_NAME})}</h3>
+        <p>{t("unavailable")}</p>
       </section>
     );
   }
 
   return (
-    <section className="finding-evidence" aria-label="Explicação da oportunidade">
+    <section className="finding-evidence" aria-label={t("aria")}>
       <div className="evidence-heading">
         <div>
-          <h3>Por que o {PRODUCT_NAME} chegou nessa conclusão?</h3>
-          {observedAt && <span>Evidência observada em {formatDate(observedAt)}</span>}
+          <h3>{t("why", {product:PRODUCT_NAME})}</h3>
+          {observedAt && <span>{t("observedAt", {date:formatDate(observedAt)})}</span>}
         </div>
         <span className="evidence-rule-name">{evidence.rule.name}</span>
       </div>
@@ -104,17 +99,17 @@ export function FindingEvidence({
       <p className="evidence-rule-description">{evidence.rule.description}</p>
 
       {evidence.metrics.length > 0 && (
-        <div className="evidence-metrics" aria-label="Métricas principais">
+        <div className="evidence-metrics" aria-label={t("metricsAria")}>
           {evidence.metrics.map((metric) => (
             <div key={metric.key} className="evidence-metric">
               <span>{metric.label}</span>
-              <strong>{metricValue(metric)}</strong>
+              <strong>{metricValue(metric,labels)}</strong>
               {metric.kind !== "observed" && (
                 <small>
                   {metric.kind === "estimate"
-                    ? "estimativa"
+                    ? t("estimate")
                     : metric.kind === "projection"
-                      ? "projeção"
+                      ? t("projection")
                       : metric.kind}
                 </small>
               )}
@@ -125,12 +120,12 @@ export function FindingEvidence({
 
       {evidence.criteria.length > 0 && (
         <div className="evidence-block">
-          <h4>Critério aplicado nesta coleta</h4>
+          <h4>{t("criterion")}</h4>
           <dl className="evidence-facts">
             {evidence.criteria.map((criterion) => (
               <div key={criterion.key}>
                 <dt>{criterion.label}</dt>
-                <dd>{criterionText(criterion)}</dd>
+                <dd>{criterionText(criterion,labels)}</dd>
               </div>
             ))}
           </dl>
@@ -139,29 +134,29 @@ export function FindingEvidence({
 
       {evidence.contributors.length > 0 && (
         <div className="evidence-block evidence-contributors">
-          <h4>Principais responsáveis pelo crescimento</h4>
+          <h4>{t("contributors")}</h4>
           <div
             className="data-table-wrap"
             role="region"
-            aria-label="Principais contribuições para a variação"
+            aria-label={t("contributorsAria")}
             tabIndex={0}
           >
             <table className="contributors-table">
               <thead>
                 <tr>
-                  <th scope="col">Contribuidor</th>
-                  <th scope="col">Anterior</th>
-                  <th scope="col">Atual</th>
-                  <th scope="col">Variação</th>
+                  <th scope="col">{t("contributor")}</th>
+                  <th scope="col">{t("previous")}</th>
+                  <th scope="col">{t("current")}</th>
+                  <th scope="col">{t("delta")}</th>
                 </tr>
               </thead>
               <tbody>
                 {evidence.contributors.map((item) => (
                   <tr key={item.key}>
                     <th scope="row">{item.label}</th>
-                    <td>{formatValue(item.previous_value, item.unit)}</td>
-                    <td>{formatValue(item.current_value, item.unit)}</td>
-                    <td>+{formatValue(item.delta, item.unit)}</td>
+                    <td>{formatValue(item.previous_value, item.unit, labels)}</td>
+                    <td>{formatValue(item.current_value, item.unit, labels)}</td>
+                    <td>+{formatValue(item.delta, item.unit, labels)}</td>
                   </tr>
                 ))}
               </tbody>
@@ -179,32 +174,32 @@ export function FindingEvidence({
       )}
 
       <details className="evidence-technical">
-        <summary>Ver evidência técnica</summary>
+        <summary>{t("seeTechnical")}</summary>
         <div className="evidence-columns">
           <div>
-            <h4>Detalhes observados</h4>
+            <h4>{t("observedDetails")}</h4>
             <dl className="evidence-facts">
               {Object.entries(evidence.details).map(([key, value]) => (
                 <div key={key}>
                   <dt>{key}</dt>
-                  <dd>{displayTechnical(value)}</dd>
+                  <dd>{displayTechnical(value,labels)}</dd>
                 </div>
               ))}
             </dl>
           </div>
           <div>
-            <h4>Parâmetros usados</h4>
+            <h4>{t("parameters")}</h4>
             {Object.keys(evidence.parameters).length ? (
               <dl className="evidence-facts">
                 {Object.entries(evidence.parameters).map(([key, value]) => (
                   <div key={key}>
                     <dt>{key}</dt>
-                    <dd>{displayTechnical(value)}</dd>
+                    <dd>{displayTechnical(value,labels)}</dd>
                   </div>
                 ))}
               </dl>
             ) : (
-              <p>Parâmetros históricos adicionais não disponíveis.</p>
+              <p>{t("historicalUnavailable")}</p>
             )}
           </div>
         </div>
@@ -216,8 +211,8 @@ export function FindingEvidence({
       </details>
 
       <p className="evidence-source">
-        Fonte: {evidence.source}
-        {evidence.evaluated_at ? ` · Avaliado em ${formatDate(evidence.evaluated_at)}` : ""}
+        {t("source")} {evidence.source}
+        {evidence.evaluated_at ? ` · ${t("evaluatedAt", {date:formatDate(evidence.evaluated_at)})}` : ""}
       </p>
     </section>
   );
