@@ -211,7 +211,7 @@ function CoverageSummary({ summary, loading }: { summary?: RdsReservationsSummar
     <ChartCard title={t("coverage.distribution")} description={t("coverage.chartDescription")} loading={loading} empty={!loading && total === 0} emptyTitle={t("coverage.noWorkloads")} emptyDescription={t("coverage.noEligible")} legend={(
       <div className={styles.legend}>{groups.map(([label, value, tone]) => <span className={styles.legendItem} key={label}><span className={`${styles.dot} ${tone}`} aria-hidden="true" />{label}<strong>{value}</strong></span>)}</div>
     )}>
-      <div className={styles.distribution} role="img" aria-label={`Coverage distribution: ${groups.map(([label, value]) => `${label} ${value}`).join(", ")}`}>
+      <div className={styles.distribution} role="img" aria-label={t("coverage.chartAria",{values:groups.map(([label, value]) => `${label} ${value}`).join(", ")})}>
         {groups.map(([label, value, tone]) => value > 0 ? <span key={label} className={`${styles.segment} ${tone}`} style={{ inlineSize: `${(value / total) * 100}%` }} title={`${label}: ${value}`} /> : null)}
       </div>
     </ChartCard>
@@ -283,7 +283,7 @@ function ReservationsTable({ page, loading, error, expiring = false }: { page?: 
   return (
     <Table>
       <TableHeader><TableRow staticRow><TableHead>{t("table.reservation")}</TableHead><TableHead>{t("table.technologyClass")}</TableHead><TableHead>{t("table.accountRegion")}</TableHead><TableHead numeric>{t("table.quantity")}</TableHead><TableHead numeric>{t("table.utilization")}</TableHead><TableHead>{t("table.expiration")}</TableHead><TableHead>{t("table.status")}</TableHead></TableRow></TableHeader>
-      {hasState ? <TableState loading={loading} error={error} empty={!loading && !error && items.length === 0} emptyTitle={expiring ? "No reservations expire in the selected window" : "No active reservations found"} emptyDescription={expiring ? "No reservation matches the current expiration window and filters." : "No active Reserved DB Instances match the current filters."} colSpan={7} /> : (
+      {hasState ? <TableState loading={loading} error={error} empty={!loading && !error && items.length === 0} emptyTitle={expiring ? t("table.noExpiring") : t("table.noReservations")} emptyDescription={expiring ? t("table.noExpiringDescription") : t("table.noReservationsDescription")} colSpan={7} /> : (
         <TableBody>{items.map((item) => { const expiration = expirationState(item); return <TableRow key={item.reservation_id}><TableCell><ResourceIdentifier primary={item.reservation} copyValue={item.reservation} /></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric>{item.quantity}</TableCell><TableCell numeric><PercentageDisplay value={item.utilization_percentage} /><span className={styles.secondary}>{formatNu(item.allocated_capacity)} / {formatNu(item.total_capacity)}</span></TableCell><TableCell>{formatDate(item.expiration_at, locale)}<span className={styles.secondary}>{daysRemainingLabel(item.days_remaining)}</span></TableCell><TableCell>{expiring ? <StatusIndicator status={expiration.status} label={expiration.label === "Expired" ? t("expiration.expired") : expiration.label === "Expiring soon" ? t("expiration.expiringSoon") : t("expiration.expiring")} /> : <StatusIndicator status={reservationTone(item.state)} label={item.state.toLowerCase() === "active" ? t("presence.active") : humanize(item.state)} />}</TableCell></TableRow>; })}</TableBody>
       )}
     </Table>
@@ -337,7 +337,7 @@ function ReservationsContent() {
   const reservations = useApiQuery<RdsPage<RdsReservationUtilization>>({ key: ["rds-reservations", state.tab, mainQuery], path: `/rds/reservations-dashboard/reservations?${mainQuery}`, enabled: state.tab === "reservations" || state.tab === "expiring", keepPreviousData: true, placeholderIdentity: JSON.stringify({ ...state, page: 0 }), ...cachePolicy.operational });
   const opportunities = useApiQuery<RdsPage<RdsReservationOpportunity>>({ key: ["rds-reservations", "opportunities", mainQuery], path: `/rds/reservations-dashboard/opportunities?${mainQuery}`, enabled: state.tab === "opportunities", keepPreviousData: true, placeholderIdentity: JSON.stringify({ ...state, page: 0 }), ...cachePolicy.operational });
   const main = state.tab === "coverage" ? coverage : state.tab === "opportunities" ? opportunities : reservations;
-  const mainError = main.error ? queryError(main.error, "Could not load RDS reservation data.") : undefined;
+  const mainError = main.error ? queryError(main.error, t("errors.loadData")) : undefined;
   const coverageNotReady = summary.error instanceof ApiError && summary.error.status === 404 && operational.data && ["NEVER_EXECUTED", "RUNNING", "FAILED"].includes(operational.data.pipeline_status);
 
   const refresh = () => { void operational.refetch(); void summary.refetch(); void options.refetch(); void main.refetch(); };
@@ -354,9 +354,9 @@ function ReservationsContent() {
       <PageHeader title={t("title")} description={t("description")} metadata={<ProviderBadge provider="aws" />} actions={<Button variant="outline" leadingIcon={<RefreshCw {...iconDefaults} />} loading={operational.isFetching || summary.isFetching || main.isFetching} onClick={refresh}>{t("actions.refresh")}</Button>} />
 
       <OperationalNotice status={operational.data} />
-      {operational.error && <Alert variant="warning" title={t("states.operationalUnavailable")} description={queryError(operational.error, "Could not load the RDS Reservations pipeline status.")} />}
-      {summary.error && !coverageNotReady && <Alert variant={summary.error instanceof ApiError && summary.error.status === 404 ? "warning" : "danger"} title={t("states.summaryUnavailable")} description={queryError(summary.error, "Could not load the reservation summary.")} />}
-      {options.error && <Alert variant="warning" title={t("states.optionsUnavailable")} description={queryError(options.error, "Could not load reservation filter options.")} />}
+      {operational.error && <Alert variant="warning" title={t("states.operationalUnavailable")} description={queryError(operational.error, t("errors.loadPipeline"))} />}
+      {summary.error && !coverageNotReady && <Alert variant={summary.error instanceof ApiError && summary.error.status === 404 ? "warning" : "danger"} title={t("states.summaryUnavailable")} description={queryError(summary.error, t("errors.loadSummary"))} />}
+      {options.error && <Alert variant="warning" title={t("states.optionsUnavailable")} description={queryError(options.error, t("errors.loadOptions"))} />}
 
       {operational.data && (
         <Section appearance="card" title={t("pipeline.sectionTitle")} description={t("pipeline.sectionDescription")}>
