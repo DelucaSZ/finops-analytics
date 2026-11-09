@@ -90,12 +90,12 @@ test("Aven Billing keeps grouping, chart mapping and the explicit account guard"
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
 
-  assert.ok(page.includes("Agrupamento"));
+  assert.ok(page.includes('t("filters.groupBy")'));
   assert.ok(page.includes("mapBillingTimeSeriesToChartData"));
   assert.ok(page.includes("!hasBillingAccountSelection(selectedAccountIds)"));
-  assert.ok(page.includes("Selecione ao menos uma conta para consultar os custos."));
+  assert.ok(page.includes('t("empty.selectHint")'));
   assert.ok(page.includes("<ChartCard"));
-  assert.ok(chart.includes("Total do período"));
+  assert.ok(chart.includes('t("charts.periodTotal")'));
   assert.ok(chart.includes("gridLine"));
   assert.ok(chart.includes("chartTooltip"));
 });
@@ -109,7 +109,7 @@ test("service chart uses Aven visualization tokens and consolidates minor servic
   assert.ok(chart.includes('"var(--chart-series-1)"'));
   assert.ok(chart.includes('"var(--chart-series-6)"'));
   assert.ok(chart.includes("seriesColor(item.key)"));
-  assert.ok(chart.includes("Serviços de menor custo foram consolidados"));
+  assert.ok(chart.includes('t("charts.noteOther")'));
   assert.ok(!chart.includes("var(--accent)"));
   assert.ok(!chart.includes("var(--blue)"));
 });
@@ -117,8 +117,8 @@ test("service chart uses Aven visualization tokens and consolidates minor servic
 test("account context is composed before Billing filters", async () => {
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
 
-  const accountSection = page.indexOf('title="Contas"');
-  const filterSection = page.indexOf('title="Filtros"');
+  const accountSection = page.indexOf('title={t("sections.accounts")}');
+  const filterSection = page.indexOf('title={t("sections.filters")}');
   assert.ok(accountSection >= 0);
   assert.ok(filterSection > accountSection);
   assert.ok(page.includes("<AccountSelector"));
@@ -132,7 +132,7 @@ test("Billing tooltip remains interactive and is keyboard reachable", async () =
   assert.ok(chart.includes("tabIndex={0}"));
   assert.ok(chart.includes("onFocus={() => setHovered"));
   assert.ok(chart.includes('role="tooltip"'));
-  assert.ok(chart.includes("title={item.label}"));
+  assert.ok(chart.includes("title={seriesLabel(item)}"));
   assert.match(css, /\.chartTooltip\s*\{[^}]*pointer-events:\s*auto;/s);
   assert.match(css, /\.tooltipSeries\s*\{[^}]*overflow-y:\s*auto;[^}]*overscroll-behavior:\s*contain;/s);
   assert.match(css, /\.tooltipSeries\s*\{[^}]*scrollbar-gutter:\s*stable;/s);
