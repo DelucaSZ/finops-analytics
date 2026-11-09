@@ -62,8 +62,8 @@ test("Flow keeps existing filters and does not invent cross-currency totals", as
   for (const state of ["period", "provider", "accountId", "currency", "source", "periodicity", "entryType", "search", "page"]) {
     assert.ok(page.includes(state), `expected existing Flow filter/state ${state}`);
   }
-  assert.ok(page.includes("Todas (sem consolidar)"));
-  assert.ok(page.includes("Cada moeda e base financeira permanece separada"));
+  assert.ok(page.includes('t("filters.allCurrencies")'));
+  assert.ok(page.includes('t("sections.summaryDescription")'));
   assert.ok(!page.includes("Flow Health Score"));
   assert.ok(!page.includes("Operational Efficiency"));
 });
