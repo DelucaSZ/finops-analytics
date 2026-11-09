@@ -831,16 +831,16 @@
       "lastCollection": "Last AWS collection",
       "lastCoverage": "Last coverage calculation",
       "status": {
-        "COMPLETED": "Completed",
-        "RUNNING": "Running",
-        "FAILED": "Failed",
-        "STALE": "Stale",
-        "COMPLETED_WITH_WARNINGS": "Completed with warnings",
-        "NEVER_EXECUTED": "Never executed"
+        "completed": "Completed",
+        "running": "Running",
+        "failed": "Failed",
+        "stale": "Stale",
+        "completedWithWarnings": "Completed with warnings",
+        "neverExecuted": "Never executed"
       },
       "fresh": {
-        "FRESH": "Fresh",
-        "STALE": "Stale"
+        "fresh": "Fresh",
+        "stale": "Stale"
       }
     },
     "coverage": {
@@ -958,12 +958,12 @@
   "opportunities": {
     "decision": {
       "reason": {
-        "FALSE_POSITIVE": "False positive",
-        "OPERATIONAL_EXCEPTION": "Operational exception",
-        "ACCEPTABLE_COST": "Acceptable cost",
-        "RESOURCE_REQUIRED": "Required resource",
-        "RISK_ACCEPTED": "Accepted risk",
-        "OTHER": "Other"
+        "falsePositive": "False positive",
+        "operationalException": "Operational exception",
+        "acceptableCost": "Acceptable cost",
+        "resourceRequired": "Required resource",
+        "riskAccepted": "Accepted risk",
+        "other": "Other"
       },
       "treatTitle": "Mark as treated",
       "treatHint": "Record an optional note about the action taken.",
@@ -997,9 +997,9 @@
       "unarchived": "Unarchived",
       "reasonLabel": "Reason:",
       "reason": {
-        "MANUAL": "Manual",
-        "RETENTION_POLICY": "Retention policy",
-        "REAPPEARED": "Automatically reappeared"
+        "manual": "Manual",
+        "retentionPolicy": "Retention policy",
+        "reappeared": "Automatically reappeared"
       },
       "autoUnarchive": "Automatically unarchived because the condition was observed again.",
       "manualUnarchive": "Manually unarchived.",
@@ -1016,9 +1016,9 @@
       "error": "Technical presence history is temporarily unavailable.",
       "loading": "Loading presence history…",
       "reason": {
-        "NOT_OBSERVED_IN_SUCCESSFUL_SCOPE": "Not observed in a successfully collected scope",
-        "MISSING_THRESHOLD_REACHED": "Valid absence threshold reached",
-        "OBSERVED_AGAIN": "Condition observed again"
+        "notObservedInSuccessfulScope": "Not observed in a successfully collected scope",
+        "missingThresholdReached": "Valid absence threshold reached",
+        "observedAgain": "Condition observed again"
       },
       "absences": "Valid absences: {count}",
       "threshold": "/ threshold {count}",
@@ -1033,7 +1033,7 @@
       "rejected": "Rejected",
       "active": "Active",
       "missing": "Missing",
-      "resolved_externally": "Resolved externally"
+      "resolvedExternally": "Resolved externally"
     },
     "severity": {
       "high": "High",
@@ -1087,24 +1087,32 @@
       "descriptionSelected": "{count, plural, one {# selected opportunity will be removed} other {# selected opportunities will be removed}} from the backlog without changing existing human decisions.",
       "descriptionPeriod": "Review coverage and preview before closing the operational period.",
       "descriptionFiltered": "Review the scope calculated by the server before archiving.",
-      "errors.preview": "Unable to generate the archiving preview.",
-      "errors.opportunityMissing": "Opportunity not provided.",
-      "errors.cycleMissing": "Current historical cycle unavailable.",
-      "errors.archiveFailed": "Unable to archive the opportunities.",
-      "success.one": "Opportunity archived. Human status and history were preserved.",
-      "success.bulk": "{count, plural, one {# opportunity archived} other {# opportunities archived}}.{already, plural, =0 {} one { # was already in History.} other { # were already in History.}}",
-      "success.period": "Period {period} closed with {snapshots, plural, one {# snapshot} other {# snapshots}} and {archived, plural, one {# archived opportunity} other {# archived opportunities}}.",
+      "errors": {
+        "preview": "Unable to generate the archiving preview.",
+        "opportunityMissing": "Opportunity not provided.",
+        "cycleMissing": "Current historical cycle unavailable.",
+        "archiveFailed": "Unable to archive the opportunities."
+      },
+      "success": {
+        "one": "Opportunity archived. Human status and history were preserved.",
+        "bulk": "{count, plural, one {# opportunity archived} other {# opportunities archived}}.{already, plural, =0 {} one { # was already in History.} other { # were already in History.}}",
+        "period": "Period {period} closed with {snapshots, plural, one {# snapshot} other {# snapshots}} and {archived, plural, one {# archived opportunity} other {# archived opportunities}}."
+      },
       "scopeAllTitle": "Entire scope",
       "scopeAllDescription": "All active operational backlog opportunities in this scope will be archived.",
-      "field.period": "Period",
-      "field.matched": "Matched",
-      "field.toArchive": "To archive",
-      "field.archived": "Already archived",
-      "field.snapshots": "Snapshots to create",
-      "field.collections": "Collections in period",
-      "field.failed": "Completed failures",
-      "aria.filters": "Archive filters",
-      "aria.savings": "Potential savings in scope",
+      "field": {
+        "period": "Period",
+        "matched": "Matched",
+        "toArchive": "To archive",
+        "archived": "Already archived",
+        "snapshots": "Snapshots to create",
+        "collections": "Collections in period",
+        "failed": "Completed failures"
+      },
+      "aria": {
+        "filters": "Archive filters",
+        "savings": "Potential savings in scope"
+      },
       "previewWarning": "The set can change between preview and execution; the final response uses the actual archived count.",
       "emptyTitle": "No opportunities to archive",
       "emptyDescription": "No active opportunities match the current filters.",
@@ -1223,24 +1231,24 @@
     },
     "filterOptions": {
       "archiveReason": {
-        "MANUAL": "Manual",
-        "RETENTION_POLICY": "Retention policy"
+        "manual": "Manual",
+        "retentionPolicy": "Retention policy"
       },
       "discovery": {
         "observed": "Observed in this collection",
-        "first_seen": "First identified in this collection",
-        "new_vs_previous": "New compared with previous collection",
+        "firstSeen": "First identified in this collection",
+        "newVsPrevious": "New compared with previous collection",
         "reappeared": "Reappeared in this collection",
         "continued": "Still present"
       }
     },
     "sort": {
-      "last_seen_at": "Last detected",
-      "first_seen_at": "First detected",
+      "lastSeenAt": "Last detected",
+      "firstSeenAt": "First detected",
       "severity": "Severity",
-      "estimated_savings": "Potential savings",
-      "created_at": "Created",
-      "archived_at": "Archived on",
+      "estimatedSavings": "Potential savings",
+      "createdAt": "Created",
+      "archivedAt": "Archived on",
       "lastObserved": "Last observed",
       "status": "Human status"
     },
