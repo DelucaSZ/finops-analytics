@@ -458,7 +458,8 @@
       "timeseries": "Falha ao carregar a evolução de custos.",
       "service": "Falha ao carregar o custo por serviço.",
       "account": "Falha ao carregar o custo por conta.",
-      "generic": "Falha ao consultar Billing."
+      "generic": "Falha ao consultar Billing.",
+      "noEnabledProfile": "Nenhum perfil de Billing habilitado está disponível."
     },
     "comparison": {
       "loading": "Carregando comparação com o período anterior…",
@@ -643,7 +644,8 @@
       "treatment": "Evento de tratamento: {event}"
     },
     "table": {
-      "reversal": "Reversal do ledger"
+      "reversal": "Reversal do ledger",
+      "aria": "Movimentações do Fluxo FinOps"
     },
     "errors": {
       "analyticsTitle": "Indicadores indisponíveis",
