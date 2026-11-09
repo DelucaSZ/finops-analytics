@@ -1,6 +1,7 @@
 "use client";
 
 import { Suspense, useMemo, type ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDown,
@@ -58,11 +59,23 @@ import { cachePolicy, queryKeys } from "@/lib/query-keys.mjs";
 import { useApiQuery } from "@/lib/server-state";
 import styles from "./inventory.module.css";
 
-const PRESENCE_OPTIONS = [
-  { value: "active", label: "Active resources" },
-  { value: "missing", label: "Missing resources" },
-  { value: "all", label: "All presence states" },
-];
+function useLifecycleLabels() {
+  const t = useTranslations("inventory");
+  return {
+    running: t("lifecycle.running"), active: t("lifecycle.active"), available: t("lifecycle.available"),
+    attached: t("lifecycle.attached"), ready: t("lifecycle.ready"), pending: t("lifecycle.pending"),
+    creating: t("lifecycle.creating"), starting: t("lifecycle.starting"), stopping: t("lifecycle.stopping"),
+    provisioning: t("lifecycle.provisioning"), updating: t("lifecycle.updating"), failed: t("lifecycle.failed"),
+    error: t("lifecycle.error"), faulty: t("lifecycle.faulty"), stopped: t("lifecycle.stopped"),
+    inactive: t("lifecycle.inactive"), detached: t("lifecycle.detached"), terminated: t("lifecycle.terminated"),
+    deleted: t("lifecycle.deleted"),
+  } as Record<string, string>;
+}
+
+function lifecycleLabel(value: string, labels: Record<string,string>) {
+  return labels[value.toLowerCase()] ?? humanize(value);
+}
+
 
 function humanize(value?: string | null) {
   if (!value) return "—";
@@ -74,11 +87,11 @@ function humanize(value?: string | null) {
     .join(" ");
 }
 
-function formatDateTime(value?: string | null) {
+function formatDateTime(value?: string | null, locale = "pt-BR") {
   if (!value) return "—";
   const date = new Date(value);
   if (!Number.isFinite(date.getTime())) return "—";
-  return new Intl.DateTimeFormat("en-GB", {
+  return new Intl.DateTimeFormat(locale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -87,12 +100,12 @@ function formatDateTime(value?: string | null) {
   }).format(date);
 }
 
-function inventoryError(error: unknown, fallback: string) {
+function inventoryError(error: unknown, fallback: string, messages: { forbidden: string; invalid: string; limited: string; unavailable: string }) {
   if (!(error instanceof ApiError)) return fallback;
-  if (error.status === 403) return "You do not have permission to view this inventory scope.";
-  if (error.status === 422) return "One or more inventory filters are invalid.";
-  if (error.status === 429) return "Inventory requests are temporarily rate limited. Try again shortly.";
-  if (error.status >= 500) return "Inventory data is temporarily unavailable.";
+  if (error.status === 403) return messages.forbidden;
+  if (error.status === 422) return messages.invalid;
+  if (error.status === 429) return messages.limited;
+  if (error.status >= 500) return messages.unavailable;
   return error.message || fallback;
 }
 
@@ -118,10 +131,10 @@ function rawOptions(values: string[] | undefined, allLabel: string) {
   ];
 }
 
-function humanizedOptions(values: string[] | undefined, allLabel: string) {
+function humanizedOptions(values: string[] | undefined, allLabel: string, labelFor: (value: string) => string = humanize) {
   return [
     { value: "", label: allLabel },
-    ...(values ?? []).map((value) => ({ value, label: humanize(value) })),
+    ...(values ?? []).map((value) => ({ value, label: labelFor(value) })),
   ];
 }
 
@@ -145,6 +158,7 @@ function providerOptions(options?: InventoryOptions) {
 }
 
 function InventoryTableState({ loading, error, empty }: { loading: boolean; error?: string; empty: boolean }) {
+  const t = useTranslations("inventory");
   if (loading) {
     return (
       <TableBody>
@@ -162,7 +176,7 @@ function InventoryTableState({ loading, error, empty }: { loading: boolean; erro
       <TableBody>
         <TableRow staticRow>
           <TableCell colSpan={8}>
-            <Alert variant="danger" title="Unable to load Inventory" description={error} />
+            <Alert variant="danger" title={t("states.loadError")} description={error} />
           </TableCell>
         </TableRow>
       </TableBody>
@@ -176,8 +190,8 @@ function InventoryTableState({ loading, error, empty }: { loading: boolean; erro
           <TableCell colSpan={8}>
             <DataState
               empty
-              emptyTitle="No resources match this scope"
-              emptyDescription="Adjust the provider, account, region, resource type, status or search filters."
+              emptyTitle={t("states.emptyTitle")}
+              emptyDescription={t("states.emptyDescription")}
             >
               <span />
             </DataState>
@@ -203,6 +217,7 @@ function SortHeader({
   direction: InventorySortDirection;
   onSort: (field: InventorySortField) => void;
 }) {
+  const t = useTranslations("inventory");
   const active = sort === field;
   const Icon = active ? (direction === "asc" ? ArrowUp : ArrowDown) : ArrowUpDown;
   return (
@@ -210,7 +225,7 @@ function SortHeader({
       variant="ghost"
       size="sm"
       trailingIcon={<Icon {...iconDefaults} />}
-      aria-label={`Sort by ${label}${active ? `, currently ${direction}` : ""}`}
+      aria-label={active ? t("table.sortCurrent", { label, direction: t(`table.${direction}`) }) : t("table.sortBy", { label })}
       onClick={() => onSort(field)}
     >
       {label}
@@ -219,6 +234,9 @@ function SortHeader({
 }
 
 function ResourceRow({ resource }: { resource: InventoryResource }) {
+  const t = useTranslations("inventory");
+  const locale = useLocale();
+  const lifecycle = useLifecycleLabels();
   const displayName = resource.name || resource.resource_id;
   return (
     <TableRow>
@@ -232,28 +250,28 @@ function ResourceRow({ resource }: { resource: InventoryResource }) {
       <TableCell><ProviderBadge provider={resource.provider} /></TableCell>
       <TableCell>
         {humanize(resource.resource_type)}
-        <span className={styles.secondary}>{resource.service || resource.native_resource_type || "Service unavailable"}</span>
+        <span className={styles.secondary}>{resource.service || resource.native_resource_type || t("table.serviceUnavailable")}</span>
       </TableCell>
       <TableCell>
         {resource.account_name || resource.native_account_id}
         {resource.account_name ? <span className={styles.secondary}>{resource.native_account_id}</span> : null}
       </TableCell>
       <TableCell>
-        {resource.region || "Region unavailable"}
-        <span className={styles.secondary}>{resource.availability_zone || "No availability zone"}</span>
+        {resource.region || t("table.regionUnavailable")}
+        <span className={styles.secondary}>{resource.availability_zone || t("table.noZone")}</span>
       </TableCell>
       <TableCell>
         <div className={styles.statusStack}>
-          <StatusIndicator status={lifecycleTone(resource.lifecycle_status)} label={humanize(resource.lifecycle_status)} />
+          <StatusIndicator status={lifecycleTone(resource.lifecycle_status)} label={lifecycleLabel(resource.lifecycle_status, lifecycle)} />
           {resource.native_status && resource.native_status.toLowerCase() !== resource.lifecycle_status.toLowerCase() ? (
             <span className={styles.secondary}>{resource.native_status}</span>
           ) : null}
         </div>
       </TableCell>
-      <TableCell><StatusIndicator status={presenceTone(resource.presence_status)} label={humanize(resource.presence_status)} /></TableCell>
+      <TableCell><StatusIndicator status={presenceTone(resource.presence_status)} label={resource.presence_status === "active" ? t("presence.active") : resource.presence_status === "missing" ? t("presence.missing") : humanize(resource.presence_status)} /></TableCell>
       <TableCell>
-        {formatDateTime(resource.last_seen_at)}
-        <span className={styles.secondary}>First seen {formatDateTime(resource.first_seen_at)}</span>
+        {formatDateTime(resource.last_seen_at, locale)}
+        <span className={styles.secondary}>{t("table.firstSeen")} {formatDateTime(resource.first_seen_at, locale)}</span>
       </TableCell>
     </TableRow>
   );
@@ -274,20 +292,22 @@ function InventoryFilters({
   onChange: (changes: Partial<ReturnType<typeof parseInventorySearchParams>>) => void;
   onClear: () => void;
 }) {
+  const t = useTranslations("inventory");
+  const lifecycle = useLifecycleLabels();
   return (
     <FilterBar
-      aria-label="Inventory filters"
-      clearAction={<Button variant="ghost" size="sm" onClick={onClear}>Clear filters</Button>}
+      aria-label={t("filters.aria")}
+      clearAction={<Button variant="ghost" size="sm" onClick={onClear}>{t("filters.clear")}</Button>}
     >
       <Input
-        label="Search"
+        label={t("filters.search")}
         value={state.search}
-        placeholder="Name, ID, account, type or region"
+        placeholder={t("filters.searchPlaceholder")}
         leadingIcon={<Search {...iconDefaults} />}
         onChange={(event) => onChange({ search: event.target.value, page: 1 })}
       />
       <ProviderSelector
-        label="Provider"
+        label={t("filters.provider")}
         value={state.provider}
         onChange={(provider) => onChange({
           provider,
@@ -300,12 +320,12 @@ function InventoryFilters({
         })}
         options={providerOptions(baseOptions)}
         loading={loading}
-        placeholder="All providers"
-        clearLabel="All providers"
+        placeholder={t("filters.allProviders")}
+        clearLabel={t("filters.allProviders")}
         searchable={false}
       />
       <AccountSelector
-        label="Account"
+        label={t("filters.account")}
         value={state.account}
         onChange={(account) => onChange({
           account,
@@ -317,44 +337,46 @@ function InventoryFilters({
         })}
         options={accountOptions(baseOptions, state.provider)}
         loading={loading}
-        placeholder="All authorized accounts"
-        clearLabel="All authorized accounts"
+        placeholder={t("filters.allAccounts")}
+        clearLabel={t("filters.allAccounts")}
       />
       <Select
-        label="Region"
+        label={t("filters.region")}
         value={state.region}
         onChange={(event) => onChange({ region: event.target.value, page: 1 })}
-        options={rawOptions(contextualOptions?.regions, "All regions")}
+        options={rawOptions(contextualOptions?.regions, t("filters.allRegions"))}
       />
       <Select
-        label="Resource type"
+        label={t("filters.resourceType")}
         value={state.resourceType}
         onChange={(event) => onChange({ resourceType: event.target.value, page: 1 })}
-        options={humanizedOptions(contextualOptions?.resource_types, "All resource types")}
+        options={humanizedOptions(contextualOptions?.resource_types, t("filters.allTypes"))}
       />
       <Select
-        label="Service"
+        label={t("filters.service")}
         value={state.service}
         onChange={(event) => onChange({ service: event.target.value, page: 1 })}
-        options={rawOptions(contextualOptions?.services, "All services")}
+        options={rawOptions(contextualOptions?.services, t("filters.allServices"))}
       />
       <Select
-        label="Lifecycle"
+        label={t("filters.lifecycle")}
         value={state.lifecycleStatus}
         onChange={(event) => onChange({ lifecycleStatus: event.target.value, page: 1 })}
-        options={humanizedOptions(contextualOptions?.lifecycle_statuses, "All lifecycle states")}
+        options={humanizedOptions(contextualOptions?.lifecycle_statuses, t("filters.allLifecycle"), (value) => lifecycleLabel(value, lifecycle))}
       />
       <Select
-        label="Presence"
+        label={t("filters.presence")}
         value={state.presenceStatus}
         onChange={(event) => onChange({ presenceStatus: event.target.value, page: 1 })}
-        options={PRESENCE_OPTIONS}
+        options={[{value:"active",label:t("presence.activeResources")},{value:"missing",label:t("presence.missingResources")},{value:"all",label:t("presence.all")}]}
       />
     </FilterBar>
   );
 }
 
 function InventoryContent() {
+  const t = useTranslations("inventory");
+  const errors = { forbidden: t("errors.forbidden"), invalid: t("errors.invalid"), limited: t("errors.limited"), unavailable: t("errors.unavailable") };
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -383,7 +405,7 @@ function InventoryContent() {
     ...cachePolicy.metadata,
   });
 
-  const queryFailure = resources.error ? inventoryError(resources.error, "Could not load Inventory resources.") : undefined;
+  const queryFailure = resources.error ? inventoryError(resources.error, t("errors.resources"), errors) : undefined;
   const optionsFailure = baseOptions.error || contextualOptions.error;
   const refresh = () => {
     void resources.refetch();
@@ -401,27 +423,27 @@ function InventoryContent() {
 
   const metrics: Array<{ label: string; value: ReactNode; supportingText: ReactNode; icon: ReactNode }> = [
     {
-      label: "Resources in view",
+      label: t("metrics.resources"),
       value: resources.data?.total ?? "—",
-      supportingText: state.presenceStatus === "active" ? "Currently observed resources" : "Matches the current Inventory filters",
+      supportingText: state.presenceStatus === "active" ? t("metrics.currentlyObserved") : t("metrics.matchesFilters"),
       icon: <Boxes {...iconDefaults} />,
     },
     {
-      label: "Cloud accounts",
+      label: t("metrics.accounts"),
       value: contextualOptions.data?.accounts.length ?? "—",
-      supportingText: "Authorized accounts in the selected provider scope",
+      supportingText: t("metrics.accountsDescription"),
       icon: <Cloud {...iconDefaults} />,
     },
     {
-      label: "Regions",
+      label: t("metrics.regions"),
       value: contextualOptions.data?.regions.length ?? "—",
-      supportingText: "Regions represented by persisted Inventory data",
+      supportingText: t("metrics.regionsDescription"),
       icon: <MapPin {...iconDefaults} />,
     },
     {
-      label: "Resource types",
+      label: t("metrics.types"),
       value: contextualOptions.data?.resource_types.length ?? "—",
-      supportingText: "Normalized resource types available in this scope",
+      supportingText: t("metrics.typesDescription"),
       icon: <Layers3 {...iconDefaults} />,
     },
   ];
@@ -432,8 +454,8 @@ function InventoryContent() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Inventory"
-        description="Explore persisted AWS and OCI resources across authorized accounts, regions and resource types."
+        title={t("title")}
+        description={t("description")}
         actions={(
           <Button
             variant="outline"
@@ -441,7 +463,7 @@ function InventoryContent() {
             loading={resources.isFetching || baseOptions.isFetching || contextualOptions.isFetching}
             onClick={refresh}
           >
-            Refresh
+            {t("actions.refresh")}
           </Button>
         )}
       />
@@ -449,8 +471,8 @@ function InventoryContent() {
       {optionsFailure ? (
         <Alert
           variant="warning"
-          title="Some filter options are unavailable"
-          description={inventoryError(optionsFailure, "Could not load Inventory filter options.")}
+          title={t("states.optionsWarning")}
+          description={inventoryError(optionsFailure, t("errors.options"), errors)}
         />
       ) : null}
 
@@ -463,8 +485,8 @@ function InventoryContent() {
         onClear={clear}
       />
 
-      <Section title="Inventory overview" description="A concise view of the persisted resource scope currently selected.">
-        <div className={styles.metricsGrid} aria-label="Inventory summary">
+      <Section title={t("overview.title")} description={t("overview.description")}>
+        <div className={styles.metricsGrid} aria-label={t("overview.aria")}>
           {metrics.map((metric) => (
             <MetricCard key={metric.label} {...metric} loading={resources.isLoading || contextualOptions.isLoading} />
           ))}
@@ -472,25 +494,25 @@ function InventoryContent() {
       </Section>
 
       <Section
-        title="Resource explorer"
-        description="Search, sort and inspect normalized cloud resources without querying provider APIs from the browser."
-        actions={resources.isFetching && !resources.isLoading ? <StatusIndicator status="pending" label="Updating" /> : undefined}
+        title={t("table.title")}
+        description={t("table.description")}
+        actions={resources.isFetching && !resources.isLoading ? <StatusIndicator status="pending" label={t("states.updating")} /> : undefined}
       >
         <div className={styles.tableMeta}>
-          <span>{resources.data ? `${resources.data.total} resources` : "Resource count unavailable"}</span>
-          <span>Default scope shows active resources only.</span>
+          <span>{resources.data ? t("table.resourceCount", { count: resources.data.total }) : t("table.countUnavailable")}</span>
+          <span>{t("table.defaultScope")}</span>
         </div>
         <Table>
           <TableHeader>
             <TableRow staticRow>
-              <TableHead><SortHeader field="name" label="Resource" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="provider" label="Provider" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="resource_type" label="Type / service" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="account" label="Account" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="region" label="Location" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="lifecycle_status" label="Lifecycle" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="presence_status" label="Presence" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
-              <TableHead><SortHeader field="last_seen_at" label="Last observed" sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="name" label={t("table.resource")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="provider" label={t("filters.provider")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="resource_type" label={t("table.typeService")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="account" label={t("filters.account")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="region" label={t("table.location")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="lifecycle_status" label={t("filters.lifecycle")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="presence_status" label={t("filters.presence")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
+              <TableHead><SortHeader field="last_seen_at" label={t("table.lastObserved")} sort={state.sort as InventorySortField} direction={state.direction as InventorySortDirection} onSort={onSort} /></TableHead>
             </TableRow>
           </TableHeader>
           {hasTableState ? (
@@ -503,7 +525,7 @@ function InventoryContent() {
         {resources.data ? (
           <div className={styles.paginationRow}>
             <Select
-              label="Rows per page"
+              label={t("table.rowsPerPage")}
               value={String(state.pageSize)}
               onChange={(event) => update({ pageSize: Number(event.target.value), page: 1 })}
               options={[
@@ -521,8 +543,8 @@ function InventoryContent() {
 
       <Alert
         variant="info"
-        title="Inventory semantics"
-        description="Inventory represents persisted cloud resources independently from Findings and Opportunities. Missing resources remain queryable for audit and troubleshooting, while the default view shows active resources."
+        title={t("semantics.title")}
+        description={t("semantics.description")}
       />
     </div>
   );
