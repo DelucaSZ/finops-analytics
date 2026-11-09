@@ -659,5 +659,114 @@
       "created": "Movimentação registrada no Fluxo FinOps.",
       "reversed": "Reversão registrada. A movimentação original foi preservada."
     }
+  },
+  "inventory": {
+    "title": "Inventário",
+    "description": "Explore recursos AWS e OCI persistidos por contas autorizadas, regiões e tipos de recurso.",
+    "actions": {
+      "refresh": "Atualizar"
+    },
+    "states": {
+      "loadError": "Não foi possível carregar o inventário",
+      "emptyTitle": "Nenhum recurso corresponde ao escopo",
+      "emptyDescription": "Ajuste os filtros de provedor, conta, região, tipo de recurso, status ou pesquisa.",
+      "optionsWarning": "Algumas opções de filtro estão indisponíveis",
+      "updating": "Atualizando"
+    },
+    "errors": {
+      "forbidden": "Você não tem permissão para visualizar este escopo do inventário.",
+      "invalid": "Um ou mais filtros do inventário são inválidos.",
+      "limited": "As solicitações de inventário estão temporariamente limitadas. Tente novamente em instantes.",
+      "unavailable": "Os dados do inventário estão temporariamente indisponíveis.",
+      "resources": "Não foi possível carregar os recursos do inventário.",
+      "options": "Não foi possível carregar as opções do inventário."
+    },
+    "filters": {
+      "aria": "Filtros do inventário",
+      "clear": "Limpar filtros",
+      "search": "Pesquisar",
+      "searchPlaceholder": "Nome, ID, conta, tipo ou região",
+      "provider": "Provedor",
+      "account": "Conta",
+      "region": "Região",
+      "resourceType": "Tipo de recurso",
+      "service": "Serviço",
+      "lifecycle": "Ciclo de vida",
+      "presence": "Presença",
+      "allProviders": "Todos os provedores",
+      "allAccounts": "Todas as contas autorizadas",
+      "allRegions": "Todas as regiões",
+      "allTypes": "Todos os tipos de recurso",
+      "allServices": "Todos os serviços",
+      "allLifecycle": "Todos os estados de ciclo de vida"
+    },
+    "presence": {
+      "active": "Ativo",
+      "missing": "Ausente",
+      "activeResources": "Recursos ativos",
+      "missingResources": "Recursos ausentes",
+      "all": "Todos os estados de presença"
+    },
+    "metrics": {
+      "resources": "Recursos exibidos",
+      "currentlyObserved": "Recursos observados atualmente",
+      "matchesFilters": "Corresponde aos filtros atuais do inventário",
+      "accounts": "Contas cloud",
+      "accountsDescription": "Contas autorizadas no escopo do provedor selecionado",
+      "regions": "Regiões",
+      "regionsDescription": "Regiões representadas pelos dados persistidos do inventário",
+      "types": "Tipos de recurso",
+      "typesDescription": "Tipos de recurso normalizados disponíveis neste escopo"
+    },
+    "overview": {
+      "title": "Visão geral do inventário",
+      "description": "Resumo do escopo de recursos persistidos selecionado.",
+      "aria": "Resumo do inventário"
+    },
+    "table": {
+      "title": "Explorador de recursos",
+      "description": "Pesquise, ordene e inspecione recursos cloud normalizados sem consultar APIs dos provedores pelo navegador.",
+      "resource": "Recurso",
+      "typeService": "Tipo / serviço",
+      "location": "Localização",
+      "lastObserved": "Última observação",
+      "firstSeen": "Primeira observação",
+      "serviceUnavailable": "Serviço indisponível",
+      "regionUnavailable": "Região indisponível",
+      "noZone": "Sem zona de disponibilidade",
+      "countUnavailable": "Quantidade de recursos indisponível",
+      "defaultScope": "O escopo padrão exibe somente recursos ativos.",
+      "rowsPerPage": "Linhas por página",
+      "sortCurrent": "Ordenar por {label}, direção atual: {direction}",
+      "sortBy": "Ordenar por {label}",
+      "asc": "crescente",
+      "desc": "decrescente",
+      "resourceCount": "{count, plural, one {# recurso} other {# recursos}}"
+    },
+    "semantics": {
+      "title": "Semântica do inventário",
+      "description": "O inventário representa recursos cloud persistidos independentemente de descobertas e oportunidades. Recursos ausentes continuam consultáveis para auditoria e diagnóstico, enquanto a visualização padrão exibe recursos ativos."
+    },
+    "lifecycle": {
+      "running": "Em execução",
+      "active": "Ativo",
+      "available": "Disponível",
+      "attached": "Anexado",
+      "ready": "Pronto",
+      "pending": "Pendente",
+      "creating": "Criando",
+      "starting": "Iniciando",
+      "stopping": "Parando",
+      "provisioning": "Provisionando",
+      "updating": "Atualizando",
+      "failed": "Falhou",
+      "error": "Erro",
+      "faulty": "Com falha",
+      "stopped": "Parado",
+      "inactive": "Inativo",
+      "detached": "Desanexado",
+      "terminated": "Encerrado",
+      "deleted": "Excluído"
+    }
   }
 }
