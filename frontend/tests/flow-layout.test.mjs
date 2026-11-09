@@ -68,7 +68,7 @@ test("Flow movement table contains long identifiers locally and keeps numeric al
     readFile(tableCssUrl, "utf8"),
   ]);
 
-  assert.ok(page.includes('aria-label="Movimentações do Fluxo FinOps"'));
+  assert.ok(page.includes('aria-label={t("table.aria")}'));
   assert.ok(page.includes("entry.account_name || entry.account_id"));
   assert.ok(page.includes("<TableCell numeric>"));
   assert.ok(css.includes("overflow-wrap: anywhere"));
