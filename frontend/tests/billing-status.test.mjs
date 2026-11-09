@@ -87,13 +87,13 @@ test("Billing UI renders canonical status without marking all data as estimated"
   const page = await readFile(new URL("../app/billing/page.tsx", import.meta.url), "utf8");
   const chart = await readFile(new URL("../app/billing/billing-cost-chart.tsx", import.meta.url), "utf8");
 
-  assert.ok(page.includes("billingStatusLabel(item.status)"));
-  assert.ok(page.includes("billingStatusLabel(total.status)"));
+  assert.ok(page.includes('t(billingStatusKey(item.status))'));
+  assert.ok(page.includes('t(billingStatusKey(total.status))'));
   assert.ok(page.includes("<StatusIndicator"));
-  assert.ok(chart.includes("billingStatusLabel(hoveredPeriod.status)"));
+  assert.ok(chart.includes('statusLabel(hoveredPeriod.status)'));
   assert.ok(chart.includes("fillOpacity={statusOpacity(item.status)}"));
   assert.ok(chart.includes('stroke={hasForecast ? "var(--chart-forecast)" : undefined}'));
-  assert.ok(chart.includes("somente buckets estimados ou parcialmente estimados"));
+  assert.ok(chart.includes('t("charts.noteEstimate")'));
   assert.ok(!page.includes("TODOS OS DADOS SÃO ESTIMADOS"));
   assert.ok(!page.includes("Todos os dados são estimados"));
 });

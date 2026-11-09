@@ -48,7 +48,7 @@ test("multiple failures are expandable and every item deep-links to its failed r
     /\/collections\/\$\{encodeURIComponent\(item\.collection_run_id\)\}/,
   );
   assert.match(componentSource, /status: "FAILED"/);
-  assert.match(componentSource, /Nova coleta em andamento desde/);
+  assert.match(componentSource, /t\("operational\.newRun"/);
   assert.match(componentSource, /failures\.truncated/);
 });
 
@@ -62,9 +62,9 @@ test("insight revalidates independently without accelerating the executive summa
 
 test("operational insight uses Aven semantic components and tokenized responsive flow", () => {
   assert.match(componentSource, /<Section/);
-  assert.match(componentSource, /aria-label="Atenção operacional"/);
+  assert.match(componentSource, /aria-label=\{t\("operational\.title"\)\}/);
   assert.match(componentSource, /<Alert[\s\S]*variant="warning"/);
-  assert.match(componentSource, /<StatusIndicator status="danger" label="Falha"/);
+  assert.match(componentSource, /<StatusIndicator status="danger" label=\{t\("operational\.failure"\)\}/);
   assert.match(componentSource, /<ProviderBadge provider=\{item\.provider\}/);
   assert.match(styleSource, /display: flex/);
   assert.match(styleSource, /flex-wrap: wrap/);

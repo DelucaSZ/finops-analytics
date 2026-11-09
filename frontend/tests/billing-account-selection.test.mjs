@@ -37,6 +37,6 @@ test("Billing page guards cost requests and persists explicit account IDs", asyn
   assert.ok(page.includes("params.get(\"accounts\")"));
   assert.ok(page.includes("if (hasAccountSelection) params.set(\"accounts\", selectedAccountIds.join(\",\"));"));
   assert.ok(page.includes("!hasBillingAccountSelection(selectedAccountIds)"));
-  assert.ok(page.includes("Selecione ao menos uma conta para consultar os custos."));
+  assert.ok(page.includes('t("empty.selectHint")'));
   assert.ok(!page.includes(": awsAccounts.map((account) => account.id)"));
 });

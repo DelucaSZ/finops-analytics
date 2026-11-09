@@ -225,5 +225,439 @@
     "authPanel": "Authentication",
     "dialogClose": "Close dialog",
     "drawerClose": "Close panel"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "boot": {
+      "description": "Optimization potential and operational health in one place.",
+      "loadingFilters": "Loading dashboard filters",
+      "loadingMetrics": "Loading executive metrics"
+    },
+    "filters": {
+      "cloud": "Cloud",
+      "account": "Account",
+      "aria": "Overview filters",
+      "clearScope": "Clear scope",
+      "allClouds": "All clouds",
+      "allAccounts": "All accounts"
+    },
+    "metrics": {
+      "openOpportunities": "Open opportunities",
+      "potentialSavings": "Potential savings",
+      "newSincePrevious": "New since previous collection",
+      "validScopes": "Valid scopes",
+      "aria": "Executive indicators",
+      "openBacklogHelp": "Current unarchived OPEN backlog",
+      "monthlySavings": "Potential monthly savings",
+      "currenciesSeparate": "Currencies remain separate; no exchange rate is inferred",
+      "validScopeHelp": "Accounts with a valid collection available for the current summary",
+      "monthSuffix": "/month"
+    },
+    "charts": {
+      "serviceConcentration": "Concentration by service",
+      "serviceDescription": "Number of open opportunities by service.",
+      "serviceAria": "Distribution of open opportunities by service"
+    },
+    "scope": {
+      "allAccounts": "all accounts",
+      "allCloudsAccounts": "All clouds · all accounts",
+      "withProvider": "{provider} · all accounts"
+    },
+    "comparison": {
+      "previousAvailable": "Compared with the latest valid collection available",
+      "last24Hours": "Identified in the last 24 hours",
+      "newDetail": "{first, plural, one {# first identification} other {# first identifications}} · {reappeared, plural, one {# reappeared} other {# reappeared}}",
+      "comparable": "{count, plural, one {# comparable account} other {# comparable accounts}}",
+      "withoutBaseline": "{count, plural, one {# without baseline} other {# without baseline}}",
+      "firstIdentifications": "{count, plural, one {# first identification} other {# first identifications}}",
+      "reappeared": "{count, plural, one {# reappeared} other {# reappeared}}"
+    },
+    "status": {
+      "currentData": "Current data available",
+      "noCurrentData": "No current data",
+      "noUpdateReference": "No update reference for this scope",
+      "partialCoverage": "Partial coverage",
+      "open": "Open",
+      "treated": "Treated",
+      "rejected": "Rejected",
+      "updatedUntil": "Data updated through {date}"
+    },
+    "description": "Current optimization potential, opportunity concentration, and operational health.",
+    "actions": {
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "viewOpportunities": "View opportunities",
+      "viewAll": "View all",
+      "openDetail": "Open details",
+      "viewDetail": "View details",
+      "openOpportunity": "Open opportunity"
+    },
+    "errors": {
+      "partialFilters": "Filters partially unavailable",
+      "loadOverview": "Unable to load Overview"
+    },
+    "warnings": {
+      "limitedAccounts": "Account list limited",
+      "limitedAccountsDetail": "The selector displays the first 100 accounts; indicators still cover the full selected scope."
+    },
+    "empty": {
+      "noValidScope": "No valid data for the current scope",
+      "runCollection": "Run a valid collection or adjust filters to view indicators.",
+      "noServiceOpportunities": "No opportunities by service",
+      "noServiceDistribution": "No distribution is available for the current scope.",
+      "noOpenOpportunities": "No open opportunities",
+      "noActionableBacklog": "The current scope has no actionable operational backlog.",
+      "noValue": "no value",
+      "noCloudDistribution": "No distribution by cloud",
+      "noOpenBacklogDistribution": "No open backlog to distribute for the current scope.",
+      "noOpenOpportunitiesShort": "No open opportunities",
+      "noTopOpportunities": "No high-impact opportunities are available for the current scope.",
+      "unnamedResource": "Resource without a display name"
+    },
+    "sections": {
+      "primaryIndicators": "Key indicators",
+      "primaryDescription": "Executive summary of the current scope.",
+      "backlog": "Backlog analysis",
+      "backlogDescription": "Current opportunity concentration without converting currencies or inventing cost time series.",
+      "lifecycle": "Opportunity status",
+      "lifecycleDescription": "Current lifecycle within the same executive scope.",
+      "cloudDistribution": "Distribution by cloud",
+      "cloudDescription": "Backlog and potential savings remain associated with the actual provider.",
+      "topOpportunities": "Top opportunities",
+      "topDescription": "Highest-impact opportunities in the current scope."
+    },
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "operational": {
+      "failure": "Failed",
+      "viewCollection": "View collection",
+      "title": "Operational attention required",
+      "collectionFailures": "Collection failures",
+      "failuresDescription": "Overview retains available indicators, but these accounts require operational review.",
+      "viewCollections": "View collections",
+      "affectedAccounts": "View affected accounts",
+      "failedAt": "Failed at {date}",
+      "newRun": "New collection running since {date}.",
+      "failureCount": "{count, plural, one {# account failed in the most recent collection.} other {# accounts failed in the most recent collection.}}",
+      "displayed": "{count, plural, one {# displayed} other {# displayed}}",
+      "truncated": "Showing {shown} of {total} accounts. Use Collections to see all."
+    }
+  },
+  "billing": {
+    "title": "Usage & Costs",
+    "description": "Analyze AWS Cost Explorer costs by account, period, service, and methodology.",
+    "actions": {
+      "refresh": "Refresh",
+      "manageProfiles": "Manage profiles",
+      "restore": "Restore profile"
+    },
+    "sections": {
+      "accounts": "Accounts",
+      "accountsDescription": "Select one or more accounts explicitly. No cost query runs without a selection.",
+      "filters": "Filters",
+      "filtersDescription": "Refine period, profile, and methodology for the selected accounts.",
+      "summary": "Financial summary",
+      "summaryDescription": "Summary for the selected period.",
+      "costEvolution": "Cost evolution",
+      "costEvolutionDescription": "Track cost trends and composition over time.",
+      "costByService": "Cost by service",
+      "serviceDescription": "Detailed breakdown of services with the highest costs in the period.",
+      "costByAccount": "Cost by account",
+      "accountDescription": "Compare cost concentration across selected accounts."
+    },
+    "filters": {
+      "accounts": "AWS accounts",
+      "selectAll": "Select all",
+      "clearSelection": "Clear selection",
+      "searchAccounts": "Search accounts",
+      "profile": "Profile",
+      "metric": "Metric",
+      "granularity": "Granularity",
+      "groupBy": "Group by",
+      "period": "Period",
+      "choosePeriod": "Choose a period",
+      "start": "Start date",
+      "end": "End date",
+      "clearDates": "Clear dates",
+      "more": "More filters",
+      "excludeTypes": "Exclude record types",
+      "current": "Current query:",
+      "noExclusions": "No exclusions",
+      "noExclusionsByType": "No excluded record types",
+      "awsAccount": "AWS account",
+      "account": "Account",
+      "service": "Service",
+      "selected": "{count, plural, one {# account selected} other {# accounts selected}}",
+      "query": "{count, plural, one {# account} other {# accounts}} · {period} · {granularity} · {grouping} · {metric} · {exclusions}",
+      "excluded": "Excludes {types}"
+    },
+    "metrics": {
+      "amortized": "Amortized cost",
+      "netAmortized": "Net amortized cost",
+      "unblended": "Unblended cost",
+      "period": "Period cost",
+      "periodCurrency": "Period cost · {currency}"
+    },
+    "granularity": {
+      "daily": "Daily",
+      "monthly": "Monthly"
+    },
+    "group": {
+      "none": "No grouping"
+    },
+    "periods": {
+      "thisMonth": "This month",
+      "previousMonth": "Previous month",
+      "last30Days": "Last 30 days",
+      "last3Months": "Last 3 months",
+      "last6Months": "Last 6 months",
+      "thisYear": "This year",
+      "custom": "Custom"
+    },
+    "profile": {
+      "applied": "Applied profile",
+      "temporary": "Query with temporary overrides",
+      "overridden": "Overridden",
+      "default": " · default"
+    },
+    "empty": {
+      "noAccounts": "No AWS accounts available",
+      "selectHint": "Select at least one account to query costs.",
+      "select": "Select one or more accounts",
+      "selectDescription": "Select at least one account to query costs. Cost Explorer is not queried without a selection.",
+      "noCost": "No costs found",
+      "noCostDescription": "No costs were returned for the selected period and filters.",
+      "noSeries": "No costs in this period",
+      "noSeriesDescription": "No cost data points for the selected filters.",
+      "noService": "No services with costs",
+      "noServiceDescription": "No services with costs were returned for this query.",
+      "noAccount": "No costs by account",
+      "noAccountDescription": "No account costs were returned for this query.",
+      "noSelected": "No accounts selected"
+    },
+    "errors": {
+      "bootstrapTitle": "Unable to initialize Billing",
+      "summaryTitle": "Unable to load financial summary",
+      "customTitle": "Incomplete custom period",
+      "customDescription": "Enter a valid date range without future dates.",
+      "accessDenied": "Configured credentials cannot query Billing for this scope.",
+      "costExplorerUnavailable": "AWS Cost Explorer is unavailable for this scope. Check account access settings.",
+      "invalidScope": "Selected accounts could not be queried under a valid Billing scope. No partial total was displayed.",
+      "throttled": "AWS temporarily rate-limited Billing queries. Try again later.",
+      "accountUnavailable": "One selected account is unavailable for AWS Billing.",
+      "invalidPeriod": "The selected period is invalid for a historical Cost Explorer query.",
+      "upstreamData": "Cost Explorer returned data that could not be interpreted safely.",
+      "upstream": "AWS did not respond to the Billing query as expected. Try again.",
+      "bootstrap": "Unable to initialize Billing.",
+      "summary": "Unable to load period cost.",
+      "previous": "Unable to load previous period.",
+      "timeseries": "Unable to load cost evolution.",
+      "service": "Unable to load costs by service.",
+      "account": "Unable to load costs by account.",
+      "generic": "Billing query failed.",
+      "noEnabledProfile": "No enabled Billing profiles are available."
+    },
+    "comparison": {
+      "loading": "Loading comparison with the previous period…",
+      "unavailable": "Comparison with the previous period unavailable.",
+      "sameCurrency": "No previous-period value in the same currency/unit.",
+      "newCost": "New cost compared with the previous period.",
+      "noVariation": "Change not applicable for this comparison.",
+      "trend": "Change vs previous period",
+      "range": "Comparison: {previous} → {current}",
+      "previous": "Previous: "
+    },
+    "breakdown": {
+      "share": "Share",
+      "amount": "Amount",
+      "state": "Status",
+      "top": "Top {shown} of {total}"
+    },
+    "status": {
+      "actual": "Actual",
+      "estimated": "Estimated",
+      "partial": "Partially estimated",
+      "forecast": "Forecast",
+      "includesForecast": "Includes forecast"
+    },
+    "disclaimer": "Displayed values come from AWS Cost Explorer, preserve the currency/unit returned by AWS, and may be delayed during processing. No currency conversion is performed. Forecast and estimated data are identified only when provided by the data contract.",
+    "charts": {
+      "title": "Cost analysis in {currency}",
+      "totalCost": "Total cost",
+      "period": "Period",
+      "granularity": "Granularity",
+      "groupBy": "Group by",
+      "other": "Other",
+      "seriesLegend": "Series legend",
+      "aria": "Costs in {currency}, {granularity}, grouped by {grouping}. Use Tab to navigate periods and review detailed values.",
+      "axisCost": "Cost ({currency})",
+      "periodTotal": "Period total",
+      "bucketAria": "{period}. Total {currency} {total}.",
+      "noteOther": "Lower-cost services were consolidated into “Other” to keep the chart readable.",
+      "noteEstimate": "* / ≈ indicate only estimated or partially estimated periods reported by Cost Explorer.",
+      "noteForecast": "F indicates forecast; forecast periods retain the series color and use a dashed border."
+    }
+  },
+  "flow": {
+    "title": "Flow",
+    "description": "Recognized savings, reallocations, and adjustments recorded in the ledger. Flow does not represent cloud billed costs.",
+    "metadata": "FinOps Flow · append-only ledger",
+    "actions": {
+      "new": "New entry",
+      "cancel": "Cancel",
+      "submit": "Record entry",
+      "confirmReverse": "Confirm reversal",
+      "reverse": "Reverse",
+      "details": "Details",
+      "viewOpportunity": "View opportunity",
+      "viewRelated": "View related opportunity",
+      "close": "Close"
+    },
+    "forms": {
+      "type": "Type",
+      "direction": "Direction",
+      "provider": "Provider",
+      "account": "Account",
+      "selectAccount": "Select an account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "brl": "BRL — Brazilian real",
+      "usd": "USD — US dollar",
+      "effectiveDate": "Entry date",
+      "periodicity": "Periodicity",
+      "description": "Description",
+      "descriptionPlaceholder": "Context for entry audit",
+      "reverseReason": "Reason for reversal",
+      "newTitle": "New entry",
+      "newDescription": "Record a financial event in the append-only ledger.",
+      "reverseTitle": "Reverse entry",
+      "reverseDescription": "A new offsetting entry will be created; the original remains in history."
+    },
+    "validation": {
+      "account": "Select an account for the entry.",
+      "amount": "Enter a positive amount with up to eight decimal places.",
+      "date": "The effective date cannot be in the future.",
+      "description": "Describe the entry context using at least three characters.",
+      "reason": "Provide a reason for reversal."
+    },
+    "types": {
+      "saving": "Saving",
+      "reallocation": "Reallocation",
+      "adjustment": "Adjustment",
+      "credit": "Credit",
+      "debit": "Debit",
+      "monthly": "Monthly",
+      "oneTime": "One-time",
+      "monthlyBasis": "Monthly / run-rate"
+    },
+    "status": {
+      "reversed": "Reversed",
+      "reversal": "Reversal",
+      "recorded": "Recorded"
+    },
+    "periods": {
+      "thisMonth": "This month",
+      "previousMonth": "Previous month",
+      "last3": "Last 3 months",
+      "last6": "Last 6 months",
+      "thisYear": "This year",
+      "custom": "Custom"
+    },
+    "source": {
+      "opportunity": "Opportunity",
+      "manual": "Manual",
+      "system": "System"
+    },
+    "filters": {
+      "title": "Context and filters",
+      "description": "The selection changes only Flow queries; theme or layout changes never trigger mutations.",
+      "period": "Period",
+      "all": "All",
+      "allAccounts": "All accounts",
+      "allCurrencies": "All (not consolidated)",
+      "allBases": "All (separate)",
+      "financialBasis": "Financial basis",
+      "origin": "Source",
+      "from": "From",
+      "to": "To",
+      "chartCurrency": "Chart currency",
+      "basis": "Basis",
+      "search": "Search",
+      "searchPlaceholder": "Description, resource, or opportunity"
+    },
+    "sections": {
+      "summary": "Financial summary",
+      "summaryDescription": "Each currency and financial basis remains separate; no cross-currency total is invented.",
+      "evolution": "Trend over time",
+      "evolutionDescription": "Values aggregated by currency and financial basis in the backend; the cumulative balance includes the amount from before the period.",
+      "byAccount": "Recognized savings by account",
+      "bySource": "Recognized savings by source",
+      "entries": "Entries",
+      "entryCount": "{count, plural, one {# entry in scope.} other {# entries in scope.}} Reversals remain visible."
+    },
+    "metrics": {
+      "savings": "Recognized savings",
+      "reallocated": "Reallocated",
+      "adjustments": "Net adjustments",
+      "runRateBalance": "Net run-rate balance",
+      "balance": "Available FinOps balance",
+      "monthSuffix": "/month"
+    },
+    "charts": {
+      "savings": "Savings",
+      "reallocations": "Reallocations",
+      "balance": "Cumulative balance",
+      "aria": "Trend of savings, reallocations, and cumulative balance",
+      "bucketTitle": "{bucket}: savings {saving}; reallocation {reallocation}; balance {balance}"
+    },
+    "empty": {
+      "summary": "No entries recorded during this period",
+      "summaryDescription": "Flow shows only actual financial events in the ledger.",
+      "chart": "No chart data",
+      "chartDescription": "No time series for the selected scope.",
+      "byAccount": "No savings by account",
+      "bySource": "No savings by source",
+      "byDescription": "No recognized savings for this scope.",
+      "entries": "No entries found",
+      "entriesDescription": "Adjust the filters or record a real entry in the ledger."
+    },
+    "headers": {
+      "date": "Date",
+      "actions": "Actions",
+      "status": "Status",
+      "createdAt": "Created at",
+      "createdBy": "Created by",
+      "effective": "Effective date",
+      "original": "Original",
+      "reversal": "Reversal"
+    },
+    "details": {
+      "title": "Entry details",
+      "description": "Record persisted in the FinOps ledger.",
+      "associated": "Related opportunity",
+      "notInformed": "Not provided",
+      "service": "Service: {service}",
+      "treatment": "Treatment event: {event}"
+    },
+    "table": {
+      "reversal": "Ledger reversal",
+      "aria": "FinOps Flow entries"
+    },
+    "errors": {
+      "analyticsTitle": "Indicators unavailable",
+      "analytics": "Unable to load Flow indicators.",
+      "entries": "Unable to load entries.",
+      "create": "Unable to record the entry.",
+      "reverse": "Unable to reverse the entry."
+    },
+    "success": {
+      "title": "Entry updated",
+      "created": "Entry recorded in FinOps Flow.",
+      "reversed": "Reversal recorded. The original entry was preserved."
+    }
   }
 }

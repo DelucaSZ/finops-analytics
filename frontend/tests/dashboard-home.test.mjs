@@ -20,14 +20,14 @@ test("dashboard home does not fetch or render detailed collection health", () =>
 test("dashboard home exposes Aven executive dimensions and multi-currency savings", () => {
   assert.match(homeSource, /<PageHeader/);
   assert.match(homeSource, /<FilterBar/);
-  assert.match(homeSource, /Oportunidades em aberto/);
-  assert.match(homeSource, /Economia potencial mensal/);
-  assert.match(homeSource, /Novas vs coleta anterior/);
-  assert.match(homeSource, /Escopos válidos/);
-  assert.match(homeSource, /Concentração por serviço/);
-  assert.match(homeSource, /Estado das oportunidades/);
-  assert.match(homeSource, /Distribuição por cloud/);
-  assert.match(homeSource, /Maiores oportunidades/);
+  assert.match(homeSource, /t\("metrics\.openOpportunities"\)/);
+  assert.match(homeSource, /t\("metrics\.monthlySavings"\)/);
+  assert.match(homeSource, /t\("metrics\.newSincePrevious"\)/);
+  assert.match(homeSource, /t\("metrics\.validScopes"\)/);
+  assert.match(homeSource, /t\("charts\.serviceConcentration"\)/);
+  assert.match(homeSource, /t\("sections\.lifecycle"\)/);
+  assert.match(homeSource, /t\("sections\.cloudDistribution"\)/);
+  assert.match(homeSource, /t\("sections\.topOpportunities"\)/);
   assert.match(homeSource, /SavingsValues/);
   assert.match(homeSource, /CurrencyDisplay/);
   assert.doesNotMatch(homeSource, /Evolução de custos/);

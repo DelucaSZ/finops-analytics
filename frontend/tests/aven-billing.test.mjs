@@ -43,9 +43,9 @@ test("Billing starts from an explicit empty account contract and does not query 
   assert.ok(page.includes("setSummary(sectionState());"));
   assert.ok(page.includes("return;"));
   assert.ok(page.includes("selectAll"));
-  assert.ok(page.includes('selectAllLabel="Selecionar todas"'));
-  assert.ok(page.includes('clearLabel="Limpar seleção"'));
-  assert.ok(page.includes("Nenhuma consulta ao Cost Explorer é executada enquanto a seleção estiver vazia."));
+  assert.ok(page.includes('selectAllLabel={t("filters.selectAll")}'));
+  assert.ok(page.includes('clearLabel={t("filters.clearSelection")}'));
+  assert.ok(page.includes('t("empty.selectDescription")'));
   assert.ok(!page.includes("selectedAccountIds.length === 0 ? accounts"));
 });
 
@@ -87,7 +87,7 @@ test("Billing filters remain below account context and custom dates use DateRang
   const page = await source("../app/billing/page.tsx");
   const picker = await source("../components/aven/date-range-picker.tsx");
 
-  assert.ok(page.indexOf('title="Contas"') < page.indexOf('title="Filtros"'));
+  assert.ok(page.indexOf('title={t("sections.accounts")}') < page.indexOf('title={t("sections.filters")}'));
   assert.ok(page.includes("<FilterBar"));
   assert.ok(page.includes("<DateRangePicker"));
   assert.ok(page.includes("periodPreset === \"custom\""));

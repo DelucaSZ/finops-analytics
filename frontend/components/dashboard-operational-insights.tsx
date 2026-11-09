@@ -1,12 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
 import { ArrowRight, Clock3 } from "lucide-react";
 import { ProviderBadge, Section, StatusIndicator } from "@/components/aven";
 import { Alert } from "@/components/ui";
-import { formatDate } from "@/lib/api";
 import {
   buildDashboardApiQuery,
   parseDashboardSearchParams,
@@ -55,26 +55,28 @@ function InsightLink({ href, children }: { href: string; children: ReactNode }) 
 }
 
 function CollectionFailureRow({ item }: { item: CollectionFailure }) {
+  const t = useTranslations("dashboard");
+  const format = useFormatter();
   const accountLabel = item.account_name || item.account_id;
   return (
     <article className={styles.item}>
       <div className={styles.itemHeader}>
         <div className={styles.badges}>
           <ProviderBadge provider={item.provider} />
-          <StatusIndicator status="danger" label="Falha" />
+          <StatusIndicator status="danger" label={t("operational.failure")} />
         </div>
         <InsightLink href={`/collections/${encodeURIComponent(item.collection_run_id)}`}>
-          Ver coleta
+          {t("operational.viewCollection")}
         </InsightLink>
       </div>
       <div className={styles.itemCopy}>
         <strong>{accountLabel}</strong>
-        <span>Falha em {formatDate(item.started_at)}</span>
+        <span>{t("operational.failedAt", { date: format.dateTime(new Date(item.started_at), { dateStyle: "short", timeStyle: "short" }) })}</span>
         <p>{item.error_summary}</p>
         {item.newer_run?.status === "RUNNING" ? (
           <span className={styles.running}>
             <Clock3 {...iconDefaults} aria-hidden="true" />
-            Nova coleta em andamento desde {formatDate(item.newer_run.started_at)}.
+            {t("operational.newRun", { date: format.dateTime(new Date(item.newer_run.started_at), { dateStyle: "short", timeStyle: "short" }) })}
           </span>
         ) : null}
       </div>
@@ -83,6 +85,7 @@ function CollectionFailureRow({ item }: { item: CollectionFailure }) {
 }
 
 export function DashboardOperationalInsights() {
+  const t = useTranslations("dashboard");
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
   const state = useMemo(() => parseDashboardSearchParams(searchKey), [searchKey]);
@@ -97,30 +100,28 @@ export function DashboardOperationalInsights() {
   const failures = request.data?.collection_failures;
   if (request.isLoading || request.error || !failures?.count) return null;
 
-  const headline = failures.count === 1
-    ? "1 conta apresentou falha na coleta mais recente."
-    : `${failures.count} contas apresentaram falha na coleta mais recente.`;
+  const headline = t("operational.failureCount", { count: failures.count });
   const collectionsHref = scopedDashboardHref("/collections", state, { status: "FAILED" });
 
   return (
     <Section
-      title="Atenção operacional"
+      title={t("operational.title")}
       description={headline}
-      actions={failures.count > 1 ? <InsightLink href={collectionsHref}>Ver coletas</InsightLink> : undefined}
-      aria-label="Atenção operacional"
+      actions={failures.count > 1 ? <InsightLink href={collectionsHref}>{t("operational.viewCollections")}</InsightLink> : undefined}
+      aria-label={t("operational.title")}
     >
       <Alert
         variant="warning"
-        title="Falhas de coleta"
-        description="A Visão Geral preserva os indicadores disponíveis, mas estas contas exigem revisão operacional."
+        title={t("operational.collectionFailures")}
+        description={t("operational.failuresDescription")}
       >
         {failures.count === 1 && failures.items[0] ? (
           <CollectionFailureRow item={failures.items[0]} />
         ) : (
           <details className={styles.details}>
             <summary>
-              <span>Ver contas afetadas</span>
-              <span>{failures.items.length} exibida(s)</span>
+              <span>{t("operational.affectedAccounts")}</span>
+              <span>{t("operational.displayed", { count: failures.items.length })}</span>
             </summary>
             <div className={styles.list}>
               {failures.items.map((item) => (
@@ -131,7 +132,7 @@ export function DashboardOperationalInsights() {
         )}
         {failures.truncated ? (
           <p className={styles.truncated}>
-            Exibindo {failures.items.length} de {failures.count} contas. Use Coletas para consultar todas.
+            {t("operational.truncated", { shown: failures.items.length, total: failures.count })}
           </p>
         ) : null}
       </Alert>

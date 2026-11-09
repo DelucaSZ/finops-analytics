@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -31,7 +32,6 @@ import {
 } from "@/components/aven";
 import { Alert, Button } from "@/components/ui";
 import { DashboardOperationalInsights as CollectionFailureOperationalInsights } from "@/components/dashboard-operational-insights";
-import { formatDate } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
 import {
   buildDashboardApiQuery,
@@ -125,15 +125,16 @@ const EMPTY_OPTIONS: CollectionOptions = {
 function noop() {}
 
 export function DashboardBoot() {
+  const t = useTranslations("dashboard");
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Visão geral"
-        description="Potencial de otimização e saúde operacional do ambiente em um único lugar."
+        title={t("title")}
+        description={t("boot.description")}
       />
-      <FilterBar aria-label="Carregando filtros do Dashboard">
+      <FilterBar aria-label={t("boot.loadingFilters")}>
         <ProviderSelector
-          label="Cloud"
+          label={t("filters.cloud")}
           options={[]}
           value=""
           onChange={noop}
@@ -142,7 +143,7 @@ export function DashboardBoot() {
           searchable={false}
         />
         <AccountSelector
-          label="Conta"
+          label={t("filters.account")}
           options={[]}
           value=""
           onChange={noop}
@@ -151,12 +152,12 @@ export function DashboardBoot() {
           searchable={false}
         />
       </FilterBar>
-      <div className={styles.metricGrid} aria-label="Carregando indicadores executivos">
-        {["Oportunidades em aberto", "Economia potencial", "Novas vs coleta anterior", "Escopos válidos"].map((label) => (
+      <div className={styles.metricGrid} aria-label={t("boot.loadingMetrics")}>
+        {[t("metrics.openOpportunities"), t("metrics.potentialSavings"), t("metrics.newSincePrevious"), t("metrics.validScopes")].map((label) => (
           <MetricCard key={label} label={label} value={null} loading />
         ))}
       </div>
-      <ChartCard title="Concentração por serviço" loading>
+      <ChartCard title={t("charts.serviceConcentration")} loading>
         <span />
       </ChartCard>
     </div>
@@ -164,6 +165,8 @@ export function DashboardBoot() {
 }
 
 export function ExecutiveDashboard() {
+  const t = useTranslations("dashboard");
+  const format = useFormatter();
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
@@ -205,8 +208,8 @@ export function ExecutiveDashboard() {
   const scopeDescription = state.accountId
     ? `${selectedAccount?.account_name || state.accountId} · ${providerLabel(state.provider)}`
     : state.provider
-      ? `${providerLabel(state.provider)} · todas as contas`
-      : "Todas as clouds · todas as contas";
+      ? t("scope.withProvider", { provider: providerLabel(state.provider) })
+      : t("scope.allCloudsAccounts");
 
   const opportunityHref = (extra: Record<string, string | number | null | undefined> = {}) =>
     scopedDashboardHref("/opportunities", state, { current: "true", ...extra });
@@ -219,8 +222,8 @@ export function ExecutiveDashboard() {
   const reappearedHref = buildDashboardNewOpportunitiesHref(state, newDetails?.comparison_context, "reappeared");
   const recentHref = buildDashboardRecentOpportunitiesHref(state);
   const newDetail = newDetails
-    ? `${newDetails.first_seen_count} primeira identificação · ${newDetails.reappeared_count} reapareceram`
-    : "Comparação com a última coleta válida disponível";
+    ? t("comparison.newDetail", { first: newDetails.first_seen_count, reappeared: newDetails.reappeared_count })
+    : t("comparison.previousAvailable");
 
   const providerOptions = options.providers.map((provider) => ({
     value: provider,
@@ -237,13 +240,13 @@ export function ExecutiveDashboard() {
     <div className={styles.headerMetadata}>
       <StatusIndicator
         status={summary?.scope.has_current_data ? "success" : "neutral"}
-        label={summary?.scope.has_current_data ? "Dados atuais disponíveis" : "Sem dados atuais"}
+        label={summary?.scope.has_current_data ? t("status.currentData") : t("status.noCurrentData")}
       />
       <span>{scopeDescription}</span>
       <span>
         {summary?.data_updated_at
-          ? `Dados atualizados até ${formatDate(summary.data_updated_at)}`
-          : "Sem referência de atualização para este escopo"}
+          ? t("status.updatedUntil", { date: format.dateTime(new Date(summary.data_updated_at), { dateStyle: "short", timeStyle: "short" }) })
+          : t("status.noUpdateReference")}
       </span>
     </div>
   );
@@ -251,8 +254,8 @@ export function ExecutiveDashboard() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Visão geral"
-        description="Potencial atual de otimização, concentração de oportunidades e saúde operacional do ambiente."
+        title={t("title")}
+        description={t("description")}
         metadata={headerMetadata}
         actions={
           <Button
@@ -264,24 +267,24 @@ export function ExecutiveDashboard() {
               void optionsRequest.refetch();
             }}
           >
-            Atualizar
+            {t("actions.refresh")}
           </Button>
         }
       />
 
       <FilterBar
-        aria-label="Filtros da Visão Geral"
+        aria-label={t("filters.aria")}
         clearAction={
           state.provider || state.accountId ? (
             <Button variant="ghost" size="sm" onClick={() => updateScope({ provider: null, account_id: null })}>
-              Limpar escopo
+              {t("filters.clearScope")}
             </Button>
           ) : null
         }
       >
         <ProviderSelector
-          label="Cloud"
-          placeholder="Todas as clouds"
+          label={t("filters.cloud")}
+          placeholder={t("filters.allClouds")}
           options={providerOptions}
           value={state.provider}
           loading={optionsLoading}
@@ -290,8 +293,8 @@ export function ExecutiveDashboard() {
           searchable={false}
         />
         <AccountSelector
-          label="Conta"
-          placeholder="Todas as contas"
+          label={t("filters.account")}
+          placeholder={t("filters.allAccounts")}
           options={accountOptions}
           value={selectedAccountKey}
           loading={optionsLoading}
@@ -312,45 +315,45 @@ export function ExecutiveDashboard() {
       </FilterBar>
 
       {optionsError ? (
-        <Alert variant="warning" title="Filtros parcialmente indisponíveis" description={optionsError} />
+        <Alert variant="warning" title={t("errors.partialFilters")} description={optionsError} />
       ) : null}
       {options.has_more_accounts ? (
         <Alert
           variant="info"
-          title="Lista de contas limitada"
-          description="O seletor mostra as primeiras 100 contas; os indicadores continuam considerando todo o escopo selecionado."
+          title={t("warnings.limitedAccounts")}
+          description={t("warnings.limitedAccountsDetail")}
         />
       ) : null}
 
       <DataState
         error={summaryError || undefined}
         empty={Boolean(!summaryLoading && summary && !summary.scope.has_current_data)}
-        emptyTitle="Nenhum dado válido no escopo atual"
-        emptyDescription="Execute uma coleta válida ou ajuste os filtros para visualizar os indicadores."
+        emptyTitle={t("empty.noValidScope")}
+        emptyDescription={t("empty.runCollection")}
         errorFallback={
           <Alert
             variant="danger"
-            title="Não foi possível carregar a Visão Geral"
+            title={t("errors.loadOverview")}
             description={summaryError}
             actions={
               <Button variant="outline" size="sm" onClick={() => void summaryRequest.refetch()}>
-                Tentar novamente
+                {t("actions.retry")}
               </Button>
             }
           />
         }
       >
         <div className={styles.dashboardContent}>
-          <Section title="Indicadores principais" description="Leitura executiva do escopo atual.">
-            <div className={styles.metricGrid} aria-label="Indicadores executivos">
+          <Section title={t("sections.primaryIndicators")} description={t("sections.primaryDescription")}>
+            <div className={styles.metricGrid} aria-label={t("metrics.aria")}>
               <MetricCard
                 loading={summaryLoading}
                 icon={<Activity {...iconDefaults} />}
-                label="Oportunidades em aberto"
+                label={t("metrics.openOpportunities")}
                 value={summary?.opportunities.open}
                 supportingText={
                   <MetricSupport
-                    text="Backlog OPEN atual e não arquivado"
+                    text={t("metrics.openBacklogHelp")}
                     href={opportunityHref({ status: "open" })}
                   />
                 }
@@ -358,11 +361,11 @@ export function ExecutiveDashboard() {
               <MetricCard
                 loading={summaryLoading}
                 icon={<CircleDollarSign {...iconDefaults} />}
-                label="Economia potencial mensal"
+                label={t("metrics.monthlySavings")}
                 value={<SavingsValues totals={totals} />}
                 supportingText={
                   <MetricSupport
-                    text="Moedas permanecem separadas; nenhum câmbio é inferido"
+                    text={t("metrics.currenciesSeparate")}
                     href={opportunityHref({ status: "open", sort: "estimated_savings", order: "desc" })}
                   />
                 }
@@ -370,76 +373,76 @@ export function ExecutiveDashboard() {
               <MetricCard
                 loading={summaryLoading}
                 icon={<Sparkles {...iconDefaults} />}
-                label="Novas vs coleta anterior"
+                label={t("metrics.newSincePrevious")}
                 value={summary?.opportunities.new_since_previous}
                 supportingText={<MetricSupport text={newDetail} href={newHref || undefined} />}
                 status={
                   newDetails?.partial_coverage ? (
-                    <StatusIndicator status="warning" label="Cobertura parcial" />
+                    <StatusIndicator status="warning" label={t("status.partialCoverage")} />
                   ) : undefined
                 }
               />
               <MetricCard
                 loading={summaryLoading}
                 icon={<ShieldCheck {...iconDefaults} />}
-                label="Escopos válidos"
+                label={t("metrics.validScopes")}
                 value={summary?.scope.valid_scope_count}
-                supportingText="Contas com uma coleta válida disponível para o resumo atual"
+                supportingText={t("metrics.validScopeHelp")}
               />
             </div>
           </Section>
 
           {!summaryLoading && newDetails ? (
             <div className={styles.comparisonContext}>
-              <span>{newDetails.comparable_accounts} conta(s) comparável(is)</span>
-              {newDetails.accounts_without_baseline ? <span>{newDetails.accounts_without_baseline} sem baseline</span> : null}
-              {firstSeenHref ? <Link href={firstSeenHref}>{newDetails.first_seen_count} primeira identificação</Link> : null}
-              {reappearedHref ? <Link href={reappearedHref}>{newDetails.reappeared_count} reapareceram</Link> : null}
-              <Link href={recentHref}>Identificadas nas últimas 24h</Link>
+              <span>{t("comparison.comparable", { count: newDetails.comparable_accounts })}</span>
+              {newDetails.accounts_without_baseline ? <span>{t("comparison.withoutBaseline", { count: newDetails.accounts_without_baseline })}</span> : null}
+              {firstSeenHref ? <Link href={firstSeenHref}>{t("comparison.firstIdentifications", { count: newDetails.first_seen_count })}</Link> : null}
+              {reappearedHref ? <Link href={reappearedHref}>{t("comparison.reappeared", { count: newDetails.reappeared_count })}</Link> : null}
+              <Link href={recentHref}>{t("comparison.last24Hours")}</Link>
             </div>
           ) : null}
 
           <Section
-            title="Análise do backlog"
-            description="Concentração das oportunidades atuais sem converter moedas ou inventar série temporal de custos."
+            title={t("sections.backlog")}
+            description={t("sections.backlogDescription")}
           >
             <div className={styles.analysisGrid}>
               <ChartCard
-                title="Concentração por serviço"
-                description="Quantidade de oportunidades em aberto por serviço."
+                title={t("charts.serviceConcentration")}
+                description={t("charts.serviceDescription")}
                 loading={summaryLoading}
                 empty={Boolean(!summaryLoading && summary && summary.by_service.length === 0)}
-                emptyTitle="Sem oportunidades por serviço"
-                emptyDescription="Não há distribuição disponível para o escopo atual."
-                actions={<TextLink href={opportunityHref({ status: "open" })}>Ver oportunidades</TextLink>}
+                emptyTitle={t("empty.noServiceOpportunities")}
+                emptyDescription={t("empty.noServiceDistribution")}
+                actions={<TextLink href={opportunityHref({ status: "open" })}>{t("actions.viewOpportunities")}</TextLink>}
               >
                 <ServiceOpportunityChart summary={summary} state={state} />
               </ChartCard>
 
               <Section
                 appearance="card"
-                title="Estado das oportunidades"
-                description="Lifecycle atual do mesmo escopo executivo."
+                title={t("sections.lifecycle")}
+                description={t("sections.lifecycleDescription")}
               >
                 <DataState loading={summaryLoading}>
                   <div className={styles.lifecycleList}>
                     <LifecycleItem
                       icon={<Activity {...iconDefaults} />}
-                      label="Em aberto"
+                      label={t("status.open")}
                       value={summary?.opportunities.open}
                       href={opportunityHref({ status: "open" })}
                       status="info"
                     />
                     <LifecycleItem
                       icon={<CheckCircle2 {...iconDefaults} />}
-                      label="Tratadas"
+                      label={t("status.treated")}
                       value={summary?.opportunities.treated}
                       href={opportunityHref({ status: "treated" })}
                       status="success"
                     />
                     <LifecycleItem
                       icon={<XCircle {...iconDefaults} />}
-                      label="Rejeitadas"
+                      label={t("status.rejected")}
                       value={summary?.opportunities.rejected}
                       href={opportunityHref({ status: "rejected" })}
                       status="neutral"
@@ -451,18 +454,18 @@ export function ExecutiveDashboard() {
           </Section>
 
           <Section
-            title="Distribuição por cloud"
-            description="Backlog e potencial de economia permanecem associados ao provider real."
+            title={t("sections.cloudDistribution")}
+            description={t("sections.cloudDescription")}
           >
             <ProviderDistribution summary={summary} loading={summaryLoading} />
           </Section>
 
           <Section
-            title="Maiores oportunidades"
-            description="Resumo das oportunidades de maior impacto no escopo atual."
+            title={t("sections.topOpportunities")}
+            description={t("sections.topDescription")}
             actions={
               <TextLink href={opportunityHref({ status: "open", sort: "estimated_savings", order: "desc" })}>
-                Ver todas
+                {t("actions.viewAll")}
               </TextLink>
             }
           >
@@ -472,8 +475,8 @@ export function ExecutiveDashboard() {
           {!summaryLoading && summary && !hasBacklog ? (
             <Alert
               variant="success"
-              title="Nenhuma oportunidade em aberto"
-              description="O escopo atual não possui backlog operacional acionável."
+              title={t("empty.noOpenOpportunities")}
+              description={t("empty.noActionableBacklog")}
             />
           ) : null}
         </div>
@@ -489,10 +492,11 @@ export function DashboardOperationalInsights() {
 }
 
 function MetricSupport({ text, href }: { text: ReactNode; href?: string }) {
+  const t = useTranslations("dashboard");
   return (
     <span className={styles.metricSupport}>
       <span>{text}</span>
-      {href ? <Link href={href}>Abrir detalhe</Link> : null}
+      {href ? <Link href={href}>{t("actions.openDetail")}</Link> : null}
     </span>
   );
 }
@@ -506,8 +510,7 @@ function SavingsValues({ totals }: { totals: MoneyTotal[] }) {
           key={total.currency}
           value={Number(total.amount)}
           currency={total.currency}
-          locale="pt-BR"
-          currencyDisplay="code"
+                    currencyDisplay="code"
         />
       ))}
     </span>
@@ -530,13 +533,14 @@ function ServiceOpportunityChart({
   summary: ExecutiveDashboardSummary | null;
   state: DashboardQueryState;
 }) {
+  const t = useTranslations("dashboard");
   if (!summary?.by_service.length) return null;
   const maximum = Math.max(...summary.by_service.map((item) => item.open), 1);
   return (
     <div
       className={styles.serviceChart}
       role="group"
-      aria-label="Distribuição das oportunidades em aberto por serviço"
+      aria-label={t("charts.serviceAria")}
     >
       {summary.by_service.map((item) => {
         const ratio = `${(item.open / maximum) * 100}%`;
@@ -581,14 +585,15 @@ function LifecycleItem({
   href: string;
   status: "neutral" | "info" | "success";
 }) {
+  const t = useTranslations("dashboard");
   return (
-    <Link className={styles.lifecycleItem} href={href} aria-label={`${label}: ${value ?? "sem valor"}`}>
+    <Link className={styles.lifecycleItem} href={href} aria-label={`${label}: ${value ?? t("empty.noValue")}`}>
       <span className={styles.lifecycleIcon} aria-hidden="true">{icon}</span>
       <span className={styles.lifecycleCopy}>
         <span>{label}</span>
         <strong>{value ?? "—"}</strong>
       </span>
-      <StatusIndicator status={status} label="Ver detalhe" />
+      <StatusIndicator status={status} label={t("actions.viewDetail")} />
     </Link>
   );
 }
@@ -600,16 +605,17 @@ function ProviderDistribution({
   summary: ExecutiveDashboardSummary | null;
   loading: boolean;
 }) {
+  const t = useTranslations("dashboard");
   if (loading) {
     return (
       <div className={styles.providerGrid}>
-        <MetricCard label="Cloud" value={null} loading />
-        <MetricCard label="Cloud" value={null} loading />
+        <MetricCard label={t("filters.cloud")} value={null} loading />
+        <MetricCard label={t("filters.cloud")} value={null} loading />
       </div>
     );
   }
   if (!summary?.by_provider.length) {
-    return <Alert variant="info" title="Sem distribuição por cloud" description="Não há backlog aberto para distribuir no escopo atual." />;
+    return <Alert variant="info" title={t("empty.noCloudDistribution")} description={t("empty.noOpenBacklogDistribution")} />;
   }
   return (
     <div className={styles.providerGrid}>
@@ -642,6 +648,7 @@ function TopOpportunities({
   summary: ExecutiveDashboardSummary | null;
   loading: boolean;
 }) {
+  const t = useTranslations("dashboard");
   if (loading) {
     return (
       <DataState loading>
@@ -650,7 +657,7 @@ function TopOpportunities({
     );
   }
   if (!summary?.top_opportunities.length) {
-    return <Alert variant="success" title="Sem oportunidades abertas" description="Nenhuma oportunidade de maior impacto está disponível no escopo atual." />;
+    return <Alert variant="success" title={t("empty.noOpenOpportunitiesShort")} description={t("empty.noTopOpportunities")} />;
   }
   return (
     <div className={styles.opportunityGrid}>
@@ -667,14 +674,14 @@ function TopOpportunities({
             description={item.service || item.rule_key}
             resource={
               <ResourceIdentifier
-                primary={item.resource_name || "Recurso sem nome amigável"}
+                primary={item.resource_name || t("empty.unnamedResource")}
                 technicalId={item.resource_name ? undefined : item.resource_id}
                 copyable={false}
               />
             }
             provider={item.provider}
             status={severityStatus(item.severity)}
-            statusLabel={severityLabel(item.severity)}
+            statusLabel={severityLabel(item.severity, { critical: t("severity.critical"), high: t("severity.high"), medium: t("severity.medium"), low: t("severity.low") })}
             metadata={
               <div className={styles.opportunityMetadata}>
                 <span>{item.account_name || item.account_id}{item.region ? ` · ${item.region}` : ""}</span>
@@ -682,14 +689,13 @@ function TopOpportunities({
                   <CurrencyDisplay
                     value={Number(item.estimated_monthly_savings)}
                     currency={item.currency}
-                    locale="pt-BR"
-                    currencyDisplay="code"
+                                        currencyDisplay="code"
                   />
-                  <span>/mês</span>
+                  <span>{t("metrics.monthSuffix")}</span>
                 </span>
               </div>
             }
-            actions={<TextLink href={href}>Abrir oportunidade</TextLink>}
+            actions={<TextLink href={href}>{t("actions.openOpportunity")}</TextLink>}
           />
         );
       })}
@@ -711,16 +717,16 @@ function severityStatus(severity: string): "neutral" | "info" | "warning" | "dan
   }
 }
 
-function severityLabel(severity: string) {
+function severityLabel(severity: string, labels: Record<"critical" | "high" | "medium" | "low", string>) {
   switch (severity.toLowerCase()) {
     case "critical":
-      return "Crítica";
+      return labels.critical;
     case "high":
-      return "Alta";
+      return labels.high;
     case "medium":
-      return "Média";
+      return labels.medium;
     case "low":
-      return "Baixa";
+      return labels.low;
     default:
       return severity;
   }
