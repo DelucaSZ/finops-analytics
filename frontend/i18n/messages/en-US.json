@@ -225,5 +225,126 @@
     "authPanel": "Authentication",
     "dialogClose": "Close dialog",
     "drawerClose": "Close panel"
+  },
+  "dashboard": {
+    "title": "Overview",
+    "boot": {
+      "description": "Optimization potential and operational health in one place.",
+      "loadingFilters": "Loading dashboard filters",
+      "loadingMetrics": "Loading executive metrics"
+    },
+    "filters": {
+      "cloud": "Cloud",
+      "account": "Account",
+      "aria": "Overview filters",
+      "clearScope": "Clear scope",
+      "allClouds": "All clouds",
+      "allAccounts": "All accounts"
+    },
+    "metrics": {
+      "openOpportunities": "Open opportunities",
+      "potentialSavings": "Potential savings",
+      "newSincePrevious": "New since previous collection",
+      "validScopes": "Valid scopes",
+      "aria": "Executive indicators",
+      "openBacklogHelp": "Current unarchived OPEN backlog",
+      "monthlySavings": "Potential monthly savings",
+      "currenciesSeparate": "Currencies remain separate; no exchange rate is inferred",
+      "validScopeHelp": "Accounts with a valid collection available for the current summary",
+      "monthSuffix": "/month"
+    },
+    "charts": {
+      "serviceConcentration": "Concentration by service",
+      "serviceDescription": "Number of open opportunities by service.",
+      "serviceAria": "Distribution of open opportunities by service"
+    },
+    "scope": {
+      "allAccounts": "all accounts",
+      "allCloudsAccounts": "All clouds · all accounts",
+      "withProvider": "{provider} · all accounts"
+    },
+    "comparison": {
+      "previousAvailable": "Compared with the latest valid collection available",
+      "last24Hours": "Identified in the last 24 hours",
+      "newDetail": "{first, plural, one {# first identification} other {# first identifications}} · {reappeared, plural, one {# reappeared} other {# reappeared}}",
+      "comparable": "{count, plural, one {# comparable account} other {# comparable accounts}}",
+      "withoutBaseline": "{count, plural, one {# without baseline} other {# without baseline}}",
+      "firstIdentifications": "{count, plural, one {# first identification} other {# first identifications}}",
+      "reappeared": "{count, plural, one {# reappeared} other {# reappeared}}"
+    },
+    "status": {
+      "currentData": "Current data available",
+      "noCurrentData": "No current data",
+      "noUpdateReference": "No update reference for this scope",
+      "partialCoverage": "Partial coverage",
+      "open": "Open",
+      "treated": "Treated",
+      "rejected": "Rejected",
+      "updatedUntil": "Data updated through {date}"
+    },
+    "description": "Current optimization potential, opportunity concentration, and operational health.",
+    "actions": {
+      "refresh": "Refresh",
+      "retry": "Try again",
+      "viewOpportunities": "View opportunities",
+      "viewAll": "View all",
+      "openDetail": "Open details",
+      "viewDetail": "View details",
+      "openOpportunity": "Open opportunity"
+    },
+    "errors": {
+      "partialFilters": "Filters partially unavailable",
+      "loadOverview": "Unable to load Overview"
+    },
+    "warnings": {
+      "limitedAccounts": "Account list limited",
+      "limitedAccountsDetail": "The selector displays the first 100 accounts; indicators still cover the full selected scope."
+    },
+    "empty": {
+      "noValidScope": "No valid data for the current scope",
+      "runCollection": "Run a valid collection or adjust filters to view indicators.",
+      "noServiceOpportunities": "No opportunities by service",
+      "noServiceDistribution": "No distribution is available for the current scope.",
+      "noOpenOpportunities": "No open opportunities",
+      "noActionableBacklog": "The current scope has no actionable operational backlog.",
+      "noValue": "no value",
+      "noCloudDistribution": "No distribution by cloud",
+      "noOpenBacklogDistribution": "No open backlog to distribute for the current scope.",
+      "noOpenOpportunitiesShort": "No open opportunities",
+      "noTopOpportunities": "No high-impact opportunities are available for the current scope.",
+      "unnamedResource": "Resource without a display name"
+    },
+    "sections": {
+      "primaryIndicators": "Key indicators",
+      "primaryDescription": "Executive summary of the current scope.",
+      "backlog": "Backlog analysis",
+      "backlogDescription": "Current opportunity concentration without converting currencies or inventing cost time series.",
+      "lifecycle": "Opportunity status",
+      "lifecycleDescription": "Current lifecycle within the same executive scope.",
+      "cloudDistribution": "Distribution by cloud",
+      "cloudDescription": "Backlog and potential savings remain associated with the actual provider.",
+      "topOpportunities": "Top opportunities",
+      "topDescription": "Highest-impact opportunities in the current scope."
+    },
+    "severity": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "operational": {
+      "failure": "Failed",
+      "viewCollection": "View collection",
+      "title": "Operational attention required",
+      "collectionFailures": "Collection failures",
+      "failuresDescription": "Overview retains available indicators, but these accounts require operational review.",
+      "viewCollections": "View collections",
+      "affectedAccounts": "View affected accounts",
+      "failedAt": "Failed at {date}",
+      "newRun": "New collection running since {date}.",
+      "failureCount": "{count, plural, one {# account failed in the most recent collection.} other {# accounts failed in the most recent collection.}}",
+      "displayed": "{count, plural, one {# displayed} other {# displayed}}",
+      "truncated": "Showing {shown} of {total} accounts. Use Collections to see all."
+    }
   }
 }
