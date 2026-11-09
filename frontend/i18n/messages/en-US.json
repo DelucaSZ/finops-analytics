@@ -659,5 +659,114 @@
       "created": "Entry recorded in FinOps Flow.",
       "reversed": "Reversal recorded. The original entry was preserved."
     }
+  },
+  "inventory": {
+    "title": "Inventory",
+    "description": "Explore persisted AWS and OCI resources across authorized accounts, regions and resource types.",
+    "actions": {
+      "refresh": "Refresh"
+    },
+    "states": {
+      "loadError": "Unable to load Inventory",
+      "emptyTitle": "No resources match this scope",
+      "emptyDescription": "Adjust the provider, account, region, resource type, status or search filters.",
+      "optionsWarning": "Some filter options are unavailable",
+      "updating": "Updating"
+    },
+    "errors": {
+      "forbidden": "You do not have permission to view this inventory scope.",
+      "invalid": "One or more inventory filters are invalid.",
+      "limited": "Inventory requests are temporarily rate limited. Try again shortly.",
+      "unavailable": "Inventory data is temporarily unavailable.",
+      "resources": "Could not load Inventory resources.",
+      "options": "Could not load Inventory filter options."
+    },
+    "filters": {
+      "aria": "Inventory filters",
+      "clear": "Clear filters",
+      "search": "Search",
+      "searchPlaceholder": "Name, ID, account, type or region",
+      "provider": "Provider",
+      "account": "Account",
+      "region": "Region",
+      "resourceType": "Resource type",
+      "service": "Service",
+      "lifecycle": "Lifecycle",
+      "presence": "Presence",
+      "allProviders": "All providers",
+      "allAccounts": "All authorized accounts",
+      "allRegions": "All regions",
+      "allTypes": "All resource types",
+      "allServices": "All services",
+      "allLifecycle": "All lifecycle states"
+    },
+    "presence": {
+      "active": "Active",
+      "missing": "Missing",
+      "activeResources": "Active resources",
+      "missingResources": "Missing resources",
+      "all": "All presence states"
+    },
+    "metrics": {
+      "resources": "Resources in view",
+      "currentlyObserved": "Currently observed resources",
+      "matchesFilters": "Matches the current Inventory filters",
+      "accounts": "Cloud accounts",
+      "accountsDescription": "Authorized accounts in the selected provider scope",
+      "regions": "Regions",
+      "regionsDescription": "Regions represented by persisted Inventory data",
+      "types": "Resource types",
+      "typesDescription": "Normalized resource types available in this scope"
+    },
+    "overview": {
+      "title": "Inventory overview",
+      "description": "A concise view of the persisted resource scope currently selected.",
+      "aria": "Inventory summary"
+    },
+    "table": {
+      "title": "Resource explorer",
+      "description": "Search, sort and inspect normalized cloud resources without querying provider APIs from the browser.",
+      "resource": "Resource",
+      "typeService": "Type / service",
+      "location": "Location",
+      "lastObserved": "Last observed",
+      "firstSeen": "First seen",
+      "serviceUnavailable": "Service unavailable",
+      "regionUnavailable": "Region unavailable",
+      "noZone": "No availability zone",
+      "countUnavailable": "Resource count unavailable",
+      "defaultScope": "Default scope shows active resources only.",
+      "rowsPerPage": "Rows per page",
+      "sortCurrent": "Sort by {label}, currently {direction}",
+      "sortBy": "Sort by {label}",
+      "asc": "ascending",
+      "desc": "descending",
+      "resourceCount": "{count, plural, one {# resource} other {# resources}}"
+    },
+    "semantics": {
+      "title": "Inventory semantics",
+      "description": "Inventory represents persisted cloud resources independently from Findings and Opportunities. Missing resources remain queryable for audit and troubleshooting, while the default view shows active resources."
+    },
+    "lifecycle": {
+      "running": "Running",
+      "active": "Active",
+      "available": "Available",
+      "attached": "Attached",
+      "ready": "Ready",
+      "pending": "Pending",
+      "creating": "Creating",
+      "starting": "Starting",
+      "stopping": "Stopping",
+      "provisioning": "Provisioning",
+      "updating": "Updating",
+      "failed": "Failed",
+      "error": "Error",
+      "faulty": "Faulty",
+      "stopped": "Stopped",
+      "inactive": "Inactive",
+      "detached": "Detached",
+      "terminated": "Terminated",
+      "deleted": "Deleted"
+    }
   }
 }
