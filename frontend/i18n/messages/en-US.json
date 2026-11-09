@@ -954,5 +954,91 @@
     "presence": {
       "active": "Active"
     }
+  },
+  "opportunities": {
+    "decision": {
+      "reason": {
+        "FALSE_POSITIVE": "False positive",
+        "OPERATIONAL_EXCEPTION": "Operational exception",
+        "ACCEPTABLE_COST": "Acceptable cost",
+        "RESOURCE_REQUIRED": "Required resource",
+        "RISK_ACCEPTED": "Accepted risk",
+        "OTHER": "Other"
+      },
+      "treatTitle": "Mark as treated",
+      "treatHint": "Record an optional note about the action taken.",
+      "rejectTitle": "Reject opportunity",
+      "rejectButton": "Reject",
+      "rejectHint": "Select a reason for this decision. The history will be preserved.",
+      "reopenTitle": "Reopen opportunity",
+      "reopenButton": "Reopen",
+      "reopenHint": "The opportunity will return to Open without deleting previous decisions.",
+      "selected": "{count, plural, one {# selected opportunity.} other {# selected opportunities.}}",
+      "reasonMissing": "Select a reason for rejection.",
+      "noteRequired": "A note is required when the reason is Other.",
+      "reasonLabel": "Reason",
+      "reasonPlaceholder": "Select a reason",
+      "note": "Note",
+      "required": "required",
+      "optional": "optional",
+      "reopenContext": "Reopening context",
+      "auditContext": "Audit context",
+      "failure": "Unable to complete the decision",
+      "cancel": "Cancel"
+    },
+    "archiveHistory": {
+      "title": "Archiving",
+      "description": "History entry and exit events, without changing human or technical lifecycle.",
+      "events": "{count, plural, one {# event} other {# events}}",
+      "error": "Archiving history is temporarily unavailable.",
+      "loading": "Loading archiving history…",
+      "system": "System",
+      "archived": "Archived",
+      "unarchived": "Unarchived",
+      "reasonLabel": "Reason:",
+      "reason": {
+        "MANUAL": "Manual",
+        "RETENTION_POLICY": "Retention policy",
+        "REAPPEARED": "Automatically reappeared"
+      },
+      "autoUnarchive": "Automatically unarchived because the condition was observed again.",
+      "manualUnarchive": "Manually unarchived.",
+      "retentionDays": "Automatically archived under the retention policy after {days, plural, one {# day} other {# days}}.",
+      "autoRetention": "Automatically archived under the retention policy.",
+      "manualArchive": "Manually archived.",
+      "openCollection": "Open collection",
+      "empty": "No archiving events recorded."
+    },
+    "presenceHistory": {
+      "title": "Technical presence",
+      "description": "Automatic collection-derived transitions, separate from human decisions.",
+      "events": "{count, plural, one {# event} other {# events}}",
+      "error": "Technical presence history is temporarily unavailable.",
+      "loading": "Loading presence history…",
+      "reason": {
+        "NOT_OBSERVED_IN_SUCCESSFUL_SCOPE": "Not observed in a successfully collected scope",
+        "MISSING_THRESHOLD_REACHED": "Valid absence threshold reached",
+        "OBSERVED_AGAIN": "Condition observed again"
+      },
+      "absences": "Valid absences: {count}",
+      "threshold": "/ threshold {count}",
+      "scope": "Scope:",
+      "openCollection": "Open collection",
+      "empty": "No technical transitions recorded since rollout.",
+      "paged": "Showing the latest 50 technical events. The API supports pagination of the full history."
+    },
+    "status": {
+      "open": "Open",
+      "treated": "Treated",
+      "rejected": "Rejected",
+      "active": "Active",
+      "missing": "Missing",
+      "resolved_externally": "Resolved externally"
+    },
+    "severity": {
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    }
   }
 }
