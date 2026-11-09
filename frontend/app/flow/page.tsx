@@ -721,7 +721,7 @@ export default function FlowPage() {
           <Select
             label={t("filters.origin")}
             value={source}
-            options={[{ value: "all", label: "Todas" }, ...options.sources.map((value) => ({ value, label: sourceName(value) }))]}
+            options={[{ value: "all", label: t("filters.all") }, ...options.sources.map((value) => ({ value, label: sourceName(value) }))]}
             onChange={(event) => setSource(event.target.value)}
           />
         </FilterBar>
@@ -979,7 +979,7 @@ export default function FlowPage() {
               <DetailItem label={t("forms.type")}>{t(entryTypeLabels[detail.logical_entry_type])}</DetailItem>
               <DetailItem label={t("forms.direction")}>{detail.direction === "CREDIT" ? t("types.credit") : t("types.debit")}</DetailItem>
               <DetailItem label={t("forms.amount")}><Money amount={detail.amount} currency={detail.currency} /></DetailItem>
-              <DetailItem label="Currency">{detail.currency}</DetailItem>
+              <DetailItem label={t("forms.currency")}>{detail.currency}</DetailItem>
               <DetailItem label={t("forms.provider")}><ProviderBadge provider={detail.provider} /></DetailItem>
               <DetailItem label={t("forms.account")}>{detail.account_name || detail.account_id}</DetailItem>
               <DetailItem label={t("headers.effective")}>{effectiveDate(detail.effective_at, locale)}</DetailItem>
