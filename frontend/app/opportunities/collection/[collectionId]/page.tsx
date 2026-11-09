@@ -119,7 +119,7 @@ function CollectionOpportunitiesContent() {
           ← {t("backCollection")}
         </Link>
         <Link className="button ghost" href="/opportunities">
-          Abrir backlog atual
+          {t("openBacklog")}
         </Link>
       </div>
 
@@ -237,14 +237,14 @@ function CollectionOpportunitiesContent() {
               disabled={data.page <= 1}
               onClick={() => changePage(data.page - 1)}
             >
-              Anterior
+              {t("previous")}
             </button>
             <button
               className="button ghost"
               disabled={data.total_pages === 0 || data.page >= data.total_pages}
               onClick={() => changePage(data.page + 1)}
             >
-              Próxima
+              {t("next")}
             </button>
           </div>
         )}
