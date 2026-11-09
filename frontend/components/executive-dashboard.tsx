@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useMemo, type CSSProperties, type ReactNode } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
@@ -32,7 +32,6 @@ import {
 } from "@/components/aven";
 import { Alert, Button } from "@/components/ui";
 import { DashboardOperationalInsights as CollectionFailureOperationalInsights } from "@/components/dashboard-operational-insights";
-import { formatDate } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
 import {
   buildDashboardApiQuery,
@@ -167,6 +166,7 @@ export function DashboardBoot() {
 
 export function ExecutiveDashboard() {
   const t = useTranslations("dashboard");
+  const format = useFormatter();
   const router = useRouter();
   const searchParams = useSearchParams();
   const searchKey = searchParams.toString();
@@ -245,7 +245,7 @@ export function ExecutiveDashboard() {
       <span>{scopeDescription}</span>
       <span>
         {summary?.data_updated_at
-          ? t("status.updatedUntil", { date: formatDate(summary.data_updated_at) })
+          ? t("status.updatedUntil", { date: format.dateTime(new Date(summary.data_updated_at), { dateStyle: "short", timeStyle: "short" }) })
           : t("status.noUpdateReference")}
       </span>
     </div>
