@@ -88,7 +88,7 @@ test("Flow reuses ledger mutations and exposes provenance, opportunity links and
   assert.ok(source.includes("entry.is_reversal"));
   assert.ok(source.includes("opportunity_id="));
   assert.ok(source.includes('t("actions.viewOpportunity")'));
-  assert.ok(source.includes('t("details.treatment")'));
+  assert.ok(source.includes('t("details.treatment",'));
   assert.ok(source.includes('t("headers.createdBy")'));
 });
 
