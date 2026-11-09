@@ -316,8 +316,8 @@ function ReservationsContent() {
   const locale = useLocale();
   const tabLabels = useTabLabels();
   const queryError = useQueryError();
-  const statusLabels: Record<string,string> = {COMPLETED:t("pipeline.status.COMPLETED"),RUNNING:t("pipeline.status.RUNNING"),FAILED:t("pipeline.status.FAILED"),STALE:t("pipeline.status.STALE"),COMPLETED_WITH_WARNINGS:t("pipeline.status.COMPLETED_WITH_WARNINGS"),NEVER_EXECUTED:t("pipeline.status.NEVER_EXECUTED")};
-  const freshLabels: Record<string,string> = {FRESH:t("pipeline.fresh.FRESH"),STALE:t("pipeline.fresh.STALE")};
+  const statusLabels: Record<string,string> = {COMPLETED:t("pipeline.status.completed"),RUNNING:t("pipeline.status.running"),FAILED:t("pipeline.status.failed"),STALE:t("pipeline.status.stale"),COMPLETED_WITH_WARNINGS:t("pipeline.status.completedWithWarnings"),NEVER_EXECUTED:t("pipeline.status.neverExecuted")};
+  const freshLabels: Record<string,string> = {FRESH:t("pipeline.fresh.fresh"),STALE:t("pipeline.fresh.stale")};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
