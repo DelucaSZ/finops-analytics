@@ -954,5 +954,91 @@
     "presence": {
       "active": "Ativa"
     }
+  },
+  "opportunities": {
+    "decision": {
+      "reason": {
+        "FALSE_POSITIVE": "Falso positivo",
+        "OPERATIONAL_EXCEPTION": "Exceção operacional",
+        "ACCEPTABLE_COST": "Custo aceitável",
+        "RESOURCE_REQUIRED": "Recurso necessário",
+        "RISK_ACCEPTED": "Risco aceito",
+        "OTHER": "Outro"
+      },
+      "treatTitle": "Marcar como tratada",
+      "treatHint": "Registre uma observação opcional sobre o tratamento realizado.",
+      "rejectTitle": "Rejeitar oportunidade",
+      "rejectButton": "Rejeitar",
+      "rejectHint": "Selecione o motivo da decisão. O histórico será preservado.",
+      "reopenTitle": "Reabrir oportunidade",
+      "reopenButton": "Reabrir",
+      "reopenHint": "A oportunidade voltará para Abertas sem apagar decisões anteriores.",
+      "selected": "{count, plural, one {# oportunidade selecionada.} other {# oportunidades selecionadas.}}",
+      "reasonMissing": "Selecione um motivo para rejeitar.",
+      "noteRequired": "A observação é obrigatória quando o motivo é Outro.",
+      "reasonLabel": "Motivo",
+      "reasonPlaceholder": "Selecione um motivo",
+      "note": "Observação",
+      "required": "obrigatória",
+      "optional": "opcional",
+      "reopenContext": "Contexto da reabertura",
+      "auditContext": "Contexto para auditoria",
+      "failure": "Não foi possível concluir a decisão",
+      "cancel": "Cancelar"
+    },
+    "archiveHistory": {
+      "title": "Arquivamento",
+      "description": "Eventos de entrada e saída do histórico, sem alterar o ciclo de vida humano ou técnico.",
+      "events": "{count, plural, one {# evento} other {# eventos}}",
+      "error": "O histórico de arquivamento está temporariamente indisponível.",
+      "loading": "Carregando histórico de arquivamento…",
+      "system": "Sistema",
+      "archived": "Arquivada",
+      "unarchived": "Desarquivada",
+      "reasonLabel": "Motivo:",
+      "reason": {
+        "MANUAL": "Manual",
+        "RETENTION_POLICY": "Política de retenção",
+        "REAPPEARED": "Reaparecimento automático"
+      },
+      "autoUnarchive": "Desarquivada automaticamente porque a condição voltou a ser observada.",
+      "manualUnarchive": "Desarquivada manualmente.",
+      "retentionDays": "Arquivada automaticamente pela política de retenção após {days, plural, one {# dia} other {# dias}}.",
+      "autoRetention": "Arquivada automaticamente pela política de retenção.",
+      "manualArchive": "Arquivada manualmente.",
+      "openCollection": "Abrir coleta",
+      "empty": "Nenhum evento de arquivamento registrado."
+    },
+    "presenceHistory": {
+      "title": "Presença técnica",
+      "description": "Transições automáticas derivadas das coletas, separadas das decisões humanas.",
+      "events": "{count, plural, one {# evento} other {# eventos}}",
+      "error": "O histórico de presença técnica está temporariamente indisponível.",
+      "loading": "Carregando histórico de presença…",
+      "reason": {
+        "NOT_OBSERVED_IN_SUCCESSFUL_SCOPE": "Não observada em escopo coletado com sucesso",
+        "MISSING_THRESHOLD_REACHED": "Limite de ausências válidas atingido",
+        "OBSERVED_AGAIN": "Condição observada novamente"
+      },
+      "absences": "Ausências válidas: {count}",
+      "threshold": "/ limite {count}",
+      "scope": "Escopo:",
+      "openCollection": "Abrir coleta",
+      "empty": "Nenhuma transição técnica registrada desde a implantação.",
+      "paged": "Exibindo os 50 eventos técnicos mais recentes. A API permite paginação do histórico completo."
+    },
+    "status": {
+      "open": "Aberta",
+      "treated": "Tratada",
+      "rejected": "Rejeitada",
+      "active": "Ativa",
+      "missing": "Ausente",
+      "resolved_externally": "Resolvida externamente"
+    },
+    "severity": {
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    }
   }
 }
