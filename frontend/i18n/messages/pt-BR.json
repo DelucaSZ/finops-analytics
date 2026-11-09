@@ -1315,6 +1315,118 @@
     "savings": {
       "notEstimated": "Não estimada",
       "perMonth": "/mês"
+    },
+    "detail": {
+      "loadingTitle": "Carregando oportunidade…",
+      "loadingDescription": "Carregando contexto, evidências e histórico.",
+      "contextError": "Não foi possível carregar ou atualizar todo o contexto",
+      "observationError": "O detalhe foi carregado, mas o histórico de detecção está temporariamente indisponível.",
+      "decisionError": "O detalhe foi carregado, mas o histórico de decisões está temporariamente indisponível.",
+      "aiError": "Falha na análise por IA",
+      "reopenError": "Não foi possível reabrir a oportunidade.",
+      "unarchiveError": "Não foi possível desarquivar a oportunidade.",
+      "overviewAria": "Resumo da oportunidade",
+      "impact": "Impacto: {value}",
+      "confidence": "Confiança: {value}",
+      "archived": "Arquivada",
+      "detectedAgain": "Detectada novamente após tratamento",
+      "copyResource": "Copiar identificador do recurso",
+      "copiedResource": "Identificador copiado",
+      "rejectedActiveTitle": "Oportunidade rejeitada ainda observada",
+      "rejectedActiveDescription": "A presença técnica continua ativa, mas a recomendação permanece suprimida pela decisão humana registrada.",
+      "field": {
+        "account": "Conta",
+        "region": "Região",
+        "service": "Serviço",
+        "resourceType": "Tipo de recurso",
+        "rule": "Regra",
+        "potential": "Economia potencial",
+        "currentCost": "Custo mensal atual",
+        "confidence": "Confiança",
+        "firstSeen": "Primeira identificação",
+        "lastSeen": "Última detecção",
+        "treatedAt": "Tratada em",
+        "rejectedAt": "Rejeitada em",
+        "resolvedExternallyAt": "Resolvida externamente em",
+        "archivedAt": "Arquivada em",
+        "archiveReason": "Motivo do arquivamento",
+        "occurrences": "Ocorrências históricas",
+        "retained": "Detalhes retidos"
+      },
+      "openFirstCollection": "Abrir primeira coleta",
+      "openLastCollection": "Abrir última coleta",
+      "decision": {
+        "title": "Decisão atual",
+        "description": "Estado humano e contexto de auditoria registrados.",
+        "by": "Decidido por",
+        "date": "Data",
+        "reason": "Motivo",
+        "note": "Observação",
+        "noNote": "Sem observação registrada.",
+        "notRecorded": "Não registrado"
+      },
+      "evidence": {
+        "title": "Evidências",
+        "description": "Métricas e fatos persistidos pela recomendação; nenhum valor é recalculado na interface.",
+        "historical": "Evidência histórica",
+        "collectionDate": "Exibindo a coleta de {date}.",
+        "backToLatest": "Voltar à evidência mais recente",
+        "ai": "Aprofundar com IA"
+      },
+      "detection": {
+        "title": "Histórico de detecção",
+        "description": "Observações factuais registradas pelas coletas, da mais recente para a mais antiga.",
+        "retained": "{details, plural, one {# detalhe} other {# detalhes}} retidos de {occurrences, plural, one {# ocorrência} other {# ocorrências}}",
+        "partialTitle": "Histórico detalhado parcialmente expirado",
+        "partialDescription": "A configuração atual retém observações por {days, plural, one {# dia} other {# dias}}. Identidade, primeira/última detecção e decisões humanas continuam preservadas.",
+        "estimatedSavings": "economia estimada",
+        "viewEvidence": "Ver evidência desta coleta",
+        "openCollection": "Abrir coleta",
+        "noRetained": "Nenhuma observação detalhada permanece na janela atualmente retida.",
+        "empty": "Nenhuma observação histórica disponível.",
+        "full": "Ver histórico completo"
+      },
+      "history": {
+        "title": "Histórico de decisões",
+        "description": "Transições manuais de estado, separadas das detecções técnicas.",
+        "count": "{count, plural, one {# decisão} other {# decisões}}",
+        "unknownUser": "Usuário não registrado",
+        "reason": "Motivo:",
+        "empty": "Nenhuma decisão manual registrada."
+      },
+      "technical": {
+        "title": "Informações técnicas",
+        "resourceId": "ID do recurso",
+        "accountId": "ID da conta",
+        "opportunityId": "ID da oportunidade",
+        "rule": "Regra técnica",
+        "legacyScan": "Scan legado",
+        "firstCollection": "Primeira CollectionRun",
+        "lastCollection": "Última CollectionRun",
+        "copy": "Copiar",
+        "copied": "Copiado"
+      },
+      "actions": {
+        "treat": "Marcar como tratada",
+        "archive": "Arquivar",
+        "reject": "Rejeitar",
+        "reopen": "Reabrir",
+        "reopenOpportunity": "Reabrir oportunidade",
+        "unarchive": "Desarquivar",
+        "unarchiveOpportunity": "Desarquivar oportunidade",
+        "cancel": "Cancelar",
+        "restoreError": "Não foi possível restaurar",
+        "reopenDescription": "A decisão de rejeição será removida e a oportunidade voltará ao backlog operacional. O histórico permanecerá registrado.",
+        "unarchiveDescription": "A oportunidade voltará para a visão operacional correspondente sem alterar status humano ou presença técnica."
+      },
+      "savings": {
+        "notEstimated": "Não estimada",
+        "perMonth": "/mês"
+      },
+      "archiveReason": {
+        "manual": "Manual",
+        "retentionPolicy": "Política de retenção"
+      }
     }
   }
 }
