@@ -500,5 +500,162 @@
       "noteEstimate": "* / ≈ indicate only estimated or partially estimated periods reported by Cost Explorer.",
       "noteForecast": "F indicates forecast; forecast periods retain the series color and use a dashed border."
     }
+  },
+  "flow": {
+    "title": "Flow",
+    "description": "Recognized savings, reallocations, and adjustments recorded in the ledger. Flow does not represent cloud billed costs.",
+    "metadata": "FinOps Flow · append-only ledger",
+    "actions": {
+      "new": "New entry",
+      "cancel": "Cancel",
+      "submit": "Record entry",
+      "confirmReverse": "Confirm reversal",
+      "reverse": "Reverse",
+      "details": "Details",
+      "viewOpportunity": "View opportunity",
+      "viewRelated": "View related opportunity",
+      "close": "Close"
+    },
+    "forms": {
+      "type": "Type",
+      "direction": "Direction",
+      "provider": "Provider",
+      "account": "Account",
+      "selectAccount": "Select an account",
+      "amount": "Amount",
+      "currency": "Currency",
+      "brl": "BRL — Brazilian real",
+      "usd": "USD — US dollar",
+      "effectiveDate": "Entry date",
+      "periodicity": "Periodicity",
+      "description": "Description",
+      "descriptionPlaceholder": "Context for entry audit",
+      "reverseReason": "Reason for reversal",
+      "newTitle": "New entry",
+      "newDescription": "Record a financial event in the append-only ledger.",
+      "reverseTitle": "Reverse entry",
+      "reverseDescription": "A new offsetting entry will be created; the original remains in history."
+    },
+    "validation": {
+      "account": "Select an account for the entry.",
+      "amount": "Enter a positive amount with up to eight decimal places.",
+      "date": "The effective date cannot be in the future.",
+      "description": "Describe the entry context using at least three characters.",
+      "reason": "Provide a reason for reversal."
+    },
+    "types": {
+      "saving": "Saving",
+      "reallocation": "Reallocation",
+      "adjustment": "Adjustment",
+      "credit": "Credit",
+      "debit": "Debit",
+      "monthly": "Monthly",
+      "oneTime": "One-time",
+      "monthlyBasis": "Monthly / run-rate"
+    },
+    "status": {
+      "reversed": "Reversed",
+      "reversal": "Reversal",
+      "recorded": "Recorded"
+    },
+    "periods": {
+      "thisMonth": "This month",
+      "previousMonth": "Previous month",
+      "last3": "Last 3 months",
+      "last6": "Last 6 months",
+      "thisYear": "This year",
+      "custom": "Custom"
+    },
+    "source": {
+      "opportunity": "Opportunity",
+      "manual": "Manual",
+      "system": "System"
+    },
+    "filters": {
+      "title": "Context and filters",
+      "description": "The selection changes only Flow queries; theme or layout changes never trigger mutations.",
+      "period": "Period",
+      "all": "All",
+      "allAccounts": "All accounts",
+      "allCurrencies": "All (not consolidated)",
+      "allBases": "All (separate)",
+      "financialBasis": "Financial basis",
+      "origin": "Source",
+      "from": "From",
+      "to": "To",
+      "chartCurrency": "Chart currency",
+      "basis": "Basis",
+      "search": "Search",
+      "searchPlaceholder": "Description, resource, or opportunity"
+    },
+    "sections": {
+      "summary": "Financial summary",
+      "summaryDescription": "Each currency and financial basis remains separate; no cross-currency total is invented.",
+      "evolution": "Trend over time",
+      "evolutionDescription": "Values aggregated by currency and financial basis in the backend; the cumulative balance includes the amount from before the period.",
+      "byAccount": "Recognized savings by account",
+      "bySource": "Recognized savings by source",
+      "entries": "Entries",
+      "entryCount": "{count, plural, one {# entry in scope.} other {# entries in scope.}} Reversals remain visible."
+    },
+    "metrics": {
+      "savings": "Recognized savings",
+      "reallocated": "Reallocated",
+      "adjustments": "Net adjustments",
+      "runRateBalance": "Net run-rate balance",
+      "balance": "Available FinOps balance",
+      "monthSuffix": "/month"
+    },
+    "charts": {
+      "savings": "Savings",
+      "reallocations": "Reallocations",
+      "balance": "Cumulative balance",
+      "aria": "Trend of savings, reallocations, and cumulative balance",
+      "bucketTitle": "{bucket}: savings {saving}; reallocation {reallocation}; balance {balance}"
+    },
+    "empty": {
+      "summary": "No entries recorded during this period",
+      "summaryDescription": "Flow shows only actual financial events in the ledger.",
+      "chart": "No chart data",
+      "chartDescription": "No time series for the selected scope.",
+      "byAccount": "No savings by account",
+      "bySource": "No savings by source",
+      "byDescription": "No recognized savings for this scope.",
+      "entries": "No entries found",
+      "entriesDescription": "Adjust the filters or record a real entry in the ledger."
+    },
+    "headers": {
+      "date": "Date",
+      "actions": "Actions",
+      "status": "Status",
+      "createdAt": "Created at",
+      "createdBy": "Created by",
+      "effective": "Effective date",
+      "original": "Original",
+      "reversal": "Reversal"
+    },
+    "details": {
+      "title": "Entry details",
+      "description": "Record persisted in the FinOps ledger.",
+      "associated": "Related opportunity",
+      "notInformed": "Not provided",
+      "service": "Service: {service}",
+      "treatment": "Treatment event: {event}"
+    },
+    "table": {
+      "reversal": "Ledger reversal"
+    },
+    "errors": {
+      "analyticsTitle": "Indicators unavailable",
+      "analytics": "Unable to load Flow indicators.",
+      "entries": "Unable to load entries.",
+      "create": "Unable to record the entry.",
+      "reverse": "Unable to reverse the entry."
+    },
+    "success": {
+      "title": "Entry updated",
+      "created": "Entry recorded in FinOps Flow.",
+      "reversed": "Reversal recorded. The original entry was preserved."
+    }
   }
 }
