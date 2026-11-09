@@ -1428,6 +1428,104 @@
         "manual": "Manual",
         "retentionPolicy": "Retention policy"
       }
+    },
+    "cycles": {
+      "title": "Cycle history",
+      "description": "Immutable snapshots for closed periods, separate from the backlog and operational archiving.",
+      "metadata": "OPPORTUNITIES",
+      "refresh": "Refresh",
+      "refreshing": "Refreshing…",
+      "navAria": "History views",
+      "nav": {
+        "closed": "Closed cycles",
+        "legacy": "Currently archived / Legacy history",
+        "backlog": "Operational backlog"
+      },
+      "errorTitle": "Unable to load history",
+      "errors": {
+        "cycles": "Unable to load historical cycles.",
+        "snapshots": "Unable to load cycle snapshots.",
+        "refresh": "Unable to refresh history.",
+        "close": "Unable to close cycle."
+      },
+      "filters": {
+        "period": "Historical period",
+        "cloud": "Cloud",
+        "allFeminine": "All",
+        "allMasculine": "All",
+        "status": "Status at closing",
+        "severity": "Severity",
+        "search": "Search snapshot",
+        "searchPlaceholder": "Resource, title, account or ID"
+      },
+      "cycle": {
+        "closed": "Closed",
+        "open": "Open",
+        "closedAt": "closed on {date}",
+        "preview": "Preview — period not yet closed",
+        "close": "Close cycle",
+        "coverage": "{success} completed collections · {failed} failures · {running} running"
+      },
+      "summary": {
+        "title": "Cycle summary",
+        "description": "Metrics persisted for the selected historical context.",
+        "opportunities": "Snapshot opportunities",
+        "immutable": "Immutable records materialized at closing",
+        "afterClose": "Available after cycle closing",
+        "potential": "Potential savings",
+        "noFx": "Currencies preserved without conversion",
+        "current": "Current cost at closing",
+        "captured": "Value captured in the selected cycle",
+        "collections": "Collection coverage",
+        "coverage": "{success} successful · {failed} failed · {running} running"
+      },
+      "snapshot": {
+        "previewDescription": "Final snapshots are materialized only when the cycle closes.",
+        "title": "Cycle snapshots",
+        "description": "Immutable historical opportunity state at period close.",
+        "aria": "Opportunity history snapshots",
+        "opportunity": "Opportunity",
+        "accountCloud": "Account / Cloud",
+        "status": "Status",
+        "severity": "Severity",
+        "cost": "Cost",
+        "savings": "Savings",
+        "observations": "Observations",
+        "lastObserved": "Last observed",
+        "empty": "No snapshots found for this cycle and filters.",
+        "page": "{count} snapshots · page {page} of {total}",
+        "previous": "Previous",
+        "next": "Next"
+      },
+      "detail": {
+        "close": "Close details",
+        "cloud": "Cloud",
+        "account": "Account",
+        "resource": "Resource",
+        "rule": "Rule",
+        "serviceRegion": "Service / Region",
+        "status": "Status at closing",
+        "presence": "Presence at closing",
+        "severityConfidence": "Severity / confidence",
+        "archived": "Operationally archived",
+        "yes": "Yes",
+        "no": "No",
+        "periodCost": "Cost during period",
+        "estimatedSavings": "Estimated savings",
+        "firstObserved": "First observed in cycle",
+        "lastObserved": "Last observed in cycle",
+        "occurrences": "Cycle observations",
+        "firstSeen": "First historical detection",
+        "lastSeen": "Last known detection at closing",
+        "lastCollection": "Last CollectionRun in cycle",
+        "rejectReason": "Rejection reason:",
+        "treatment": "Treatment:",
+        "openCurrent": "View current opportunity",
+        "independent": "— the current state is independent of this snapshot.",
+        "perMonth": "/month",
+        "periodTo": "to",
+        "timezone": "timezone"
+      }
     }
   }
 }
