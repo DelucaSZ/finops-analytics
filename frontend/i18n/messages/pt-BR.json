@@ -483,6 +483,22 @@
       "forecast": "Forecast",
       "includesForecast": "Inclui forecast"
     },
-    "disclaimer": "Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Forecast e estimativas são identificados apenas quando informados pelo contrato de dados."
+    "disclaimer": "Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Forecast e estimativas são identificados apenas quando informados pelo contrato de dados.",
+    "charts": {
+      "title": "Análise de custos em {currency}",
+      "totalCost": "Custo total",
+      "period": "Período",
+      "granularity": "Granularidade",
+      "groupBy": "Agrupamento",
+      "other": "Outros",
+      "seriesLegend": "Legenda de séries",
+      "aria": "Custos em {currency}, {granularity}, agrupamento {grouping}. Use Tab para percorrer os períodos e consultar valores detalhados.",
+      "axisCost": "Custo ({currency})",
+      "periodTotal": "Total do período",
+      "bucketAria": "{period}. Total {currency} {total}.",
+      "noteOther": "Serviços de menor custo foram consolidados em “Outros” para manter a leitura do gráfico.",
+      "noteEstimate": "* / ≈ identificam somente buckets estimados ou parcialmente estimados informados pelo Cost Explorer.",
+      "noteForecast": "F identifica forecast; os buckets previstos mantêm a cor da série e usam contorno tracejado."
+    }
   }
 }
