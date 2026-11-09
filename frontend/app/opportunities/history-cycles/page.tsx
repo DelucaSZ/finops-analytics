@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { History, LockKeyhole, RefreshCw } from "lucide-react";
 import {
   DataState,
@@ -111,22 +112,10 @@ type SnapshotPage = {
   total_pages: number;
 };
 
-function statusLabel(status: string) {
-  if (status === "treated") return "Tratada";
-  if (status === "rejected") return "Rejeitada";
-  return "Aberta";
-}
-
 function statusTone(status: string) {
   if (status === "treated") return "success" as const;
   if (status === "rejected") return "neutral" as const;
   return "info" as const;
-}
-
-function presenceLabel(status: string) {
-  if (status === "missing") return "Ausente";
-  if (status === "resolved_externally") return "Resolvida externamente";
-  return "Ativa";
 }
 
 function presenceTone(status: string) {
@@ -142,6 +131,12 @@ function severityTone(severity: string) {
 }
 
 export default function OpportunityHistoryCyclesPage() {
+  const t = useTranslations("opportunities.cycles");
+  const statusT = useTranslations("opportunities.status");
+  const severityT = useTranslations("opportunities.severity");
+  const statusLabel = (value:string) => value === "resolved_externally" ? statusT("resolvedExternally") : ["open","treated","rejected","active","missing"].includes(value) ? statusT(value as "open" | "treated" | "rejected" | "active" | "missing") : value;
+  const presenceLabel = (value:string) => statusLabel(value);
+  const cycleState = (value:string) => value === "CLOSED" ? t("cycle.closed") : value === "OPEN" ? t("cycle.open") : cycleStateLabel(value);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [cycleId, setCycleId] = useState("");
   const [snapshots, setSnapshots] = useState<SnapshotPage>({ items: [], total: 0, page: 1, page_size: 50, total_pages: 0 });
@@ -176,7 +171,7 @@ export default function OpportunityHistoryCyclesPage() {
     let active = true;
     setLoading(true);
     loadCycles().catch((reason) => {
-      if (active) setError(reason instanceof Error ? reason.message : "Não foi possível carregar os ciclos históricos.");
+      if (active) setError(reason instanceof Error ? reason.message : t("errors.cycles"));
     }).finally(() => {
       if (active) setLoading(false);
     });
@@ -199,7 +194,7 @@ export default function OpportunityHistoryCyclesPage() {
       api<SnapshotPage>(`/opportunity-history/snapshots?${query}`).then((response) => {
         if (active) setSnapshots(response);
       }).catch((reason) => {
-        if (active) setError(reason instanceof Error ? reason.message : "Não foi possível carregar os snapshots do ciclo.");
+        if (active) setError(reason instanceof Error ? reason.message : t("errors.snapshots"));
       });
     }, search ? 250 : 0);
     return () => {
@@ -214,7 +209,7 @@ export default function OpportunityHistoryCyclesPage() {
     try {
       await loadCycles(cycleId);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível atualizar o histórico.");
+      setError(reason instanceof Error ? reason.message : t("errors.refresh"));
     } finally {
       setLoading(false);
     }
@@ -228,7 +223,7 @@ export default function OpportunityHistoryCyclesPage() {
       await api(`/opportunity-history/cycles/${cycle.id}/close`, { method: "POST" });
       await loadCycles(cycle.id);
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : "Não foi possível fechar o ciclo.");
+      setError(reason instanceof Error ? reason.message : t("errors.close"));
     } finally {
       setClosing(false);
     }
@@ -237,9 +232,9 @@ export default function OpportunityHistoryCyclesPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Histórico de ciclos"
-        description="Snapshots imutáveis por período fechado, separados do backlog e do arquivamento operacional."
-        metadata="OPORTUNIDADES"
+        title={t("title")}
+        description={t("description")}
+        metadata={t("metadata")}
         actions={(
           <Button
             variant="secondary"
@@ -247,28 +242,28 @@ export default function OpportunityHistoryCyclesPage() {
             onClick={refresh}
             disabled={loading}
           >
-            {loading ? "Atualizando…" : "Atualizar"}
+            {loading ? t("refreshing") : t("refresh")}
           </Button>
         )}
       />
 
-      <nav className={styles.switcher} aria-label="Visões de histórico">
-        <span aria-current="page"><History {...iconDefaults} /> Ciclos fechados</span>
-        <Link href="/opportunities?view=history">Arquivadas atualmente / Histórico legado</Link>
-        <Link href="/opportunities">Backlog operacional</Link>
+      <nav className={styles.switcher} aria-label={t("navAria")}>
+        <span aria-current="page"><History {...iconDefaults} /> {t("nav.closed")}</span>
+        <Link href="/opportunities?view=history">{t("nav.legacy")}</Link>
+        <Link href="/opportunities">{t("nav.backlog")}</Link>
       </nav>
 
-      {error && <Alert variant="danger" title="Não foi possível carregar o histórico" description={error} />}
+      {error && <Alert variant="danger" title={t("errorTitle")} description={error} />}
 
       <FilterBar className={styles.filterBar}>
         <FilterItem size="wide">
           <Select
             id="history-cycle"
-            label="Período histórico"
+            label={t("filters.period")}
             value={cycleId}
             options={cycles.map((item) => ({
               value: item.id,
-              label: `${item.label} — ${cycleStateLabel(item.status)}`,
+              label: `${item.label} — ${cycleState(item.status)}`,
             }))}
             onChange={(event) => { setCycleId(event.target.value); setPage(1); }}
           />
@@ -276,10 +271,10 @@ export default function OpportunityHistoryCyclesPage() {
         <FilterItem size="compact">
           <Select
             id="history-provider"
-            label="Cloud"
+            label={t("filters.cloud")}
             value={provider}
             options={[
-              { value: "", label: "Todas" },
+              { value: "", label: t("filters.allFeminine") },
               { value: "aws", label: "AWS" },
               { value: "oci", label: "OCI" },
             ]}
@@ -289,13 +284,13 @@ export default function OpportunityHistoryCyclesPage() {
         <FilterItem size="default">
           <Select
             id="history-status"
-            label="Status no fechamento"
+            label={t("filters.status")}
             value={status}
             options={[
-              { value: "", label: "Todos" },
-              { value: "open", label: "Aberta" },
-              { value: "treated", label: "Tratada" },
-              { value: "rejected", label: "Rejeitada" },
+              { value: "", label: t("filters.allMasculine") },
+              { value: "open", label: statusT("open") },
+              { value: "treated", label: statusT("treated") },
+              { value: "rejected", label: statusT("rejected") },
             ]}
             onChange={(event) => { setStatus(event.target.value); setPage(1); }}
           />
@@ -303,13 +298,13 @@ export default function OpportunityHistoryCyclesPage() {
         <FilterItem size="compact">
           <Select
             id="history-severity"
-            label="Severidade"
+            label={t("filters.severity")}
             value={severity}
             options={[
-              { value: "", label: "Todas" },
-              { value: "high", label: "Alta" },
-              { value: "medium", label: "Média" },
-              { value: "low", label: "Baixa" },
+              { value: "", label: t("filters.allFeminine") },
+              { value: "high", label: severityT("high") },
+              { value: "medium", label: severityT("medium") },
+              { value: "low", label: severityT("low") },
             ]}
             onChange={(event) => { setSeverity(event.target.value); setPage(1); }}
           />
@@ -317,11 +312,11 @@ export default function OpportunityHistoryCyclesPage() {
         <FilterItem size="wide">
           <Input
             id="history-search"
-            label="Buscar no snapshot"
+            label={t("filters.search")}
             type="search"
             value={search}
             onChange={(event) => { setSearch(event.target.value); setPage(1); }}
-            placeholder="Recurso, título, conta ou ID"
+            placeholder={t("filters.searchPlaceholder")}
           />
         </FilterItem>
       </FilterBar>
@@ -329,8 +324,8 @@ export default function OpportunityHistoryCyclesPage() {
       {cycle && (
         <Section
           appearance="card"
-          title={`${cycle.label} · ${cycleStateLabel(cycle.status)}`}
-          description={`${formatDate(cycle.period_start)} até ${formatDate(cycle.period_end)} · timezone ${cycle.timezone}${cycle.closed_at ? ` · fechado em ${formatDate(cycle.closed_at)}` : " · Prévia — período ainda não fechado"}`}
+          title={`${cycle.label} · ${cycleState(cycle.status)}`}
+          description={`${formatDate(cycle.period_start)} ${t("detail.periodTo")} ${formatDate(cycle.period_end)} · ${t("detail.timezone")} ${cycle.timezone}${cycle.closed_at ? ` · ${t("cycle.closedAt",{date:formatDate(cycle.closed_at)})}` : ` · ${t("cycle.preview")}`}`}
           actions={cycle.status === "OPEN" ? (
             <Button
               leadingIcon={<LockKeyhole {...iconDefaults} />}
@@ -345,7 +340,7 @@ export default function OpportunityHistoryCyclesPage() {
           <div className={styles.cycleMeta}>
             <StatusIndicator
               status={cycle.status === "CLOSED" ? "success" : "pending"}
-              label={cycleStateLabel(cycle.status)}
+              label={cycleState(cycle.status)}
             />
             <span>{cycle.coverage.success} coletas concluídas · {cycle.coverage.failed} falhas · {cycle.coverage.running} em andamento</span>
           </div>
@@ -353,36 +348,36 @@ export default function OpportunityHistoryCyclesPage() {
       )}
 
       {cycle && (
-        <Section title="Resumo do ciclo" description="Indicadores persistidos no contexto histórico selecionado.">
+        <Section title={t("summary.title")} description={t("summary.description")}>
           <div className={styles.summary}>
             <MetricCard
-              label="Oportunidades no snapshot"
+              label={t("summary.opportunities")}
               value={cycle.status === "CLOSED" ? cycle.snapshot_count : "—"}
-              supportingText={cycle.status === "CLOSED" ? "Registros imutáveis materializados no fechamento" : "Disponível após o fechamento do ciclo"}
+              supportingText={cycle.status === "CLOSED" ? t("summary.immutable") : t("summary.afterClose")}
               icon={<History {...iconDefaults} />}
             />
             <MetricCard
-              label="Economia potencial"
+              label={t("summary.potential")}
               value={savings.length ? (
                 <span className={styles.moneyList}>
-                  {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</span>)}
+                  {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
-              supportingText="Moedas preservadas sem conversão"
+              supportingText=t("summary.noFx")
             />
             <MetricCard
-              label="Custo atual no fechamento"
+              label={t("summary.current")}
               value={costs.length ? (
                 <span className={styles.moneyList}>
-                  {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}/mês</span>)}
+                  {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
-              supportingText="Valor capturado no ciclo selecionado"
+              supportingText=t("summary.captured")
             />
             <MetricCard
-              label="Cobertura de coletas"
+              label={t("summary.collections")}
               value={cycle.coverage.total}
-              supportingText={`${cycle.coverage.success} sucesso · ${cycle.coverage.failed} falha · ${cycle.coverage.running} em andamento`}
+              supportingText={t("summary.coverage",{success:cycle.coverage.success,failed:cycle.coverage.failed,running:cycle.coverage.running})}
             />
           </div>
         </Section>
@@ -392,28 +387,28 @@ export default function OpportunityHistoryCyclesPage() {
         <Section appearance="card">
           <DataState
             empty
-            emptyTitle="Prévia — período ainda não fechado"
-            emptyDescription="Snapshots definitivos são materializados somente no fechamento do ciclo."
+            emptyTitle={t("cycle.preview")}
+            emptyDescription={t("snapshot.previewDescription")}
           >
             <span />
           </DataState>
         </Section>
       ) : (
         <Section
-          title="Snapshots do ciclo"
-          description="Estado histórico imutável das oportunidades no fechamento do período."
+          title={t("snapshot.title")}
+          description={t("snapshot.description")}
         >
-          <Table density="compact" aria-label="Snapshots do histórico de oportunidades">
+          <Table density="compact" aria-label={t("snapshot.aria")}>
             <TableHeader>
               <TableRow staticRow>
-                <TableHead kind="identifier">Oportunidade</TableHead>
-                <TableHead kind="text">Conta / Cloud</TableHead>
-                <TableHead kind="status">Status</TableHead>
-                <TableHead kind="badge">Severidade</TableHead>
-                <TableHead kind="currency" numeric>Custo</TableHead>
-                <TableHead kind="currency" numeric>Economia</TableHead>
-                <TableHead kind="numeric" numeric>Observações</TableHead>
-                <TableHead kind="date">Última observação</TableHead>
+                <TableHead kind="identifier">{t("snapshot.opportunity")}</TableHead>
+                <TableHead kind="text">{t("snapshot.accountCloud")}</TableHead>
+                <TableHead kind="status">{t("snapshot.status")}</TableHead>
+                <TableHead kind="badge">{t("snapshot.severity")}</TableHead>
+                <TableHead kind="currency" numeric>{t("snapshot.cost")}</TableHead>
+                <TableHead kind="currency" numeric>{t("snapshot.savings")}</TableHead>
+                <TableHead kind="numeric" numeric>{t("snapshot.observations")}</TableHead>
+                <TableHead kind="date">{t("snapshot.lastObserved")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -435,7 +430,7 @@ export default function OpportunityHistoryCyclesPage() {
                       <StatusIndicator status={presenceTone(item.presence_status)} label={presenceLabel(item.presence_status)} />
                     </div>
                   </TableCell>
-                  <TableCell kind="badge"><StatusIndicator status={severityTone(item.severity)} label={item.severity} /></TableCell>
+                  <TableCell kind="badge"><StatusIndicator status={severityTone(item.severity)} label={["high","medium","low"].includes(item.severity) ? severityT(item.severity as "high" | "medium" | "low") : item.severity} /></TableCell>
                   <TableCell kind="currency" numeric>{formatMoney(item.current_monthly_cost, item.currency)}</TableCell>
                   <TableCell kind="currency" numeric>{formatMoney(item.estimated_monthly_savings, item.currency)}</TableCell>
                   <TableCell kind="numeric" numeric>{item.occurrence_count_in_cycle}</TableCell>
@@ -444,16 +439,16 @@ export default function OpportunityHistoryCyclesPage() {
               ))}
               {!snapshots.items.length && (
                 <TableRow staticRow>
-                  <TableState state="empty" colSpan={8}>Nenhum snapshot encontrado para este ciclo e filtros.</TableState>
+                  <TableState state="empty" colSpan={8}>{t("snapshot.empty")}</TableState>
                 </TableRow>
               )}
             </TableBody>
           </Table>
           <div className={styles.footer}>
-            <span>{snapshots.total} snapshots · página {snapshots.page || 1} de {snapshots.total_pages || 1}</span>
+            <span>{t("snapshot.page",{count:snapshots.total,page:snapshots.page || 1,total:snapshots.total_pages || 1})}</span>
             <div className={styles.footerActions}>
-              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>Anterior</Button>
-              <Button variant="secondary" disabled={!snapshots.total_pages || page >= snapshots.total_pages} onClick={() => setPage((value) => value + 1)}>Próxima</Button>
+              <Button variant="secondary" disabled={page <= 1} onClick={() => setPage((value) => Math.max(1, value - 1))}>{t("snapshot.previous")}</Button>
+              <Button variant="secondary" disabled={!snapshots.total_pages || page >= snapshots.total_pages} onClick={() => setPage((value) => value + 1)}>{t("snapshot.next")}</Button>
             </div>
           </div>
         </Section>
@@ -464,33 +459,33 @@ export default function OpportunityHistoryCyclesPage() {
           appearance="card"
           title={selected.title}
           description={selected.description}
-          actions={<Button variant="secondary" onClick={() => setSelected(null)}>Fechar detalhe</Button>}
+          actions={<Button variant="secondary" onClick={() => setSelected(null)}>{t("detail.close")}</Button>}
           aria-label={`Snapshot ${selected.title}`}
         >
           <dl className={styles.detailGrid}>
-            <div><dt>Cloud</dt><dd>{providerLabel(selected.provider)}</dd></div>
-            <div><dt>Conta</dt><dd>{selected.account_name || selected.account_id}</dd></div>
-            <div><dt>Recurso</dt><dd>{selected.resource_name || selected.resource_id}</dd></div>
-            <div><dt>Regra</dt><dd>{selected.rule_key}</dd></div>
-            <div><dt>Serviço / Região</dt><dd>{selected.service} · {selected.region || "—"}</dd></div>
-            <div><dt>Status no fechamento</dt><dd>{statusLabel(selected.status)}</dd></div>
-            <div><dt>Presença no fechamento</dt><dd>{presenceLabel(selected.presence_status)}</dd></div>
-            <div><dt>Severidade / confiança</dt><dd>{selected.severity} · {selected.confidence}</dd></div>
-            <div><dt>Arquivada operacionalmente</dt><dd>{selected.archived ? `Sim${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : "Não"}</dd></div>
-            <div><dt>Custo no período</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency)}/mês</dd></div>
-            <div><dt>Economia estimada</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency)}/mês</dd></div>
-            <div><dt>Primeira observação no ciclo</dt><dd>{formatDate(selected.first_observed_in_cycle_at)}</dd></div>
-            <div><dt>Última observação no ciclo</dt><dd>{formatDate(selected.last_observed_in_cycle_at)}</dd></div>
-            <div><dt>Observações no ciclo</dt><dd>{selected.occurrence_count_in_cycle}</dd></div>
-            <div><dt>Primeira detecção histórica</dt><dd>{formatDate(selected.first_seen_at)}</dd></div>
-            <div><dt>Última detecção conhecida no fechamento</dt><dd>{formatDate(selected.last_seen_at)}</dd></div>
-            <div><dt>Última CollectionRun do ciclo</dt><dd>{selected.last_collection_run_id_in_cycle || "—"}</dd></div>
+            <div><dt>{t("detail.cloud")}</dt><dd>{providerLabel(selected.provider)}</dd></div>
+            <div><dt>{t("detail.account")}</dt><dd>{selected.account_name || selected.account_id}</dd></div>
+            <div><dt>{t("detail.resource")}</dt><dd>{selected.resource_name || selected.resource_id}</dd></div>
+            <div><dt>{t("detail.rule")}</dt><dd>{selected.rule_key}</dd></div>
+            <div><dt>{t("detail.serviceRegion")}</dt><dd>{selected.service} · {selected.region || "—"}</dd></div>
+            <div><dt>{t("detail.status")}</dt><dd>{statusLabel(selected.status)}</dd></div>
+            <div><dt>{t("detail.presence")}</dt><dd>{presenceLabel(selected.presence_status)}</dd></div>
+            <div><dt>{t("detail.severityConfidence")}</dt><dd>{(["high","medium","low"].includes(selected.severity) ? severityT(selected.severity as "high" | "medium" | "low") : selected.severity)} · {(["high","medium","low"].includes(selected.confidence) ? severityT(selected.confidence as "high" | "medium" | "low") : selected.confidence)}</dd></div>
+            <div><dt>{t("detail.archived")}</dt><dd>{selected.archived ? `${t("detail.yes")}${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : "Não"}</dd></div>
+            <div><dt>{t("detail.periodCost")}</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.estimatedSavings")}</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.firstObserved")}</dt><dd>{formatDate(selected.first_observed_in_cycle_at)}</dd></div>
+            <div><dt>{t("detail.lastObserved")}</dt><dd>{formatDate(selected.last_observed_in_cycle_at)}</dd></div>
+            <div><dt>{t("detail.occurrences")}</dt><dd>{selected.occurrence_count_in_cycle}</dd></div>
+            <div><dt>{t("detail.firstSeen")}</dt><dd>{formatDate(selected.first_seen_at)}</dd></div>
+            <div><dt>{t("detail.lastSeen")}</dt><dd>{formatDate(selected.last_seen_at)}</dd></div>
+            <div><dt>{t("detail.lastCollection")}</dt><dd>{selected.last_collection_run_id_in_cycle || "—"}</dd></div>
           </dl>
           <div className={styles.detailNotes}>
-            {selected.rejection_reason && <p><strong>Motivo da rejeição:</strong> {selected.rejection_reason}{selected.rejection_note ? ` — ${selected.rejection_note}` : ""}</p>}
-            {selected.treatment_note && <p><strong>Tratamento:</strong> {selected.treatment_note}</p>}
+            {selected.rejection_reason && <p><strong>{t("detail.rejectReason")}</strong> {selected.rejection_reason}{selected.rejection_note ? ` — ${selected.rejection_note}` : ""}</p>}
+            {selected.treatment_note && <p><strong>{t("detail.treatment")}</strong> {selected.treatment_note}</p>}
             {selected.opportunity_id && (
-              <p><Link href={`/opportunities?resource_id=${encodeURIComponent(selected.resource_id)}`}>Ver oportunidade atual</Link> <span className={styles.secondary}>— o estado atual é independente deste snapshot.</span></p>
+              <p><Link href={`/opportunities?resource_id=${encodeURIComponent(selected.resource_id)}`}>{t("detail.openCurrent")}</Link> <span className={styles.secondary}>{t("detail.independent")}</span></p>
             )}
           </div>
         </Section>
