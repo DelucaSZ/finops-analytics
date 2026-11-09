@@ -500,5 +500,162 @@
       "noteEstimate": "* / ≈ identificam somente buckets estimados ou parcialmente estimados informados pelo Cost Explorer.",
       "noteForecast": "F identifica forecast; os buckets previstos mantêm a cor da série e usam contorno tracejado."
     }
+  },
+  "flow": {
+    "title": "Fluxo",
+    "description": "Savings reconhecidos, reutilizações e ajustes registrados no ledger. Fluxo não representa custo faturado pela cloud.",
+    "metadata": "FinOps Flow · ledger append-only",
+    "actions": {
+      "new": "Nova movimentação",
+      "cancel": "Cancelar",
+      "submit": "Registrar movimentação",
+      "confirmReverse": "Confirmar reversão",
+      "reverse": "Reverter",
+      "details": "Detalhes",
+      "viewOpportunity": "Ver oportunidade",
+      "viewRelated": "Ver oportunidade associada",
+      "close": "Fechar"
+    },
+    "forms": {
+      "type": "Tipo",
+      "direction": "Direção",
+      "provider": "Provider",
+      "account": "Conta",
+      "selectAccount": "Selecione uma conta",
+      "amount": "Valor",
+      "currency": "Moeda",
+      "brl": "BRL — Real brasileiro",
+      "usd": "USD — Dólar americano",
+      "effectiveDate": "Data da movimentação",
+      "periodicity": "Periodicidade",
+      "description": "Descrição",
+      "descriptionPlaceholder": "Contexto para auditoria da movimentação",
+      "reverseReason": "Motivo da reversão",
+      "newTitle": "Nova movimentação",
+      "newDescription": "Registre um fato financeiro no ledger append-only.",
+      "reverseTitle": "Reverter movimentação",
+      "reverseDescription": "Uma nova entry oposta será criada; a original permanece no histórico."
+    },
+    "validation": {
+      "account": "Selecione uma conta para a movimentação.",
+      "amount": "Informe um valor positivo com até 8 casas decimais.",
+      "date": "A data efetiva não pode estar no futuro.",
+      "description": "Descreva o contexto da movimentação com pelo menos 3 caracteres.",
+      "reason": "Informe o motivo da reversão."
+    },
+    "types": {
+      "saving": "Saving",
+      "reallocation": "Realocação",
+      "adjustment": "Ajuste",
+      "credit": "Crédito",
+      "debit": "Débito",
+      "monthly": "Mensal",
+      "oneTime": "Pontual",
+      "monthlyBasis": "Mensal / run-rate"
+    },
+    "status": {
+      "reversed": "Revertida",
+      "reversal": "Reversal",
+      "recorded": "Registrada"
+    },
+    "periods": {
+      "thisMonth": "Este mês",
+      "previousMonth": "Mês anterior",
+      "last3": "Últimos 3 meses",
+      "last6": "Últimos 6 meses",
+      "thisYear": "Este ano",
+      "custom": "Personalizado"
+    },
+    "source": {
+      "opportunity": "Oportunidade",
+      "manual": "Manual",
+      "system": "Sistema"
+    },
+    "filters": {
+      "title": "Contexto e filtros",
+      "description": "O recorte altera somente as consultas do Flow; nenhuma mudança de tema ou layout dispara mutações.",
+      "period": "Período",
+      "all": "Todos",
+      "allAccounts": "Todas as contas",
+      "allCurrencies": "Todas (sem consolidar)",
+      "allBases": "Todas (separadas)",
+      "financialBasis": "Base financeira",
+      "origin": "Origem",
+      "from": "De",
+      "to": "Até",
+      "chartCurrency": "Moeda do gráfico",
+      "basis": "Base",
+      "search": "Busca",
+      "searchPlaceholder": "Descrição, recurso ou oportunidade"
+    },
+    "sections": {
+      "summary": "Resumo financeiro",
+      "summaryDescription": "Cada moeda e base financeira permanece separada; nenhum total entre moedas é inventado.",
+      "evolution": "Evolução temporal",
+      "evolutionDescription": "Valores agregados no backend por moeda e base financeira; o saldo acumulado inclui o saldo anterior ao período.",
+      "byAccount": "Savings reconhecidos por conta",
+      "bySource": "Savings reconhecidos por origem",
+      "entries": "Movimentações",
+      "entryCount": "{count, plural, one {# movimentação no escopo.} other {# movimentações no escopo.}} Reversões permanecem visíveis."
+    },
+    "metrics": {
+      "savings": "Savings reconhecidos",
+      "reallocated": "Reutilizado",
+      "adjustments": "Ajustes líquidos",
+      "runRateBalance": "Saldo líquido de run-rate",
+      "balance": "Saldo FinOps disponível",
+      "monthSuffix": "/mês"
+    },
+    "charts": {
+      "savings": "Savings",
+      "reallocations": "Reutilizações",
+      "balance": "Saldo acumulado",
+      "aria": "Evolução temporal de savings, reutilizações e saldo acumulado",
+      "bucketTitle": "{bucket}: economia {saving}; realocação {reallocation}; saldo {balance}"
+    },
+    "empty": {
+      "summary": "Nenhuma movimentação registrada no período",
+      "summaryDescription": "O Flow só apresenta fatos financeiros existentes no ledger.",
+      "chart": "Sem dados para o gráfico",
+      "chartDescription": "Não há série temporal no recorte selecionado.",
+      "byAccount": "Nenhum saving por conta",
+      "bySource": "Nenhum saving por origem",
+      "byDescription": "Nenhum saving reconhecido para este recorte.",
+      "entries": "Nenhuma movimentação encontrada",
+      "entriesDescription": "Ajuste os filtros ou registre uma movimentação real no ledger."
+    },
+    "headers": {
+      "date": "Data",
+      "actions": "Ações",
+      "status": "Status",
+      "createdAt": "Criado em",
+      "createdBy": "Criado por",
+      "effective": "Data efetiva",
+      "original": "Original",
+      "reversal": "Reversal"
+    },
+    "details": {
+      "title": "Detalhes da movimentação",
+      "description": "Registro persistido no ledger FinOps.",
+      "associated": "Oportunidade associada",
+      "notInformed": "Não informado",
+      "service": "Serviço: {service}",
+      "treatment": "Evento de tratamento: {event}"
+    },
+    "table": {
+      "reversal": "Reversal do ledger"
+    },
+    "errors": {
+      "analyticsTitle": "Indicadores indisponíveis",
+      "analytics": "Não foi possível carregar os indicadores do Fluxo.",
+      "entries": "Não foi possível carregar as movimentações.",
+      "create": "Não foi possível registrar a movimentação.",
+      "reverse": "Não foi possível reverter a movimentação."
+    },
+    "success": {
+      "title": "Movimentação atualizada",
+      "created": "Movimentação registrada no Fluxo FinOps.",
+      "reversed": "Reversão registrada. A movimentação original foi preservada."
+    }
   }
 }
