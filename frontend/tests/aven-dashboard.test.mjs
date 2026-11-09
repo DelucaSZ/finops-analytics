@@ -99,7 +99,7 @@ test("Dashboard standardizes loading, empty and error presentation", () => {
   const source = dashboardSource();
   assert.match(source, /<MetricCard[^>]*[\s\S]*loading/);
   assert.match(source, /<ChartCard[\s\S]*loading=\{summaryLoading\}/);
-  assert.match(source, /<DataState[\s\S]*emptyTitle="Nenhum dado válido no escopo atual"/);
+  assert.match(source, /<DataState[\s\S]*emptyTitle=\{t\("empty\.noValidScope"\)\}/);
   assert.match(source, /errorFallback=/);
   assert.match(source, /Tentar novamente/);
 });
