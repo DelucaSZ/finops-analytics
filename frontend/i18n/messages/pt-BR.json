@@ -225,5 +225,126 @@
     "authPanel": "Autenticação",
     "dialogClose": "Fechar diálogo",
     "drawerClose": "Fechar painel"
+  },
+  "dashboard": {
+    "title": "Visão geral",
+    "boot": {
+      "description": "Potencial de otimização e saúde operacional do ambiente em um único lugar.",
+      "loadingFilters": "Carregando filtros do Dashboard",
+      "loadingMetrics": "Carregando indicadores executivos"
+    },
+    "filters": {
+      "cloud": "Cloud",
+      "account": "Conta",
+      "aria": "Filtros da Visão Geral",
+      "clearScope": "Limpar escopo",
+      "allClouds": "Todas as clouds",
+      "allAccounts": "Todas as contas"
+    },
+    "metrics": {
+      "openOpportunities": "Oportunidades em aberto",
+      "potentialSavings": "Economia potencial",
+      "newSincePrevious": "Novas vs coleta anterior",
+      "validScopes": "Escopos válidos",
+      "aria": "Indicadores executivos",
+      "openBacklogHelp": "Backlog OPEN atual e não arquivado",
+      "monthlySavings": "Economia potencial mensal",
+      "currenciesSeparate": "Moedas permanecem separadas; nenhum câmbio é inferido",
+      "validScopeHelp": "Contas com uma coleta válida disponível para o resumo atual",
+      "monthSuffix": "/mês"
+    },
+    "charts": {
+      "serviceConcentration": "Concentração por serviço",
+      "serviceDescription": "Quantidade de oportunidades em aberto por serviço.",
+      "serviceAria": "Distribuição das oportunidades em aberto por serviço"
+    },
+    "scope": {
+      "allAccounts": "todas as contas",
+      "allCloudsAccounts": "Todas as clouds · todas as contas",
+      "withProvider": "{provider} · todas as contas"
+    },
+    "comparison": {
+      "previousAvailable": "Comparação com a última coleta válida disponível",
+      "last24Hours": "Identificadas nas últimas 24h",
+      "newDetail": "{first, plural, one {# primeira identificação} other {# primeiras identificações}} · {reappeared, plural, one {# reapareceu} other {# reapareceram}}",
+      "comparable": "{count, plural, one {# conta comparável} other {# contas comparáveis}}",
+      "withoutBaseline": "{count, plural, one {# sem linha de base} other {# sem linha de base}}",
+      "firstIdentifications": "{count, plural, one {# primeira identificação} other {# primeiras identificações}}",
+      "reappeared": "{count, plural, one {# reapareceu} other {# reapareceram}}"
+    },
+    "status": {
+      "currentData": "Dados atuais disponíveis",
+      "noCurrentData": "Sem dados atuais",
+      "noUpdateReference": "Sem referência de atualização para este escopo",
+      "partialCoverage": "Cobertura parcial",
+      "open": "Em aberto",
+      "treated": "Tratadas",
+      "rejected": "Rejeitadas",
+      "updatedUntil": "Dados atualizados até {date}"
+    },
+    "description": "Potencial atual de otimização, concentração de oportunidades e saúde operacional do ambiente.",
+    "actions": {
+      "refresh": "Atualizar",
+      "retry": "Tentar novamente",
+      "viewOpportunities": "Ver oportunidades",
+      "viewAll": "Ver todas",
+      "openDetail": "Abrir detalhe",
+      "viewDetail": "Ver detalhe",
+      "openOpportunity": "Abrir oportunidade"
+    },
+    "errors": {
+      "partialFilters": "Filtros parcialmente indisponíveis",
+      "loadOverview": "Não foi possível carregar a Visão Geral"
+    },
+    "warnings": {
+      "limitedAccounts": "Lista de contas limitada",
+      "limitedAccountsDetail": "O seletor mostra as primeiras 100 contas; os indicadores continuam considerando todo o escopo selecionado."
+    },
+    "empty": {
+      "noValidScope": "Nenhum dado válido no escopo atual",
+      "runCollection": "Execute uma coleta válida ou ajuste os filtros para visualizar os indicadores.",
+      "noServiceOpportunities": "Sem oportunidades por serviço",
+      "noServiceDistribution": "Não há distribuição disponível para o escopo atual.",
+      "noOpenOpportunities": "Nenhuma oportunidade em aberto",
+      "noActionableBacklog": "O escopo atual não possui backlog operacional acionável.",
+      "noValue": "sem valor",
+      "noCloudDistribution": "Sem distribuição por cloud",
+      "noOpenBacklogDistribution": "Não há backlog aberto para distribuir no escopo atual.",
+      "noOpenOpportunitiesShort": "Sem oportunidades abertas",
+      "noTopOpportunities": "Nenhuma oportunidade de maior impacto está disponível no escopo atual.",
+      "unnamedResource": "Recurso sem nome amigável"
+    },
+    "sections": {
+      "primaryIndicators": "Indicadores principais",
+      "primaryDescription": "Leitura executiva do escopo atual.",
+      "backlog": "Análise do backlog",
+      "backlogDescription": "Concentração das oportunidades atuais sem converter moedas ou inventar série temporal de custos.",
+      "lifecycle": "Estado das oportunidades",
+      "lifecycleDescription": "Lifecycle atual do mesmo escopo executivo.",
+      "cloudDistribution": "Distribuição por cloud",
+      "cloudDescription": "Backlog e potencial de economia permanecem associados ao provider real.",
+      "topOpportunities": "Maiores oportunidades",
+      "topDescription": "Resumo das oportunidades de maior impacto no escopo atual."
+    },
+    "severity": {
+      "critical": "Crítica",
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
+    },
+    "operational": {
+      "failure": "Falha",
+      "viewCollection": "Ver coleta",
+      "title": "Atenção operacional",
+      "collectionFailures": "Falhas de coleta",
+      "failuresDescription": "A Visão Geral preserva os indicadores disponíveis, mas estas contas exigem revisão operacional.",
+      "viewCollections": "Ver coletas",
+      "affectedAccounts": "Ver contas afetadas",
+      "failedAt": "Falha em {date}",
+      "newRun": "Nova coleta em andamento desde {date}.",
+      "failureCount": "{count, plural, one {# conta apresentou falha na coleta mais recente.} other {# contas apresentaram falha na coleta mais recente.}}",
+      "displayed": "{count, plural, one {# exibida} other {# exibidas}}",
+      "truncated": "Exibindo {shown} de {total} contas. Use Coletas para consultar todas."
+    }
   }
 }
