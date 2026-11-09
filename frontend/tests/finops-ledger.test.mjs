@@ -50,46 +50,46 @@ test("money formatting and origin labels distinguish currencies and provenance",
 
 test("Flow page exposes filters, dimensional KPIs, charts and paginated ledger", async () => {
   const source = await readFile(flowUrl, "utf8");
-  assert.ok(source.includes('title="Fluxo"'));
-  assert.ok(source.includes("Savings reconhecidos"));
-  assert.ok(source.includes("Reutilizado"));
-  assert.ok(source.includes("Ajustes líquidos"));
-  assert.ok(source.includes("Saldo líquido de run-rate"));
-  assert.ok(source.includes("Saldo FinOps disponível"));
-  assert.ok(source.includes("Todas (sem consolidar)"));
-  assert.ok(source.includes("Base financeira"));
-  assert.ok(source.includes("Mensal / run-rate"));
-  assert.ok(source.includes("Pontual"));
-  assert.ok(source.includes("Este ano"));
+  assert.ok(source.includes('title={t("title")}'));
+  assert.ok(source.includes('t("metrics.savings")'));
+  assert.ok(source.includes('t("metrics.reallocated")'));
+  assert.ok(source.includes('t("metrics.adjustments")'));
+  assert.ok(source.includes('t("metrics.runRateBalance")'));
+  assert.ok(source.includes('t("metrics.balance")'));
+  assert.ok(source.includes('t("filters.allCurrencies")'));
+  assert.ok(source.includes('t("filters.financialBasis")'));
+  assert.ok(source.includes('"types.monthlyBasis"'));
+  assert.ok(source.includes('"types.oneTime"'));
+  assert.ok(source.includes('"periods.thisYear"'));
   assert.ok(source.includes("effective_from"));
   assert.ok(source.includes("effective_to"));
-  assert.ok(source.includes("Evolução temporal"));
+  assert.ok(source.includes('t("sections.evolution")'));
   assert.ok(source.includes("cumulative_balance"));
-  assert.ok(source.includes("Savings reconhecidos por conta"));
-  assert.ok(source.includes("Savings reconhecidos por origem"));
+  assert.ok(source.includes('t("sections.byAccount")'));
+  assert.ok(source.includes('t("sections.bySource")'));
   assert.ok(source.includes("/finops/flow/summary"));
   assert.ok(source.includes("/finops/flow/timeseries"));
   assert.ok(source.includes("/finops/flow/breakdowns"));
   assert.ok(source.includes("/finops/flow/entries"));
   assert.ok(source.includes("page_size: 50"));
-  assert.ok(source.includes('emptyTitle="Nenhuma movimentação encontrada"'));
-  assert.ok(source.includes('emptyDescription="Ajuste os filtros ou registre uma movimentação real no ledger."'));
+  assert.ok(source.includes('emptyTitle={t("empty.entries")}'));
+  assert.ok(source.includes('emptyDescription={t("empty.entriesDescription")}'));
 });
 
 test("Flow reuses ledger mutations and exposes provenance, opportunity links and detail", async () => {
   const source = await readFile(flowUrl, "utf8");
-  assert.ok(source.includes("Nova movimentação"));
+  assert.ok(source.includes('t("actions.new")'));
   assert.ok(source.includes("crypto.randomUUID()"));
   assert.ok(source.includes("normalizePositiveDecimal(amount)"));
   assert.ok(source.includes('"/finops/ledger/manual"'));
   assert.ok(source.includes("/reverse`"));
-  assert.ok(source.includes("Motivo da reversão"));
+  assert.ok(source.includes('t("forms.reverseReason")'));
   assert.ok(source.includes("entry.is_reversed"));
   assert.ok(source.includes("entry.is_reversal"));
   assert.ok(source.includes("opportunity_id="));
-  assert.ok(source.includes("Ver oportunidade"));
-  assert.ok(source.includes("Treatment event"));
-  assert.ok(source.includes("Criado por"));
+  assert.ok(source.includes('t("actions.viewOpportunity")'));
+  assert.ok(source.includes('t("details.treatment")'));
+  assert.ok(source.includes('t("headers.createdBy")'));
 });
 
 test("main navigation uses product Flow route and legacy ledger route redirects", async () => {
