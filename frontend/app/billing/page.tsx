@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw, RotateCcw, Settings2 } from "lucide-react";
 import {
@@ -75,22 +76,11 @@ import type { CloudAccount } from "@/lib/types";
 import { BillingCostChart } from "./billing-cost-chart";
 import styles from "./billing.module.css";
 
-const METRIC_LABELS: Record<BillingMetric, string> = {
-  AMORTIZED_COST: "Custo amortizado",
-  NET_AMORTIZED_COST: "Custo amortizado líquido",
-  UNBLENDED_COST: "Custo não combinado",
-};
+const METRIC_LABELS = { AMORTIZED_COST: "metrics.amortized", NET_AMORTIZED_COST: "metrics.netAmortized", UNBLENDED_COST: "metrics.unblended" } as const satisfies Record<BillingMetric, string>;
 
-const GRANULARITY_LABELS: Record<BillingGranularity, string> = {
-  DAILY: "Diária",
-  MONTHLY: "Mensal",
-};
+const GRANULARITY_LABELS = { DAILY: "granularity.daily", MONTHLY: "granularity.monthly" } as const satisfies Record<BillingGranularity, string>;
 
-const GROUP_BY_LABELS: Record<BillingGroupBy, string> = {
-  NONE: "Sem agrupamento",
-  SERVICE: "Serviço",
-  ACCOUNT: "Conta",
-};
+const GROUP_BY_LABELS = { NONE: "group.none", SERVICE: "filters.service", ACCOUNT: "filters.account" } as const satisfies Record<BillingGroupBy, string>;
 
 const AWS_RECORD_TYPES = [
   "Credit",
@@ -127,38 +117,27 @@ function localTodayKey() {
   return `${year}-${month}-${day}`;
 }
 
-function profileSummary(profile: BillingProfile) {
-  const excluded = profile.exclude_record_types.length
-    ? `Exclui ${profile.exclude_record_types.join(", ")}`
-    : "Sem exclusões por tipo";
-  return `${GRANULARITY_LABELS[profile.granularity]} · ${METRIC_LABELS[profile.metric]} · ${GROUP_BY_LABELS[profile.group_by]} · ${excluded}`;
+function profileSummary(profile: BillingProfile, metrics: Record<BillingMetric, string>, granularity: Record<BillingGranularity, string>, groups: Record<BillingGroupBy, string>, excluded: string) {
+  return `${granularity[profile.granularity]} · ${metrics[profile.metric]} · ${groups[profile.group_by]} · ${excluded}`;
 }
 
+// Store stable error keys rather than localized strings so language switches update visible errors.
 function billingErrorMessage(error: unknown, fallback: string) {
   if (error instanceof ApiError) {
     switch (error.code) {
-      case "ACCESS_DENIED":
-        return "As credenciais configuradas não possuem permissão para consultar Billing neste escopo.";
-      case "COST_EXPLORER_UNAVAILABLE":
-        return "O AWS Cost Explorer não está disponível para este escopo. Verifique a habilitação e as preferências de acesso da conta.";
-      case "INVALID_BILLING_SCOPE":
-        return "As contas selecionadas não puderam ser consultadas em um billing scope válido. Nenhum total parcial foi apresentado.";
-      case "THROTTLED":
-        return "A AWS limitou temporariamente as consultas de Billing. Tente atualizar novamente mais tarde.";
-      case "ACCOUNT_NOT_FOUND":
-      case "ACCOUNT_NOT_AWS":
-        return "Uma das contas selecionadas não está disponível para Billing AWS.";
-      case "INVALID_PERIOD":
-        return "O período selecionado não é válido para uma consulta histórica do Cost Explorer.";
-      case "UPSTREAM_DATA_INVALID":
-        return "O Cost Explorer retornou dados que não puderam ser interpretados com segurança.";
-      case "UPSTREAM_ERROR":
-        return "A AWS não respondeu à consulta de Billing como esperado. Tente novamente.";
-      default:
-        return error.message || fallback;
+      case "ACCESS_DENIED": return "errors.accessDenied";
+      case "COST_EXPLORER_UNAVAILABLE": return "errors.costExplorerUnavailable";
+      case "INVALID_BILLING_SCOPE": return "errors.invalidScope";
+      case "THROTTLED": return "errors.throttled";
+      case "ACCOUNT_NOT_FOUND": return "errors.accountUnavailable";
+      case "INVALID_PERIOD": return "errors.invalidPeriod";
+      case "UPSTREAM_DATA_INVALID": return "errors.upstreamData";
+      case "UPSTREAM_ERROR": return "errors.upstream";
+      case "ACCOUNT_NOT_AWS": return "errors.accountUnavailable";
+      default: return fallback;
     }
   }
-  return error instanceof Error ? error.message : fallback;
+  return fallback;
 }
 
 function isAbort(error: unknown) {
@@ -208,7 +187,7 @@ function numericAmount(value: string) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function variationTrend(current: string, previous: string) {
+function variationTrend(current: string, previous: string, label: string, locale: string) {
   const variation = billingVariation(current, previous);
   if (variation.kind !== "percent" || variation.percent === null) return null;
   const direction = variation.percent > 0 ? "up" : variation.percent < 0 ? "down" : "flat";
@@ -217,16 +196,29 @@ function variationTrend(current: string, previous: string) {
     value: variation.percent,
     direction,
     sentiment,
-    label: "Variação vs período anterior",
-    locale: "pt-BR",
+    label,
+    locale,
   } as const;
 }
 
-function variationSupportingText(current: string, previous: string) {
+function variationSupportingText(current: string, previous: string, newText: string, unavailableText: string) {
   const variation = billingVariation(current, previous);
-  if (variation.kind === "new") return "Novo custo em relação ao período anterior.";
-  if (variation.kind === "unavailable") return "Variação não aplicável para esta comparação.";
+  if (variation.kind === "new") return newText;
+  if (variation.kind === "unavailable") return unavailableText;
   return null;
+}
+
+const PERIOD_LABELS = {
+  this_month: "periods.thisMonth", previous_month: "periods.previousMonth", last_30_days: "periods.last30Days", last_3_months: "periods.last3Months", last_6_months: "periods.last6Months", this_year: "periods.thisYear", custom: "periods.custom",
+} as const satisfies Record<BillingPeriodPreset, string>;
+function billingStatusKey(status: BillingDataStatus) {
+  switch (status) {
+    case "ESTIMATED": return "status.estimated";
+    case "PARTIALLY_ESTIMATED": return "status.partial";
+    case "FORECAST": return "status.forecast";
+    case "INCLUDES_FORECAST": return "status.includesForecast";
+    default: return "status.actual";
+  }
 }
 
 function BreakdownTable({
@@ -236,6 +228,7 @@ function BreakdownTable({
   items: BillingBreakdownItem[];
   kind: "service" | "account";
 }) {
+  const t = useTranslations("billing");
   const groups = groupBillingByCurrency(items);
   return (
     <div className={styles.breakdownGroups}>
@@ -251,11 +244,11 @@ function BreakdownTable({
             <Table>
               <TableHeader>
                 <TableRow staticRow>
-                  <TableHead>{kind === "service" ? "Serviço" : "Conta"}</TableHead>
+                  <TableHead>{kind === "service" ? t("filters.service") : t("filters.account")}</TableHead>
                   {kind === "account" && <TableHead>AWS Account ID</TableHead>}
-                  <TableHead numeric>Participação</TableHead>
-                  <TableHead numeric>Valor</TableHead>
-                  <TableHead>Estado</TableHead>
+                  <TableHead numeric>{t("breakdown.share")}</TableHead>
+                  <TableHead numeric>{t("breakdown.amount")}</TableHead>
+                  <TableHead>{t("breakdown.state")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -275,13 +268,13 @@ function BreakdownTable({
                         </TableCell>
                       )}
                       <TableCell numeric>
-                        <PercentageDisplay value={share} locale="pt-BR" maximumFractionDigits={1} />
+                        <PercentageDisplay value={share}  maximumFractionDigits={1} />
                       </TableCell>
                       <TableCell numeric>
                         <CurrencyDisplay
                           value={amount}
                           currency={item.currency}
-                          locale="pt-BR"
+                          
                           currencyDisplay="code"
                           minimumFractionDigits={2}
                           maximumFractionDigits={2}
@@ -290,7 +283,7 @@ function BreakdownTable({
                       <TableCell>
                         <StatusIndicator
                           status={statusSemantic(item.status)}
-                          label={billingStatusLabel(item.status)}
+                          label={t(billingStatusKey(item.status))}
                         />
                       </TableCell>
                     </TableRow>
@@ -306,6 +299,31 @@ function BreakdownTable({
 }
 
 export default function BillingPage() {
+  const t = useTranslations("billing");
+  const locale = useLocale();
+  const metricLabels = { AMORTIZED_COST: t("metrics.amortized"), NET_AMORTIZED_COST: t("metrics.netAmortized"), UNBLENDED_COST: t("metrics.unblended") };
+  const granularityLabels = { DAILY: t("granularity.daily"), MONTHLY: t("granularity.monthly") };
+  const groupLabels = { NONE: t("group.none"), SERVICE: t("filters.service"), ACCOUNT: t("filters.account") };
+  const errorLabel = (key: string) => {
+    switch (key) {
+      case "errors.accessDenied": return t("errors.accessDenied");
+      case "errors.costExplorerUnavailable": return t("errors.costExplorerUnavailable");
+      case "errors.invalidScope": return t("errors.invalidScope");
+      case "errors.throttled": return t("errors.throttled");
+      case "errors.accountUnavailable": return t("errors.accountUnavailable");
+      case "errors.invalidPeriod": return t("errors.invalidPeriod");
+      case "errors.upstreamData": return t("errors.upstreamData");
+      case "errors.upstream": return t("errors.upstream");
+      case "errors.bootstrap": return t("errors.bootstrap");
+      case "errors.summary": return t("errors.summary");
+      case "errors.previous": return t("errors.previous");
+      case "errors.timeseries": return t("errors.timeseries");
+      case "errors.service": return t("errors.service");
+      case "errors.account": return t("errors.account");
+      case "errors.generic": return t("errors.generic");
+      default: return t("errors.generic");
+    }
+  };
   const [profiles, setProfiles] = useState<BillingProfile[]>([]);
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [role, setRole] = useState("");
@@ -377,7 +395,7 @@ export default function BillingPage() {
   const accountOptions = useMemo(
     () => accounts.map((account) => ({
       value: String(account.id),
-      label: account.name || "Conta AWS",
+      label: account.name || t("filters.awsAccount"),
       accountId: account.native_account_id || undefined,
       provider: account.provider,
       searchTerms: [account.native_account_id || "", account.name || ""],
@@ -448,7 +466,7 @@ export default function BillingPage() {
       })
       .catch((error) => {
         if (!controller.signal.aborted && !isAbort(error)) {
-          setBootstrapError(billingErrorMessage(error, "Falha ao preparar a área de Billing."));
+          setBootstrapError(billingErrorMessage(error, "errors.bootstrap"));
         }
       })
       .finally(() => {
@@ -541,7 +559,7 @@ export default function BillingPage() {
       .then((data) => { if (active()) setSummary({ data, loading: false, error: "" }); })
       .catch((error) => {
         if (active() && !isAbort(error)) {
-          setSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo do período.") });
+          setSummary({ data: null, loading: false, error: billingErrorMessage(error, "errors.summary") });
         }
       });
 
@@ -549,7 +567,7 @@ export default function BillingPage() {
       .then((data) => { if (active()) setPreviousSummary({ data, loading: false, error: "" }); })
       .catch((error) => {
         if (active() && !isAbort(error)) {
-          setPreviousSummary({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o período anterior.") });
+          setPreviousSummary({ data: null, loading: false, error: billingErrorMessage(error, "errors.previous") });
         }
       });
 
@@ -557,7 +575,7 @@ export default function BillingPage() {
       .then((data) => { if (active()) setTimeseries({ data, loading: false, error: "" }); })
       .catch((error) => {
         if (active() && !isAbort(error)) {
-          setTimeseries({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar a evolução de custos.") });
+          setTimeseries({ data: null, loading: false, error: billingErrorMessage(error, "errors.timeseries") });
         }
       });
 
@@ -565,7 +583,7 @@ export default function BillingPage() {
       .then((data) => { if (active()) setServiceBreakdown({ data, loading: false, error: "" }); })
       .catch((error) => {
         if (active() && !isAbort(error)) {
-          setServiceBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por serviço.") });
+          setServiceBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "errors.service") });
         }
       });
 
@@ -574,7 +592,7 @@ export default function BillingPage() {
         .then((data) => { if (active()) setAccountBreakdown({ data, loading: false, error: "" }); })
         .catch((error) => {
           if (active() && !isAbort(error)) {
-            setAccountBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "Falha ao carregar o custo por conta.") });
+            setAccountBreakdown({ data: null, loading: false, error: billingErrorMessage(error, "errors.account") });
           }
         });
     }
@@ -623,7 +641,7 @@ export default function BillingPage() {
   }
 
   const queryMetadata = hasAccountSelection && selectedProfile && period
-    ? `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta" : "contas"} · ${formatBillingRange(period)} · ${GRANULARITY_LABELS[granularity]} · ${GROUP_BY_LABELS[groupBy]} · ${METRIC_LABELS[metric]} · ${excludeRecordTypes.length ? `Exclui ${excludeRecordTypes.join(", ")}` : "Sem exclusões"}`
+    ? t("filters.query", { count: selectedAccountIds.length, period: formatBillingRange(period, locale), granularity: granularityLabels[granularity], grouping: groupLabels[groupBy], metric: metricLabels[metric], exclusions: excludeRecordTypes.length ? t("filters.excluded", {types: excludeRecordTypes.join(", ")}) : t("filters.noExclusions") })
     : "";
   const anyLoading = summary.loading || previousSummary.loading || timeseries.loading || serviceBreakdown.loading || accountBreakdown.loading;
   const today = localTodayKey();
@@ -637,7 +655,7 @@ export default function BillingPage() {
     <DateRangePicker
       value={dateRangeValue}
       onChange={setDateRange}
-      presets={BILLING_PERIOD_PRESETS.map((preset) => ({ value: preset.value, label: preset.label }))}
+      presets={BILLING_PERIOD_PRESETS.map((preset) => ({ value: preset.value, label: t(PERIOD_LABELS[preset.value]) }))}
       presetValue={periodPreset}
       onPresetChange={(nextPreset) => {
         if (VALID_PRESETS.has(nextPreset as BillingPeriodPreset)) {
@@ -646,11 +664,11 @@ export default function BillingPage() {
           setPeriodPreset("custom");
         }
       }}
-      presetLabel="Período"
-      presetPlaceholder="Escolha um período"
-      startLabel="Data inicial"
-      endLabel="Data final"
-      clearLabel="Limpar datas"
+      presetLabel={t("filters.period")}
+      presetPlaceholder={t("filters.choosePeriod")}
+      startLabel={t("filters.start")}
+      endLabel={t("filters.end")}
+      clearLabel={t("filters.clearDates")}
       maxDate={today}
       clearable={periodPreset === "custom"}
       layout={periodPreset === "custom" ? "inline" : undefined}
@@ -660,15 +678,15 @@ export default function BillingPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Uso e custos"
-        description="Analise custos do AWS Cost Explorer por conta, período, serviço e metodologia."
+        title={t("title")}
+        description={t("description")}
         metadata={(
           <div className={styles.headerMetadata}>
             <ProviderBadge provider="aws" />
             <span>
               {selectedAccountIds.length === 0
-                ? "Nenhuma conta selecionada"
-                : `${selectedAccountIds.length} ${selectedAccountIds.length === 1 ? "conta selecionada" : "contas selecionadas"}`}
+                ? t("empty.noSelected")
+                : t("filters.selected", {count: selectedAccountIds.length})}
             </span>
           </div>
         )}
@@ -677,7 +695,7 @@ export default function BillingPage() {
             {role === "admin" && (
               <Link className={styles.actionLink} href="/settings/billing/profiles">
                 <Settings2 {...iconDefaults} aria-hidden="true" />
-                <span>Gerenciar perfis</span>
+                <span>{t("actions.manageProfiles")}</span>
               </Link>
             )}
             <Button
@@ -688,45 +706,45 @@ export default function BillingPage() {
               loading={anyLoading && hasAccountSelection}
               onClick={() => setRefreshRevision((value) => value + 1)}
             >
-              Atualizar
+              {t("actions.refresh")}
             </Button>
           </>
         )}
       />
 
       {bootstrapError && (
-        <Alert variant="danger" title="Não foi possível preparar o Billing" description={bootstrapError} />
+        <Alert variant="danger" title={t("errors.bootstrapTitle")} description={errorLabel(bootstrapError)} />
       )}
 
       <Section
-        title="Contas"
-        description="Selecione explicitamente uma ou mais contas. Sem seleção, nenhuma consulta de custo é executada."
+        title={t("sections.accounts")}
+        description={t("sections.accountsDescription")}
       >
         <div className={styles.accountContext}>
           <AccountSelector
-            label="Contas AWS"
+            label={t("filters.accounts")}
             options={accountOptions}
             multiple
             value={selectedAccountIds.map(String)}
             onChange={setAccountValues}
             selectAll
-            selectAllLabel="Selecionar todas"
-            clearLabel="Limpar seleção"
-            searchPlaceholder="Buscar contas"
-            emptyLabel="Nenhuma conta AWS disponível"
+            selectAllLabel={t("filters.selectAll")}
+            clearLabel={t("filters.clearSelection")}
+            searchPlaceholder={t("filters.searchAccounts")}
+            emptyLabel={t("empty.noAccounts")}
             disabled={!initialized}
           />
           {initialized && accounts.length > 0 && !hasAccountSelection && (
             <div className={styles.accountHint} role="status">
-              Selecione ao menos uma conta para consultar os custos.
+              {t("empty.selectHint")}
             </div>
           )}
         </div>
       </Section>
 
       <Section
-        title="Filtros"
-        description="Refine período, perfil e metodologia para o escopo de contas selecionado."
+        title={t("sections.filters")}
+        description={t("sections.filtersDescription")}
       >
         <FilterBar
           secondary={periodPreset === "custom" ? (
@@ -739,48 +757,48 @@ export default function BillingPage() {
               leadingIcon={<RotateCcw {...iconDefaults} />}
               onClick={restoreProfile}
             >
-              Restaurar perfil
+              {t("actions.restore")}
             </Button>
           ) : undefined}
         >
           <Select
-            label="Perfil"
+            label={t("filters.profile")}
             value={profileId}
             disabled={!initialized || profiles.length === 0}
             options={profiles.map((profile) => ({
               value: profile.id,
-              label: `${profile.name}${profile.is_default ? " · padrão" : ""}`,
+              label: `${profile.name}${profile.is_default ? t("profile.default") : ""}`,
             }))}
             onChange={(event) => chooseProfile(event.target.value)}
             controlSize="sm"
           />
           {periodPreset !== "custom" && periodPicker}
           <Select
-            label="Métrica"
+            label={t("filters.metric")}
             value={metric}
             options={(Object.keys(METRIC_LABELS) as BillingMetric[]).map((value) => ({
               value,
-              label: METRIC_LABELS[value],
+              label: t(METRIC_LABELS[value]),
             }))}
             onChange={(event) => setMetric(event.target.value as BillingMetric)}
             controlSize="sm"
           />
           <Select
-            label="Granularidade"
+            label={t("filters.granularity")}
             value={granularity}
             options={(Object.keys(GRANULARITY_LABELS) as BillingGranularity[]).map((value) => ({
               value,
-              label: GRANULARITY_LABELS[value],
+              label: t(GRANULARITY_LABELS[value]),
             }))}
             onChange={(event) => setGranularity(event.target.value as BillingGranularity)}
             controlSize="sm"
           />
           <Select
-            label="Agrupamento"
+            label={t("filters.groupBy")}
             value={groupBy}
             options={(Object.keys(GROUP_BY_LABELS) as BillingGroupBy[]).map((value) => ({
               value,
-              label: GROUP_BY_LABELS[value],
+              label: t(GROUP_BY_LABELS[value]),
             }))}
             onChange={(event) => setGroupBy(event.target.value as BillingGroupBy)}
             controlSize="sm"
@@ -790,29 +808,29 @@ export default function BillingPage() {
         {periodPreset === "custom" && !period && (
           <Alert
             variant="warning"
-            title="Período personalizado incompleto"
-            description="Informe um intervalo válido, sem datas futuras."
+            title={t("errors.customTitle")}
+            description={t("errors.customDescription")}
           />
         )}
 
         {selectedProfile && (
           <div className={styles.profileContext}>
             <div>
-              <span>Perfil aplicado</span>
-              <strong>{selectedProfile.name}{selectedProfile.is_default ? " · padrão" : ""}</strong>
+              <span>{t("profile.applied")}</span>
+              <strong>{selectedProfile.name}{selectedProfile.is_default ? t("profile.default") : ""}</strong>
             </div>
-            <p>{profileSummary(selectedProfile)}</p>
-            {hasOverrides && <Badge variant="warning">Consulta com override temporário</Badge>}
+            <p>{profileSummary(selectedProfile, metricLabels, granularityLabels, groupLabels, selectedProfile.exclude_record_types.length ? t("filters.excluded", { types: selectedProfile.exclude_record_types.join(", ") }) : t("filters.noExclusionsByType"))}</p>
+            {hasOverrides && <Badge variant="warning">{t("profile.temporary")}</Badge>}
           </div>
         )}
 
         <details className={styles.advancedFilters}>
-          <summary>Mais filtros</summary>
+          <summary>{t("filters.more")}</summary>
           <div className={styles.advancedContent}>
             <div className={styles.advancedHeading}>
-              <strong>Excluir tipos de registro</strong>
+              <strong>{t("filters.excludeTypes")}</strong>
               {!sameStringSet(excludeRecordTypes, selectedProfile?.exclude_record_types || []) && (
-                <Badge variant="warning">Sobrescrito</Badge>
+                <Badge variant="warning">{t("profile.overridden")}</Badge>
               )}
             </div>
             <div className={styles.recordTypeGrid}>
@@ -831,7 +849,7 @@ export default function BillingPage() {
 
       {queryMetadata && (
         <div className={styles.queryMetadata}>
-          <strong>Consulta atual:</strong>
+          <strong>{t("filters.current")}</strong>
           <span>{queryMetadata}</span>
         </div>
       )}
@@ -840,8 +858,8 @@ export default function BillingPage() {
         <Section appearance="card">
           <DataState
             empty
-            emptyTitle="Selecione uma ou mais contas"
-            emptyDescription="Selecione ao menos uma conta para consultar os custos. Nenhuma consulta ao Cost Explorer é executada enquanto a seleção estiver vazia."
+            emptyTitle={t("empty.select")}
+            emptyDescription={t("empty.selectDescription")}
           >
             <span />
           </DataState>
@@ -849,53 +867,53 @@ export default function BillingPage() {
       ) : (
         <div className={styles.analysis}>
           <Section
-            title="Resumo financeiro"
+            title={t("sections.summary")}
             description={period && previousPeriod
-              ? `Comparação: ${formatBillingRange(previousPeriod)} → ${formatBillingRange(period)}`
-              : "Resumo do período selecionado."}
+              ? t("comparison.range", { previous: formatBillingRange(previousPeriod, locale), current: formatBillingRange(period, locale) })
+              : t("sections.summaryDescription")}
           >
             {summary.loading ? (
               <div className={styles.metricGrid}>
-                <MetricCard label="Custo do período" value={null} loading />
-                <MetricCard label="Custo do período" value={null} loading />
-                <MetricCard label="Custo do período" value={null} loading />
+                <MetricCard label={t("metrics.period")} value={null} loading />
+                <MetricCard label={t("metrics.period")} value={null} loading />
+                <MetricCard label={t("metrics.period")} value={null} loading />
               </div>
             ) : summary.error ? (
-              <Alert variant="danger" title="Falha ao carregar o resumo financeiro" description={summary.error} />
+              <Alert variant="danger" title={t("errors.summaryTitle")} description={errorLabel(summary.error)} />
             ) : summary.data?.totals.length ? (
               <div className={styles.metricGrid}>
                 {summary.data.totals.map((total) => {
                   const previous = previousSummary.data?.totals.find((item) => item.currency === total.currency);
-                  const trend = previous ? variationTrend(total.amount, previous.amount) : null;
+                  const trend = previous ? variationTrend(total.amount, previous.amount, t("comparison.trend"), locale) : null;
                   const comparisonText = previousSummary.loading
-                    ? "Carregando comparação com o período anterior…"
+                    ? t("comparison.loading")
                     : previousSummary.error
-                      ? "Comparação com o período anterior indisponível."
+                      ? t("comparison.unavailable")
                       : previous
                         ? (
                             <>
-                              Anterior:{" "}
+                              {t("comparison.previous")}
                               <CurrencyDisplay
                                 value={numericAmount(previous.amount)}
                                 currency={previous.currency}
-                                locale="pt-BR"
+                                
                                 currencyDisplay="code"
                                 minimumFractionDigits={2}
                                 maximumFractionDigits={2}
                               />
                             </>
                           )
-                        : "Período anterior sem valor na mesma moeda/unidade.";
-                  const variationText = previous ? variationSupportingText(total.amount, previous.amount) : null;
+                        : t("comparison.sameCurrency");
+                  const variationText = previous ? variationSupportingText(total.amount, previous.amount, t("comparison.newCost"), t("comparison.noVariation")) : null;
                   return (
                     <MetricCard
                       key={total.currency}
-                      label={`Custo do período · ${total.currency}`}
+                      label={t("metrics.periodCurrency", {currency:total.currency})}
                       value={(
                         <CurrencyDisplay
                           value={numericAmount(total.amount)}
                           currency={total.currency}
-                          locale="pt-BR"
+                          
                           currencyDisplay="code"
                           minimumFractionDigits={2}
                           maximumFractionDigits={2}
@@ -905,7 +923,7 @@ export default function BillingPage() {
                       status={(
                         <StatusIndicator
                           status={statusSemantic(total.status)}
-                          label={billingStatusLabel(total.status)}
+                          label={t(billingStatusKey(total.status))}
                         />
                       )}
                       supportingText={variationText || comparisonText}
@@ -915,22 +933,22 @@ export default function BillingPage() {
               </div>
             ) : (
               <EmptyState
-                title="Nenhum custo encontrado"
-                description="Nenhum custo foi retornado para o período e os filtros selecionados."
+                title={t("empty.noCost")}
+                description={t("empty.noCostDescription")}
               />
             )}
           </Section>
 
           <ChartCard
-            title="Evolução de custos"
+            title={t("sections.costEvolution")}
             description={timeseries.data
-              ? `${GRANULARITY_LABELS[timeseries.data.granularity]} · ${GROUP_BY_LABELS[timeseries.data.group_by]}`
-              : "Acompanhe a evolução temporal e a composição do custo."}
+              ? `${granularityLabels[timeseries.data.granularity]} · ${groupLabels[timeseries.data.group_by]}`
+              : t("sections.costEvolutionDescription")}
             loading={timeseries.loading}
-            error={timeseries.error || undefined}
+            error={timeseries.error ? errorLabel(timeseries.error) : undefined}
             empty={Boolean(timeseries.data) && timeseries.data!.points.length === 0}
-            emptyTitle="Nenhum custo no período"
-            emptyDescription="Não há pontos de custo para os filtros selecionados."
+            emptyTitle={t("empty.noSeries")}
+            emptyDescription={t("empty.noSeriesDescription")}
           >
             <div className={styles.chartStack}>
               {timeseries.data && chartDatasets.map((dataset) => (
@@ -946,16 +964,16 @@ export default function BillingPage() {
 
           <div className={styles.breakdownLayout}>
             <Section
-              title="Custo por serviço"
-              description="Detalhamento preciso dos serviços com maior impacto no período."
+              title={t("sections.costByService")}
+              description={t("sections.serviceDescription")}
               appearance="card"
             >
               <DataState
                 loading={serviceBreakdown.loading}
-                error={serviceBreakdown.error || undefined}
+                error={serviceBreakdown.error ? errorLabel(serviceBreakdown.error) : undefined}
                 empty={Boolean(serviceBreakdown.data) && serviceBreakdown.data!.items.length === 0}
-                emptyTitle="Nenhum serviço com custo"
-                emptyDescription="Nenhum serviço com custo foi retornado para esta consulta."
+                emptyTitle={t("empty.noService")}
+                emptyDescription={t("empty.noServiceDescription")}
               >
                 {serviceBreakdown.data?.items.length
                   ? <BreakdownTable items={serviceBreakdown.data.items} kind="service" />
@@ -965,16 +983,16 @@ export default function BillingPage() {
 
             {selectedAccountIds.length > 1 && (
               <Section
-                title="Custo por conta"
-                description="Compare a concentração do custo entre as contas selecionadas."
+                title={t("sections.costByAccount")}
+                description={t("sections.accountDescription")}
                 appearance="card"
               >
                 <DataState
                   loading={accountBreakdown.loading}
-                  error={accountBreakdown.error || undefined}
+                  error={accountBreakdown.error ? errorLabel(accountBreakdown.error) : undefined}
                   empty={Boolean(accountBreakdown.data) && accountBreakdown.data!.items.length === 0}
-                  emptyTitle="Nenhum custo por conta"
-                  emptyDescription="Nenhum custo por conta foi retornado para esta consulta."
+                  emptyTitle={t("empty.noAccount")}
+                  emptyDescription={t("empty.noAccountDescription")}
                 >
                   {accountBreakdown.data?.items.length
                     ? <BreakdownTable items={accountBreakdown.data.items} kind="account" />
@@ -987,7 +1005,7 @@ export default function BillingPage() {
       )}
 
       <p className={styles.disclaimer}>
-        Os valores exibidos vêm do AWS Cost Explorer, preservam a moeda/unidade retornada pela AWS e podem sofrer atraso de processamento. Nenhuma conversão cambial é realizada. Forecast e estimativas são identificados apenas quando informados pelo contrato de dados.
+        {t("disclaimer")}
       </p>
     </div>
   );
