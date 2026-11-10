@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { Activity } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
@@ -40,13 +41,10 @@ type PresenceHistoryPage = {
   total_pages: number;
 };
 
-const reasonLabels: Record<PresenceReason, string> = {
-  NOT_OBSERVED_IN_SUCCESSFUL_SCOPE: "Não observada em escopo coletado com sucesso",
-  MISSING_THRESHOLD_REACHED: "Limite de ausências válidas atingido",
-  OBSERVED_AGAIN: "Condição observada novamente",
-};
-
 export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: string }) {
+  const t = useTranslations("opportunities.presenceHistory");
+  const status = useTranslations("opportunities.status");
+  const reasonLabels: Record<PresenceReason,string> = {NOT_OBSERVED_IN_SUCCESSFUL_SCOPE:t("reason.notObservedInSuccessfulScope"),MISSING_THRESHOLD_REACHED:t("reason.missingThresholdReached"),OBSERVED_AGAIN:t("reason.observedAgain")};
   const request = useApiQuery<PresenceHistoryPage>({
     key: ["opportunities", "presence-history", opportunityId, { page: 1, page_size: 50 }],
     path: `/opportunities/${opportunityId}/presence-history?page=1&page_size=50`,
@@ -60,23 +58,23 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
       <div className="section-heading-inline">
         <div>
           <h3 id="presence-history-title">
-            <Activity size={18} /> Presença técnica
+            <Activity size={18} /> {t("title")}
           </h3>
           <p>
-            Transições automáticas derivadas das coletas, separadas das decisões humanas.
+            {t("description")}
           </p>
         </div>
-        {history && <span>{history.total} evento(s)</span>}
+        {history && <span>{t("events", {count:history.total})}</span>}
       </div>
 
       {request.error && (
         <div className="alert error" role="alert">
-          O histórico de presença técnica está temporariamente indisponível.
+          {t("error")}
         </div>
       )}
 
       {request.isLoading && !history ? (
-        <p className="muted-copy">Carregando histórico de presença…</p>
+        <p className="muted-copy">{t("loading")}</p>
       ) : history?.items.length ? (
         <div className="decision-history">
           {history.items.map((item) => (
@@ -85,19 +83,19 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
               <div>
                 <strong>{formatDate(item.occurred_at)}</strong>
                 <p>
-                  <StatusBadge value={item.from_status} /> <span aria-hidden="true">→</span>{" "}
-                  <StatusBadge value={item.to_status} />
+                  <StatusBadge value={item.from_status} label={status(item.from_status === "resolved_externally" ? "resolvedExternally" : item.from_status)} /> <span aria-hidden="true">→</span>{" "}
+                  <StatusBadge value={item.to_status} label={status(item.to_status === "resolved_externally" ? "resolvedExternally" : item.to_status)} />
                 </p>
                 <span>{reasonLabels[item.reason]}</span>
                 <span>
-                  Ausências válidas: {item.missing_count}
+                  {t("absences", {count:item.missing_count})}
                   {item.missing_threshold !== null
-                    ? ` / limite ${item.missing_threshold}`
+                    ? t("threshold", {count:item.missing_threshold})
                     : ""}
                 </span>
                 {item.scope_rule_key && (
                   <span>
-                    Escopo: {item.scope_rule_key}
+                    {t("scope")} {item.scope_rule_key}
                     {item.scope_region ? ` · ${item.scope_region}` : ""}
                   </span>
                 )}
@@ -111,7 +109,7 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
                     className="collection-link"
                     href={`/collections/${encodeURIComponent(item.collection_run_id)}`}
                   >
-                    Abrir coleta {item.collection_run_id.slice(0, 8)}
+                    {t("openCollection")} {item.collection_run_id.slice(0, 8)}
                   </Link>
                 )}
               </div>
@@ -119,13 +117,12 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
           ))}
         </div>
       ) : (
-        <p className="muted-copy">Nenhuma transição técnica registrada desde a implantação.</p>
+        <p className="muted-copy">{t("empty")}</p>
       )}
 
       {history && history.total_pages > 1 && (
         <p className="muted-copy">
-          Exibindo os 50 eventos técnicos mais recentes. A API permite paginação do histórico
-          completo.
+          {t("paged")}
         </p>
       )}
     </section>

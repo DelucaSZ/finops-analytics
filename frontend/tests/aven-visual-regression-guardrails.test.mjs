@@ -128,17 +128,17 @@ test("Sidebar keeps official wordmark plus collapsed lockup and collapse is a pe
 test("Inventory owns exactly one shared FilterBar composition with the consolidated fields", () => {
   const inventory = read("app", "inventory", "page.tsx");
   const filters = section(inventory, "function InventoryFilters", "function InventoryContent");
-  const labels = ["Search", "Provider", "Account", "Region", "Resource type", "Service", "Lifecycle", "Presence"];
+  const keys = ["search","provider","account","region","resourceType","service","lifecycle","presence"];
 
   assert.match(inventory, /FilterBar/);
   assert.match(filters, /<FilterBar/);
   assert.equal(count(filters, "<FilterBar"), 1);
   assert.match(filters, /clearAction=\{/);
-  assert.equal(count(filters, "Clear filters"), 1);
+  assert.equal(count(filters, 't("filters.clear")'), 1);
   assert.doesNotMatch(inventory, /function\s+FilterBar\s*\(/);
 
-  for (const label of labels) {
-    assert.equal(count(filters, `label="${label}"`), 1, `${label} must appear exactly once in Inventory filters`);
+  for (const key of keys) {
+    assert.equal(count(filters, `label={t("filters.${key}")}`), 1, `${key} must appear exactly once in Inventory filters`);
   }
 });
 
@@ -157,15 +157,15 @@ test("shared FilterBar and PageContainer expose stable semantic layout contracts
 test("Opportunities keeps Impact and Confidence in the non-clipping status stack", () => {
   const opportunities = read("app", "opportunities", "page.tsx");
   const styles = read("app", "opportunities", "opportunities.module.css");
-  const headerIndex = opportunities.indexOf("Impacto / confiança");
+  const headerIndex = opportunities.indexOf('t("table.impactConfidence")');
   assert.notEqual(headerIndex, -1);
 
   const cellIndex = opportunities.indexOf("className={styles.statusStack}", headerIndex);
   assert.notEqual(cellIndex, -1);
   const cell = opportunities.slice(cellIndex, opportunities.indexOf("</TableCell>", cellIndex));
 
-  assert.match(cell, /Impacto:/);
-  assert.match(cell, /Confiança:/);
+  assert.match(cell, /t\("table\.impactLabel"/);
+  assert.match(cell, /t\("table\.confidenceLabel"/);
   assert.doesNotMatch(cell, /truncate|overflow-hidden|text-overflow/i);
   assert.match(styles, /\.statusStack\s*\{/);
 });

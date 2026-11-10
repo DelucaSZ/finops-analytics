@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import { CurrencyDisplay } from "@/components/aven";
 import {
   Alert,
@@ -95,6 +96,8 @@ export function OpportunityArchiveDialog({
   onClose,
   onSuccess,
 }: Props) {
+  const t = useTranslations("opportunities.archive");
+  const locale = useLocale();
   const [preview, setPreview] = useState<Preview | null>(null);
   const [cycle, setCycle] = useState<Cycle | null>(null);
   const [cyclePreview, setCyclePreview] = useState<CycleClosePreview | null>(null);
@@ -139,7 +142,7 @@ export function OpportunityArchiveDialog({
         }
       } catch (err) {
         if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Não foi possível gerar o preview do arquivamento.");
+          setError(err instanceof Error ? err.message : "__PREVIEW_FAILED__");
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -154,9 +157,9 @@ export function OpportunityArchiveDialog({
     setError("");
     try {
       if (mode === "individual") {
-        if (!opportunityId) throw new Error("Oportunidade não informada.");
+        if (!opportunityId) throw new Error(t("errors.opportunityMissing"));
         await api(`/opportunities/${opportunityId}/archive`, { method: "POST" });
-        onSuccess("Oportunidade arquivada. O status humano e o histórico foram preservados.");
+        onSuccess(t("success.one"));
         return;
       }
       if (mode === "selected") {
@@ -164,26 +167,26 @@ export function OpportunityArchiveDialog({
           method: "POST",
           body: JSON.stringify({ opportunity_ids: opportunityIds }),
         });
-        onSuccess(`${result.archived} oportunidade(s) arquivada(s)${result.already_archived ? `. ${result.already_archived} já estava(m) no Histórico.` : "."}`);
+        onSuccess(t("success.bulk", {count:result.archived,already:result.already_archived}));
         return;
       }
       if (!preview || preview.to_archive === 0) return;
       if (mode === "period") {
-        if (!cycle) throw new Error("Ciclo histórico atual indisponível.");
+        if (!cycle) throw new Error(t("errors.cycleMissing"));
         const result = await api<ArchiveResult>("/opportunities/period-close", {
           method: "POST",
           body: JSON.stringify({ cycle_id: cycle.id, filters, archive_all: archiveAll }),
         });
-        onSuccess(`Período ${cycle.label} fechado com ${result.snapshots_created ?? 0} snapshots e ${result.archived} oportunidade(s) arquivada(s).`);
+        onSuccess(t("success.period", {period:cycle.label,snapshots:result.snapshots_created ?? 0,archived:result.archived}));
         return;
       }
       const result = await api<ArchiveResult>("/opportunities/archive-by-filter", {
         method: "POST",
         body: JSON.stringify({ filters, archive_all: archiveAll }),
       });
-      onSuccess(`${result.archived} oportunidade(s) arquivada(s)${result.already_archived ? `. ${result.already_archived} já estava(m) no Histórico.` : "."}`);
+      onSuccess(t("success.bulk", {count:result.archived,already:result.already_archived}));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível arquivar as oportunidades.");
+      setError(err instanceof Error ? err.message : t("errors.archiveFailed"));
     } finally {
       setSaving(false);
     }
@@ -191,14 +194,14 @@ export function OpportunityArchiveDialog({
 
   const selectedCount = opportunityIds.length;
   const title = mode === "individual"
-    ? "Arquivar oportunidade"
+    ? t("titleOne")
     : mode === "selected"
-      ? `Arquivar ${selectedCount} oportunidade(s) selecionada(s)`
+      ? t("titleSelected", {count:selectedCount})
       : mode === "period"
-        ? "Fechar período operacional"
+        ? t("titlePeriod")
         : archiveAll
-          ? "Arquivar todo o backlog"
-          : "Arquivar todas deste filtro";
+          ? t("titleAll")
+          : t("titleFiltered");
   const periodCoverage = cyclePreview?.coverage ?? cycle?.coverage;
   const blockedByRunning = mode === "period" && Boolean(periodCoverage?.running);
   const disabled = saving || loading || ((mode === "filter" || mode === "period") && (!preview || preview.to_archive === 0)) || blockedByRunning;
@@ -210,12 +213,12 @@ export function OpportunityArchiveDialog({
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>
             {mode === "individual"
-              ? "A oportunidade será removida do backlog operacional sem apagar status, presença técnica ou histórico."
+              ? t("descriptionOne")
               : mode === "selected"
-                ? `${selectedCount} oportunidade(s) selecionada(s) serão removidas do backlog sem alterar decisões humanas existentes.`
+                ? t("descriptionSelected", {count:selectedCount})
                 : mode === "period"
-                  ? "Revise a cobertura e o preview antes de fechar o período operacional."
-                  : "Revise o escopo calculado pelo servidor antes de arquivar."}
+                  ? t("descriptionPeriod")
+                  : t("descriptionFiltered")}
           </DialogDescription>
         </DialogHeader>
 
@@ -224,55 +227,55 @@ export function OpportunityArchiveDialog({
 
           {(mode === "filter" || mode === "period") && preview ? (
             <>
-              {archiveAll ? <Alert variant="warning" title="Escopo total" description="Todas as oportunidades operacionais ativas do backlog correspondentes ao escopo serão arquivadas." /> : null}
+              {archiveAll ? <Alert variant="warning" title={t("scopeAllTitle")} description={t("scopeAllDescription")} /> : null}
 
               <dl className={styles.detailGrid}>
-                {mode === "period" && cycle ? <div><dt>Período</dt><dd>{cycle.label}</dd></div> : null}
-                <div><dt>Correspondentes</dt><dd>{preview.matched}</dd></div>
-                <div><dt>Serão arquivadas</dt><dd>{preview.to_archive}</dd></div>
-                <div><dt>Já arquivadas</dt><dd>{preview.already_archived}</dd></div>
-                {mode === "period" && cyclePreview ? <div><dt>Snapshots a gerar</dt><dd>{cyclePreview.snapshots_to_create}</dd></div> : null}
-                {mode === "period" && periodCoverage ? <div><dt>Coletas no período</dt><dd>{periodCoverage.total}</dd></div> : null}
-                {mode === "period" && periodCoverage ? <div><dt>Falhas finalizadas</dt><dd>{periodCoverage.failed}</dd></div> : null}
+                {mode === "period" && cycle ? <div><dt>{t("field.period")}</dt><dd>{cycle.label}</dd></div> : null}
+                <div><dt>{t("field.matched")}</dt><dd>{preview.matched}</dd></div>
+                <div><dt>{t("field.toArchive")}</dt><dd>{preview.to_archive}</dd></div>
+                <div><dt>{t("field.archived")}</dt><dd>{preview.already_archived}</dd></div>
+                {mode === "period" && cyclePreview ? <div><dt>{t("field.snapshots")}</dt><dd>{cyclePreview.snapshots_to_create}</dd></div> : null}
+                {mode === "period" && periodCoverage ? <div><dt>{t("field.collections")}</dt><dd>{periodCoverage.total}</dd></div> : null}
+                {mode === "period" && periodCoverage ? <div><dt>{t("field.failed")}</dt><dd>{periodCoverage.failed}</dd></div> : null}
               </dl>
 
               {filterLabels.length > 0 ? (
-                <div className={styles.activeFilterSummary} aria-label="Filtros do arquivamento">
+                <div className={styles.activeFilterSummary} aria-label={t("aria.filters")}>
                   {filterLabels.map((label) => <Badge key={label} variant="neutral">{label}</Badge>)}
                 </div>
               ) : null}
 
               {preview.savings.length > 0 ? (
-                <div className={styles.savingsList} aria-label="Economia potencial no escopo">
+                <div className={styles.savingsList} aria-label={t("aria.savings")}>
                   {preview.savings.map((item) => (
                     <Badge key={item.currency} variant="info">
-                      <CurrencyDisplay value={Number(item.amount)} currency={item.currency} locale="pt-BR" maximumFractionDigits={2} />
+                      <CurrencyDisplay value={Number(item.amount)} currency={item.currency} locale={locale} maximumFractionDigits={2} />
                     </Badge>
                   ))}
                 </div>
               ) : null}
 
-              <p className={styles.secondary}>O conjunto pode mudar entre o preview e a execução; a resposta final usa a contagem efetivamente arquivada.</p>
+              <p className={styles.secondary}>{t("previewWarning")}</p>
 
-              {preview.to_archive === 0 ? <Alert variant="info" title="Nenhuma oportunidade para arquivar" description="Nenhuma oportunidade ativa corresponde aos filtros atuais." /> : null}
-              {mode === "period" && periodCoverage && periodCoverage.failed > 0 ? <Alert variant="warning" title="Coletas com falha" description={`${periodCoverage.failed} coleta(s) falharam neste período. O snapshot refletirá apenas dados efetivamente observados.`} /> : null}
-              {blockedByRunning ? <Alert variant="danger" title="Fechamento bloqueado" description={`Existem ${periodCoverage?.running ?? 0} coleta(s) em andamento neste período.`} /> : null}
+              {preview.to_archive === 0 ? <Alert variant="info" title={t("emptyTitle")} description={t("emptyDescription")} /> : null}
+              {mode === "period" && periodCoverage && periodCoverage.failed > 0 ? <Alert variant="warning" title={t("failedTitle")} description={t("failedDescription",{count:periodCoverage.failed})} /> : null}
+              {blockedByRunning ? <Alert variant="danger" title={t("blockedTitle")} description={t("blockedDescription",{count:periodCoverage?.running ?? 0})} /> : null}
             </>
           ) : null}
 
-          {error ? <Alert variant="danger" title="Não foi possível concluir o arquivamento" description={error} /> : null}
+          {error ? <Alert variant="danger" title={t("errorTitle")} description={error === "__PREVIEW_FAILED__" ? t("errors.preview") : error} /> : null}
         </div>
 
         <DialogFooter>
-          <Button variant="secondary" type="button" disabled={saving} onClick={onClose}>Cancelar</Button>
+          <Button variant="secondary" type="button" disabled={saving} onClick={onClose}>{t("cancel")}</Button>
           <Button variant="primary" type="button" disabled={disabled} loading={saving} onClick={() => void confirm()}>
             {mode === "period"
-              ? `Fechar período${preview ? ` e arquivar ${preview.to_archive}` : ""}`
+              ? (preview ? t("submitPeriodArchive",{count:preview.to_archive}) : t("submitPeriod"))
               : mode === "filter"
-                ? `Arquivar ${preview?.to_archive ?? 0} oportunidade(s)`
+                ? t("submitCount",{count:preview?.to_archive ?? 0})
                 : mode === "selected"
-                  ? `Arquivar ${selectedCount} oportunidade(s)`
-                  : "Arquivar oportunidade"}
+                  ? t("submitCount",{count:selectedCount})
+                  : t("titleOne")}
           </Button>
         </DialogFooter>
       </DialogContent>

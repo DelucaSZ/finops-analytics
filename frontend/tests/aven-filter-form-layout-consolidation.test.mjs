@@ -65,11 +65,11 @@ test("Inventory has one contextual Search and one instance of each primary share
   assert.equal((filters.match(/<Input\b/g) ?? []).length, 1);
   assert.equal((filters.match(/<ProviderSelector\b/g) ?? []).length, 1);
   assert.equal((filters.match(/<AccountSelector\b/g) ?? []).length, 1);
-  for (const label of ["Search", "Provider", "Account", "Region", "Resource type", "Service", "Lifecycle", "Presence"]) {
-    assert.equal((filters.match(new RegExp(`label=\\"${label}\\"`, "g")) ?? []).length, 1, `${label} should appear once`);
+  for (const key of ["search","provider","account","region","resourceType","service","lifecycle","presence"]) {
+    assert.equal(filters.split(`label={t("filters.${key}")}`).length - 1, 1, `${key} should appear once`);
   }
-  assert.match(filters, /clearAction=\{<Button[^>]*>Clear filters<\/Button>\}/);
-  assert.doesNotMatch(filters, /<AccountSelector[\s\S]*?searchable=\{true\}/);
+  assert.match(filters, /clearAction=\{<Button[^>]*>\{t\("filters\.clear"\)\}<\/Button>\}/);
+    assert.doesNotMatch(filters, /<AccountSelector[\s\S]*?searchable=\{true\}/);
 });
 
 test("target analytical pages consume the shared filter architecture", () => {

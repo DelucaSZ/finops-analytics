@@ -50,9 +50,9 @@ test("Opportunities keeps Impact and Confidence readable within deterministic ta
   const page = read("app", "opportunities", "page.tsx");
   const styles = read("app", "opportunities", "opportunities.module.css");
 
-  assert.match(page, /<TableHead>Impacto \/ confiança<\/TableHead>/);
-  assert.match(page, /label=\{`Impacto: \$\{humanize\(finding\.severity\)\}`\}/);
-  assert.match(page, /label=\{`Confiança: \$\{finding\.confidence/);
+  assert.match(page, /<TableHead>\{t\("table\.impactConfidence"\)\}<\/TableHead>/);
+  assert.match(page, /label=\{t\("table\.impactLabel",\{value:severityLabel\(finding\.severity\)\}\)\}/);
+  assert.match(page, /label=\{t\("table\.confidenceLabel",\{value:finding\.confidence/);
   assert.match(styles, /table-layout:\s*fixed/);
   assert.match(styles, /--opportunities-column-8:/);
   assert.match(styles, /nth-child\(8\)/);
@@ -75,7 +75,7 @@ test("analytical pages retain shared tables and critical display primitives", ()
   assert.match(inventory, /<ResourceIdentifier/);
   assert.match(inventory, /<ProviderBadge/);
   assert.match(inventory, /<StatusIndicator/);
-  assert.match(inventory, /formatDateTime\(resource\.last_seen_at\)/);
+  assert.match(inventory, /formatDateTime\(resource\.last_seen_at, locale\)/);
 
   assert.match(billing, /<CurrencyDisplay/);
   assert.match(billing, /<PercentageDisplay/);
@@ -85,7 +85,7 @@ test("analytical pages retain shared tables and critical display primitives", ()
   assert.match(reservations, /<ResourceIdentifier/);
   assert.match(reservations, /<PercentageDisplay/);
   assert.match(reservations, /<StatusIndicator/);
-  assert.match(reservations, /formatDate\(item\.expiration_at\)/);
+  assert.match(reservations, /formatDate\(item\.expiration_at, locale\)/);
 });
 
 test("long cloud identifiers keep recoverable full values", () => {

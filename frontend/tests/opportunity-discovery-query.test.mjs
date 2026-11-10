@@ -92,25 +92,24 @@ test("opportunities UI exposes Aven temporal and discovery contracts", async () 
   const page = await readFile(new URL("../app/opportunities/page.tsx", import.meta.url), "utf8");
   const detail = await readFile(new URL("../components/opportunity-detail.tsx", import.meta.url), "utf8");
 
-  assert.match(page, /Primeira identificação/);
-  assert.match(page, /Última detecção/);
-  assert.match(page, /Últimas 24h/);
-  assert.match(page, /Últimos 7 dias/);
-  assert.match(page, /Últimos 30 dias/);
-
-  const discoveryContracts = [
-    ["observed", "Observadas nesta coleta"],
-    ["first_seen", "Identificadas pela primeira vez nesta coleta"],
-    ["new_vs_previous", "Novas em relação à coleta anterior"],
-    ["reappeared", "Reapareceram nesta coleta"],
-    ["continued", "Continuaram presentes"],
-  ];
-  for (const [type, label] of discoveryContracts) {
-    assert.ok(page.includes(`${type}: "${label}"`), `expected current Aven label for ${type}`);
+  const pt = JSON.parse(await readFile(new URL("../i18n/messages/pt-BR.json", import.meta.url), "utf8"));
+  for (const key of ["firstSeen","lastSeen","last24","last7","last30"]) {
+    assert.ok(page.includes(`t("filters.${key}")`), `missing temporal filter ${key}`);
+    assert.ok(pt.opportunities.filters[key]);
   }
-
-  assert.match(detail, /Primeira identificação/);
-  assert.match(detail, /Última detecção/);
+  const discoveryContracts = [
+    ["observed", "observed"],
+    ["first_seen", "firstSeen"],
+    ["new_vs_previous", "newVsPrevious"],
+    ["reappeared", "reappeared"],
+    ["continued", "continued"],
+  ];
+  for (const [code, key] of discoveryContracts) {
+    assert.ok(page.includes(`${code}:t("filterOptions.discovery.${key}")`), `missing discovery code ${code}`);
+    assert.ok(pt.opportunities.filterOptions.discovery[key]);
+  }
+  assert.ok(detail.includes('t("field.firstSeen")'));
+  assert.ok(detail.includes('t("field.lastSeen")'));
   assert.match(detail, /first_seen_collection_run_id/);
   assert.match(detail, /last_seen_collection_run_id/);
 });

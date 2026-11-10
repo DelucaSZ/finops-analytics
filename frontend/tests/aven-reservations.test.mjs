@@ -36,8 +36,10 @@ test("Reservations keeps expiration and opportunity semantics backend-owned", as
   assert.ok(page.includes('item.expiration_band === "EXPIRED"'));
   assert.ok(page.includes("item.days_remaining < 0"));
   assert.ok(!page.includes("new Date(item.expiration_at)"));
-  assert.ok(page.includes("does not calculate acquisition savings"));
-  assert.ok(page.includes("recalculate reservation matching"));
+  assert.ok(page.includes('t("scope.description")'));
+  assert.ok(page.includes('t("coverage.full")'));
+  assert.ok(page.includes("formatNu(item.covered_units)"));
+  assert.ok(page.includes("formatNu(item.required_units)"));
 });
 
 test("Reservations uses PercentageDisplay without page-local utilization thresholds", async () => {

@@ -17,25 +17,25 @@ test("historical rejected rows require Aven confirmation before reopen", () => {
   assert.match(pageSource, /confirmRejectedHistoryReopen/);
   assert.match(pageSource, /`\/opportunities\/\$\{finding\.id\}\/reopen`/);
   assert.match(pageSource, /`\/opportunities\/\$\{finding\.id\}\/unarchive`/);
-  assert.match(pageSource, /Reabrir oportunidade/);
+  assert.match(pageSource, /t\("actions\.reopenOpportunity"\)/);
   assert.match(pageSource, /<Dialog/);
-  assert.match(pageSource, /<DialogTitle>Reabrir oportunidade<\/DialogTitle>/);
-  assert.match(pageSource, /decisão de rejeição será removida/i);
-  assert.match(pageSource, /voltará ao backlog operacional/i);
-  assert.match(pageSource, /histórico permanecerá registrado/i);
+  assert.match(pageSource, /<DialogTitle>\{t\("actions\.reopenOpportunity"\)\}<\/DialogTitle>/);
+  assert.match(pageSource, /t\("actions\.reopenDescription"\)/);
+  assert.match(pageSource, /t\("actions\.reopenDescription"\)/);
+  assert.match(pageSource, /t\("actions\.reopenDescription"\)/);
   assert.doesNotMatch(pageSource, /window\.confirm/);
 });
 
 test("archived rejected detail uses reopen and explains persistent suppression", () => {
   assert.match(detailSource, /detail\.status === "rejected"/);
   assert.match(detailSource, /`\/opportunities\/\$\{detail\.id\}\/reopen`/);
-  assert.match(detailSource, /Reabrir oportunidade/);
+  assert.match(detailSource, /t\("actions\.reopenOpportunity"\)/);
   assert.match(detailSource, /<Dialog/);
   assert.match(detailSource, /<DialogTitle>/);
   assert.match(detailSource, /<DialogDescription>/);
-  assert.match(detailSource, /decisão de rejeição será removida/i);
-  assert.match(detailSource, /voltará ao backlog operacional/i);
-  assert.match(detailSource, /histórico permanecerá registrado/i);
-  assert.match(detailSource, /recomendação permanece suprimida pela decisão humana registrada/i);
+  assert.match(detailSource, /t\("actions\.reopenDescription"\)/);
+  assert.match(detailSource, /t\("actions\.reopenDescription"\)/);
+  assert.match(detailSource, /t\("actions\.reopenDescription"\)/);
+  assert.match(detailSource, /t\("rejectedActiveDescription"\)/);
   assert.doesNotMatch(detailSource, /window\.confirm/);
 });

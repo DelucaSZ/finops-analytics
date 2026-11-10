@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import {
   Suspense,
   useCallback,
@@ -86,49 +87,11 @@ import type {
 } from "@/lib/types";
 import styles from "./opportunities.module.css";
 
-const statusTabs = [
-  { value: "open", label: "Abertas" },
-  { value: "treated", label: "Tratadas" },
-  { value: "rejected", label: "Rejeitadas" },
-] as const;
+const statusTabs = [{value:"open"},{value:"treated"},{value:"rejected"}] as const;
 
-const rejectionFallback = "Não foi possível atualizar a oportunidade. Nenhuma alteração foi aplicada.";
 
-const operationalSortOptions = [
-  { value: "last_seen_at", label: "Última detecção" },
-  { value: "first_seen_at", label: "Primeira detecção" },
-  { value: "severity", label: "Severidade" },
-  { value: "estimated_savings", label: "Economia potencial" },
-  { value: "created_at", label: "Criação" },
-];
-
-const historySortOptions = [
-  { value: "archived_at", label: "Data de arquivamento" },
-  { value: "last_seen_at", label: "Última observação" },
-  { value: "status", label: "Status humano" },
-  { value: "estimated_savings", label: "Economia potencial" },
-];
-
-const archiveReasonLabels: Record<string, string> = {
-  MANUAL: "Manual",
-  RETENTION_POLICY: "Política de retenção",
-};
-
-const temporalPresetLabels: Record<string, string> = {
-  today: "Hoje",
-  last_24h: "Últimas 24h",
-  last_7d: "Últimos 7 dias",
-  last_30d: "Últimos 30 dias",
-  custom: "Período personalizado",
-};
-
-const discoveryTypeLabels: Record<string, string> = {
-  observed: "Observadas nesta coleta",
-  first_seen: "Identificadas pela primeira vez nesta coleta",
-  new_vs_previous: "Novas em relação à coleta anterior",
-  reappeared: "Reapareceram nesta coleta",
-  continued: "Continuaram presentes",
-};
+const operationalSortOptions = ["last_seen_at","first_seen_at","severity","estimated_savings","created_at"];
+const historySortOptions = ["archived_at","last_seen_at","status","estimated_savings"];
 
 type HistoricalFinding = Finding & {
   archived: boolean;
@@ -159,15 +122,7 @@ function numericValue(value?: string | number | null) {
   return Number.isFinite(parsed) ? parsed : null;
 }
 
-function statusLabel(value: string) {
-  if (value === "open") return "Aberta";
-  if (value === "treated") return "Tratada";
-  if (value === "rejected") return "Rejeitada";
-  if (value === "active") return "Ativa";
-  if (value === "missing") return "Ausente";
-  if (value === "resolved_externally") return "Resolvida externamente";
-  return humanize(value);
-}
+
 
 function statusTone(value: string): ProductStatus {
   if (value === "treated" || value === "active" || value === "resolved_externally") return "success";
@@ -193,17 +148,19 @@ function confidenceTone(value: string): ProductStatus {
 }
 
 function MoneyValue({ value, currency }: { value: string | number | null | undefined; currency: string }) {
+  const locale = useLocale();
   const amount = numericValue(value);
   if (!currency || amount == null) return <span>—</span>;
-  return <CurrencyDisplay value={amount} currency={currency} locale="pt-BR" maximumFractionDigits={2} />;
+  return <CurrencyDisplay value={amount} currency={currency} locale={locale} maximumFractionDigits={2} />;
 }
 
 function SavingsValue({ finding }: { finding: Finding }) {
-  if (finding.rule_key === "cost_growth_anomaly") return <span>Não estimada</span>;
+  const t = useTranslations("opportunities");
+  if (finding.rule_key === "cost_growth_anomaly") return <span>{t("savings.notEstimated")}</span>;
   return (
     <span className={styles.moneyWithPeriod}>
       <MoneyValue value={finding.estimated_monthly_savings} currency={finding.currency} />
-      <span>/mês</span>
+      <span>{t("savings.perMonth")}</span>
     </span>
   );
 }
@@ -240,6 +197,16 @@ export default function OpportunitiesPage() {
 }
 
 function OpportunitiesContent() {
+  const t = useTranslations("opportunities");
+  const locale = useLocale();
+  const statusLabels: Record<string,string> = {open:t("status.open"), treated:t("status.treated"), rejected:t("status.rejected"), active:t("status.active"),missing:t("status.missing"),resolved_externally:t("status.resolvedExternally")};
+  const statusLabel = (value: string) => statusLabels[value] ?? humanize(value);
+  const severityLabels: Record<string,string> = {high:t("severity.high"),medium:t("severity.medium"),low:t("severity.low")};
+  const severityLabel = (value: string) => severityLabels[value.toLowerCase()] ?? humanize(value);
+  const localizedTabs = statusTabs.map(tab => ({value:tab.value,label:tab.value === "open" ? t("tabs.open") : tab.value === "treated" ? t("tabs.treated") : t("tabs.rejected")}));
+  const archiveReasonLabels: Record<string,string> = {MANUAL:t("filterOptions.archiveReason.manual"), RETENTION_POLICY:t("filterOptions.archiveReason.retentionPolicy")};
+  const temporalPresetLabels: Record<string,string> = {today:t("filters.today"),last_24h:t("filters.last24"),last_7d:t("filters.last7"),last_30d:t("filters.last30"),custom:t("filters.customLong")};
+  const discoveryTypeLabels: Record<string,string> = {observed:t("filterOptions.discovery.observed"),first_seen:t("filterOptions.discovery.firstSeen"),new_vs_previous:t("filterOptions.discovery.newVsPrevious"),reappeared:t("filterOptions.discovery.reappeared"),continued:t("filterOptions.discovery.continued")};
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -456,7 +423,7 @@ function OpportunitiesContent() {
     };
   });
   if (state.collectionRunId && !collectionRunOptions.some((item) => item.value === state.collectionRunId)) {
-    collectionRunOptions.unshift({ value: state.collectionRunId, label: `Coleta selecionada · ${state.collectionRunId.slice(0, 8)}` });
+    collectionRunOptions.unshift({ value: state.collectionRunId, label: `${t("filters.collectionSelected")} · ${state.collectionRunId.slice(0, 8)}` });
   }
 
   const hasFilters = Boolean(
@@ -466,27 +433,27 @@ function OpportunitiesContent() {
     (isHistory && (state.status || state.presenceStatus || state.archivedFrom || state.archivedTo || state.archiveReason)),
   );
   const temporalLabel = state.temporalPreset
-    ? `${state.dateField === "last_seen" ? "Última detecção" : "Primeira identificação"}: ${temporalPresetLabels[state.temporalPreset] || state.temporalPreset}${state.temporalPreset === "custom" ? ` · ${state.temporalFrom || "…"} → ${state.temporalTo || "…"}` : ""}`
+    ? t("filters.chipDate",{field:state.dateField === "last_seen" ? t("filters.lastSeen") : t("filters.firstSeen"), value:`${temporalPresetLabels[state.temporalPreset] || state.temporalPreset}${state.temporalPreset === "custom" ? ` · ${state.temporalFrom || "…"} → ${state.temporalTo || "…"}` : ""}`})
     : "";
   const activeFilters = [
-    state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
-    state.accountId ? `Conta: ${formatAccountLabel(currentAccount?.account_name, state.accountId)}` : "",
-    isHistory && state.status ? `Status: ${statusLabel(state.status)}` : "",
-    isHistory && state.presenceStatus ? `Presença: ${statusLabel(state.presenceStatus)}` : "",
-    state.severity ? `Severidade: ${humanize(state.severity)}` : "",
-    state.region ? `Região: ${state.region}` : "",
-    state.service ? `Serviço: ${state.service}` : "",
-    state.resourceType ? `Tipo: ${state.resourceType}` : "",
-    state.rule ? `Regra: ${state.rule}` : "",
-    state.search ? `Busca: ${state.search}` : "",
+    state.provider ? t("filters.chipCloud",{value:providerLabel(state.provider)}) : "",
+    state.accountId ? t("filters.chipAccount",{value:formatAccountLabel(currentAccount?.account_name,state.accountId)}) : "",
+    isHistory && state.status ? t("filters.chipStatus",{value:statusLabel(state.status)}) : "",
+    isHistory && state.presenceStatus ? t("filters.chipPresence",{value:statusLabel(state.presenceStatus)}) : "",
+    state.severity ? t("filters.chipSeverity",{value:severityLabel(state.severity)}) : "",
+    state.region ? t("filters.chipRegion",{value:state.region}) : "",
+    state.service ? t("filters.chipService",{value:state.service}) : "",
+    state.resourceType ? t("filters.chipType",{value:state.resourceType}) : "",
+    state.rule ? t("filters.chipRule",{value:state.rule}) : "",
+    state.search ? t("filters.chipSearch",{value:state.search}) : "",
     temporalLabel,
-    state.collectionRunId ? `Coleta: ${state.collectionRunId.slice(0, 8)}` : "",
-    state.collectionRunId && state.discoveryType ? `Tipo na coleta: ${discoveryTypeLabels[state.discoveryType] || state.discoveryType}` : "",
-    state.firstSeenCollectionRunId ? `Primeira coleta: ${state.firstSeenCollectionRunId.slice(0, 8)}` : "",
-    state.current ? "Escopo: estado atual" : "",
-    isHistory && state.archivedFrom ? `Arquivada desde: ${state.archivedFrom}` : "",
-    isHistory && state.archivedTo ? `Arquivada até: ${state.archivedTo}` : "",
-    isHistory && state.archiveReason ? `Arquivamento: ${archiveReasonLabels[state.archiveReason]}` : "",
+    state.collectionRunId ? t("filters.chipCollection",{value:state.collectionRunId.slice(0, 8)}) : "",
+    state.collectionRunId && state.discoveryType ? t("filters.chipCollectionType",{value:discoveryTypeLabels[state.discoveryType] || state.discoveryType}) : "",
+    state.firstSeenCollectionRunId ? t("filters.chipFirstCollection",{value:state.firstSeenCollectionRunId.slice(0, 8)}) : "",
+    state.current ? t("filters.chipCurrent") : "",
+    isHistory && state.archivedFrom ? t("filters.chipArchivedFrom",{value:state.archivedFrom}) : "",
+    isHistory && state.archivedTo ? t("filters.chipArchivedTo",{value:state.archivedTo}) : "",
+    isHistory && state.archiveReason ? t("filters.chipArchiveReason",{value:archiveReasonLabels[state.archiveReason]}) : "",
   ].filter(Boolean);
 
   const archiveFilters = isHistory ? {} : {
@@ -503,7 +470,7 @@ function OpportunitiesContent() {
     ...(state.search ? { search: state.search } : {}),
     ...(state.current ? { current: true } : {}),
   };
-  const archiveFilterLabels = hasFilters ? [state.status ? `Status: ${statusLabel(state.status)}` : "", ...activeFilters].filter(Boolean) : [];
+  const archiveFilterLabels = hasFilters ? [state.status ? t("filters.chipStatus",{value:statusLabel(state.status)}) : "", ...activeFilters].filter(Boolean) : [];
   const archiveScopeMatchesVisibleQuery = !state.temporalPreset && !state.discoveryType && !state.firstSeenCollectionRunId;
 
   function changeStatus(status: "open" | "treated" | "rejected") {
@@ -616,14 +583,14 @@ function OpportunitiesContent() {
       });
       const result = await api<{ updated?: number } | Finding>(request.path, { method: "POST", body: JSON.stringify(request.body) });
       const updated = "updated" in result && typeof result.updated === "number" ? result.updated : 1;
-      setMessage(`${updated} oportunidade(s) atualizada(s) com sucesso.`);
+      setMessage(t("messages.updated", {count:updated}));
       setSelectedIds(new Set());
       setDecision(null);
       if (!decision.bulk && state.opportunityId) closeDetail();
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
-      setDecisionError(err instanceof Error ? err.message : rejectionFallback);
+      setDecisionError(err instanceof Error ? err.message : t("messages.updateFailed"));
     } finally {
       setDecisionSaving(false);
     }
@@ -651,11 +618,11 @@ function OpportunitiesContent() {
     setMessage("");
     try {
       await api(`/opportunities/${finding.id}/unarchive`, { method: "POST" });
-      setMessage("Oportunidade desarquivada com sucesso.");
+      setMessage(t("messages.unarchived"));
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Não foi possível desarquivar a oportunidade.");
+      setMessage(err instanceof Error ? err.message : t("messages.unarchiveFailed"));
     } finally {
       setUnarchiveSavingId("");
     }
@@ -669,12 +636,12 @@ function OpportunitiesContent() {
     setMessage("");
     try {
       await api(`/opportunities/${finding.id}/reopen`, { method: "POST", body: JSON.stringify({}) });
-      setMessage("Oportunidade reaberta e devolvida ao backlog operacional.");
+      setMessage(t("messages.reopened"));
       setRestoreHistoryFinding(null);
       invalidateApiQueries(queryKeys.opportunities.all);
       invalidateApiQueries(queryKeys.dashboard.all);
     } catch (err) {
-      setMessage(err instanceof Error ? err.message : "Não foi possível reabrir a oportunidade.");
+      setMessage(err instanceof Error ? err.message : t("messages.reopenFailed"));
     } finally {
       setUnarchiveSavingId("");
     }
@@ -684,9 +651,9 @@ function OpportunitiesContent() {
     if (isHistory) {
       return (
         <div className={styles.rowActions}>
-          <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>Ver detalhes</Button>
+          <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>{t("actions.details")}</Button>
           <Button variant="outline" size="sm" loading={unarchiveSavingId === finding.id} onClick={() => void restoreHistoryRow(finding)}>
-            {finding.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar"}
+            {finding.status === "rejected" ? t("actions.reopenOpportunity") : t("actions.unarchive")}
           </Button>
         </div>
       );
@@ -694,30 +661,30 @@ function OpportunitiesContent() {
     if (finding.status === "open") {
       return (
         <div className={styles.rowActions}>
-          <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>Ver detalhes</Button>
-          <Button variant="outline" size="sm" onClick={() => openDecision("treat", [finding.id], false)}>Tratar</Button>
-          <Button variant="danger" size="sm" onClick={() => openDecision("reject", [finding.id], false)}>Rejeitar</Button>
-          <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>Arquivar</Button>
+          <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>{t("actions.details")}</Button>
+          <Button variant="outline" size="sm" onClick={() => openDecision("treat", [finding.id], false)}>{t("actions.treat")}</Button>
+          <Button variant="danger" size="sm" onClick={() => openDecision("reject", [finding.id], false)}>{t("actions.reject")}</Button>
+          <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>{t("actions.archive")}</Button>
         </div>
       );
     }
     return (
       <div className={styles.rowActions}>
-        <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>Ver detalhes</Button>
-        <Button variant="outline" size="sm" onClick={() => openDecision("reopen", [finding.id], false)}>Reabrir</Button>
-        <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>Arquivar</Button>
+        <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>{t("actions.details")}</Button>
+        <Button variant="outline" size="sm" onClick={() => openDecision("reopen", [finding.id], false)}>{t("actions.reopen")}</Button>
+        <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "individual", opportunityId: finding.id })}>{t("actions.archive")}</Button>
       </div>
     );
   }
 
-  const sortOptions = isHistory ? historySortOptions : operationalSortOptions;
+  const sortOptions = (isHistory ? historySortOptions : operationalSortOptions).map(value => ({value,label: value === "archived_at" ? t("sort.archivedAt") : value === "last_seen_at" ? (isHistory ? t("sort.lastObserved") : t("sort.lastSeenAt")) : value === "first_seen_at" ? t("sort.firstSeenAt") : value === "severity" ? t("sort.severity") : value === "estimated_savings" ? t("sort.estimatedSavings") : value === "created_at" ? t("sort.createdAt") : t("sort.status")}));
   const useCards = !isHistory && !listRequest.isLoading && !listError && findings.length > 0 && total <= 6;
 
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Recomendações"
-        description="Priorize oportunidades de otimização por impacto, economia potencial, confiança e contexto do recurso."
+        title={t("title")}
+        description={t("description")}
         actions={(
           <Button
             variant="outline"
@@ -730,35 +697,35 @@ function OpportunitiesContent() {
         )}
       />
 
-      {message ? <Alert variant="info" title="Atualização de recomendações" description={message} /> : null}
-      {filterError ? <Alert variant="warning" title="Algumas opções de filtro estão indisponíveis" description={filterError} /> : null}
+      {message ? <Alert variant="info" title={t("messages.title")} description={message} /> : null}
+      {filterError ? <Alert variant="warning" title={t("messages.filtersError")} description={filterError} /> : null}
 
-      <Section title="Resumo" description="Contagens respeitam o escopo atual. Economia potencial abaixo representa somente os itens carregados nesta página.">
-        <div className={styles.metricsGrid} aria-label="Resumo das recomendações">
+      <Section title={t("summary.title")} description={t("summary.description")}>
+        <div className={styles.metricsGrid} aria-label={t("summary.aria")}>
           <MetricCard
-            label="Oportunidades na visão"
+            label={t("summary.opportunities")}
             value={loading && !listRequest.data ? "—" : total}
-            supportingText={isHistory ? "Registros arquivados no escopo atual" : `${statusLabel(state.status || "open")} após os filtros aplicados`}
+            supportingText={isHistory ? t("summary.archived") : t("summary.afterFilters",{status:statusLabel(state.status || "open")})}
             icon={<WalletCards {...iconDefaults} />}
             loading={listRequest.isLoading}
           />
           <MetricCard
-            label="Economia potencial na página"
+            label={t("summary.potential")}
             value={pageSavingsEntries.length ? (
               <span className={styles.savingsStack}>
                 {pageSavingsEntries.map(([currency, amount]) => (
-                  <span key={currency}><CurrencyDisplay value={amount} currency={currency} locale="pt-BR" maximumFractionDigits={2} /> <span>/mês</span></span>
+                  <span key={currency}><CurrencyDisplay value={amount} currency={currency} locale={locale} maximumFractionDigits={2} /> <span>{t("savings.perMonth")}</span></span>
                 ))}
               </span>
             ) : "—"}
-            supportingText="Moedas preservadas separadamente; nenhuma conversão FX é aplicada"
+            supportingText={t("summary.noConversion")}
             icon={<WalletCards {...iconDefaults} />}
             loading={listRequest.isLoading}
           />
           <MetricCard
-            label={isHistory ? "Arquivamento mais recente" : "Última detecção na página"}
+            label={isHistory ? t("summary.lastArchive") : t("summary.lastDetection")}
             value={formatDate(isHistory ? newestArchive : newestObservation)}
-            supportingText={isHistory ? "Data de entrada no histórico entre os itens carregados" : "Timestamp persistido; não representa dados em tempo real"}
+            supportingText={isHistory ? t("summary.archiveDescription") : t("summary.detectionDescription")}
             icon={isHistory ? <Archive {...iconDefaults} /> : <CalendarClock {...iconDefaults} />}
             loading={listRequest.isLoading}
           />
@@ -770,112 +737,112 @@ function OpportunitiesContent() {
         defaultValue="open"
         onValueChange={(value) => { if (value === "history") openHistory(); else changeStatus(value as "open" | "treated" | "rejected"); }}
       >
-        <TabsList aria-label="Estado das recomendações">
-          {statusTabs.map((tab) => <TabsTrigger key={tab.value} value={tab.value}>{tab.label} · {statsLoading ? "…" : stats[tab.value]}</TabsTrigger>)}
-          <TabsTrigger value="history">Histórico{isHistory ? ` · ${loading ? "…" : total}` : ""}</TabsTrigger>
+        <TabsList aria-label={t("tabs.aria")}>
+          {localizedTabs.map((tab) => <TabsTrigger key={tab.value} value={tab.value}>{tab.label} · {statsLoading ? "…" : stats[tab.value]}</TabsTrigger>)}
+          <TabsTrigger value="history">{t("tabs.history")}{isHistory ? ` · ${loading ? "…" : total}` : ""}</TabsTrigger>
         </TabsList>
       </Tabs>
 
       <FilterBar
-        aria-label="Filtros de recomendações"
-        clearAction={hasFilters ? <Button variant="ghost" size="sm" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+        aria-label={t("filters.aria")}
+        clearAction={hasFilters ? <Button variant="ghost" size="sm" onClick={clearFilters}>{t("filters.clear")}</Button> : undefined}
       >
-        <Input label="Busca" value={searchInput} placeholder="Recurso, ID, título, regra ou serviço" leadingIcon={<Search {...iconDefaults} />} onChange={(event) => setSearchInput(event.target.value)} />
+        <Input label={t("filters.search")} value={searchInput} placeholder={t("filters.searchPlaceholder")} leadingIcon={<Search {...iconDefaults} />} onChange={(event) => setSearchInput(event.target.value)} />
         <ProviderSelector
-          label="Provider"
+          label={t("filters.provider")}
           value={state.provider}
           onChange={(provider) => updateUrl({ provider, account_id: null, collection_run_id: null, discovery_type: null })}
           options={providerOptions}
           loading={filtersLoading}
-          placeholder="Todos os providers"
-          clearLabel="Todos os providers"
+          placeholder={t("filters.allProviders")}
+          clearLabel={t("filters.allProviders")}
           searchable={false}
         />
         <AccountSelector
-          label="Conta"
+          label={t("filters.account")}
           value={state.accountId}
           onChange={(accountId) => updateUrl({ account_id: accountId, collection_run_id: null, discovery_type: null })}
           options={accountOptions}
           loading={filtersLoading}
-          placeholder="Todas as contas autorizadas"
-          clearLabel="Todas as contas autorizadas"
+          placeholder={t("filters.allAccounts")}
+          clearLabel={t("filters.allAccounts")}
           searchable={false}
         />
-        <Select label="Serviço" value={state.service} onChange={(event) => updateUrl({ service: event.target.value })} options={activeOption(options.services, state.service).map((value) => ({ value, label: value }))} placeholder="Todos os serviços" />
-        <Select label="Tipo de recurso" value={state.resourceType} onChange={(event) => updateUrl({ resource_type: event.target.value })} options={activeOption(options.resource_types, state.resourceType).map((value) => ({ value, label: humanize(value) }))} placeholder="Todos os tipos" />
-        <Select label="Impacto / severidade" value={state.severity} onChange={(event) => updateUrl({ severity: event.target.value })} options={[{ value: "high", label: "Alta" }, { value: "medium", label: "Média" }, { value: "low", label: "Baixa" }]} placeholder="Todas" />
-        <Select label="Regra" value={state.rule} onChange={(event) => updateUrl({ rule: event.target.value, rule_key: null })} options={activeOption(options.rules, state.rule).map((value) => ({ value, label: value }))} placeholder="Todas as regras" />
+        <Select label={t("filters.service")} value={state.service} onChange={(event) => updateUrl({ service: event.target.value })} options={activeOption(options.services, state.service).map((value) => ({ value, label: value }))} placeholder={t("filters.allServices")} />
+        <Select label={t("filters.resourceType")} value={state.resourceType} onChange={(event) => updateUrl({ resource_type: event.target.value })} options={activeOption(options.resource_types, state.resourceType).map((value) => ({ value, label: humanize(value) }))} placeholder={t("filters.allTypes")} />
+        <Select label={t("filters.severity")} value={state.severity} onChange={(event) => updateUrl({ severity: event.target.value })} options={[{ value: "high", label: t("severity.high") }, { value: "medium", label: t("severity.medium") }, { value: "low", label: t("severity.low") }]} placeholder={t("filters.allSeverity")} />
+        <Select label={t("filters.rule")} value={state.rule} onChange={(event) => updateUrl({ rule: event.target.value, rule_key: null })} options={activeOption(options.rules, state.rule).map((value) => ({ value, label: value }))} placeholder={t("filters.allRules")} />
       </FilterBar>
 
-      {activeFilters.length > 0 ? <div className={styles.activeFilters} aria-label="Filtros ativos">{activeFilters.map((label) => <Badge key={label} variant="neutral">{label}</Badge>)}</div> : null}
+      {activeFilters.length > 0 ? <div className={styles.activeFilters} aria-label={t("filters.activeAria")}>{activeFilters.map((label) => <Badge key={label} variant="neutral">{label}</Badge>)}</div> : null}
 
       <details className={styles.advancedFilters}>
-        <summary>Filtros avançados e contexto de coleta</summary>
+        <summary>{t("filters.advanced")}</summary>
         <div className={styles.advancedGrid}>
-          <Select label="Região" value={state.region} onChange={(event) => updateUrl({ region: event.target.value })} options={activeOption(options.regions, state.region).map((value) => ({ value, label: value }))} placeholder="Todas as regiões" />
-          <Select label="Filtrar data por" value={state.dateField} onChange={(event) => changeTemporalField(event.target.value as "first_seen" | "last_seen")} options={[{ value: "first_seen", label: "Primeira identificação" }, { value: "last_seen", label: "Última detecção" }]} />
-          <Select label="Período" value={state.temporalPreset} onChange={(event) => changeTemporalPreset(event.target.value)} options={[{ value: "today", label: "Hoje" }, { value: "last_24h", label: "Últimas 24h" }, { value: "last_7d", label: "Últimos 7 dias" }, { value: "last_30d", label: "Últimos 30 dias" }, { value: "custom", label: "Personalizado" }]} placeholder="Todo o período" />
-          {state.temporalPreset === "custom" ? <><Input type="date" label="De" value={state.temporalFrom} onChange={(event) => updateUrl({ [`${state.dateField}_from`]: event.target.value })} /><Input type="date" label="Até" value={state.temporalTo} onChange={(event) => updateUrl({ [`${state.dateField}_to`]: event.target.value })} /></> : null}
-          <Select label="Coleta" value={state.collectionRunId} onChange={(event) => updateUrl({ collection_run_id: event.target.value, discovery_type: event.target.value ? (state.discoveryType || "observed") : null })} options={collectionRunOptions} placeholder="Todas as coletas" />
-          {state.collectionRunId ? <Select label="Tipo na coleta" value={state.discoveryType || "observed"} onChange={(event) => updateUrl({ discovery_type: event.target.value })} options={Object.entries(discoveryTypeLabels).map(([value, label]) => ({ value, label }))} /> : null}
+          <Select label={t("filters.region")} value={state.region} onChange={(event) => updateUrl({ region: event.target.value })} options={activeOption(options.regions, state.region).map((value) => ({ value, label: value }))} placeholder={t("filters.allRegions")} />
+          <Select label={t("filters.dateField")} value={state.dateField} onChange={(event) => changeTemporalField(event.target.value as "first_seen" | "last_seen")} options={[{ value: "first_seen", label: t("filters.firstSeen") }, { value: "last_seen", label: t("filters.lastSeen") }]} />
+          <Select label={t("filters.period")} value={state.temporalPreset} onChange={(event) => changeTemporalPreset(event.target.value)} options={[{ value: "today", label: t("filters.today") }, { value: "last_24h", label: t("filters.last24") }, { value: "last_7d", label: t("filters.last7") }, { value: "last_30d", label: t("filters.last30") }, { value: "custom", label: t("filters.custom") }]} placeholder={t("filters.allPeriod")} />
+          {state.temporalPreset === "custom" ? <><Input type="date" label={t("filters.from")} value={state.temporalFrom} onChange={(event) => updateUrl({ [`${state.dateField}_from`]: event.target.value })} /><Input type="date" label={t("filters.to")} value={state.temporalTo} onChange={(event) => updateUrl({ [`${state.dateField}_to`]: event.target.value })} /></> : null}
+          <Select label={t("filters.collection")} value={state.collectionRunId} onChange={(event) => updateUrl({ collection_run_id: event.target.value, discovery_type: event.target.value ? (state.discoveryType || "observed") : null })} options={collectionRunOptions} placeholder={t("filters.allCollections")} />
+          {state.collectionRunId ? <Select label={t("filters.collectionType")} value={state.discoveryType || "observed"} onChange={(event) => updateUrl({ discovery_type: event.target.value })} options={Object.entries(discoveryTypeLabels).map(([value, label]) => ({ value, label }))} /> : null}
           {!isHistory ? (
-            <Checkbox checked={state.current} label="Somente estado atual" description="Usa o contrato current=true já existente no backend." onChange={(event) => updateUrl({ current: event.target.checked ? "true" : null })} />
+            <Checkbox checked={state.current} label={t("filters.currentOnly")} description={t("filters.currentOnlyDescription")} onChange={(event) => updateUrl({ current: event.target.checked ? "true" : null })} />
           ) : (
             <>
-              <Select label="Status humano" value={state.status} onChange={(event) => updateUrl({ status: event.target.value })} options={statusTabs.map((tab) => ({ value: tab.value, label: statusLabel(tab.value) }))} placeholder="Todos" />
-              <Select label="Presença técnica" value={state.presenceStatus} onChange={(event) => updateUrl({ presence_status: event.target.value })} options={[{ value: "active", label: "Ativa" }, { value: "missing", label: "Ausente" }, { value: "resolved_externally", label: "Resolvida externamente" }]} placeholder="Todas" />
-              <Input type="date" label="Arquivada desde" value={state.archivedFrom} onChange={(event) => updateUrl({ archived_from: event.target.value })} />
-              <Input type="date" label="Arquivada até" value={state.archivedTo} onChange={(event) => updateUrl({ archived_to: event.target.value })} />
-              <Select label="Motivo do arquivamento" value={state.archiveReason} onChange={(event) => updateUrl({ archive_reason: event.target.value })} options={Object.entries(archiveReasonLabels).map(([value, label]) => ({ value, label }))} placeholder="Todos" />
+              <Select label={t("filters.humanStatus")} value={state.status} onChange={(event) => updateUrl({ status: event.target.value })} options={localizedTabs.map((tab) => ({ value: tab.value, label: statusLabel(tab.value) }))} placeholder={t("filters.allStatuses")} />
+              <Select label={t("filters.technicalPresence")} value={state.presenceStatus} onChange={(event) => updateUrl({ presence_status: event.target.value })} options={[{ value: "active", label: t("status.active") }, { value: "missing", label: t("status.missing") }, { value: "resolved_externally", label: t("status.resolvedExternally") }]} placeholder={t("filters.allSeverity")} />
+              <Input type="date" label={t("filters.archivedFrom")} value={state.archivedFrom} onChange={(event) => updateUrl({ archived_from: event.target.value })} />
+              <Input type="date" label={t("filters.archivedTo")} value={state.archivedTo} onChange={(event) => updateUrl({ archived_to: event.target.value })} />
+              <Select label={t("filters.archiveReason")} value={state.archiveReason} onChange={(event) => updateUrl({ archive_reason: event.target.value })} options={Object.entries(archiveReasonLabels).map(([value, label]) => ({ value, label }))} placeholder={t("filters.allStatuses")} />
             </>
           )}
         </div>
       </details>
 
       <Section
-        title={isHistory ? "Histórico de recomendações" : "Oportunidades"}
-        description={useCards ? "Oportunidades curadas em formato compacto, priorizando impacto, economia potencial, confiança, recurso e ação." : "Lista densa para comparar recomendações em volume sem perder contexto financeiro e técnico."}
+        title={isHistory ? t("table.historyTitle") : t("table.title")}
+        description={useCards ? t("table.cardsDescription") : t("table.listDescription")}
         actions={(
           <div className={styles.sortControls}>
-            <Select label="Ordenar por" value={state.sort} onChange={(event) => updateUrl({ sort: event.target.value })} options={sortOptions} />
-            <Select label="Ordem" value={state.order} onChange={(event) => updateUrl({ order: event.target.value })} options={[{ value: "desc", label: "Decrescente" }, { value: "asc", label: "Crescente" }]} />
+            <Select label={t("filters.sortBy")} value={state.sort} onChange={(event) => updateUrl({ sort: event.target.value })} options={sortOptions} />
+            <Select label={t("filters.order")} value={state.order} onChange={(event) => updateUrl({ order: event.target.value })} options={[{ value: "desc", label: t("filters.desc") }, { value: "asc", label: t("filters.asc") }]} />
           </div>
         )}
       >
         <div className={styles.workspaceMeta}>
-          <span>{listRequest.data ? `${total} resultado(s)` : "Contagem indisponível"}</span>
-          {listRequest.isFetching && !listRequest.isLoading ? <StatusIndicator status="pending" label="Atualizando" /> : null}
+          <span>{listRequest.data ? t("table.count",{count:total}) : t("table.countUnavailable")}</span>
+          {listRequest.isFetching && !listRequest.isLoading ? <StatusIndicator status="pending" label={t("table.updating")} /> : null}
         </div>
 
         {!isHistory ? (
           <div className={styles.selectionBar}>
-            <Checkbox checked={allSelected} indeterminate={selected.length > 0 && !allSelected} disabled={loading || !findings.length} label="Selecionar página atual" onChange={() => setSelectedIds(allSelected ? new Set() : new Set(findings.map((finding) => finding.id)))} />
+            <Checkbox checked={allSelected} indeterminate={selected.length > 0 && !allSelected} disabled={loading || !findings.length} label={t("table.selectPage")} onChange={() => setSelectedIds(allSelected ? new Set() : new Set(findings.map((finding) => finding.id)))} />
             <span>{selected.length} selecionada(s)</span>
             {selected.length > 0 ? (
-              <div className={styles.bulkActions} aria-label="Ações em massa">
-                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>Limpar seleção</Button>
-                {state.status === "open" ? <><Button variant="outline" size="sm" onClick={() => openDecision("treat", selected.map((item) => item.id), true)}>Marcar como tratadas</Button><Button variant="danger" size="sm" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>Rejeitar</Button></> : <Button variant="outline" size="sm" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>Reabrir</Button>}
-                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "selected", opportunityIds: selected.map((item) => item.id) })}>Arquivar selecionadas</Button>
+              <div className={styles.bulkActions} aria-label={t("table.bulkAria")}>
+                <Button variant="ghost" size="sm" onClick={() => setSelectedIds(new Set())}>{t("table.clearSelection")}</Button>
+                {state.status === "open" ? <><Button variant="outline" size="sm" onClick={() => openDecision("treat", selected.map((item) => item.id), true)}>{t("table.treatSelected")}</Button><Button variant="danger" size="sm" onClick={() => openDecision("reject", selected.map((item) => item.id), true)}>{t("actions.reject")}</Button></> : <Button variant="outline" size="sm" onClick={() => openDecision("reopen", selected.map((item) => item.id), true)}>{t("actions.reopen")}</Button>}
+                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "selected", opportunityIds: selected.map((item) => item.id) })}>{t("table.archiveSelected")}</Button>
               </div>
             ) : total > 0 && archiveScopeMatchesVisibleQuery ? (
-              <div className={styles.bulkActions} aria-label="Arquivamento do escopo">
-                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "filter" })}>{hasFilters ? "Arquivar todas deste filtro" : "Arquivar todo o backlog"}</Button>
-                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "period" })}>Fechar período</Button>
+              <div className={styles.bulkActions} aria-label={t("table.scopeAria")}>
+                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "filter" })}>{hasFilters ? t("table.archiveFilter") : t("table.archiveAll")}</Button>
+                <Button variant="ghost" size="sm" onClick={() => setArchiveDialog({ mode: "period" })}>{t("table.closePeriod")}</Button>
               </div>
             ) : null}
           </div>
-        ) : <Alert variant="info" title="Consulta histórica" description="Ações operacionais em massa ficam desabilitadas no histórico; restauração permanece disponível por registro." />}
+        ) : <Alert variant="info" title={t("table.historyNotice")} description={t("table.historyNoticeDescription")} />}
 
-        {listError ? <Alert variant="danger" title="Não foi possível carregar as recomendações" description={listError} actions={<Button variant="outline" size="sm" onClick={() => void listRequest.refetch()}>Tentar novamente</Button>} /> : null}
+        {listError ? <Alert variant="danger" title={t("table.loadError")} description={listError} actions={<Button variant="outline" size="sm" onClick={() => void listRequest.refetch()}>{t("table.retry")}</Button>} /> : null}
 
         {listRequest.isLoading ? (
           <div className={styles.cardsGrid} aria-hidden="true"><Skeleton /><Skeleton /><Skeleton /></div>
         ) : !listError && findings.length === 0 ? (
           <DataState
             empty
-            emptyTitle={isHistory ? (hasFilters ? "Nenhum registro histórico corresponde aos filtros" : "Nenhuma recomendação arquivada") : (hasFilters ? "Nenhuma oportunidade corresponde aos filtros" : `Nenhuma oportunidade ${statusLabel(state.status || "open").toLowerCase()} encontrada`)}
-            emptyDescription={hasFilters ? "Ajuste ou limpe os filtros para ampliar o escopo." : "A engine não retornou recomendações nesse estado para as coletas disponíveis."}
-            emptyAction={hasFilters ? <Button variant="outline" onClick={clearFilters}>Limpar filtros</Button> : undefined}
+            emptyTitle={isHistory ? (hasFilters ? t("table.emptyArchivedFiltered") : t("table.emptyArchived")) : (hasFilters ? t("table.emptyFiltered") : t("table.emptyStatus",{status:statusLabel(state.status || "open").toLowerCase()}))}
+            emptyDescription={hasFilters ? t("table.emptyFiltersDescription") : t("table.emptyDescription")}
+            emptyAction={hasFilters ? <Button variant="outline" onClick={clearFilters}>{t("filters.clear")}</Button> : undefined}
           ><span /></DataState>
         ) : useCards ? (
           <div className={styles.cardsGrid}>
@@ -888,40 +855,40 @@ function OpportunitiesContent() {
                 status={statusTone(finding.status)}
                 statusLabel={statusLabel(finding.status)}
                 potentialSavings={<SavingsValue finding={finding} />}
-                impact={<StatusIndicator status={severityTone(finding.severity)} label={humanize(finding.severity)} />}
-                confidence={finding.confidence ? <StatusIndicator status={confidenceTone(finding.confidence)} label={humanize(finding.confidence)} /> : "—"}
+                impact={<StatusIndicator status={severityTone(finding.severity)} label={severityLabel(finding.severity)} />}
+                confidence={finding.confidence ? <StatusIndicator status={confidenceTone(finding.confidence)} label={severityLabel(finding.confidence)} /> : "—"}
                 resource={<ResourceIdentifier primary={finding.resource_name || finding.resource_id} technicalId={finding.resource_name ? finding.resource_id : undefined} copyValue={finding.resource_id} />}
-                metadata={<div className={styles.cardMetadata}><span>{formatAccountLabel(finding.account_name, finding.account_id)}</span><span>{finding.region || "Sem região"}</span><span>{finding.service || "Sem serviço"}</span>{finding.resource_type ? <span>{humanize(finding.resource_type)}</span> : null}<span>Última detecção: {formatDate(finding.last_seen_at)}</span>{finding.needs_review ? <StatusIndicator status="warning" label="Detectada novamente" /> : null}</div>}
+                metadata={<div className={styles.cardMetadata}><span>{formatAccountLabel(finding.account_name, finding.account_id)}</span><span>{finding.region || t("table.noRegion")}</span><span>{finding.service || t("table.noService")}</span>{finding.resource_type ? <span>{humanize(finding.resource_type)}</span> : null}<span>{t("table.lastDetected",{date:formatDate(finding.last_seen_at)})}</span>{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div>}
                 actions={recommendationActions(finding)}
                 onMouseEnter={() => { void prefetchApiQuery({ key: queryKeys.opportunities.detail(finding.id), path: `/opportunities/${finding.id}`, ...cachePolicy.detail }).catch(() => undefined); }}
               />
             ))}
           </div>
         ) : (
-          <Table aria-label={isHistory ? "Histórico de recomendações" : "Recomendações"}>
+          <Table aria-label={isHistory ? t("table.historyTitle") : t("title")}>
             <TableHeader>
               <TableRow staticRow>
-                {!isHistory ? <TableHead>Seleção</TableHead> : null}
-                <TableHead>Recomendação</TableHead>
-                <TableHead>Recurso / provider</TableHead>
-                <TableHead>Conta / região</TableHead>
-                <TableHead>Impacto / confiança</TableHead>
-                <TableHead numeric>Economia potencial</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Ações</TableHead>
+                {!isHistory ? <TableHead>{t("table.selection")}</TableHead> : null}
+                <TableHead>{t("table.recommendation")}</TableHead>
+                <TableHead>{t("table.resourceProvider")}</TableHead>
+                <TableHead>{t("table.accountRegion")}</TableHead>
+                <TableHead>{t("table.impactConfidence")}</TableHead>
+                <TableHead numeric>{t("table.potential")}</TableHead>
+                <TableHead>{t("table.status")}</TableHead>
+                <TableHead>{t("table.actions")}</TableHead>
               </TableRow>
             </TableHeader>
             {loading && findings.length === 0 ? <OpportunityLoadingRows history={isHistory} /> : (
               <TableBody>
                 {findings.map((finding) => (
                   <TableRow key={finding.id} selected={selectedIds.has(finding.id)} onMouseEnter={() => { void prefetchApiQuery({ key: queryKeys.opportunities.detail(finding.id), path: `/opportunities/${finding.id}`, ...cachePolicy.detail }).catch(() => undefined); }}>
-                    {!isHistory ? <TableCell><Checkbox checked={selectedIds.has(finding.id)} aria-label={`Selecionar ${finding.title} · ${finding.resource_id}`} onChange={() => toggleSelection(finding.id)} /></TableCell> : null}
+                    {!isHistory ? <TableCell><Checkbox checked={selectedIds.has(finding.id)} aria-label={t("table.selectResource",{title:finding.title,resource:finding.resource_id})} onChange={() => toggleSelection(finding.id)} /></TableCell> : null}
                     <TableCell><Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>{finding.title}</Button><span className={styles.secondary}>{finding.rule_key}</span><span className={styles.secondary}>{finding.description}</span></TableCell>
                     <TableCell><div className={styles.resourceCell}><ResourceIdentifier primary={finding.resource_name || finding.resource_id} technicalId={finding.resource_name ? finding.resource_id : undefined} copyValue={finding.resource_id} /><ProviderBadge provider={finding.provider} /></div></TableCell>
-                    <TableCell>{formatAccountLabel(finding.account_name, finding.account_id)}<span className={styles.secondary}>{finding.region || "Sem região"} · {finding.service || "Sem serviço"}</span>{finding.resource_type ? <span className={styles.secondary}>{humanize(finding.resource_type)}</span> : null}</TableCell>
-                    <TableCell><div className={styles.statusStack}><StatusIndicator status={severityTone(finding.severity)} label={`Impacto: ${humanize(finding.severity)}`} /><StatusIndicator status={confidenceTone(finding.confidence)} label={`Confiança: ${finding.confidence ? humanize(finding.confidence) : "—"}`} /></div></TableCell>
-                    <TableCell numeric><SavingsValue finding={finding} /><span className={styles.secondary}>Custo atual: <MoneyValue value={finding.current_monthly_cost} currency={finding.currency} /></span></TableCell>
-                    <TableCell><div className={styles.statusStack}><StatusIndicator status={statusTone(finding.status)} label={statusLabel(finding.status)} />{isHistory ? <StatusIndicator status={statusTone(finding.presence_status)} label={statusLabel(finding.presence_status)} /> : null}{finding.needs_review ? <StatusIndicator status="warning" label="Detectada novamente" /> : null}</div><span className={styles.secondary}>{isHistory ? `Arquivada: ${formatDate(finding.archived_at)}` : `Última detecção: ${formatDate(finding.last_seen_at)}`}</span></TableCell>
+                    <TableCell>{formatAccountLabel(finding.account_name, finding.account_id)}<span className={styles.secondary}>{finding.region || t("table.noRegion")} · {finding.service || t("table.noService")}</span>{finding.resource_type ? <span className={styles.secondary}>{humanize(finding.resource_type)}</span> : null}</TableCell>
+                    <TableCell><div className={styles.statusStack}><StatusIndicator status={severityTone(finding.severity)} label={t("table.impactLabel",{value:severityLabel(finding.severity)})} /><StatusIndicator status={confidenceTone(finding.confidence)} label={t("table.confidenceLabel",{value:finding.confidence ? severityLabel(finding.confidence) : "—"})} /></div></TableCell>
+                    <TableCell numeric><SavingsValue finding={finding} /><span className={styles.secondary}>{t("table.currentCost")} <MoneyValue value={finding.current_monthly_cost} currency={finding.currency} /></span></TableCell>
+                    <TableCell><div className={styles.statusStack}><StatusIndicator status={statusTone(finding.status)} label={statusLabel(finding.status)} />{isHistory ? <StatusIndicator status={statusTone(finding.presence_status)} label={statusLabel(finding.presence_status)} /> : null}{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div><span className={styles.secondary}>{isHistory ? t("table.archivedDate",{date:formatDate(finding.archived_at)}) : t("table.lastDetected",{date:formatDate(finding.last_seen_at)})}</span></TableCell>
                     <TableCell>{recommendationActions(finding)}</TableCell>
                   </TableRow>
                 ))}
@@ -932,7 +899,7 @@ function OpportunitiesContent() {
 
         {listRequest.data ? (
           <div className={styles.paginationRow}>
-            <Select label="Itens por página" value={String(state.pageSize)} onChange={(event) => updateUrl({ page_size: event.target.value })} options={[{ value: "25", label: "25" }, { value: "50", label: "50" }, { value: "100", label: "100" }]} />
+            <Select label={t("table.itemsPerPage")} value={String(state.pageSize)} onChange={(event) => updateUrl({ page_size: event.target.value })} options={[{ value: "25", label: "25" }, { value: "50", label: "50" }, { value: "100", label: "100" }]} />
             {totalPages > 1 ? <Pagination page={state.page} pageCount={totalPages} onPageChange={(page) => updateUrl({ page }, { resetPage: false })} /> : null}
           </div>
         ) : null}
@@ -951,14 +918,14 @@ function OpportunitiesContent() {
         >
           <DialogContent onCancel={(event) => { if (unarchiveSavingId) event.preventDefault(); }}>
             <DialogHeader>
-              <DialogTitle>Reabrir oportunidade</DialogTitle>
+              <DialogTitle>{t("actions.reopenOpportunity")}</DialogTitle>
               <DialogDescription>
-                A decisão de rejeição será removida e a oportunidade voltará ao backlog operacional. O histórico permanecerá registrado.
+                {t("actions.reopenDescription")}
               </DialogDescription>
             </DialogHeader>
             <DialogFooter>
-              <Button variant="secondary" disabled={Boolean(unarchiveSavingId)} onClick={() => setRestoreHistoryFinding(null)}>Cancelar</Button>
-              <Button variant="primary" loading={unarchiveSavingId === restoreHistoryFinding.id} onClick={() => void confirmRejectedHistoryReopen()}>Reabrir</Button>
+              <Button variant="secondary" disabled={Boolean(unarchiveSavingId)} onClick={() => setRestoreHistoryFinding(null)}>{t("actions.cancel")}</Button>
+              <Button variant="primary" loading={unarchiveSavingId === restoreHistoryFinding.id} onClick={() => void confirmRejectedHistoryReopen()}>{t("actions.reopen")}</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>

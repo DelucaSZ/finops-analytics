@@ -13,7 +13,7 @@ test("History uses the shared Aven analytical composition instead of local cards
 
   assert.match(page, /MetricCard/);
   assert.match(page, /<Section/);
-  assert.match(page, /<Table density="compact" aria-label="Snapshots do histórico de oportunidades">/);
+  assert.match(page, /<Table density="compact" aria-label=\{t\("snapshot\.aria"\)\}>/);
   assert.match(page, /<TableHead kind="identifier">/);
   assert.match(page, /<TableState state="empty" colSpan=\{8\}>/);
   assert.match(page, /<ProviderBadge provider=\{item\.provider\} \/>/);

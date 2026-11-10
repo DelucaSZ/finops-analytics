@@ -88,14 +88,14 @@ test("Inventory exposes server-side sorting, search, pagination and provider/acc
     "buildInventoryOptionsQuery",
     "SortHeader",
     "onPageChange",
-    "Rows per page",
-    "label=\"Search\"",
-    "label=\"Provider\"",
-    "label=\"Account\"",
-    "label=\"Region\"",
-    "label=\"Resource type\"",
-    "label=\"Lifecycle\"",
-    "label=\"Presence\"",
+    't("table.rowsPerPage")',
+    't("filters.search")',
+    't("filters.provider")',
+    't("filters.account")',
+    't("filters.region")',
+    't("filters.resourceType")',
+    't("filters.lifecycle")',
+    't("filters.presence")',
   ]) assert.ok(page.includes(phrase), `missing Inventory behavior: ${phrase}`);
 });
 
@@ -104,8 +104,8 @@ test("Inventory preserves technical identifiers and independent presence semanti
   assert.ok(page.includes("copyValue={resource.resource_id}"));
   assert.ok(page.includes("resource.native_status"));
   assert.ok(page.includes("resource.presence_status"));
-  assert.ok(page.includes("Missing resources remain queryable"));
-  assert.ok(page.includes("independently from Findings and Opportunities"));
+  assert.ok(page.includes('t("semantics.description")'));
+  assert.ok(page.includes('t("presence.missing")'));
 });
 
 test("Inventory route is part of the shared Application Shell navigation", async () => {

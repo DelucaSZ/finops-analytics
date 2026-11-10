@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { FormEvent } from "react";
 import {
   Alert,
@@ -19,33 +20,6 @@ import styles from "./opportunity-dialog.module.css";
 
 export type OpportunityDecisionAction = "treat" | "reject" | "reopen";
 
-const rejectionReasons = [
-  ["FALSE_POSITIVE", "Falso positivo"],
-  ["OPERATIONAL_EXCEPTION", "Exceção operacional"],
-  ["ACCEPTABLE_COST", "Custo aceitável"],
-  ["RESOURCE_REQUIRED", "Recurso necessário"],
-  ["RISK_ACCEPTED", "Risco aceito"],
-  ["OTHER", "Outro"],
-] as const;
-
-const copy: Record<OpportunityDecisionAction, { title: string; submit: string; hint: string }> = {
-  treat: {
-    title: "Marcar como tratada",
-    submit: "Marcar como tratada",
-    hint: "Registre uma observação opcional sobre o tratamento realizado.",
-  },
-  reject: {
-    title: "Rejeitar oportunidade",
-    submit: "Rejeitar",
-    hint: "Selecione o motivo da decisão. O histórico será preservado.",
-  },
-  reopen: {
-    title: "Reabrir oportunidade",
-    submit: "Reabrir",
-    hint: "A oportunidade voltará para Abertas sem apagar decisões anteriores.",
-  },
-};
-
 type Props = {
   action: OpportunityDecisionAction;
   count: number;
@@ -56,6 +30,20 @@ type Props = {
 };
 
 export function OpportunityDecisionDialog({ action, count, saving, error, onClose, onSubmit }: Props) {
+  const t = useTranslations("opportunities.decision");
+  const rejectionReasons = [
+    { value: "FALSE_POSITIVE", label: t("reason.falsePositive") },
+    { value: "OPERATIONAL_EXCEPTION", label: t("reason.operationalException") },
+    { value: "ACCEPTABLE_COST", label: t("reason.acceptableCost") },
+    { value: "RESOURCE_REQUIRED", label: t("reason.resourceRequired") },
+    { value: "RISK_ACCEPTED", label: t("reason.riskAccepted") },
+    { value: "OTHER", label: t("reason.other") },
+  ];
+  const copy = {
+    treat:{title:t("treatTitle"), submit:t("treatTitle"), hint:t("treatHint")},
+    reject:{title:t("rejectTitle"), submit:t("rejectButton"), hint:t("rejectHint")},
+    reopen:{title:t("reopenTitle"), submit:t("reopenButton"), hint:t("reopenHint")},
+  };
   const [reason, setReason] = useState("");
   const [note, setNote] = useState("");
   const [validation, setValidation] = useState("");
@@ -65,11 +53,11 @@ export function OpportunityDecisionDialog({ action, count, saving, error, onClos
     event.preventDefault();
     setValidation("");
     if (action === "reject" && !reason) {
-      setValidation("Selecione um motivo para rejeitar.");
+      setValidation(t("reasonMissing"));
       return;
     }
     if (action === "reject" && rejectionRequiresNote(reason) && !note.trim()) {
-      setValidation("A observação é obrigatória quando o motivo é Outro.");
+      setValidation(t("noteRequired"));
       return;
     }
     await onSubmit({ reason: reason || undefined, note: note.trim() || undefined });
@@ -82,36 +70,36 @@ export function OpportunityDecisionDialog({ action, count, saving, error, onClos
           <DialogHeader>
             <DialogTitle>{text.title}</DialogTitle>
             <DialogDescription>
-              {count > 1 ? `${count} oportunidades selecionadas. ` : ""}{text.hint}
+              {count > 1 ? `${t("selected", {count})} ` : ""}{text.hint}
             </DialogDescription>
           </DialogHeader>
 
           {action === "reject" ? (
             <Select
-              label="Motivo"
+              label={t("reasonLabel")}
               value={reason}
               disabled={saving}
               required
-              placeholder="Selecione um motivo"
-              options={rejectionReasons.map(([value, label]) => ({ value, label }))}
+              placeholder={t("reasonPlaceholder")}
+              options={rejectionReasons}
               onChange={(event) => setReason(event.target.value)}
             />
           ) : null}
 
           <Textarea
-            label={`Observação ${action === "reject" && rejectionRequiresNote(reason) ? "*" : "(opcional)"}`}
+            label={`${t("note")} ${action === "reject" && rejectionRequiresNote(reason) ? "*" : `(${t("optional")})`}`}
             value={note}
             disabled={saving}
             rows={5}
             maxLength={4000}
-            placeholder={action === "reopen" ? "Contexto da reabertura" : "Contexto para auditoria"}
+            placeholder={action === "reopen" ? t("reopenContext") : t("auditContext")}
             onChange={(event) => setNote(event.target.value)}
           />
 
-          {validation || error ? <Alert variant="danger" title="Não foi possível concluir a decisão" description={validation || error} /> : null}
+          {validation || error ? <Alert variant="danger" title={t("failure")} description={validation || error} /> : null}
 
           <DialogFooter>
-            <Button variant="secondary" type="button" disabled={saving} onClick={onClose}>Cancelar</Button>
+            <Button variant="secondary" type="button" disabled={saving} onClick={onClose}>{t("cancel")}</Button>
             <Button variant={action === "reject" ? "danger" : "primary"} type="submit" loading={saving}>
               {text.submit}
             </Button>
