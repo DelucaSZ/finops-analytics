@@ -662,11 +662,11 @@ export function CollectionWorkspace({
             </div>
             <div>
               <dt>{t("started")}</dt>
-              <dd>{preciseDate(detail.started_at)}</dd>
+              <dd>{preciseDate(detail.started_at, locale)}</dd>
             </div>
             <div>
               <dt>{t("finished")}</dt>
-              <dd>{preciseDate(detail.finished_at)}</dd>
+              <dd>{preciseDate(detail.finished_at, locale)}</dd>
             </div>
             <div>
               <dt>{t("duration")}</dt>
