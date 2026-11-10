@@ -119,14 +119,14 @@ test("HTTPS diagnostics now translate frontend copy but preserve server diagnost
 });
 
 test("remaining settings/collection labels are localized", async () => {
- const pt = JSON.parse(await readFile(new URL("../i18n/messages/pt-BR.json", import.meta.url), "utf8"));
- const en = JSON.parse(await readFile(new URL("../i18n/messages/en-US.json", import.meta.url), "utf8"));
+ const pt = messages("pt-BR");
+ const en = messages("en-US");
  for (const locale of [pt, en]) {
    for (const key of ["mfaCode", "recoveryReason", "searchPrompt", "statusLabel"]) assert.ok(locale.settings.users[key]);
    assert.ok(locale.collections.compare.perMonth);
    assert.ok(locale.collections.workspace.collectionRun);
    assert.ok(locale.collections.investigation.baseline);
  }
- const userPage = await readFile(new URL("../app/settings/users/page.tsx", import.meta.url), "utf8");
+ const userPage = source("app/settings/users/page.tsx");
  for (const key of ["mfaCode", "recoveryReason", "searchPrompt", "statusLabel"]) assert.ok(userPage.includes('t("' + key + '")'));
 });
