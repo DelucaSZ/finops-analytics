@@ -42,6 +42,6 @@ test("execution history exposes CollectionRun detail and comparison navigation",
   assert.match(scans, /t\("compare"\)/);
   assert.match(detail, /comparison-options/);
   assert.match(detail, /run\.status === "SUCCESS"/);
-  assert.match(detail, /Comparar com coleta anterior/);
-  assert.match(detail, /primeira coleta bem-sucedida/);
+  assert.match(detail, /t\("comparePrevious"\)/);
+  assert.match(detail, /t\("firstCollection"\)/);
 });

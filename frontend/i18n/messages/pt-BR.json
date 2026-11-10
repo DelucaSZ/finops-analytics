@@ -1919,6 +1919,13 @@
         "failed": "Não foi possível solicitar a coleta. Tente novamente.",
         "selectAccount": "Selecione uma conta elegível para coleta manual."
       }
+    },
+    "comparisonActions": {
+      "ariaLabel": "Comparação de coletas",
+      "compare": "Comparar",
+      "comparePrevious": "Comparar com coleta anterior",
+      "firstCollection": "Esta é a primeira coleta bem-sucedida disponível para este provedor e conta. Não existe uma coleta anterior para comparação.",
+      "optionsError": "Não foi possível carregar as sugestões. Abra Comparar para tentar novamente."
     }
   }
 }

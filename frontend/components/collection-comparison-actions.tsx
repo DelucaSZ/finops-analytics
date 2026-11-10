@@ -1,5 +1,6 @@
 "use client";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { CollectionOpportunityInvestigation } from "@/components/collection-opportunity-investigation";
 import { api } from "@/lib/api";
@@ -13,6 +14,7 @@ type InvestigationRun = {
 };
 
 export function CollectionComparisonActions({ run }: { run: InvestigationRun }) {
+  const t = useTranslations("collections.comparisonActions");
   const [options, setOptions] = useState<CollectionComparisonRun[] | null>(null);
   const [error, setError] = useState(false);
   useEffect(() => {
@@ -35,26 +37,26 @@ export function CollectionComparisonActions({ run }: { run: InvestigationRun }) 
   }, [run.id, run.status]);
 
   return (
-    <div aria-label="Comparação de coletas">
+    <div aria-label={t("ariaLabel")}>
       {run.status === "SUCCESS" && (
         <div className="collection-toolbar">
           <Link className="button ghost" href={`/collections/${encodeURIComponent(run.id)}/compare`}>
-            Comparar
+            {t("compare")}
           </Link>
           {options?.[0] && (
             <Link
               className="button primary"
               href={`/collections/${encodeURIComponent(run.id)}/compare?baseline_id=${encodeURIComponent(options[0].id)}`}
             >
-              Comparar com coleta anterior
+              {t("comparePrevious")}
             </Link>
           )}
         </div>
       )}
       {run.status === "SUCCESS" && options?.length === 0 && (
-        <p>Esta é a primeira coleta bem-sucedida disponível para este provider e conta. Não existe uma coleta anterior para comparação.</p>
+        <p>{t("firstCollection")}</p>
       )}
-      {error && <p role="status">Não foi possível carregar as sugestões. Abra Comparar para tentar novamente.</p>}
+      {error && <p role="status">{t("optionsError")}</p>}
       <CollectionOpportunityInvestigation run={run} />
     </div>
   );

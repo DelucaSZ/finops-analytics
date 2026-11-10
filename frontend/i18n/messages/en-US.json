@@ -1919,6 +1919,13 @@
         "failed": "Unable to request collection. Try again.",
         "selectAccount": "Select an eligible account for manual collection."
       }
+    },
+    "comparisonActions": {
+      "ariaLabel": "Collection comparison",
+      "compare": "Compare",
+      "comparePrevious": "Compare with previous collection",
+      "firstCollection": "This is the first successful collection available for this provider and account. There is no earlier collection to compare.",
+      "optionsError": "Unable to load comparison suggestions. Open Compare to try again."
     }
   }
 }
