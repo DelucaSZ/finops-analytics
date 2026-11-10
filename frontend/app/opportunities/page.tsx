@@ -840,7 +840,7 @@ function OpportunitiesContent() {
         ) : !listError && findings.length === 0 ? (
           <DataState
             empty
-            emptyTitle={isHistory ? (hasFilters ? "Nenhum registro histórico corresponde aos filtros" : "Nenhuma recomendação arquivada") : (hasFilters ? "Nenhuma oportunidade corresponde aos filtros" : `Nenhuma oportunidade ${statusLabel(state.status || "open").toLowerCase()} encontrada`)}
+            emptyTitle={isHistory ? (hasFilters ? t("table.emptyArchivedFiltered") : t("table.emptyArchived")) : (hasFilters ? t("table.emptyFiltered") : t("table.emptyStatus",{status:statusLabel(state.status || "open").toLowerCase()}))}
             emptyDescription={hasFilters ? t("table.emptyFiltersDescription") : t("table.emptyDescription")}
             emptyAction={hasFilters ? <Button variant="outline" onClick={clearFilters}>{t("filters.clear")}</Button> : undefined}
           ><span /></DataState>
@@ -865,7 +865,7 @@ function OpportunitiesContent() {
             ))}
           </div>
         ) : (
-          <Table aria-label={isHistory ? "Histórico de recomendações" : "Recomendações"}>
+          <Table aria-label={isHistory ? t("table.historyTitle") : t("title")}>
             <TableHeader>
               <TableRow staticRow>
                 {!isHistory ? <TableHead>{t("table.selection")}</TableHead> : null}
