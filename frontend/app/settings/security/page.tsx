@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PageHeader, Section } from "@/components/aven";
 import { Alert, Button, Input } from "@/components/ui";
 import { MfaSettings, MfaStatus } from "@/components/mfa-settings";
@@ -9,6 +10,7 @@ import { api } from "@/lib/api";
 import styles from "../settings-page.module.css";
 
 export default function SecurityPage() {
+  const t = useTranslations("settings.security");
   const router = useRouter();
   const [mfa, setMfa] = useState<MfaStatus | null>(null);
   const [passwordCode, setPasswordCode] = useState("");
@@ -26,7 +28,7 @@ export default function SecurityPage() {
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar a segurança da conta."));
+    load().catch((err) => setError(err instanceof Error ? err.message : "ERR_SECURITY_LOAD"));
   }, []);
 
   async function action(run: () => Promise<void>) {
@@ -36,7 +38,7 @@ export default function SecurityPage() {
     try {
       await run();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+      setError(err instanceof Error ? err.message : "ERR_SECURITY_ACTION");
     } finally {
       setBusy(false);
     }
@@ -45,7 +47,7 @@ export default function SecurityPage() {
   function changePassword(event: FormEvent) {
     event.preventDefault();
     if (next !== confirm) {
-      setError("As senhas não conferem.");
+      setError("ERR_PASSWORD_MISMATCH");
       return;
     }
     void action(async () => {
@@ -68,24 +70,24 @@ export default function SecurityPage() {
   return (
     <>
       <PageHeader
-        title="Minha segurança"
-        description="Gerencie sua senha, autenticação multifator e autorização de ações sensíveis."
+        title={t("title")}
+        description={t("description")}
       />
 
-      {error && <Alert variant="danger" title="Não foi possível concluir" description={error} />}
-      {message && <Alert variant="success" title="Alteração concluída" description={message} />}
+      {error && <Alert variant="danger" title={t("actionFailed")} description={error === "ERR_SECURITY_LOAD" ? t("loadFailed") : error === "ERR_SECURITY_ACTION" ? t("actionFailed") : error === "ERR_PASSWORD_MISMATCH" ? t("passwordMismatch") : error} />}
+      {message && <Alert variant="success" title={t("actionDone")} description={message === "IDENTITY_CONFIRMED" ? t("identityConfirmed") : message} />}
 
       <MfaSettings onStatusChange={setMfa} />
 
       <div className={styles.sectionGrid}>
         <Section
           appearance="card"
-          title="Alterar senha"
-          description="Ao salvar, todas as suas sessões serão encerradas. Entre novamente com a nova senha."
+          title={t("changePassword")}
+          description={t("changePasswordDescription")}
         >
           <form onSubmit={changePassword} className={styles.formStack}>
             <Input
-              label="Senha atual"
+              label={t("currentPassword")}
               type="password"
               autoComplete="current-password"
               value={password}
@@ -93,7 +95,7 @@ export default function SecurityPage() {
               required
             />
             <Input
-              label="Nova senha"
+              label={t("newPassword")}
               type="password"
               autoComplete="new-password"
               minLength={12}
@@ -103,7 +105,7 @@ export default function SecurityPage() {
               required
             />
             <Input
-              label="Confirmar nova senha"
+              label={t("confirmPassword")}
               type="password"
               autoComplete="new-password"
               minLength={12}
@@ -113,7 +115,7 @@ export default function SecurityPage() {
               required
             />
             <Input
-              label={`Código MFA ou de recuperação${!mfa?.enabled ? " (se ativado)" : ""}`}
+              label={t("mfaCode", {suffix: !mfa?.enabled ? t("ifEnabled") : ""})}
               autoComplete="one-time-code"
               maxLength={64}
               value={passwordCode}
@@ -121,15 +123,15 @@ export default function SecurityPage() {
               required={mfa?.enabled}
             />
             <div className={styles.formActions}>
-              <Button type="submit" loading={busy}>Salvar senha</Button>
+              <Button type="submit" loading={busy}>{t("savePassword")}</Button>
             </div>
           </form>
         </Section>
 
         <Section
           appearance="card"
-          title="Confirmar identidade"
-          description="Confirme sua senha e o segundo fator, quando ativado, para autorizar ações administrativas sensíveis pelos próximos cinco minutos."
+          title={t("confirmIdentity")}
+          description={t("confirmIdentityDescription")}
         >
           <form
             className={styles.formStack}
@@ -142,12 +144,12 @@ export default function SecurityPage() {
                 });
                 setProofCode("");
                 setProof("");
-                setMessage("Identidade confirmada por cinco minutos.");
+                setMessage("IDENTITY_CONFIRMED");
               });
             }}
           >
             <Input
-              label="Sua senha"
+              label={t("yourPassword")}
               type="password"
               autoComplete="current-password"
               value={proof}
@@ -155,7 +157,7 @@ export default function SecurityPage() {
               required
             />
             <Input
-              label={`Código MFA ou de recuperação${!mfa?.enabled ? " (se ativado)" : ""}`}
+              label={t("mfaCode", {suffix: !mfa?.enabled ? t("ifEnabled") : ""})}
               autoComplete="one-time-code"
               maxLength={64}
               value={proofCode}
@@ -163,7 +165,7 @@ export default function SecurityPage() {
               required={mfa?.enabled}
             />
             <div className={styles.formActions}>
-              <Button type="submit" variant="outline" loading={busy}>Confirmar identidade</Button>
+              <Button type="submit" variant="outline" loading={busy}>{t("confirmIdentity")}</Button>
             </div>
           </form>
         </Section>

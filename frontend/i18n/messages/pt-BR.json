@@ -1601,6 +1601,53 @@
       "description": "Ajuste o tema visual do {product} neste navegador.",
       "themeTitle": "Tema da interface",
       "themeDescription": "Novos usuários usam a preferência do sistema por padrão."
+    },
+    "security": {
+      "title": "Minha segurança",
+      "description": "Gerencie sua senha, autenticação multifator e autorização de ações sensíveis.",
+      "loadFailed": "Não foi possível carregar a segurança da conta.",
+      "actionFailed": "Não foi possível concluir.",
+      "actionDone": "Alteração concluída",
+      "passwordMismatch": "As senhas não conferem.",
+      "identityConfirmed": "Identidade confirmada por cinco minutos.",
+      "changePassword": "Alterar senha",
+      "changePasswordDescription": "Ao salvar, todas as suas sessões serão encerradas. Entre novamente com a nova senha.",
+      "currentPassword": "Senha atual",
+      "newPassword": "Nova senha",
+      "confirmPassword": "Confirmar nova senha",
+      "mfaCode": "Código MFA ou de recuperação{suffix}",
+      "ifEnabled": " (se ativado)",
+      "savePassword": "Salvar senha",
+      "confirmIdentity": "Confirmar identidade",
+      "confirmIdentityDescription": "Confirme sua senha e o segundo fator, quando ativado, para autorizar ações administrativas sensíveis pelos próximos cinco minutos.",
+      "yourPassword": "Sua senha"
+    },
+    "sessions": {
+      "title": "Minhas sessões",
+      "description": "Veja onde sua conta está conectada e encerre acessos que não reconhece.",
+      "refresh": "Atualizar lista",
+      "logoutAll": "Encerrar todas, incluindo esta",
+      "errorTitle": "Falha ao gerenciar sessões",
+      "loadFailed": "Não foi possível carregar as sessões.",
+      "actionFailed": "Não foi possível concluir.",
+      "activeTitle": "Sessões ativas",
+      "activeDescription": "As informações do navegador ajudam a reconhecer seus acessos.",
+      "tableLabel": "Sessões ativas da conta",
+      "column": {
+        "session": "Sessão",
+        "browser": "Navegador",
+        "start": "Início",
+        "lastActivity": "Última atividade",
+        "expires": "Expira até",
+        "action": "Ação"
+      },
+      "loading": "Carregando sessões…",
+      "empty": "Nenhuma sessão ativa foi retornada.",
+      "current": "Esta sessão",
+      "other": "Outro acesso",
+      "unknownBrowser": "Navegador não identificado",
+      "logoutCurrent": "Sair desta sessão",
+      "revoke": "Encerrar sessão"
     }
   }
 }

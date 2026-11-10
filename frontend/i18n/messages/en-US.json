@@ -1601,6 +1601,53 @@
       "description": "Adjust the {product} interface theme in this browser.",
       "themeTitle": "Interface theme",
       "themeDescription": "New users use their system preference by default."
+    },
+    "security": {
+      "title": "My security",
+      "description": "Manage your password, multi-factor authentication and authorization for sensitive actions.",
+      "loadFailed": "Unable to load account security.",
+      "actionFailed": "Unable to complete the action.",
+      "actionDone": "Change completed",
+      "passwordMismatch": "Passwords do not match.",
+      "identityConfirmed": "Identity confirmed for five minutes.",
+      "changePassword": "Change password",
+      "changePasswordDescription": "Saving your password will end all your sessions. Sign in again with the new password.",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "mfaCode": "MFA or recovery code{suffix}",
+      "ifEnabled": " (if enabled)",
+      "savePassword": "Save password",
+      "confirmIdentity": "Confirm identity",
+      "confirmIdentityDescription": "Confirm your password and second factor, if enabled, to authorize sensitive administrative actions for the next five minutes.",
+      "yourPassword": "Your password"
+    },
+    "sessions": {
+      "title": "My sessions",
+      "description": "See where your account is signed in and end any sessions you do not recognize.",
+      "refresh": "Refresh list",
+      "logoutAll": "End all sessions, including this one",
+      "errorTitle": "Unable to manage sessions",
+      "loadFailed": "Unable to load sessions.",
+      "actionFailed": "Unable to complete the action.",
+      "activeTitle": "Active sessions",
+      "activeDescription": "Browser details help you recognize your sessions.",
+      "tableLabel": "Active account sessions",
+      "column": {
+        "session": "Session",
+        "browser": "Browser",
+        "start": "Started",
+        "lastActivity": "Last activity",
+        "expires": "Expires",
+        "action": "Action"
+      },
+      "loading": "Loading sessions…",
+      "empty": "No active sessions were returned.",
+      "current": "This session",
+      "other": "Other session",
+      "unknownBrowser": "Unrecognized browser",
+      "logoutCurrent": "Sign out of this session",
+      "revoke": "End session"
     }
   }
 }

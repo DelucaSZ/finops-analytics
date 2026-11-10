@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PageHeader, Section } from "@/components/aven";
 import {
   Alert,
@@ -27,6 +28,7 @@ type Session = {
 };
 
 export default function SessionsPage() {
+  const t = useTranslations("settings.sessions");
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -39,7 +41,7 @@ export default function SessionsPage() {
   }
 
   useEffect(() => {
-    load().catch((err) => setError(err instanceof Error ? err.message : "Não foi possível carregar as sessões."));
+    load().catch((err) => setError(err instanceof Error ? err.message : "ERR_SESSIONS_LOAD"));
   }, []);
 
   async function action(run: () => Promise<void>) {
@@ -48,7 +50,7 @@ export default function SessionsPage() {
     try {
       await run();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+      setError(err instanceof Error ? err.message : "ERR_SESSIONS_ACTION");
     } finally {
       setBusy(false);
     }
@@ -57,12 +59,12 @@ export default function SessionsPage() {
   return (
     <>
       <PageHeader
-        title="Minhas sessões"
-        description="Veja onde sua conta está conectada e encerre acessos que não reconhece."
+        title={t("title")}
+        description={t("description")}
         actions={
           <div className={styles.formActions}>
             <Button variant="outline" loading={busy} onClick={() => void action(load)}>
-              Atualizar lista
+              {t("refresh")}
             </Button>
             <Button
               variant="danger"
@@ -73,42 +75,42 @@ export default function SessionsPage() {
                 router.replace("/login");
               })}
             >
-              Encerrar todas, incluindo esta
+              {t("logoutAll")}
             </Button>
           </div>
         }
       />
 
-      {error && <Alert variant="danger" title="Falha ao gerenciar sessões" description={error} />}
+      {error && <Alert variant="danger" title={t("errorTitle")} description={error === "ERR_SESSIONS_LOAD" ? t("loadFailed") : error === "ERR_SESSIONS_ACTION" ? t("actionFailed") : error} />}
 
       <Section
-        title="Sessões ativas"
-        description="As informações do navegador ajudam a reconhecer seus acessos."
+        title={t("activeTitle")}
+        description={t("activeDescription")}
       >
-        <Table aria-label="Sessões ativas da conta">
+        <Table aria-label={t("tableLabel")}>
           <TableHeader>
             <TableRow staticRow>
-              <TableHead>Sessão</TableHead>
-              <TableHead>Navegador</TableHead>
-              <TableHead>Início</TableHead>
-              <TableHead>Última atividade</TableHead>
-              <TableHead>Expira até</TableHead>
-              <TableHead>Ação</TableHead>
+              <TableHead>{t("column.session")}</TableHead>
+              <TableHead>{t("column.browser")}</TableHead>
+              <TableHead>{t("column.start")}</TableHead>
+              <TableHead>{t("column.lastActivity")}</TableHead>
+              <TableHead>{t("column.expires")}</TableHead>
+              <TableHead>{t("column.action")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {!loaded ? (
               <TableRow staticRow>
-                <TableState state="loading" colSpan={6}>Carregando sessões…</TableState>
+                <TableState state="loading" colSpan={6}>{t("loading")}</TableState>
               </TableRow>
             ) : sessions.length === 0 ? (
               <TableRow staticRow>
-                <TableState state="empty" colSpan={6}>Nenhuma sessão ativa foi retornada.</TableState>
+                <TableState state="empty" colSpan={6}>{t("empty")}</TableState>
               </TableRow>
             ) : sessions.map((session) => (
               <TableRow key={session.id}>
-                <TableCell>{session.current ? "Esta sessão" : "Outro acesso"}</TableCell>
-                <TableCell>{session.user_agent || "Navegador não identificado"}</TableCell>
+                <TableCell>{session.current ? t("current") : t("other")}</TableCell>
+                <TableCell>{session.user_agent || t("unknownBrowser")}</TableCell>
                 <TableCell>{formatDate(session.created_at)}</TableCell>
                 <TableCell>{formatDate(session.last_seen_at)}</TableCell>
                 <TableCell>{formatDate(session.expires_at)}</TableCell>
@@ -123,7 +125,7 @@ export default function SessionsPage() {
                       else await load();
                     })}
                   >
-                    {session.current ? "Sair desta sessão" : "Encerrar sessão"}
+                    {session.current ? t("logoutCurrent") : t("revoke")}
                   </Button>
                 </TableCell>
               </TableRow>
