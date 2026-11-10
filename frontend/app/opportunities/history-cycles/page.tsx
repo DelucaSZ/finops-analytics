@@ -342,7 +342,7 @@ export default function OpportunityHistoryCyclesPage() {
               status={cycle.status === "CLOSED" ? "success" : "pending"}
               label={cycleState(cycle.status)}
             />
-            <span>{cycle.coverage.success} coletas concluídas · {cycle.coverage.failed} falhas · {cycle.coverage.running} em andamento</span>
+            <span>{t("cycle.coverage",{success:cycle.coverage.success,failed:cycle.coverage.failed,running:cycle.coverage.running})}</span>
           </div>
         </Section>
       )}
@@ -471,7 +471,7 @@ export default function OpportunityHistoryCyclesPage() {
             <div><dt>{t("detail.status")}</dt><dd>{statusLabel(selected.status)}</dd></div>
             <div><dt>{t("detail.presence")}</dt><dd>{presenceLabel(selected.presence_status)}</dd></div>
             <div><dt>{t("detail.severityConfidence")}</dt><dd>{(["high","medium","low"].includes(selected.severity) ? severityT(selected.severity as "high" | "medium" | "low") : selected.severity)} · {(["high","medium","low"].includes(selected.confidence) ? severityT(selected.confidence as "high" | "medium" | "low") : selected.confidence)}</dd></div>
-            <div><dt>{t("detail.archived")}</dt><dd>{selected.archived ? `${t("detail.yes")}${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : "Não"}</dd></div>
+            <div><dt>{t("detail.archived")}</dt><dd>{selected.archived ? `${t("detail.yes")}${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : t("detail.no")}</dd></div>
             <div><dt>{t("detail.periodCost")}</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency)}{t("detail.perMonth")}</dd></div>
             <div><dt>{t("detail.estimatedSavings")}</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency)}{t("detail.perMonth")}</dd></div>
             <div><dt>{t("detail.firstObserved")}</dt><dd>{formatDate(selected.first_observed_in_cycle_at)}</dd></div>
