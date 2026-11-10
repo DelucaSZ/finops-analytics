@@ -8,8 +8,8 @@ test("Audit page renders unified security and administrative events", async () =
   const page = await readFile(pageUrl, "utf8");
 
   assert.ok(page.includes('event_kind: "security" | "administrative"'));
-  assert.ok(page.includes('<option value="administrative">Administrativos</option>'));
-  assert.ok(page.includes('<option value="security">Segurança</option>'));
+  assert.ok(page.includes('<option value="administrative">{t("administrativePlural")}</option>'));
+  assert.ok(page.includes('<option value="security">{t("security")}</option>'));
   assert.ok(page.includes('if (item.source === "SYSTEM")'));
   assert.ok(page.includes('item.action === "auth.login_failed"'));
 });
@@ -18,8 +18,8 @@ test("Audit page supports actor and affected-user autocomplete", async () => {
   const page = await readFile(pageUrl, "utf8");
 
   assert.ok(page.includes("function UserAutocomplete"));
-  assert.ok(page.includes('label="Executado por"'));
-  assert.ok(page.includes('label="Usuário afetado"'));
+  assert.ok(page.includes('label={t("actor")}'));
+  assert.ok(page.includes('label={t("subject")}'));
   assert.ok(page.includes("/audit/users?q="));
   assert.ok(page.includes("window.setTimeout"));
   assert.ok(page.includes('params.set("actor_id", actorId)'));
