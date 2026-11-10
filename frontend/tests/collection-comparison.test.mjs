@@ -18,7 +18,7 @@ test("collection comparison is backend-owned, paginated and shareable", async ()
   assert.match(page, /PERSISTENT/);
   assert.match(page, /NO_LONGER_DETECTED/);
   assert.match(page, /CHANGED/);
-  assert.match(page, /Não detectadas/);
+  assert.match(page, /labelKey: "noLonger"/);
   assert.match(page, /rules_version_warning/);
   assert.match(page, /financial_summary/);
   assert.match(page, /lifecycle_status/);
