@@ -1723,6 +1723,71 @@
         "minimumDeltaUsd": "Minimum increase (USD)",
         "minimumCurrentSpendUsd": "Minimum current spend (USD)"
       }
+    },
+    "billingProfiles": {
+      "title": "Billing Profiles",
+      "description": "Save reusable methods for AWS Cost Explorer queries. Choose the time period and accounts in each query.",
+      "newProfile": "New profile",
+      "editProfile": "Edit profile",
+      "errorTitle": "Billing Profiles error",
+      "successTitle": "Changes saved",
+      "saveNote": "Changes are saved only when you submit the form.",
+      "name": "Name",
+      "descriptionLabel": "Description",
+      "metric": "Metric",
+      "granularityLabel": "Granularity",
+      "defaultGrouping": "Default grouping",
+      "setDefault": "Set as default",
+      "excludeRecordTypes": "Exclude record types",
+      "save": "Save",
+      "cancel": "Cancel",
+      "availableTitle": "Available profiles",
+      "availableDescription": "Saved profiles available for Billing queries.",
+      "tableLabel": "Available Billing Profiles",
+      "column": {
+        "profile": "Profile",
+        "config": "Configuration",
+        "grouping": "Grouping",
+        "status": "Status",
+        "actions": "Actions"
+      },
+      "loading": "Loading profiles…",
+      "empty": "No profiles available.",
+      "default": "Default",
+      "systemProfile": "System profile",
+      "noDescription": "No description",
+      "noExclusions": "No exclusions",
+      "excludes": "Excludes {types}",
+      "active": "Active",
+      "inactive": "Inactive",
+      "edit": "Edit",
+      "deactivate": "Deactivate",
+      "metrics": {
+        "amortized": "Amortized cost",
+        "netAmortized": "Net amortized cost",
+        "unblended": "Unblended cost"
+      },
+      "granularity": {
+        "daily": "Daily",
+        "monthly": "Monthly"
+      },
+      "grouping": {
+        "none": "No grouping",
+        "service": "Service",
+        "account": "Account"
+      },
+      "errors": {
+        "load": "Unable to load Billing Profiles.",
+        "save": "Unable to save the profile.",
+        "setDefault": "Unable to change the default profile.",
+        "deactivate": "Unable to deactivate the profile."
+      },
+      "success": {
+        "updated": "Profile {name} updated.",
+        "created": "Profile {name} created.",
+        "default": "{name} is now the default profile.",
+        "deactivated": "{name} was deactivated."
+      }
     }
   },
   "scans": {

@@ -1723,6 +1723,71 @@
         "minimumDeltaUsd": "Aumento mínimo (USD)",
         "minimumCurrentSpendUsd": "Gasto atual mínimo (USD)"
       }
+    },
+    "billingProfiles": {
+      "title": "Perfis de Billing",
+      "description": "Salve metodologias reutilizáveis para consultas ao AWS Cost Explorer. Período e contas continuam sendo escolhidos na consulta.",
+      "newProfile": "Novo perfil",
+      "editProfile": "Editar perfil",
+      "errorTitle": "Falha em Billing Profiles",
+      "successTitle": "Alteração persistida",
+      "saveNote": "A configuração é persistida somente após salvar.",
+      "name": "Nome",
+      "descriptionLabel": "Descrição",
+      "metric": "Métrica",
+      "granularityLabel": "Granularidade",
+      "defaultGrouping": "Agrupamento padrão",
+      "setDefault": "Definir como padrão",
+      "excludeRecordTypes": "Excluir tipos de registro",
+      "save": "Salvar",
+      "cancel": "Cancelar",
+      "availableTitle": "Perfis disponíveis",
+      "availableDescription": "Perfis persistidos e disponíveis para consultas de Billing.",
+      "tableLabel": "Perfis de Billing disponíveis",
+      "column": {
+        "profile": "Perfil",
+        "config": "Configuração",
+        "grouping": "Agrupamento",
+        "status": "Status",
+        "actions": "Ações"
+      },
+      "loading": "Carregando perfis…",
+      "empty": "Nenhum perfil disponível.",
+      "default": "Padrão",
+      "systemProfile": "Perfil de sistema",
+      "noDescription": "Sem descrição",
+      "noExclusions": "Sem exclusões",
+      "excludes": "Exclui {types}",
+      "active": "Ativo",
+      "inactive": "Inativo",
+      "edit": "Editar",
+      "deactivate": "Desativar",
+      "metrics": {
+        "amortized": "Custo amortizado",
+        "netAmortized": "Custo amortizado líquido",
+        "unblended": "Custo não combinado"
+      },
+      "granularity": {
+        "daily": "Diário",
+        "monthly": "Mensal"
+      },
+      "grouping": {
+        "none": "Sem agrupamento",
+        "service": "Serviço",
+        "account": "Conta"
+      },
+      "errors": {
+        "load": "Não foi possível carregar os perfis de Billing.",
+        "save": "Não foi possível salvar o perfil.",
+        "setDefault": "Não foi possível alterar o perfil padrão.",
+        "deactivate": "Não foi possível desativar o perfil."
+      },
+      "success": {
+        "updated": "Perfil {name} atualizado.",
+        "created": "Perfil {name} criado.",
+        "default": "{name} agora é o perfil padrão.",
+        "deactivated": "{name} foi desativado."
+      }
     }
   },
   "scans": {

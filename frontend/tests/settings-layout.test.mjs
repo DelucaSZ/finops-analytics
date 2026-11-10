@@ -83,7 +83,7 @@ test("Billing Profiles uses official Aven table/status primitives while preservi
     assert.ok(page.includes(primitive), `expected ${primitive} in Billing Profiles`);
   }
 
-  assert.ok(page.includes('aria-label="Perfis de Billing disponíveis"'));
+  assert.ok(page.includes('aria-label={t("tableLabel")}'));
   assert.equal((page.match(/<TableHead>/g) ?? []).length, 5);
   assert.equal(page.includes("<colgroup>"), false);
   assert.equal(page.includes('className="billing-profiles-page"'), false);
