@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { IdentityProof } from "@/components/identity-proof";
 import { PageHeader } from "@/components/page-header";
 import { api, ApiError, formatDate } from "@/lib/api";
@@ -110,6 +111,7 @@ function trustLabel(trust: TrustInfo | null) {
 }
 
 export default function HttpsSettingsPage() {
+  const t = useTranslations("settings.https");
   const [status, setStatus] = useState<TlsStatus | null>(null);
   const [mode, setMode] = useState<"automatic" | "custom">("automatic");
   const [domain, setDomain] = useState("");
@@ -135,7 +137,7 @@ export default function HttpsSettingsPage() {
   useEffect(() => {
     load(true).catch((err) =>
       setError(
-        err instanceof Error ? err.message : "Não foi possível carregar o HTTPS.",
+        err instanceof Error ? err.message : t("loadError"),
       ),
     );
   }, []);
@@ -163,8 +165,8 @@ export default function HttpsSettingsPage() {
         setValidation(result);
         setMessage(
           result.mode === "custom"
-            ? "Certificado do servidor, cadeia intermediária e chave privada foram analisados."
-            : "Domínio e configuração automática são válidos.",
+            ? t("validatedCustom")
+            : t("validatedAutomatic"),
         );
       } else {
         const result = await api<TlsStatus>("/tls/apply", {
@@ -177,7 +179,7 @@ export default function HttpsSettingsPage() {
         setIntermediateChain("");
         setPrivateKey("");
         setMessage(
-          "TLS aplicado localmente. Consulte abaixo o diagnóstico separado de DNS, endpoint e confiança.",
+          t("appliedMessage"),
         );
       }
     } catch (err) {
@@ -187,7 +189,7 @@ export default function HttpsSettingsPage() {
         err.detail === "reauthentication_required"
       ) {
         setError(
-          "Confirme sua identidade abaixo e repita a aplicação do HTTPS.",
+          t("reauthRequired"),
         );
         document
           .getElementById("identity-proof")
@@ -196,7 +198,7 @@ export default function HttpsSettingsPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Não foi possível concluir a operação.",
+            : t("operationError"),
         );
       }
     } finally {
@@ -212,9 +214,9 @@ export default function HttpsSettingsPage() {
   return (
     <div className="https-settings-page">
       <PageHeader
-        eyebrow="CONFIGURAÇÕES"
-        title="HTTPS e certificado"
-        description="Configure o domínio público e separe o estado TLS local da publicação DNS e da confiança da CA."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <button
             className="button"
@@ -225,12 +227,12 @@ export default function HttpsSettingsPage() {
                 setError(
                   err instanceof Error
                     ? err.message
-                    : "Não foi possível verificar o HTTPS.",
+                    : t("verifyError"),
                 ),
               );
             }}
           >
-            Verificar agora
+            {t("verifyNow")}
           </button>
         }
       />
@@ -248,18 +250,18 @@ export default function HttpsSettingsPage() {
 
       <div className="security-grid">
         <section className="security-card">
-          <h2>Estado atual</h2>
+          <h2>{t("currentState")}</h2>
           {!status ? (
-            <p>Carregando configuração…</p>
+            <p>{t("loading")}</p>
           ) : (
             <>
               <p>
                 <strong>
                   {status.configured
                     ? status.local_tls.healthy
-                      ? "TLS local válido"
-                      : "TLS local requer atenção"
-                    : "Somente HTTP"}
+                      ? t("localValid")
+                      : t("localNeedsAttention")
+                    : t("httpOnly")}
                 </strong>
               </p>
               <p>{status.message}</p>
@@ -273,14 +275,14 @@ export default function HttpsSettingsPage() {
                   <p>
                     Modo:{" "}
                     {status.mode === "automatic"
-                      ? "Automático (Caddy/ACME)"
-                      : "Certificado próprio"}
+                      ? t("automaticMode")
+                      : t("customCertificate")}
                   </p>
                   <p>
                     HTTPS local:{" "}
                     {status.local_tls.healthy
-                      ? "Caddy apresentou o certificado esperado"
-                      : "não validado"}
+                      ? t("expectedCertificate")
+                      : t("notValidated")}
                   </p>
                   <p>
                     DNS público: {status.dns.a.length + status.dns.aaaa.length} endpoint(s)
@@ -289,19 +291,19 @@ export default function HttpsSettingsPage() {
                     Validação do endpoint: {endpointLabel(status.endpoint_validation.status)}
                   </p>
                   <p>{status.endpoint_validation.message}</p>
-                  <p>Confiança: {trustLabel(status.trust)}</p>
+                  <p>{t("trust")}: {trustLabel(status.trust)}</p>
                   {status.trust && <p>{status.trust.message}</p>}
                 </>
               )}
               {status.applied_at && (
-                <p>Aplicado em: {formatDate(status.applied_at)}</p>
+                <p>{t("appliedAt")}: {formatDate(status.applied_at)}</p>
               )}
               {status.last_validated_at && (
-                <p>Última validação: {formatDate(status.last_validated_at)}</p>
+                <p>{t("lastValidated")}: {formatDate(status.last_validated_at)}</p>
               )}
               {status.certificate && (
                 <>
-                  <p>Emissor: {status.certificate.issuer}</p>
+                  <p>{t("issuer")}: {status.certificate.issuer}</p>
                   <p>
                     Validade: {formatDate(status.certificate.valid_from)} até{" "}
                     {formatDate(status.certificate.valid_until)}
@@ -322,7 +324,7 @@ export default function HttpsSettingsPage() {
                   )}
                 </>
               )}
-              {status.chain && <p>Cadeia: {status.chain.message}</p>}
+              {status.chain && <p>{t("chain")}: {status.chain.message}</p>}
               {status.dns.a.length > 0 && (
                 <p>
                   A: <code>{status.dns.a.join(", ")}</code>
@@ -344,7 +346,7 @@ export default function HttpsSettingsPage() {
         </section>
 
         <section className="security-card">
-          <h2>Como funciona</h2>
+          <h2>{t("howItWorks")}</h2>
           <p>
             No modo automático, o Caddy solicita e renova o certificado. O
             domínio precisa apontar para este host e os desafios ACME precisam
@@ -364,11 +366,11 @@ export default function HttpsSettingsPage() {
       </div>
 
       <section className="security-card">
-        <h2>Configurar HTTPS</h2>
+        <h2>{t("configure")}</h2>
         <form onSubmit={submit}>
           <div className="settings-form-grid">
             <label>
-              Modo
+              {t("mode")}
               <select
                 value={mode}
                 onChange={(event) => {
@@ -377,17 +379,17 @@ export default function HttpsSettingsPage() {
                 }}
               >
                 <option value="automatic">
-                  Certificado automático (recomendado)
+                  {t("automaticRecommended")}
                 </option>
-                <option value="custom">Certificado próprio</option>
+                <option value="custom">{t("customCertificate")}</option>
               </select>
             </label>
             <label>
-              Domínio público
+              {t("publicDomain")}
               <input
                 inputMode="url"
                 autoComplete="off"
-                placeholder="aven.exemplo.com"
+                placeholder={t("domainPlaceholder")}
                 maxLength={253}
                 value={domain}
                 onChange={(event) => {
@@ -402,7 +404,7 @@ export default function HttpsSettingsPage() {
           {mode === "custom" && (
             <>
               <label>
-                Certificado do servidor (PEM)
+                {t("serverCertificate")}
                 <textarea
                   rows={9}
                   autoComplete="off"
@@ -424,7 +426,7 @@ export default function HttpsSettingsPage() {
               </p>
 
               <label>
-                Cadeia intermediária / CA Bundle (PEM)
+                {t("intermediateChain")}
                 <textarea
                   rows={9}
                   autoComplete="off"
@@ -447,7 +449,7 @@ export default function HttpsSettingsPage() {
               </p>
 
               <label>
-                Chave privada (PEM)
+                {t("privateKey")}
                 <textarea
                   rows={9}
                   autoComplete="off"
@@ -489,10 +491,10 @@ export default function HttpsSettingsPage() {
               disabled={busy}
               onClick={() => void run("validate")}
             >
-              {busy ? "Validando…" : "Validar configuração"}
+              {busy ? t("validating") : t("validate")}
             </button>
             <button className="button primary" disabled={busy}>
-              {busy ? "Aplicando…" : "Aplicar HTTPS"}
+              {busy ? t("applying") : t("apply")}
             </button>
           </div>
         </form>

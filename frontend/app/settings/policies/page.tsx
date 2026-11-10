@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/aven";
 import {
@@ -32,6 +33,7 @@ type SegmentedOption = {
 };
 
 export default function PoliciesPage() {
+  const t = useTranslations("settings.policies");
   const [provider, setProvider] = useState("aws");
   const [scope, setScope] = useState<"global" | "account">("global");
   const [accountId, setAccountId] = useState<number | null>(null);
@@ -39,7 +41,7 @@ export default function PoliciesPage() {
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [policies, setPolicies] = useState<Policy[]>([]);
   const [role, setRole] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState<{ kind: "updated" | "reset"; name: string } | null>(null);
   const [error, setError] = useState("");
   const canManage = canManagePolicies(role);
   const providerCapabilities = capabilities.find((item) => item.provider === provider);
@@ -64,7 +66,7 @@ export default function PoliciesPage() {
         if (awsAccounts[0]) setAccountId(awsAccounts[0].aws_configuration.id);
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "Falha ao carregar configurações de políticas");
+        if (active) setError(err instanceof Error ? err.message : "ERR_POLICIES_SETTINGS_LOAD");
       });
     return () => { active = false; };
   }, []);
@@ -84,7 +86,7 @@ export default function PoliciesPage() {
     setError("");
     api<Policy[]>(scope === "global" ? "/policies/global" : `/policies/accounts/${accountId}`)
       .then(setPolicies)
-      .catch((err) => setError(err instanceof Error ? err.message : "Falha ao carregar políticas"));
+      .catch((err) => setError(err instanceof Error ? err.message : "ERR_POLICIES_LOAD"));
   }, [provider, providerCapabilities, scope, accountId]);
 
   async function refresh() {
@@ -99,46 +101,46 @@ export default function PoliciesPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Políticas"
-        description="Configure regras de análise FinOps somente onde o provider possui suporte operacional implementado."
-        metadata={<span>Configurações · Políticas</span>}
+        title={t("title")}
+        description={t("description")}
+        metadata={<span>{t("metadata")}</span>}
       />
 
-      {error && <Alert variant="danger" title="Não foi possível carregar políticas" description={error} />}
-      {message && <Alert variant="success" title={message} />}
+      {error && <Alert variant="danger" title={t("loadError")} description={error === "ERR_POLICIES_SETTINGS_LOAD" ? t("settingsLoadFailed") : error === "ERR_POLICIES_LOAD" ? t("loadError") : error} />}
+      {message && <Alert variant="success" title={message.kind === "updated" ? t("updated", {name: message.name}) : t("resetSuccess", {name: message.name})} />}
 
       <div className={styles.scopeStack}>
         <div className={styles.scopeRow}>
           <SegmentedButtons
-            label="Cloud das políticas"
+            label={t("policyCloud")}
             value={provider}
             options={availableProviders.map((item) => ({ value: item.provider, label: item.label }))}
             onValueChange={(nextProvider) => {
               setProvider(nextProvider);
               setScope("global");
-              setMessage("");
+              setMessage(null);
             }}
           />
           <p className={styles.scopeDescription}>
-            Políticas nesta área são regras FinOps do Aven; não são políticas IAM de autenticação.
+            {t("iamNote")}
           </p>
         </div>
 
         {providerCapabilities?.finops_policies && (
           <div className={styles.scopeRow}>
             <SegmentedButtons
-              label="Escopo das políticas"
+              label={t("scope")}
               value={scope}
               options={[
-                { value: "global", label: "Padrão global AWS" },
-                { value: "account", label: "Por conta AWS", disabled: !accounts.length },
+                { value: "global", label: t("globalAws") },
+                { value: "account", label: t("awsAccountScope"), disabled: !accounts.length },
               ]}
               onValueChange={(nextScope) => setScope(nextScope as "global" | "account")}
             />
             {scope === "account" && (
               <div className={styles.accountSelect}>
                 <Select
-                  aria-label="Conta AWS"
+                  aria-label={t("awsAccount")}
                   value={accountId === null ? "" : String(accountId)}
                   onChange={(event) => setAccountId(Number(event.target.value))}
                   options={accounts.map((account) => ({
@@ -150,8 +152,8 @@ export default function PoliciesPage() {
             )}
             <p className={styles.scopeDescription}>
               {scope === "global"
-                ? "Aplicado às contas AWS sem sobrescrita específica."
-                : "Campos não selecionados continuam herdando o padrão global AWS."}
+                ? t("globalScopeDescription")
+                : t("accountScopeDescription")}
             </p>
           </div>
         )}
@@ -160,11 +162,11 @@ export default function PoliciesPage() {
       {providerCapabilities && !providerCapabilities.finops_policies ? (
         <EmptyState
           icon={<SlidersHorizontal {...iconDefaults} />}
-          title={`Políticas de análise ${providerCapabilities.label} ainda não disponíveis`}
-          description="O cadastro e o teste de conexão podem estar disponíveis sem que existam coletor e regras FinOps para este provider. Nenhuma regra AWS é aplicada a esta conta."
+          title={t("unavailableTitle", {provider: providerCapabilities.label})}
+          description={t("unavailableDescription")}
         />
       ) : (
-        <section className={styles.policiesList} aria-label="Políticas FinOps">
+        <section className={styles.policiesList} aria-label={t("listLabel")}>
           {policies.map((policy) => (
             <PolicyCard
               key={`${scope}-${accountId}-${policy.rule_key}-${policy.override_fields.join(".")}`}
@@ -172,8 +174,8 @@ export default function PoliciesPage() {
               scope={scope}
               accountId={accountId}
               canManage={canManage}
-              onSaved={async (text) => {
-                setMessage(text);
+              onSaved={async (kind, name) => {
+                setMessage({kind, name});
                 await refresh();
               }}
             />
@@ -216,7 +218,37 @@ function SegmentedButtons({
   );
 }
 
-function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: Policy; scope: "global" | "account"; accountId: number | null; canManage: boolean; onSaved: (message: string) => Promise<void> }) {
+function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: Policy; scope: "global" | "account"; accountId: number | null; canManage: boolean; onSaved: (kind: "updated" | "reset", name: string) => Promise<void> }) {
+  const t = useTranslations("settings.policies");
+  const fieldLabels: Record<string, string> = {
+    minimum_age_days: t("fields.minimumAgeDays"),
+    minimum_monthly_savings_usd: t("fields.minimumMonthlySavingsUsd"),
+    monthly_price_per_gb: t("fields.monthlyPricePerGb"),
+    excluded_tag_keys: t("fields.excludedTagKeys"),
+    monthly_cost_usd: t("fields.monthlyCostUsd"),
+    retention_days: t("fields.retentionDays"),
+    preserve_last_per_volume: t("fields.preserveLastPerVolume"),
+    preserve_ami_snapshots: t("fields.preserveAmiSnapshots"),
+    minimum_stopped_days: t("fields.minimumStoppedDays"),
+    include_unknown_stop_time: t("fields.includeUnknownStopTime"),
+    timezone: t("fields.timezone"),
+    business_days: t("fields.businessDays"),
+    business_hours_start: t("fields.businessHoursStart"),
+    business_hours_end: t("fields.businessHoursEnd"),
+    environment_tag_keys: t("fields.environmentTagKeys"),
+    nonproduction_values: t("fields.nonproductionValues"),
+    lookback_days: t("fields.lookbackDays"),
+    maximum_requests: t("fields.maximumRequests"),
+    maximum_average_cpu_percent: t("fields.maximumAverageCpuPercent"),
+    maximum_connections: t("fields.maximumConnections"),
+    required_tags: t("fields.requiredTags"),
+    resource_types: t("fields.resourceTypes"),
+    baseline_days: t("fields.baselineDays"),
+    comparison_days: t("fields.comparisonDays"),
+    minimum_growth_percent: t("fields.minimumGrowthPercent"),
+    minimum_delta_usd: t("fields.minimumDeltaUsd"),
+    minimum_current_spend_usd: t("fields.minimumCurrentSpendUsd"),
+  };
   const [enabled, setEnabled] = useState(policy.enabled);
   const [values, setValues] = useState<Record<string, unknown>>({ ...policy.config });
   const [overrides, setOverrides] = useState<Set<string>>(new Set(policy.override_fields));
@@ -239,7 +271,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
       const enabledValue = scope === "global" || overrides.has("enabled") ? enabled : null;
       const path = scope === "global" ? `/policies/global/${policy.rule_key}` : `/policies/accounts/${accountId}/${policy.rule_key}`;
       await api(path, { method: "PUT", body: JSON.stringify({ enabled: enabledValue, config }) });
-      await onSaved(`Política “${policy.name}” atualizada.`);
+      await onSaved("updated", policy.name);
     } finally { setBusy(false); }
   }
 
@@ -248,7 +280,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
     setBusy(true);
     try {
       await api(`/policies/accounts/${accountId}/${policy.rule_key}`, { method: "DELETE" });
-      await onSaved(`“${policy.name}” voltou a herdar o padrão global.`);
+      await onSaved("reset", policy.name);
     } finally { setBusy(false); }
   }
 
@@ -260,14 +292,14 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
           <div className={styles.policyTitleLine}>
             <h3 className={styles.policyTitle}>{policy.name}</h3>
             <Badge variant="info">{providerLabel(policy.provider)}</Badge>
-            {!policy.implemented && <Badge variant="warning">Próxima etapa</Badge>}
-            {scope === "account" && policy.inherited && <Badge variant="neutral">Herdada</Badge>}
+            {!policy.implemented && <Badge variant="warning">{t("planned")}</Badge>}
+            {scope === "account" && policy.inherited && <Badge variant="neutral">{t("inherited")}</Badge>}
           </div>
           <p className={styles.policyDescription}>{policy.description}</p>
         </div>
         <div className={styles.policySummaryActions}>
           <Switch
-            aria-label={(canManage ? "Ativar política " : "Status da política ") + policy.name}
+            aria-label={canManage ? t("enablePolicy", {name: policy.name}) : t("statusPolicy", {name: policy.name})}
             checked={enabled}
             onCheckedChange={(checked) => {
               if (!canManage) return;
@@ -277,7 +309,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
             disabled={!policy.implemented || !canManage}
           />
           <Button variant="ghost" size="sm" onClick={() => setOpen(!open)} aria-expanded={open}>
-            {open ? "Fechar" : canManage ? "Configurar" : "Visualizar"}
+            {open ? t("close") : canManage ? t("configure") : t("view")}
           </Button>
         </div>
       </div>
@@ -291,7 +323,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
                 <div className={styles.policyField} key={key}>
                   {scope === "account" && (
                     <Checkbox
-                      aria-label={`Sobrescrever ${humanize(key)}`}
+                      aria-label={t("override", {field: fieldLabels[key] ?? humanize(key)})}
                       checked={overrides.has(key)}
                       disabled={!canManage}
                       onChange={(event) => {
@@ -303,7 +335,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
                     />
                   )}
                   <div className={styles.policyFieldControl}>
-                    {renderInput(key, value, (raw) => changeValue(key, value, raw), fieldDisabled)}
+                    {renderInput(key, value, (raw) => changeValue(key, value, raw), fieldDisabled, fieldLabels, {yes: t("yes"), no: t("no"), invalidJson: t("invalidJson")})}
                   </div>
                 </div>
               );
@@ -319,7 +351,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
                   onClick={() => void reset()}
                   disabled={busy}
                 >
-                  Restaurar herança
+                  {t("restoreInheritance")}
                 </Button>
               )}
               <Button
@@ -329,7 +361,7 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
                 loading={busy}
                 disabled={!policy.implemented}
               >
-                Salvar política
+                {t("savePolicy")}
               </Button>
             </div>
           )}
@@ -339,8 +371,8 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
   );
 }
 
-function renderInput(key: string, value: unknown, onChange: (value: unknown) => void, disabled: boolean) {
-  const label = humanize(key);
+function renderInput(key: string, value: unknown, onChange: (value: unknown) => void, disabled: boolean, fieldLabels: Record<string, string>, words: {yes: string; no: string; invalidJson: string}) {
+  const label = fieldLabels[key] ?? humanize(key);
   if (typeof value === "boolean") {
     return (
       <Select
@@ -349,8 +381,8 @@ function renderInput(key: string, value: unknown, onChange: (value: unknown) => 
         onChange={(event) => onChange(event.target.value === "true")}
         disabled={disabled}
         options={[
-          { value: "true", label: "Sim" },
-          { value: "false", label: "Não" },
+          { value: "true", label: words.yes },
+          { value: "false", label: words.no },
         ]}
       />
     );
@@ -362,12 +394,12 @@ function renderInput(key: string, value: unknown, onChange: (value: unknown) => 
     return <Input label={label} value={value.join(", ")} onChange={(event) => onChange(event.target.value)} disabled={disabled} />;
   }
   if (typeof value === "object" && value !== null) {
-    return <ObjectEditor label={label} value={value as Record<string, unknown>} onChange={onChange} disabled={disabled} />;
+    return <ObjectEditor label={label} value={value as Record<string, unknown>} onChange={onChange} disabled={disabled} invalidJson={words.invalidJson} />;
   }
   return <Input label={label} value={String(value ?? "")} onChange={(event) => onChange(event.target.value)} disabled={disabled} />;
 }
 
-function ObjectEditor({ label, value, onChange, disabled }: { label: string; value: Record<string, unknown>; onChange: (value: Record<string, unknown>) => void; disabled: boolean }) {
+function ObjectEditor({ label, value, onChange, disabled, invalidJson }: { label: string; value: Record<string, unknown>; onChange: (value: Record<string, unknown>) => void; disabled: boolean; invalidJson: string }) {
   const [text, setText] = useState(JSON.stringify(value, null, 2));
   const [invalid, setInvalid] = useState(false);
   return (
@@ -376,7 +408,7 @@ function ObjectEditor({ label, value, onChange, disabled }: { label: string; val
       rows={4}
       value={text}
       disabled={disabled}
-      error={invalid ? "JSON inválido" : undefined}
+      error={invalid ? invalidJson : undefined}
       onChange={(event) => {
         const next = event.target.value;
         setText(next);
@@ -394,6 +426,5 @@ function ObjectEditor({ label, value, onChange, disabled }: { label: string; val
 }
 
 function humanize(value: string) {
-  const labels: Record<string, string> = { minimum_age_days: "Idade mínima (dias)", minimum_monthly_savings_usd: "Economia mínima mensal (USD)", monthly_price_per_gb: "Preço por GB/mês", excluded_tag_keys: "Tags de exclusão", monthly_cost_usd: "Custo mensal unitário (USD)", retention_days: "Retenção (dias)", preserve_last_per_volume: "Preservar últimos por volume", preserve_ami_snapshots: "Preservar snapshots de AMI", minimum_stopped_days: "Tempo mínimo desligada (dias)", include_unknown_stop_time: "Incluir tempo de parada desconhecido", timezone: "Fuso horário", business_days: "Dias úteis", business_hours_start: "Início do expediente", business_hours_end: "Fim do expediente", environment_tag_keys: "Tags de ambiente", nonproduction_values: "Valores de não produção", lookback_days: "Janela de análise (dias)", maximum_requests: "Máximo de requisições", maximum_average_cpu_percent: "CPU média máxima (%)", maximum_connections: "Máximo de conexões", required_tags: "Tags obrigatórias", resource_types: "Tipos de recurso", baseline_days: "Linha de base (dias)", comparison_days: "Período comparado", minimum_growth_percent: "Crescimento mínimo (%)", minimum_delta_usd: "Aumento mínimo (USD)", minimum_current_spend_usd: "Gasto atual mínimo (USD)" };
-  return labels[value] || value.replaceAll("_", " ");
+  return value.replaceAll("_", " ");
 }

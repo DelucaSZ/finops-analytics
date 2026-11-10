@@ -1,6 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { IdentityProof } from "@/components/identity-proof";
 import { api, ApiError, formatDate } from "@/lib/api";
@@ -33,34 +34,18 @@ type Action =
   | "renew"
   | "mfa"
   | "sessions";
-const roles: Record<string, string> = {
-  admin: "Administrador",
-  operator: "Operador",
-  viewer: "Visualizador",
-};
-const titles: Record<Action, string> = {
-  invite: "Convidar usuário",
-  create: "Criar com senha",
-  edit: "Editar usuário",
-  deactivate: "Desativar usuário",
-  reactivate: "Reativar usuário",
-  reset: "Gerar recuperação de senha",
-  renew: "Renovar convite",
-  mfa: "Recuperar MFA",
-  sessions: "Sessões do usuário",
-};
-const explanations: Partial<Record<Action, string>> = {
-  deactivate:
-    "O usuário perderá o acesso e suas sessões serão encerradas. O histórico será preservado.",
-  reactivate:
-    "O usuário poderá entrar novamente. As sessões antigas permanecem inválidas; usuários pendentes ainda precisam aceitar um convite válido.",
-  reset:
-    "Será gerado um link válido por 30 minutos. O link anterior de recuperação será invalidado. O MFA permanece ativo.",
-  renew:
-    "Será gerado um novo convite válido por 24 horas. O convite anterior será invalidado.",
-  mfa: "Confirme a identidade do titular antes de prosseguir. O autenticador e códigos antigos serão removidos, as sessões encerradas e um novo cadastro será obrigatório. Confirme com SUA senha e segundo fator.",
-};
 export default function UsersPage() {
+  const t = useTranslations("settings.users");
+  const roles: Record<string, string> = { admin: t("roles.admin"), operator: t("roles.operator"), viewer: t("roles.viewer") };
+  const titles: Record<Action, string> = {
+    invite: t("actions.invite"), create: t("actions.create"), edit: t("actions.edit"),
+    deactivate: t("actions.deactivate"), reactivate: t("actions.reactivate"), reset: t("actions.reset"),
+    renew: t("actions.renew"), mfa: t("actions.mfa"), sessions: t("actions.sessions"),
+  };
+  const explanations: Partial<Record<Action, string>> = {
+    deactivate: t("explanations.deactivate"), reactivate: t("explanations.reactivate"),
+    reset: t("explanations.reset"), renew: t("explanations.renew"), mfa: t("explanations.mfa"),
+  };
   const router = useRouter();
   const [users, setUsers] = useState<User[]>([]);
   const [me, setMe] = useState<User | null>(null);
@@ -152,7 +137,7 @@ export default function UsersPage() {
       await task();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : "Não foi possível concluir.",
+        err instanceof Error ? err.message : "ERR_USERS_ACTION",
       );
       if (err instanceof ApiError && err.detail === "reauthentication_required")
         document.getElementById("identity-proof")?.focus();
@@ -219,8 +204,8 @@ export default function UsersPage() {
       setRefresh((n) => n + 1);
       setMessage(
         result
-          ? "Link gerado. Compartilhe apenas com o titular por um canal privado."
-          : "Alteração concluída.",
+          ? "USERS_LINK_GENERATED"
+          : "USERS_UPDATED",
       );
       if (selfRevoked) router.replace("/login");
     });
@@ -228,9 +213,9 @@ export default function UsersPage() {
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES"
-        title="Usuários"
-        description="Gerencie pessoas, permissões e recuperação de acesso."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <>
             <button
@@ -238,39 +223,37 @@ export default function UsersPage() {
               disabled={busy}
               onClick={() => open("invite")}
             >
-              Convidar usuário
+              {t("actions.invite")}
             </button>
             <button
               className="button"
               disabled={busy}
               onClick={() => open("create")}
             >
-              Criar com senha
+              {t("actions.create")}
             </button>
           </>
         }
       />
       <p className="settings-help">
-        Administrador: configura a plataforma e usuários. Operador: executa
-        varreduras e trata oportunidades. Visualizador: consulta os dados.
+        {t("rolesHelp")}
       </p>
       <IdentityProof />
       {error && (
         <p className="form-error" role="alert">
-          {error}
+          {error === "ERR_USERS_ACTION" ? t("actionFailed") : error}
         </p>
       )}
       {message && (
         <p className="form-success" role="status">
-          {message}
+          {message === "USERS_LINK_GENERATED" ? t("feedback.linkGenerated") : message === "USERS_UPDATED" ? t("feedback.updated") : message === "USERS_COPY_MANUAL" ? t("feedback.copyManual") : message === "USERS_LINK_COPIED" ? t("feedback.linkCopied") : message === "USERS_SESSIONS_REVOKED" ? t("feedback.sessionsRevoked") : message === "USERS_SESSION_REVOKED" ? t("feedback.sessionRevoked") : message}
         </p>
       )}
       {access && (
         <section className="security-card settings-panel">
-          <h2>Link de acesso para {access.email}</h2>
+          <h2>{t("accessLinkFor", {email: access.email})}</h2>
           <p>
-            Expira em {formatDate(access.expires_at)}. Nenhum e-mail foi enviado
-            automaticamente.
+            {t("linkExpires", {date: formatDate(access.expires_at)})}
           </p>
           <label>
             Link privado
@@ -286,18 +269,18 @@ export default function UsersPage() {
               onClick={() =>
                 run(async () => {
                   if (!navigator.clipboard) {
-                    setMessage("Selecione o link e copie manualmente.");
+                    setMessage("USERS_COPY_MANUAL");
                     return;
                   }
                   await navigator.clipboard.writeText(access.url);
-                  setMessage("Link copiado.");
+                  setMessage("USERS_LINK_COPIED");
                 })
               }
             >
-              Copiar link
+              {t("copyLink")}
             </button>
             <button className="button" onClick={() => setAccess(null)}>
-              Ocultar link
+              {t("hideLink")}
             </button>
           </div>
         </section>
@@ -311,7 +294,7 @@ export default function UsersPage() {
           {selected && (
             <p>
               {selected.email}
-              {selected.id === me?.id ? " · Sua conta" : ""}
+              {selected.id === me?.id ? t("yourAccount") : ""}
             </p>
           )}
           {explanations[action] && <p>{explanations[action]}</p>}
@@ -323,7 +306,7 @@ export default function UsersPage() {
                   disabled={busy}
                   onClick={() => run(() => loadSessions(selected))}
                 >
-                  Atualizar sessões
+                  {t("refreshSessions")}
                 </button>
                 <button
                   className="button"
@@ -336,30 +319,29 @@ export default function UsersPage() {
                       if (selected.id === me?.id) router.replace("/login");
                       else {
                         await loadSessions(selected);
-                        setMessage("Todas as sessões foram encerradas.");
+                        setMessage("USERS_SESSIONS_REVOKED");
                       }
                     })
                   }
                 >
-                  Encerrar todas as sessões
+                  {t("endAllSessions")}
                 </button>
               </div>
               {!sessionsLoaded ? (
-                <p>Carregue a lista para consultar os acessos.</p>
+                <p>{t("loadSessionsHint")}</p>
               ) : sessions.length === 0 ? (
-                <p>Nenhuma sessão ativa.</p>
+                <p>{t("noSessions")}</p>
               ) : (
                 sessions.map((item) => (
                   <article className="session-item" key={item.id}>
                     <div>
                       <strong>
-                        {item.user_agent || "Navegador não identificado"}
+                        {item.user_agent || t("unknownBrowser")}
                       </strong>
                       <p>
-                        Início: {formatDate(item.created_at)} · Última
-                        atividade: {formatDate(item.last_seen_at)}
+                        {t("sessionTimeline", {start: formatDate(item.created_at), last: formatDate(item.last_seen_at)})}
                       </p>
-                      <p>Expira até: {formatDate(item.expires_at)}</p>
+                      <p>{t("sessionExpires", {date: formatDate(item.expires_at)})}</p>
                     </div>
                     <button
                       className="button"
@@ -371,17 +353,17 @@ export default function UsersPage() {
                             { method: "DELETE" },
                           );
                           await loadSessions(selected);
-                          setMessage("Sessão encerrada.");
+                          setMessage("USERS_SESSION_REVOKED");
                         })
                       }
                     >
-                      Encerrar sessão
+                      {t("endSession")}
                     </button>
                   </article>
                 ))
               )}
               <button className="button" disabled={busy} onClick={close}>
-                Fechar
+                {t("close")}
               </button>
             </>
           ) : (
@@ -425,25 +407,19 @@ export default function UsersPage() {
                   </div>
                   {action === "edit" && (
                     <p>
-                      Alterar e-mail ou perfil encerra as sessões e invalida
-                      links pendentes. Se for sua conta, você precisará entrar
-                      novamente.
+                      {t("editWarning")}
                     </p>
                   )}
                 </>
               )}
               {action === "invite" && (
                 <p>
-                  O convite vale por 24 horas e permite ao titular definir a
-                  própria senha. Você receberá o link para compartilhar em
-                  privado.
+                  {t("inviteWarning")}
                 </p>
               )}
               {(action === "create" || action === "mfa") && (
                 <label>
-                  {action === "create"
-                    ? "Senha inicial (mínimo de 12 caracteres)"
-                    : "Sua senha de administrador"}
+                  {action === "create" ? t("initialPassword") : t("adminPassword")}
                   <input
                     type="password"
                     autoComplete={
@@ -483,11 +459,7 @@ export default function UsersPage() {
               )}
               <div className="security-actions">
                 <button className="button primary" disabled={busy}>
-                  {busy
-                    ? "Salvando…"
-                    : action === "edit"
-                      ? "Salvar alterações"
-                      : titles[action]}
+                  {busy ? t("saving") : action === "edit" ? t("saveChanges") : titles[action]}
                 </button>
                 <button
                   className="button"
@@ -495,7 +467,7 @@ export default function UsersPage() {
                   disabled={busy}
                   onClick={close}
                 >
-                  Cancelar
+                  {t("cancel")}
                 </button>
               </div>
             </form>
@@ -532,35 +504,35 @@ export default function UsersPage() {
               setAccess(null);
             }}
           >
-            <option value="">Todas</option>
-            <option value="active">Ativos</option>
-            <option value="pending">Convite pendente</option>
-            <option value="inactive">Inativos</option>
+            <option value="">{t("status.all")}</option>
+            <option value="active">{t("status.activePlural")}</option>
+            <option value="pending">{t("status.pending")}</option>
+            <option value="inactive">{t("status.inactivePlural")}</option>
           </select>
         </label>
         <button className="button" disabled={busy}>
-          Buscar
+          {t("search")}
         </button>
       </form>
       <div className="data-table-wrap">
         <table className="data-table settings-table">
           <thead>
             <tr>
-              <th scope="col">Usuário</th>
-              <th scope="col">Perfil</th>
-              <th scope="col">Situação</th>
+              <th scope="col">{t("user")}</th>
+              <th scope="col">{t("role")}</th>
+              <th scope="col">{t("statusLabel")}</th>
               <th scope="col">MFA</th>
-              <th scope="col">Ações</th>
+              <th scope="col">{t("columnActions")}</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={5}>Carregando usuários…</td>
+                <td colSpan={5}>{t("loading")}</td>
               </tr>
             ) : users.length === 0 ? (
               <tr>
-                <td colSpan={5}>Nenhum usuário encontrado.</td>
+                <td colSpan={5}>{t("empty")}</td>
               </tr>
             ) : (
               users.slice(0, 50).map((user) => (
@@ -568,24 +540,24 @@ export default function UsersPage() {
                   <td>
                     <strong>
                       {user.name}
-                      {user.id === me?.id ? " (você)" : ""}
+                      {user.id === me?.id ? t("self") : ""}
                     </strong>
                     <span>{user.email}</span>
                   </td>
-                  <td>{roles[user.role]}</td>
+                  <td>{roles[user.role] || user.role}</td>
                   <td>
                     {!user.is_active
-                      ? "Inativo"
+                      ? t("status.inactive")
                       : user.password_set
-                        ? "Ativo"
-                        : "Convite pendente"}
+                        ? t("status.active")
+                        : t("status.pending")}
                   </td>
                   <td>
                     {user.mfa_enabled
-                      ? "Ativado"
+                      ? t("mfa.enabled")
                       : user.mfa_reset_required
-                        ? "Novo cadastro obrigatório"
-                        : "Não ativado"}
+                        ? t("mfa.resetRequired")
+                        : t("mfa.disabled")}
                   </td>
                   <td>
                     <div className="settings-row-actions">
@@ -594,7 +566,7 @@ export default function UsersPage() {
                         disabled={busy}
                         onClick={() => open("edit", user)}
                       >
-                        Editar
+                        {t("edit")}
                       </button>
                       <button
                         className="button"
@@ -606,7 +578,7 @@ export default function UsersPage() {
                           )
                         }
                       >
-                        {user.is_active ? "Desativar" : "Reativar"}
+                        {user.is_active ? t("deactivate") : t("reactivate")}
                       </button>
                       {user.is_active && (
                         <button
@@ -616,9 +588,7 @@ export default function UsersPage() {
                             open(user.password_set ? "reset" : "renew", user)
                           }
                         >
-                          {user.password_set
-                            ? "Recuperar senha"
-                            : "Renovar convite"}
+                          {user.password_set ? t("recoverPassword") : t("renewInvitation")}
                         </button>
                       )}
                       <button
@@ -629,7 +599,7 @@ export default function UsersPage() {
                           run(() => loadSessions(user));
                         }}
                       >
-                        Sessões
+                        {t("sessions")}
                       </button>
                       {user.is_active &&
                         user.password_set &&
@@ -640,7 +610,7 @@ export default function UsersPage() {
                             disabled={busy}
                             onClick={() => open("mfa", user)}
                           >
-                            Recuperar MFA
+                            {t("recoverMfa")}
                           </button>
                         )}
                     </div>
@@ -661,9 +631,9 @@ export default function UsersPage() {
             setAccess(null);
           }}
         >
-          Anterior
+          {t("previous")}
         </button>
-        <span>Página {offset / 50 + 1}</span>
+        <span>{t("page", {page: offset / 50 + 1})}</span>
         <button
           className="button"
           disabled={loading || busy || users.length <= 50}
@@ -673,7 +643,7 @@ export default function UsersPage() {
             setAccess(null);
           }}
         >
-          Próxima
+          {t("next")}
         </button>
       </div>
     </>

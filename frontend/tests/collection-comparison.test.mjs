@@ -18,7 +18,7 @@ test("collection comparison is backend-owned, paginated and shareable", async ()
   assert.match(page, /PERSISTENT/);
   assert.match(page, /NO_LONGER_DETECTED/);
   assert.match(page, /CHANGED/);
-  assert.match(page, /Não detectadas/);
+  assert.match(page, /labelKey: "noLonger"/);
   assert.match(page, /rules_version_warning/);
   assert.match(page, /financial_summary/);
   assert.match(page, /lifecycle_status/);
@@ -38,10 +38,10 @@ test("execution history exposes CollectionRun detail and comparison navigation",
   );
 
   assert.match(scans, /\/collections\?limit=200/);
-  assert.match(scans, /Ver coleta/);
-  assert.match(scans, /Comparar/);
+  assert.match(scans, /t\("viewCollection"\)/);
+  assert.match(scans, /t\("compare"\)/);
   assert.match(detail, /comparison-options/);
   assert.match(detail, /run\.status === "SUCCESS"/);
-  assert.match(detail, /Comparar com coleta anterior/);
-  assert.match(detail, /primeira coleta bem-sucedida/);
+  assert.match(detail, /t\("comparePrevious"\)/);
+  assert.match(detail, /t\("firstCollection"\)/);
 });

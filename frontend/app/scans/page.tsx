@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { Activity } from "lucide-react";
 import { DataState, PageHeader, Section, StatusIndicator, type ProductStatus } from "@/components/aven";
@@ -10,16 +11,18 @@ import { api, formatDate } from "@/lib/api";
 import type { AwsAccount, CollectionRun, Scan } from "@/lib/types";
 import styles from "./scans.module.css";
 
-function statusPresentation(status: string): { status: ProductStatus; label: string } {
+function statusPresentation(status: string, labels: Record<string, string>): { status: ProductStatus; label: string } {
   const normalized = status.trim().toUpperCase();
-  if (normalized === "SUCCESS" || normalized === "COMPLETED") return { status: "success", label: "Concluída" };
-  if (normalized === "FAILED" || normalized === "ERROR") return { status: "danger", label: "Falhou" };
-  if (normalized === "RUNNING" || normalized === "PENDING") return { status: "pending", label: normalized === "RUNNING" ? "Em andamento" : "Pendente" };
-  if (normalized === "COMPLETED_WITH_WARNINGS") return { status: "warning", label: "Com alertas" };
-  return { status: "neutral", label: status || "Desconhecido" };
+  if (normalized === "SUCCESS" || normalized === "COMPLETED") return { status: "success", label: labels.completed };
+  if (normalized === "FAILED" || normalized === "ERROR") return { status: "danger", label: labels.failed };
+  if (normalized === "RUNNING" || normalized === "PENDING") return { status: "pending", label: normalized === "RUNNING" ? labels.running : labels.pending };
+  if (normalized === "COMPLETED_WITH_WARNINGS") return { status: "warning", label: labels.warnings };
+  return { status: "neutral", label: status || labels.unknown };
 }
 
 export default function ScansPage() {
+  const t = useTranslations("scans");
+  const labels = {completed: t("status.completed"), failed: t("status.failed"), running: t("status.running"), pending: t("status.pending"), warnings: t("status.warnings"), unknown: t("status.unknown")};
   const [scans, setScans] = useState<Scan[]>([]);
   const [accounts, setAccounts] = useState<AwsAccount[]>([]);
   const [collections, setCollections] = useState<CollectionRun[]>([]);
@@ -42,7 +45,7 @@ export default function ScansPage() {
           setError("");
         })
         .catch((err) => {
-          if (active) setError(err instanceof Error ? err.message : "Falha ao carregar execuções.");
+          if (active) setError(err instanceof Error ? err.message : "ERR_SCANS_LOAD");
         })
         .finally(() => {
           if (active) setLoading(false);
@@ -73,71 +76,71 @@ export default function ScansPage() {
   return (
     <div className={styles.page}>
       <PageHeader
-        title="Execuções"
-        description="Histórico das análises manuais e agendadas, com acesso ao CollectionRun auditável."
-        metadata="Processamento · atualização operacional a cada 10 segundos"
+        title={t("title")}
+        description={t("description")}
+        metadata={t("metadata")}
       />
 
-      {error && <Alert variant="danger" title="Não foi possível atualizar as execuções" description={error} />}
+      {error && <Alert variant="danger" title={t("loadError")} description={error === "ERR_SCANS_LOAD" ? t("loadError") : error} />}
 
       <Section
         appearance="card"
-        title="Varreduras AWS"
-        description="Execuções persistidas e o CollectionRun correspondente quando disponível."
+        title={t("awsScans")}
+        description={t("awsDescription")}
         actions={<Activity {...iconDefaults} aria-hidden="true" />}
       >
         <DataState
           loading={loading && scans.length === 0}
           empty={!loading && scans.length === 0}
-          emptyTitle="Nenhuma análise executada"
-          emptyDescription="O histórico aparecerá aqui após uma execução real."
+          emptyTitle={t("emptyTitle")}
+          emptyDescription={t("emptyDescription")}
         >
-          <Table aria-label="Histórico de execuções">
+          <Table aria-label={t("tableLabel")}>
             <TableHeader>
               <TableRow staticRow>
-                <TableHead>Conta</TableHead>
-                <TableHead>Gatilho</TableHead>
-                <TableHead>Início</TableHead>
-                <TableHead>Conclusão</TableHead>
-                <TableHead numeric>Achados</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Coleta</TableHead>
+                <TableHead>{t("column.account")}</TableHead>
+                <TableHead>{t("column.trigger")}</TableHead>
+                <TableHead>{t("column.started")}</TableHead>
+                <TableHead>{t("column.finished")}</TableHead>
+                <TableHead numeric>{t("column.findings")}</TableHead>
+                <TableHead>{t("column.status")}</TableHead>
+                <TableHead>{t("column.collection")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {scans.map((scan) => {
                 const run = collectionByScan[scan.id];
-                const scanStatus = statusPresentation(scan.status);
-                const runStatus = run ? statusPresentation(run.status) : null;
+                const scanStatus = statusPresentation(scan.status, labels);
+                const runStatus = run ? statusPresentation(run.status, labels) : null;
                 return (
                   <TableRow key={scan.id}>
                     <TableCell>
                       <span className={styles.cellStack}>
-                        <strong className={styles.primaryText}>{accountNames[scan.account_id] || `Conta ${scan.account_id}`}</strong>
+                        <strong className={styles.primaryText}>{accountNames[scan.account_id] || t("account", {id: scan.account_id})}</strong>
                         <span className={styles.secondaryText}>{scan.id.slice(0, 8)}</span>
                       </span>
                     </TableCell>
-                    <TableCell>{scan.trigger === "manual" ? "Manual" : "Agendada"}</TableCell>
+                    <TableCell>{scan.trigger === "manual" ? t("trigger.manual") : t("trigger.scheduled")}</TableCell>
                     <TableCell>{formatDate(scan.started_at || scan.created_at)}</TableCell>
                     <TableCell>{formatDate(scan.completed_at)}</TableCell>
                     <TableCell numeric>{scan.findings_count}</TableCell>
                     <TableCell>
                       <span className={styles.cellStack}>
                         <StatusIndicator status={scanStatus.status} label={scanStatus.label} />
-                        {scan.error && <span className={styles.secondaryText} title={scan.error}>Erro disponível nos detalhes da execução.</span>}
+                        {scan.error && <span className={styles.secondaryText} title={scan.error}>{t("detailError")}</span>}
                       </span>
                     </TableCell>
                     <TableCell>
                       {run && runStatus ? (
                         <div className={styles.rowActions}>
-                          <Link className={styles.link} href={`/collections/${run.id}`}>Ver coleta</Link>
+                          <Link className={styles.link} href={`/collections/${run.id}`}>{t("viewCollection")}</Link>
                           {run.status === "SUCCESS" && (
-                            <Link className={styles.link} href={`/collections/${run.id}/compare`}>Comparar</Link>
+                            <Link className={styles.link} href={`/collections/${run.id}/compare`}>{t("compare")}</Link>
                           )}
                           <StatusIndicator status={runStatus.status} label={runStatus.label} />
                         </div>
                       ) : (
-                        <span className={styles.secondaryText}>Sem CollectionRun</span>
+                        <span className={styles.secondaryText}>{t("noCollectionRun")}</span>
                       )}
                     </TableCell>
                   </TableRow>

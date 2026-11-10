@@ -1,4 +1,4 @@
-export type SettingsTab = { href: string; label: string };
+export type SettingsTab = { href: string; labelKey: "appearance" | "accounts" | "policies" | "security" | "sessions" | "users" | "audit" | "https" | "pricing" | "billingProfiles" | "usageCosts" | "retention" };
 export type LegacySettingsRedirect = {
   source: string;
   destination: string;

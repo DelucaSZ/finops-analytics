@@ -38,7 +38,7 @@ export function buildUpdateAccountPayload(
 ): Record<string, unknown>;
 export function validateAccountForm(
   form: AccountFormState,
-  options?: { mode?: "create" | "edit"; replaceCredentials?: boolean },
+  options?: { mode?: "create" | "edit"; replaceCredentials?: boolean; messages?: Partial<Record<"name" | "provider" | "interval" | "awsId" | "roleArn" | "roleAccount" | "externalId" | "regions" | "tenancy" | "userOcid" | "connectionRegion" | "compartment" | "fingerprint" | "pem", string>> },
 ): Record<string, string>;
 export function filterCloudAccounts(
   accounts: CloudAccount[],

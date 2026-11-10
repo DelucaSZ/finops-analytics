@@ -117,11 +117,11 @@ test("stage 20 drives account and policy capabilities from the backend contract"
   assert.match(accounts, /capability\?\.manual_collection/);
   assert.match(accounts, /\/cloud-accounts\/" \+ account\.id \+ "\/scans"/);
   assert.doesNotMatch(accounts, /api<Scan>\("\/scans"/);
-  assert.match(accounts, /Conexão validada\. Coleta/);
+  assert.match(accounts, /t\("connectionValidated", \{name:account\.name\}\)/);
 
   assert.match(policies, /\/cloud-accounts\/capabilities/);
   assert.match(policies, /finops_policies/);
-  assert.match(policies, /Nenhuma regra AWS é aplicada/);
+  assert.match(policies, /t\("unavailableDescription"\)/);
 
   assert.match(types, /export type ProviderCapabilities/);
   assert.match(types, /provider: string;/);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 
@@ -27,80 +28,6 @@ type Event = {
 };
 
 const PAGE_SIZE = 50;
-
-const labels: Record<string, string> = {
-  "auth.login": "Login concluído",
-  "auth.login_failed": "Tentativa de login recusada",
-  "auth.logout": "Saída da conta",
-  "auth.logout_all": "Todas as sessões encerradas",
-  "auth.session_revoked": "Sessão encerrada pelo titular",
-  "auth.reauthenticated": "Identidade confirmada",
-  "auth.password_changed": "Senha alterada",
-  "auth.password_reset": "Senha redefinida",
-  "auth.invitation_accepted": "Convite aceito",
-  "user.created": "Usuário criado",
-  "user.updated": "Cadastro alterado",
-  "user.invited": "Usuário convidado",
-  "user.invitation_renewed": "Convite renovado",
-  "user.password_reset_issued": "Link de recuperação gerado",
-  "user.sessions_revoked": "Sessões encerradas por administrador",
-  "user.session_revoked": "Sessão encerrada por administrador",
-  "user.create": "Usuário criado",
-  "user.update": "Usuário alterado",
-  "user.enable": "Usuário ativado",
-  "user.disable": "Usuário desativado",
-  "user.invite": "Usuário convidado",
-  "user.invitation_renew": "Convite renovado",
-  "user.password_reset_issue": "Reset administrativo de senha emitido",
-  "user.sessions_revoke": "Sessões de usuário revogadas",
-  "user.mfa_reset": "MFA de usuário redefinido",
-  "mfa.setup_started": "Cadastro do autenticador iniciado",
-  "mfa.enabled": "Autenticador ativado ou substituído",
-  "mfa.login_failed": "Segundo fator recusado",
-  "mfa.login_verified": "Login com segundo fator concluído",
-  "mfa.recovery_used": "Código de recuperação utilizado",
-  "mfa.recovery_regenerated": "Códigos de recuperação regenerados",
-  "mfa.reset": "MFA redefinido",
-  "account.create": "Conta cloud criada",
-  "account.update": "Conta cloud alterada",
-  "account.enable": "Conta cloud ativada",
-  "account.disable": "Conta cloud desativada",
-  "account.delete": "Conta cloud removida",
-  "account.connection_test": "Conexão da conta testada",
-  "account.schedule_update": "Agenda de coleta alterada",
-  "policy.update": "Policy alterada",
-  "policy.reset": "Policy restaurada para o padrão",
-  "pricing.create": "Preço criado",
-  "pricing.update": "Preço alterado",
-  "pricing.override": "Nova versão de preço criada",
-  "pricing.deactivate": "Preço desativado",
-  "billing.profile_create": "Perfil de Billing criado",
-  "billing.profile_update": "Perfil de Billing alterado",
-  "tls.apply": "Configuração HTTPS/TLS aplicada",
-  "tls.mode_change": "Modo HTTPS/TLS alterado",
-  "opportunity.treat": "Oportunidade tratada",
-  "opportunity.reject": "Oportunidade rejeitada",
-  "opportunity.reopen": "Oportunidade reaberta",
-  "opportunity.archive": "Oportunidade arquivada",
-  "opportunity.unarchive": "Oportunidade desarquivada",
-  "opportunity.bulk_treat": "Oportunidades tratadas em massa",
-  "opportunity.bulk_reject": "Oportunidades rejeitadas em massa",
-  "opportunity.bulk_reopen": "Oportunidades reabertas em massa",
-};
-
-const modules = [
-  ["", "Todos"],
-  ["users", "Usuários"],
-  ["security", "Segurança"],
-  ["auth", "Acessos"],
-  ["mfa", "MFA"],
-  ["accounts", "Contas"],
-  ["policies", "Policies"],
-  ["opportunities", "Oportunidades"],
-  ["pricing", "Pricing"],
-  ["billing", "Billing"],
-  ["tls", "HTTPS"],
-] as const;
 
 const actionModule: Record<string, string> = {
   "user.create": "users",
@@ -143,20 +70,22 @@ function fieldLabel(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function actionLabel(action: string) {
+function actionLabel(action: string, labels: Record<string, string>) {
   if (labels[action]) return labels[action];
   return action.split(".").map(fieldLabel).join(" · ");
 }
 
-function changeValue(value: unknown): string {
+type AuditPresentation = { yes: string; no: string; truncated: string; securityEvent: string; updatedItems: (count: number) => string; noDiff: string; unknownActor: string; unauthenticated: string };
+
+function changeValue(value: unknown, words: AuditPresentation): string {
   if (value === null || value === undefined) return "∅";
-  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "boolean") return value ? words.yes : words.no;
   if (typeof value === "string" || typeof value === "number") {
     const text = String(value);
     return text.length > 160 ? `${text.slice(0, 157)}…` : text;
   }
   if (Array.isArray(value)) {
-    const text = value.map((item) => changeValue(item)).join(", ");
+    const text = value.map((item) => changeValue(item, words)).join(", ");
     return text.length > 160 ? `${text.slice(0, 157)}…` : text || "[]";
   }
   const text = JSON.stringify(value);
@@ -176,32 +105,32 @@ function changeEntries(item: Event): Array<[string, Change]> {
   });
 }
 
-function changeSummary(item: Event): string {
+function changeSummary(item: Event, words: AuditPresentation): string {
   const entries = changeEntries(item);
   if (!entries.length) {
-    if (item.changes?._truncated) return "Alterações resumidas por limite de tamanho";
-    if (item.event_kind === "security") return item.reason || "Evento de segurança";
+    if (item.changes?._truncated) return words.truncated;
+    if (item.event_kind === "security") return item.reason || words.securityEvent;
     const updated = item.metadata?.updated;
-    if (typeof updated === "number") return `${updated} itens alterados`;
-    return "Ação sem diff de campos";
+    if (typeof updated === "number") return words.updatedItems(updated);
+    return words.noDiff;
   }
   const head = entries
     .slice(0, 2)
-    .map(([field, change]) => `${fieldLabel(field)}: ${changeValue(change.from)} → ${changeValue(change.to)}`)
+    .map(([field, change]) => `${fieldLabel(field)}: ${changeValue(change.from, words)} → ${changeValue(change.to, words)}`)
     .join(" · ");
   return entries.length > 2 ? `${head} · +${entries.length - 2}` : head;
 }
 
-function actorLabel(item: Event): { name: string; email: string | null } {
+function actorLabel(item: Event, words: AuditPresentation): { name: string; email: string | null } {
   if (item.actor.name || item.actor.email) {
     return {
-      name: item.actor.name || item.actor.email || "Responsável desconhecido",
+      name: item.actor.name || item.actor.email || words.unknownActor,
       email: item.actor.name ? item.actor.email : null,
     };
   }
   if (item.source === "SYSTEM") return { name: "SYSTEM", email: null };
-  if (item.action === "auth.login_failed") return { name: "Tentativa não autenticada", email: null };
-  return { name: "Responsável desconhecido", email: null };
+  if (item.action === "auth.login_failed") return { name: words.unauthenticated, email: null };
+  return { name: words.unknownActor, email: null };
 }
 
 function localDateBoundary(date: string, end: boolean) {
@@ -221,6 +150,8 @@ function UserAutocomplete({
   selectedId: string;
   onChange: (query: string, id: string) => void;
 }) {
+  const t = useTranslations("settings.audit");
+  const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
   const [options, setOptions] = useState<UserOption[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -252,11 +183,11 @@ function UserAutocomplete({
       <input
         value={query}
         maxLength={254}
-        placeholder="Nome ou e-mail"
+        placeholder={t("nameOrEmail")}
         onFocus={() => setOpen(true)}
         onChange={(event) => onChange(event.target.value, "")}
       />
-      {selectedId && <span>Usuário selecionado</span>}
+      {selectedId && <span>{t("selectedUser")}</span>}
       {open && !selectedId && options.length > 0 && (
         <div
           role="listbox"
@@ -298,6 +229,68 @@ function UserAutocomplete({
 }
 
 export default function AuditPage() {
+  const t = useTranslations("settings.audit");
+  const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
+  const localizedEvents: Record<string, string> = {
+    "auth.login": t("events.authLogin"),
+    "auth.login_failed": t("events.authLoginFailed"),
+    "auth.logout": t("events.authLogout"),
+    "auth.logout_all": t("events.authLogoutAll"),
+    "auth.session_revoked": t("events.authSessionRevoked"),
+    "auth.reauthenticated": t("events.authReauthenticated"),
+    "auth.password_changed": t("events.authPasswordChanged"),
+    "auth.password_reset": t("events.authPasswordReset"),
+    "auth.invitation_accepted": t("events.authInvitationAccepted"),
+    "user.created": t("events.userCreated"),
+    "user.updated": t("events.userUpdated"),
+    "user.invited": t("events.userInvited"),
+    "user.invitation_renewed": t("events.userInvitationRenewed"),
+    "user.password_reset_issued": t("events.userPasswordResetIssued"),
+    "user.sessions_revoked": t("events.userSessionsRevoked"),
+    "user.session_revoked": t("events.userSessionRevoked"),
+    "user.create": t("events.userCreate"),
+    "user.update": t("events.userUpdate"),
+    "user.enable": t("events.userEnable"),
+    "user.disable": t("events.userDisable"),
+    "user.invite": t("events.userInvite"),
+    "user.invitation_renew": t("events.userInvitationRenew"),
+    "user.password_reset_issue": t("events.userPasswordResetIssue"),
+    "user.sessions_revoke": t("events.userSessionsRevoke"),
+    "user.mfa_reset": t("events.userMfaReset"),
+    "mfa.setup_started": t("events.mfaSetupStarted"),
+    "mfa.enabled": t("events.mfaEnabled"),
+    "mfa.login_failed": t("events.mfaLoginFailed"),
+    "mfa.login_verified": t("events.mfaLoginVerified"),
+    "mfa.recovery_used": t("events.mfaRecoveryUsed"),
+    "mfa.recovery_regenerated": t("events.mfaRecoveryRegenerated"),
+    "mfa.reset": t("events.mfaReset"),
+    "account.create": t("events.accountCreate"),
+    "account.update": t("events.accountUpdate"),
+    "account.enable": t("events.accountEnable"),
+    "account.disable": t("events.accountDisable"),
+    "account.delete": t("events.accountDelete"),
+    "account.connection_test": t("events.accountConnectionTest"),
+    "account.schedule_update": t("events.accountScheduleUpdate"),
+    "policy.update": t("events.policyUpdate"),
+    "policy.reset": t("events.policyReset"),
+    "pricing.create": t("events.pricingCreate"),
+    "pricing.update": t("events.pricingUpdate"),
+    "pricing.override": t("events.pricingOverride"),
+    "pricing.deactivate": t("events.pricingDeactivate"),
+    "billing.profile_create": t("events.billingProfileCreate"),
+    "billing.profile_update": t("events.billingProfileUpdate"),
+    "tls.apply": t("events.tlsApply"),
+    "tls.mode_change": t("events.tlsModeChange"),
+    "opportunity.treat": t("events.opportunityTreat"),
+    "opportunity.reject": t("events.opportunityReject"),
+    "opportunity.reopen": t("events.opportunityReopen"),
+    "opportunity.archive": t("events.opportunityArchive"),
+    "opportunity.unarchive": t("events.opportunityUnarchive"),
+    "opportunity.bulk_treat": t("events.opportunityBulkTreat"),
+    "opportunity.bulk_reject": t("events.opportunityBulkReject"),
+    "opportunity.bulk_reopen": t("events.opportunityBulkReopen"),
+  };
+  const modules: Array<readonly [string, string]> = [["",t("all")],["users",t("modules.users")],["security",t("modules.security")],["auth",t("modules.auth")],["mfa","MFA"],["accounts",t("modules.accounts")],["policies",t("modules.policies")],["opportunities",t("modules.opportunities")],["pricing",t("modules.pricing")],["billing","Billing"],["tls","HTTPS"]];
   const initial = useMemo(() => {
     if (typeof window === "undefined") return new URLSearchParams();
     return new URLSearchParams(window.location.search);
@@ -321,7 +314,7 @@ export default function AuditPage() {
 
   const availableActions = Object.keys(actionModule)
     .filter((key) => !module || actionModule[key] === module)
-    .sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+    .sort((a, b) => actionLabel(a, localizedEvents).localeCompare(actionLabel(b, localizedEvents)));
 
   const query = useMemo(() => {
     const params = new URLSearchParams({
@@ -396,37 +389,36 @@ export default function AuditPage() {
   }
 
   const activeFilters = [
-    actorQuery && `Executado por: ${actorQuery}`,
-    subjectQuery && `Usuário afetado: ${subjectQuery}`,
-    module && `Módulo: ${modules.find(([value]) => value === module)?.[1] || module}`,
-    action && `Ação: ${actionLabel(action)}`,
-    source && `Origem: ${source}`,
-    eventKind !== "all" && `Tipo: ${eventKind === "security" ? "Segurança" : "Administrativo"}`,
-    fromIso && `Desde: ${formatDate(fromIso)}`,
-    toIso && `Até: ${formatDate(toIso)}`,
+    actorQuery && t("filterActor", {value:actorQuery}),
+    subjectQuery && t("filterSubject", {value:subjectQuery}),
+    module && t("filterModule", {value:modules.find(([value]) => value === module)?.[1] || module}),
+    action && t("filterAction", {value:actionLabel(action, localizedEvents)}),
+    source && t("filterSource", {value:source}),
+    eventKind !== "all" && t("filterKind", {value:eventKind === "security" ? t("security") : t("administrative")}),
+    fromIso && t("filterFrom", {value:formatDate(fromIso)}),
+    toIso && t("filterTo", {value:formatDate(toIso)}),
   ].filter(Boolean) as string[];
 
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES"
-        title="Auditoria"
-        description="Trilha cronológica de segurança e alterações administrativas persistentes."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <button className="button" disabled={busy} onClick={() => setRefresh((value) => value + 1)}>
-            Atualizar histórico
+            {t("refresh")}
           </button>
         }
       />
 
       <p className="settings-help">
-        O responsável é exibido pelo snapshot registrado no momento do evento. Senhas, tokens,
-        chaves privadas e outros segredos são removidos antes da persistência.
+        {t("help")}
       </p>
 
       <div className="settings-filters">
         <UserAutocomplete
-          label="Executado por"
+          label={t("actor")}
           query={actorQuery}
           selectedId={actorId}
           onChange={(value, id) => {
@@ -436,7 +428,7 @@ export default function AuditPage() {
           }}
         />
         <UserAutocomplete
-          label="Usuário afetado"
+          label={t("subject")}
           query={subjectQuery}
           selectedId={subjectId}
           onChange={(value, id) => {
@@ -446,7 +438,7 @@ export default function AuditPage() {
           }}
         />
         <label>
-          Módulo
+          {t("module")}
           <select
             value={module}
             onChange={(event) => {
@@ -462,33 +454,33 @@ export default function AuditPage() {
           </select>
         </label>
         <label>
-          Ação
+          {t("action")}
           <select value={action} onChange={(event) => { setAction(event.target.value); resetPagination(); }}>
-            <option value="">Todas</option>
+            <option value="">{t("allFeminine")}</option>
             {availableActions.map((value) => (
-              <option key={value} value={value}>{actionLabel(value)}</option>
+              <option key={value} value={value}>{actionLabel(value, localizedEvents)}</option>
             ))}
           </select>
         </label>
         <label>
-          Origem
+          {t("source")}
           <select value={source} onChange={(event) => { setSource(event.target.value); resetPagination(); }}>
-            <option value="">Todas</option>
+            <option value="">{t("allFeminine")}</option>
             <option value="UI">UI</option>
             <option value="API">API</option>
             <option value="SYSTEM">SYSTEM</option>
           </select>
         </label>
         <label>
-          Tipo de evento
+          {t("eventKind")}
           <select value={eventKind} onChange={(event) => { setEventKind(event.target.value); resetPagination(); }}>
-            <option value="all">Todos</option>
-            <option value="administrative">Administrativos</option>
-            <option value="security">Segurança</option>
+            <option value="all">{t("all")}</option>
+            <option value="administrative">{t("administrativePlural")}</option>
+            <option value="security">{t("security")}</option>
           </select>
         </label>
         <label>
-          Data inicial
+          {t("dateFrom")}
           <input
             type="date"
             value={fromIso ? fromIso.slice(0, 10) : ""}
@@ -496,7 +488,7 @@ export default function AuditPage() {
           />
         </label>
         <label>
-          Data final
+          {t("dateTo")}
           <input
             type="date"
             value={toIso ? toIso.slice(0, 10) : ""}
@@ -506,9 +498,9 @@ export default function AuditPage() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
-        <button className="button" onClick={() => applyPreset(24)}>Últimas 24h</button>
-        <button className="button" onClick={() => applyPreset(24 * 7)}>7 dias</button>
-        <button className="button" onClick={() => applyPreset(24 * 30)}>30 dias</button>
+        <button className="button" onClick={() => applyPreset(24)}>{t("last24h")}</button>
+        <button className="button" onClick={() => applyPreset(24 * 7)}>{t("last7d")}</button>
+        <button className="button" onClick={() => applyPreset(24 * 30)}>{t("last30d")}</button>
         <button
           className="button"
           onClick={() => {
@@ -520,13 +512,13 @@ export default function AuditPage() {
             resetPagination();
           }}
         >
-          Hoje
+          {t("today")}
         </button>
-        <button className="button" onClick={clearFilters}>Limpar filtros</button>
+        <button className="button" onClick={clearFilters}>{t("clear")}</button>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        <strong>{data.total} eventos encontrados</strong>
+        <strong>{t("totalEvents", {count:data.total})}</strong>
         {activeFilters.map((filter) => (
           <span
             key={filter}
@@ -544,31 +536,31 @@ export default function AuditPage() {
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <div className="data-table-wrap">
-        <table className="data-table" aria-label="Eventos de auditoria">
+        <table className="data-table" aria-label={t("tableAria")}>
           <thead>
             <tr>
-              <th scope="col">Data/hora</th>
-              <th scope="col">Evento</th>
-              <th scope="col">Responsável</th>
-              <th scope="col">Objeto afetado</th>
-              <th scope="col">Alterações</th>
-              <th scope="col">Origem</th>
+              <th scope="col">{t("dateTime")}</th>
+              <th scope="col">{t("event")}</th>
+              <th scope="col">{t("responsible")}</th>
+              <th scope="col">{t("entity")}</th>
+              <th scope="col">{t("changes")}</th>
+              <th scope="col">{t("source")}</th>
             </tr>
           </thead>
           <tbody>
             {busy ? (
-              <tr><td colSpan={6}>Carregando histórico…</td></tr>
+              <tr><td colSpan={6}>{t("loading")}</td></tr>
             ) : data.items.length === 0 ? (
-              <tr><td colSpan={6}>Nenhum evento encontrado para os filtros atuais.</td></tr>
+              <tr><td colSpan={6}>{t("empty")}</td></tr>
             ) : (
               data.items.map((item) => {
-                const actor = actorLabel(item);
+                const actor = actorLabel(item, words);
                 return (
                   <tr key={`${item.event_kind}:${item.id}`}>
                     <td><span>{formatDate(item.created_at)}</span></td>
                     <td>
-                      <strong>{actionLabel(item.action)}</strong>
-                      <span>{item.module} · {item.event_kind === "administrative" ? "Administrativo" : "Segurança"}</span>
+                      <strong>{actionLabel(item.action, localizedEvents)}</strong>
+                      <span>{modules.find(([key]) => key === item.module)?.[1] || item.module} · {item.event_kind === "administrative" ? t("administrative") : t("security")}</span>
                     </td>
                     <td>
                       <strong>{actor.name}</strong>
@@ -579,8 +571,8 @@ export default function AuditPage() {
                       <span>{item.entity.type}{item.entity.id ? ` · ${item.entity.id}` : ""}</span>
                     </td>
                     <td>
-                      <span>{changeSummary(item)}</span>
-                      <button className="button" onClick={() => setSelected(item)}>Ver detalhes</button>
+                      <span>{changeSummary(item, words)}</span>
+                      <button className="button" onClick={() => setSelected(item)}>{t("details")}</button>
                     </td>
                     <td><strong>{item.source}</strong></td>
                   </tr>
@@ -593,11 +585,11 @@ export default function AuditPage() {
 
       <div className="settings-pagination">
         <button className="button" disabled={busy || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-          Anterior
+          {t("previous")}
         </button>
-        <span>{data.total} eventos · Página {Math.floor(offset / PAGE_SIZE) + 1}</span>
+        <span>{t("pagination", {count:data.total, page:Math.floor(offset / PAGE_SIZE) + 1})}</span>
         <button className="button" disabled={busy || offset + PAGE_SIZE >= data.total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-          Próxima
+          {t("next")}
         </button>
       </div>
 
@@ -605,7 +597,7 @@ export default function AuditPage() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Detalhes do evento de auditoria"
+          aria-label={t("detailsAria")}
           style={{ position: "fixed", inset: 0, zIndex: 100, background: "var(--overlay)", display: "flex", justifyContent: "flex-end" }}
           onClick={() => setSelected(null)}
         >
@@ -615,50 +607,50 @@ export default function AuditPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "flex-start" }}>
               <div>
-                <span>DETALHE DO EVENTO</span>
-                <h2>{actionLabel(selected.action)}</h2>
+                <span>{t("detailsHeading")}</span>
+                <h2>{actionLabel(selected.action, localizedEvents)}</h2>
               </div>
-              <button className="button" onClick={() => setSelected(null)}>Fechar</button>
+              <button className="button" onClick={() => setSelected(null)}>{t("close")}</button>
             </div>
             <dl>
-              <dt>Data</dt><dd>{formatDate(selected.created_at)}</dd>
-              <dt>Responsável</dt><dd>{actorLabel(selected).name}</dd>
-              <dt>E-mail do responsável</dt><dd>{selected.actor.email || "—"}</dd>
-              <dt>Módulo</dt><dd>{selected.module}</dd>
-              <dt>Origem</dt><dd>{selected.source}</dd>
-              <dt>Objeto afetado</dt><dd>{selected.entity.label || "—"}</dd>
-              <dt>ID da entidade</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.entity.id || "—"}</dd>
+              <dt>{t("date")}</dt><dd>{formatDate(selected.created_at)}</dd>
+              <dt>{t("responsible")}</dt><dd>{actorLabel(selected, words).name}</dd>
+              <dt>{t("responsibleEmail")}</dt><dd>{selected.actor.email || "—"}</dd>
+              <dt>{t("module")}</dt><dd>{modules.find(([key]) => key === selected.module)?.[1] || selected.module}</dd>
+              <dt>{t("source")}</dt><dd>{selected.source}</dd>
+              <dt>{t("entity")}</dt><dd>{selected.entity.label || "—"}</dd>
+              <dt>{t("entityId")}</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.entity.id || "—"}</dd>
               <dt>Correlation ID</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.correlation_id || "—"}</dd>
             </dl>
 
-            <h3>Alterações</h3>
+            <h3>{t("changes")}</h3>
             {changeEntries(selected).length ? (
               <div className="data-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Campo</th><th>Antes</th><th>Depois</th></tr></thead>
+                  <thead><tr><th>{t("field")}</th><th>{t("before")}</th><th>{t("after")}</th></tr></thead>
                   <tbody>
                     {changeEntries(selected).map(([field, change]) => (
                       <tr key={field}>
                         <td><strong>{fieldLabel(field)}</strong></td>
-                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.from)}</td>
-                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.to)}</td>
+                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.from, words)}</td>
+                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.to, words)}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
               </div>
             ) : (
-              <p>{selected.reason || "Este evento é semântico e não possui diff de campos."}</p>
+              <p>{selected.reason || t("noDiff")}</p>
             )}
 
             {Object.keys(selected.metadata || {}).length > 0 && (
               <>
-                <h3>Contexto seguro</h3>
+                <h3>{t("safeContext")}</h3>
                 <div className="data-table-wrap">
                   <table className="data-table">
                     <tbody>
                       {Object.entries(selected.metadata).map(([key, value]) => (
-                        <tr key={key}><th>{fieldLabel(key)}</th><td style={{ overflowWrap: "anywhere" }}>{changeValue(value)}</td></tr>
+                        <tr key={key}><th>{fieldLabel(key)}</th><td style={{ overflowWrap: "anywhere" }}>{changeValue(value, words)}</td></tr>
                       ))}
                     </tbody>
                   </table>

@@ -22,7 +22,7 @@ test("Settings layout preserves route navigation through the official Aven Tabs 
   for (const primitive of ["Tabs", "TabsList", "TabsTrigger", "TabsContent"]) {
     assert.ok(layout.includes(primitive), `expected ${primitive} in Settings layout`);
   }
-  assert.ok(layout.includes('aria-label="Áreas de Configurações"'));
+  assert.ok(layout.includes('aria-label={t("navigation.ariaLabel")}'));
   assert.ok(layout.includes("settingsTabsForRole"));
   assert.ok(layout.includes("isSettingsTabActive"));
   assert.ok(layout.includes("router.push(href)"));
@@ -55,9 +55,9 @@ test("HTTPS settings preserves its functional TLS contracts under the tokenized 
   assert.ok(page.includes('api<TlsStatus>("/tls/apply"'));
   assert.ok(page.includes("server_certificate:"));
   assert.ok(page.includes("intermediate_chain:"));
-  assert.ok(page.includes("Certificado do servidor (PEM)"));
-  assert.ok(page.includes("Cadeia intermediária / CA Bundle (PEM)"));
-  assert.ok(page.includes("TLS local válido"));
+  assert.ok(page.includes('t("serverCertificate")'));
+  assert.ok(page.includes('t("intermediateChain")'));
+  assert.ok(page.includes('t("localValid")'));
   assert.ok(page.includes("Validação do endpoint"));
   assert.ok(page.includes("A:"));
   assert.ok(page.includes("AAAA:"));
@@ -83,7 +83,7 @@ test("Billing Profiles uses official Aven table/status primitives while preservi
     assert.ok(page.includes(primitive), `expected ${primitive} in Billing Profiles`);
   }
 
-  assert.ok(page.includes('aria-label="Perfis de Billing disponíveis"'));
+  assert.ok(page.includes('aria-label={t("tableLabel")}'));
   assert.equal((page.match(/<TableHead>/g) ?? []).length, 5);
   assert.equal(page.includes("<colgroup>"), false);
   assert.equal(page.includes('className="billing-profiles-page"'), false);

@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Building2,
   Check,
@@ -53,23 +54,24 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function scopeSummary(account: CloudAccount) {
+function scopeSummary(account: CloudAccount, labels: { noRegions: string; unavailable: string; root: string; count: (count: number) => string; subcompartments: string; empty: string }) {
   if (account.aws_configuration) {
     return account.aws_configuration.regions.length
       ? account.aws_configuration.regions.join(", ")
-      : "Nenhuma região";
+      : labels.noRegions;
   }
   const oci = account.oci_configuration;
-  if (!oci) return "Integração não disponível";
+  if (!oci) return labels.unavailable;
   const parts: string[] = [];
   if (oci.scope_regions.length) parts.push(oci.scope_regions.join(", "));
-  if (oci.include_root_compartment) parts.push("tenancy root");
-  if (oci.compartment_ocids.length) parts.push(oci.compartment_ocids.length + " compartment(s)");
-  if (oci.include_subcompartments) parts.push("inclui subcompartments");
-  return parts.length ? parts.join(" · ") : "Escopo vazio";
+  if (oci.include_root_compartment) parts.push(labels.root);
+  if (oci.compartment_ocids.length) parts.push(labels.count(oci.compartment_ocids.length));
+  if (oci.include_subcompartments) parts.push(labels.subcompartments);
+  return parts.length ? parts.join(" · ") : labels.empty;
 }
 
 export default function AccountsPage() {
+  const t = useTranslations("settings.accounts");
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
   const [role, setRole] = useState("");
@@ -128,7 +130,7 @@ export default function AccountsPage() {
       setLoadError("");
       return true;
     } catch (err) {
-      const message = errorMessage(err, "Falha ao carregar contas");
+      const message = errorMessage(err, t("errorLoad"));
       setLoadError(message);
       setError(message);
       return false;
@@ -151,7 +153,7 @@ export default function AccountsPage() {
       })
       .catch((err) => {
         if (!active) return;
-        const message = errorMessage(err, "Falha ao carregar contas");
+        const message = errorMessage(err, t("errorLoad"));
         setError(message);
         setLoadError(message);
       })
@@ -181,7 +183,7 @@ export default function AccountsPage() {
   }
 
   function closeEditor() {
-    if (dirty && !window.confirm("Descartar as alterações não salvas?")) return;
+    if (dirty && !window.confirm(t("discard"))) return;
     resetEditor();
     setError("");
   }
@@ -206,7 +208,7 @@ export default function AccountsPage() {
         ? { ...current, aws: { ...current.aws, external_id: generated.external_id } }
         : current);
     } catch (err) {
-      setError(errorMessage(err, "Falha ao gerar External ID"));
+      setError(errorMessage(err, t("errorExternal")));
     } finally {
       setExternalIdBusy(false);
     }
@@ -214,7 +216,7 @@ export default function AccountsPage() {
 
   async function chooseProvider(provider: string) {
     if (provider !== "aws" && provider !== "oci") {
-      setError("Cadastro ainda não implementado para " + providerLabel(provider) + ".");
+      setError(t("notImplemented", {provider: providerLabel(provider)}));
       return;
     }
     const next = createEmptyAccountForm(provider);
@@ -228,7 +230,7 @@ export default function AccountsPage() {
 
   async function openEdit(account: CloudAccount) {
     if (!canManageAccounts) return;
-    if (dirty && !window.confirm("Descartar as alterações não salvas e editar outra conta?")) return;
+    if (dirty && !window.confirm(t("discardEdit"))) return;
     setFormBusy(true);
     setError("");
     setMessage("");
@@ -240,7 +242,7 @@ export default function AccountsPage() {
       setFieldErrors({});
       setMode("edit");
     } catch (err) {
-      setError(errorMessage(err, "Falha ao carregar a conta"));
+      setError(errorMessage(err, t("errorAccount")));
     } finally {
       setFormBusy(false);
     }
@@ -253,9 +255,9 @@ export default function AccountsPage() {
     if (file.size > 65536) {
       setFieldErrors((current) => ({
         ...current,
-        private_key_pem: "A chave privada excede o limite de 64 KiB aceito pelo backend.",
+        private_key_pem: t("largeKey"),
       }));
-      setError("A chave privada excede o limite de 64 KiB aceito pelo backend.");
+      setError(t("largeKey"));
       return;
     }
     const pem = await file.text();
@@ -290,10 +292,26 @@ export default function AccountsPage() {
     const validation = validateAccountForm(form, {
       mode: mode === "edit" ? "edit" : "create",
       replaceCredentials,
+      messages: {
+        name: t("validation.name"),
+        provider: t("validation.provider"),
+        interval: t("validation.interval"),
+        awsId: t("validation.awsId"),
+        roleArn: t("validation.roleArn"),
+        roleAccount: t("validation.roleAccount"),
+        externalId: t("validation.externalId"),
+        regions: t("validation.regions"),
+        tenancy: t("validation.tenancy"),
+        userOcid: t("validation.userOcid"),
+        connectionRegion: t("validation.connectionRegion"),
+        compartment: t("validation.compartment"),
+        fingerprint: t("validation.fingerprint"),
+        pem: t("validation.pem"),
+      },
     });
     setFieldErrors(validation);
     if (Object.keys(validation).length) {
-      setError("Confira os campos destacados antes de salvar.");
+      setError(t("checkFields"));
       return;
     }
     setFormBusy(true);
@@ -309,13 +327,13 @@ export default function AccountsPage() {
         resetEditor();
         setMessage(
           created.provider === "oci"
-            ? "Conta OCI cadastrada. A credencial foi armazenada; execute o teste de conexão antes de considerar o acesso validado."
-            : "Conta AWS cadastrada. Agora valide a conexão.",
+            ? t("createdOci")
+            : t("createdAws"),
         );
       } else if (mode === "edit" && editingAccount) {
         const payload = buildUpdateAccountPayload(editingAccount, form, { replaceCredentials });
         if (!Object.keys(payload).length) {
-          setMessage("Nenhuma alteração para salvar.");
+          setMessage(t("noChanges"));
           setFormBusy(false);
           return;
         }
@@ -326,10 +344,10 @@ export default function AccountsPage() {
         resetEditor();
         setMessage(
           replaceCredentials
-            ? "Credencial OCI substituída e validada antes da ativação."
+            ? t("credentialsReplaced")
             : saved.connection_status === "untested"
-              ? "Alterações salvas. A configuração precisa ser testada novamente."
-              : "Alterações salvas.",
+              ? t("savedRetest")
+              : t("saved"),
         );
       }
       invalidateApiQueries(queryKeys.dashboard.all);
@@ -337,7 +355,7 @@ export default function AccountsPage() {
       invalidateApiQueries(queryKeys.collections.all);
       await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Falha ao salvar a conta"));
+      setError(errorMessage(err, t("errorSave")));
     } finally {
       setFormBusy(false);
     }
@@ -346,7 +364,7 @@ export default function AccountsPage() {
   async function testConnection(account: CloudAccount) {
     if (!canManageAccounts) return;
     if (mode === "edit" && editingAccount?.id === account.id && dirty) {
-      setError("Salve ou descarte as alterações desta conta antes de testar. O teste usa a configuração persistida.");
+      setError(t("saveBeforeTest"));
       return;
     }
     setAccountBusy(account.id, "test");
@@ -359,15 +377,15 @@ export default function AccountsPage() {
       );
       if (!result.ok) {
         const suffix = result.error_code ? " (" + result.error_code + ")" : "";
-        throw new Error((result.error || "A conexão não pôde ser validada") + suffix);
+        throw new Error((result.error || t("connectionInvalid")) + suffix);
       }
       const checks = result.verified_checks?.length
-        ? " Verificações: " + result.verified_checks.join(", ") + "."
+        ? t("verifiedChecks", {checks: result.verified_checks.join(", ")})
         : "";
-      setMessage("Conexão com " + account.name + " validada." + checks);
+      setMessage(t("connectionValidated", {name:account.name}) + checks);
       await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Falha no teste de conexão"));
+      setError(errorMessage(err, t("errorConnection")));
       await loadAccounts();
     } finally {
       setAccountBusy(account.id, null);
@@ -378,7 +396,7 @@ export default function AccountsPage() {
     if (!canAnalyze) return;
     const capability = capabilityByProvider.get(account.provider);
     if (!capability?.manual_collection) {
-      setError("Coleta ainda não implementada para " + providerLabel(account.provider) + ".");
+      setError(t("notCollectable", {provider:providerLabel(account.provider)}));
       return;
     }
     setAccountBusy(account.id, "scan");
@@ -390,9 +408,9 @@ export default function AccountsPage() {
       });
       invalidateApiQueries(queryKeys.dashboard.all);
       invalidateApiQueries(queryKeys.collections.all);
-      setMessage("Análise de " + account.name + " adicionada à fila.");
+      setMessage(t("queued", {name:account.name}));
     } catch (err) {
-      setError(errorMessage(err, "Falha ao iniciar análise"));
+      setError(errorMessage(err, t("errorScan")));
     } finally {
       setAccountBusy(account.id, null);
     }
@@ -401,27 +419,25 @@ export default function AccountsPage() {
   async function copyText(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage(label + " copiado.");
+      setMessage(t("copied", {label}));
       setError("");
     } catch {
-      setError("Não foi possível copiar para a área de transferência.");
+      setError(t("copyFailed"));
     }
   }
 
-  const editorTitle = mode === "create"
-    ? "Adicionar conta"
-    : "Editar " + (editingAccount?.name || "conta");
+  const editorTitle = mode === "create" ? t("add") : t("accountEdited", {name: editingAccount?.name || t("accountGeneric")});
   const formCapability = form.provider ? capabilityByProvider.get(form.provider) : undefined;
 
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES · CONTAS"
-        title="Contas"
-        description="Cadastre e mantenha contas AWS e OCI em uma única área, incluindo conexão, coleta manual e recorrência conforme as capacidades de cada provider."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={canManageAccounts ? (
           <button className="button primary" onClick={openCreate} disabled={mode !== "closed"}>
-            <Plus size={17} /> Adicionar conta
+            <Plus size={17} /> {t("add")}
           </button>
         ) : undefined}
       />
@@ -435,10 +451,10 @@ export default function AccountsPage() {
         <section className="panel account-form-panel" aria-labelledby="account-editor-title">
           <div className="panel-heading">
             <div>
-              <span className="eyebrow">{mode === "create" ? "NOVA CONEXÃO" : "MANUTENÇÃO"}</span>
+              <span className="eyebrow">{mode === "create" ? t("newConnection") : t("maintenance")}</span>
               <h2 id="account-editor-title">{editorTitle}</h2>
             </div>
-            <button className="icon-button" type="button" aria-label="Fechar formulário" onClick={closeEditor}>
+            <button className="icon-button" type="button" aria-label={t("closedForm")} onClick={closeEditor}>
               <X size={18} />
             </button>
           </div>
@@ -446,8 +462,8 @@ export default function AccountsPage() {
           <form className="form-grid account-unified-form" onSubmit={submitForm}>
             {mode === "create" && (
               <fieldset className="span-2 account-provider-fieldset">
-                <legend>Cloud</legend>
-                <div className="segmented account-provider-choice" aria-label="Escolha o provider">
+                <legend>{t("cloud")}</legend>
+                <div className="segmented account-provider-choice" aria-label={t("chooseProvider")}>
                   {availableProviders.map((provider) => (
                     <button
                       key={provider.provider}
@@ -460,7 +476,7 @@ export default function AccountsPage() {
                     </button>
                   ))}
                 </div>
-                <small>Os campos e credenciais são isolados por provider. Selecionar OCI não dispara chamadas AWS.</small>
+                <small>{t("providerNote")}</small>
                 {fieldErrors.provider && <span className="field-error">{fieldErrors.provider}</span>}
               </fieldset>
             )}
@@ -468,11 +484,11 @@ export default function AccountsPage() {
             {form.provider && (
               <>
                 <label>
-                  Nome da conta
+                  {t("accountName")}
                   <input
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="Produção"
+                    placeholder={t("production")}
                     required
                     disabled={formBusy}
                   />
@@ -496,7 +512,7 @@ export default function AccountsPage() {
                   />
                   {fieldErrors.native_account_id && <span className="field-error">{fieldErrors.native_account_id}</span>}
                   {mode === "edit" && (
-                    <small>Provider e identidade não podem ser alterados. Cadastre outra conta para mudar essa identidade.</small>
+                    <small>{t("identityNote")}</small>
                   )}
                 </label>
 
@@ -507,7 +523,7 @@ export default function AccountsPage() {
                     onChange={(e) => setForm({ ...form, enabled: e.target.checked })}
                     disabled={formBusy}
                   />
-                  Conta habilitada
+                  {t("enabled")}
                 </label>
                 <div />
 
@@ -541,8 +557,8 @@ export default function AccountsPage() {
                         />
                         <button
                           type="button"
-                          title="Copiar External ID"
-                          aria-label="Copiar External ID"
+                          title={t("copyExternal")}
+                          aria-label={t("copyExternal")}
                           onClick={() => void copyText(form.aws.external_id, "External ID")}
                           disabled={formBusy}
                         >
@@ -551,9 +567,7 @@ export default function AccountsPage() {
                       </div>
                       {fieldErrors.external_id && <span className="field-error">{fieldErrors.external_id}</span>}
                       <small>
-                        {mode === "create"
-                          ? "Gerado somente depois que AWS é selecionado."
-                          : "Abrir ou salvar a edição não gera um novo External ID."}
+                        {mode === "create" ? t("newExternal") : t("existingExternal")}
                       </small>
                     </label>
                     {mode === "create" && (
@@ -565,12 +579,12 @@ export default function AccountsPage() {
                           disabled={externalIdBusy || formBusy}
                         >
                           <RefreshCw size={15} className={externalIdBusy ? "spin" : ""} />
-                          {externalIdBusy ? "Gerando…" : "Gerar novo External ID"}
+                          {externalIdBusy ? t("generating") : t("generateExternal")}
                         </button>
                       </div>
                     )}
                     <label>
-                      Regiões
+                      {t("regions")}
                       <input
                         value={form.aws.regions}
                         onChange={(e) => setForm({
@@ -582,7 +596,7 @@ export default function AccountsPage() {
                         disabled={formBusy}
                       />
                       {fieldErrors.regions && <span className="field-error">{fieldErrors.regions}</span>}
-                      <small>Separadas por vírgula.</small>
+                      <small>{t("commaSeparated")}</small>
                     </label>
                     <label className="check-label">
                       <input
@@ -594,10 +608,10 @@ export default function AccountsPage() {
                         })}
                         disabled={formBusy}
                       />
-                      Conta management/payer
+                      {t("payer")}
                     </label>
                     <p className="span-2 account-form-note">
-                      Alterações de Role ARN ou External ID invalidam a validação anterior. Habilitar a conta não ativa o agendamento automaticamente.
+                      {t("roleWarning")}
                     </p>
                   </>
                 )}
@@ -619,7 +633,7 @@ export default function AccountsPage() {
                       {fieldErrors.user_ocid && <span className="field-error">{fieldErrors.user_ocid}</span>}
                     </label>
                     <label>
-                      Região de conexão
+                      {t("connectionRegion")}
                       <input
                         value={form.oci.region}
                         onChange={(e) => setForm({
@@ -631,10 +645,10 @@ export default function AccountsPage() {
                         disabled={formBusy}
                       />
                       {fieldErrors.region && <span className="field-error">{fieldErrors.region}</span>}
-                      <small>Região usada pelo SDK para autenticação e chamadas de Identity.</small>
+                      <small>{t("regionNote")}</small>
                     </label>
                     <label>
-                      Regiões do escopo
+                      {t("scopeRegions")}
                       <input
                         value={form.oci.scope_regions}
                         onChange={(e) => setForm({
@@ -644,10 +658,10 @@ export default function AccountsPage() {
                         placeholder="sa-saopaulo-1, us-ashburn-1"
                         disabled={formBusy}
                       />
-                      <small>Escopo pretendido para a coleta. Vazio não significa todas as regiões.</small>
+                      <small>{t("scopeNote")}</small>
                     </label>
                     <label className="span-2">
-                      Compartments
+                      {t("compartments")}
                       <textarea
                         value={form.oci.compartment_ocids}
                         onChange={(e) => setForm({
@@ -659,7 +673,7 @@ export default function AccountsPage() {
                         disabled={formBusy}
                       />
                       {fieldErrors.compartment_ocids && <span className="field-error">{fieldErrors.compartment_ocids}</span>}
-                      <small>Informe OCIDs separados por vírgula.</small>
+                      <small>{t("ocidsNote")}</small>
                     </label>
                     <label className="check-label">
                       <input
@@ -671,7 +685,7 @@ export default function AccountsPage() {
                         })}
                         disabled={formBusy}
                       />
-                      Incluir tenancy root
+                      {t("rootCompartment")}
                     </label>
                     <label className="check-label">
                       <input
@@ -683,7 +697,7 @@ export default function AccountsPage() {
                         })}
                         disabled={formBusy}
                       />
-                      Incluir subcompartments
+                      {t("subcompartments")}
                     </label>
 
                     {mode === "create" ? (
@@ -703,7 +717,7 @@ export default function AccountsPage() {
                           {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                         </label>
                         <label>
-                          Senha da chave
+                          {t("passphrase")}
                           <input
                             type="password"
                             autoComplete="new-password"
@@ -712,7 +726,7 @@ export default function AccountsPage() {
                               ...form,
                               oci: { ...form.oci, private_key_password: e.target.value },
                             })}
-                            placeholder="Opcional"
+                            placeholder={t("optional")}
                             disabled={formBusy}
                           />
                         </label>
@@ -731,12 +745,10 @@ export default function AccountsPage() {
                             <FileKey2 size={18} />
                             <div>
                               <strong>
-                                {editingAccount?.oci_configuration?.credentials_configured
-                                  ? "Credencial OCI configurada"
-                                  : "Credencial OCI não configurada"}
+                                {editingAccount?.oci_configuration?.credentials_configured ? t("credentialsConfigured") : t("credentialsMissing")}
                               </strong>
                               <span>
-                                A chave privada e sua senha nunca são carregadas de volta para o navegador.
+                                {t("credentialsWarning")}
                               </span>
                             </div>
                           </div>
@@ -753,24 +765,24 @@ export default function AccountsPage() {
                                 }));
                               }}
                             >
-                              Substituir credencial
+                              {t("replaceCredentials")}
                             </button>
                           ) : (
                             <button type="button" className="button ghost" onClick={cancelCredentialReplacement} disabled={formBusy}>
-                              Cancelar substituição
+                              {t("cancelReplacement")}
                             </button>
                           )}
                         </div>
                         {!replaceCredentials && (
                           <label className="span-2">
-                            Fingerprint atual
+                            {t("currentFingerprint")}
                             <input value={form.oci.fingerprint} readOnly />
                           </label>
                         )}
                         {replaceCredentials && (
                           <>
                             <label>
-                              Novo fingerprint
+                              {t("newFingerprint")}
                               <input
                                 value={form.oci.fingerprint}
                                 onChange={(e) => setForm({
@@ -784,7 +796,7 @@ export default function AccountsPage() {
                               {fieldErrors.fingerprint && <span className="field-error">{fieldErrors.fingerprint}</span>}
                             </label>
                             <label>
-                              Senha da nova chave
+                              {t("newPassphrase")}
                               <input
                                 type="password"
                                 autoComplete="new-password"
@@ -793,7 +805,7 @@ export default function AccountsPage() {
                                   ...form,
                                   oci: { ...form.oci, private_key_password: e.target.value },
                                 })}
-                                placeholder="Opcional"
+                                placeholder={t("optional")}
                                 disabled={formBusy}
                               />
                             </label>
@@ -805,7 +817,7 @@ export default function AccountsPage() {
                               disabled={formBusy}
                             />
                             <p className="span-2 account-form-note">
-                              A nova credencial é validada remotamente antes da troca atômica. Se a validação falhar, a credencial anterior permanece ativa.
+                              {t("replacementNote")}
                             </p>
                           </>
                         )}
@@ -813,7 +825,7 @@ export default function AccountsPage() {
                     )}
                     {!formCapability?.manual_collection && (
                       <p className="span-2 account-form-note">
-                        A conexão está disponível, mas a coleta manual ainda não é suportada para este provider.
+                        {t("manualUnavailable")}
                       </p>
                     )}
                   </>
@@ -839,10 +851,10 @@ export default function AccountsPage() {
 
                 <div className="form-actions span-2">
                   <button type="button" className="button ghost" onClick={closeEditor} disabled={formBusy}>
-                    Cancelar
+                    {t("cancel")}
                   </button>
                   <button className="button primary" disabled={formBusy || !form.provider}>
-                    {formBusy ? "Salvando…" : mode === "create" ? "Cadastrar conta" : "Salvar alterações"}
+                    {formBusy ? t("saving") : mode === "create" ? t("create") : t("save")}
                   </button>
                 </div>
               </>
@@ -858,14 +870,14 @@ export default function AccountsPage() {
             <input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar por nome ou identificador"
-              aria-label="Buscar contas"
+              placeholder={t("search")}
+              aria-label={t("search")}
             />
           </label>
           <label className="select-field">
-            Cloud
-            <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label="Filtrar por cloud">
-              <option value="all">Todas</option>
+            {t("cloud")}
+            <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label={t("cloud")}>
+              <option value="all">{t("all")}</option>
               {availableProviders.map((provider) => (
                 <option key={provider.provider} value={provider.provider}>{provider.label}</option>
               ))}
@@ -876,43 +888,43 @@ export default function AccountsPage() {
         {loading ? (
           <div className="empty-state account-list-state">
             <RefreshCw size={24} className="spin" />
-            <strong>Carregando contas</strong>
-            <p>Consultando o cadastro unificado.</p>
+            <strong>{t("loading")}</strong>
+            <p>{t("registry")}</p>
           </div>
         ) : loadError && accounts.length === 0 ? (
           <div className="empty-state account-list-state">
             <X size={24} />
-            <strong>Não foi possível carregar as contas</strong>
+            <strong>{t("loadingError")}</strong>
             <p>{loadError}</p>
             <button className="button ghost" onClick={() => void loadAccounts()}>
-              <RefreshCw size={16} /> Tentar novamente
+              <RefreshCw size={16} /> {t("retry")}
             </button>
           </div>
         ) : accounts.length === 0 ? (
           <div className="empty-state account-list-state">
             <Building2 size={24} />
-            <strong>Nenhuma conta cadastrada</strong>
-            <p>{canManageAccounts ? "Adicione uma conta AWS ou OCI para começar." : "O cadastro é realizado por administradores."}</p>
-            {canManageAccounts && <button className="button primary" onClick={openCreate}><Plus size={16} /> Adicionar conta</button>}
+            <strong>{t("empty")}</strong>
+            <p>{canManageAccounts ? t("emptyAdmin") : t("emptyViewer")}</p>
+            {canManageAccounts && <button className="button primary" onClick={openCreate}><Plus size={16} /> {t("add")}</button>}
           </div>
         ) : filteredAccounts.length === 0 ? (
           <div className="empty-state account-list-state">
             <Search size={24} />
-            <strong>Nenhum resultado</strong>
-            <p>Ajuste a busca ou o filtro de cloud.</p>
+            <strong>{t("noResults")}</strong>
+            <p>{t("searchHelp")}</p>
           </div>
         ) : (
           <div className="data-table-wrap">
             <table className="data-table settings-table accounts-table">
               <thead>
                 <tr>
-                  <th>Conta</th>
-                  <th>Cloud / Identificador</th>
-                  <th>Estado</th>
-                  <th>Escopo</th>
-                  <th>Último teste</th>
-                  <th>Agendamento</th>
-                  <th>Ações</th>
+                  <th>{t("account")}</th>
+                  <th>{t("id")}</th>
+                  <th>{t("state")}</th>
+                  <th>{t("scope")}</th>
+                  <th>{t("lastTest")}</th>
+                  <th>{t("scheduling")}</th>
+                  <th>{t("actions")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -923,7 +935,7 @@ export default function AccountsPage() {
                     <tr key={account.id}>
                       <td>
                         <strong>{account.name}</strong>
-                        <span>{account.enabled ? "Habilitada" : "Desabilitada"}</span>
+                        <span>{account.enabled ? t("enabledStatus") : t("disabledStatus")}</span>
                       </td>
                       <td>
                         <strong>{providerLabel(account.provider)}</strong>
@@ -932,8 +944,8 @@ export default function AccountsPage() {
                           <button
                             type="button"
                             className="icon-button compact"
-                            title="Copiar identificador"
-                            aria-label={"Copiar identificador de " + account.name}
+                            title={t("copyId")}
+                            aria-label={t("copyIdFor", {account:account.name})}
                             onClick={() => void copyText(account.native_account_id, "Identificador")}
                           >
                             <Copy size={14} />
@@ -945,17 +957,17 @@ export default function AccountsPage() {
                         {account.last_error && <span className="account-table-error" title={account.last_error}>{account.last_error}</span>}
                       </td>
                       <td>
-                        <span title={scopeSummary(account)}>{scopeSummary(account)}</span>
+                        <span title={scopeSummary(account, {noRegions:t("scopeNoRegions"), unavailable:t("scopeUnavailable"), root:t("scopeRoot"), count:(count)=>t("scopeCompartments", {count}), subcompartments:t("scopeSubcompartments"), empty:t("scopeEmpty")})}>{scopeSummary(account, {noRegions:t("scopeNoRegions"), unavailable:t("scopeUnavailable"), root:t("scopeRoot"), count:(count)=>t("scopeCompartments", {count}), subcompartments:t("scopeSubcompartments"), empty:t("scopeEmpty")})}</span>
                         {capability && !capability.manual_collection && (
                           <small className="account-capability-note">
                             {account.connection_status === "connected"
-                              ? `Conexão validada. Coleta ${capability.label} ainda não disponível.`
-                              : `Coleta ${capability.label} ainda não disponível.`}
+                              ? t("connectedCollection", {provider:capability.label})
+                              : t("disabledCollection", {provider:capability.label})}
                           </small>
                         )}
                       </td>
                       <td>{formatDate(account.last_connection_test_at)}</td>
-                      <td>{scheduleSummary(account, capability)}</td>
+                      <td>{!capability?.scheduling ? t("scheduleUnsupported") : !account.schedule_enabled ? t("scheduleDisabled") : account.scan_interval_hours === 12 ? t("schedule12") : account.scan_interval_hours === 24 ? t("schedule24") : account.scan_interval_hours === 168 ? t("schedule168") : scheduleSummary(account, capability)}</td>
                       <td>
                         <div className="settings-row-actions account-row-actions">
                           {canManageAccounts && (
@@ -964,7 +976,7 @@ export default function AccountsPage() {
                               onClick={() => void openEdit(account)}
                               disabled={Boolean(busy) || formBusy}
                             >
-                              <Edit3 size={15} /> Editar
+                              <Edit3 size={15} /> {t("edit")}
                             </button>
                           )}
                           {canManageAccounts && capability?.connection_test && (
@@ -974,7 +986,7 @@ export default function AccountsPage() {
                               disabled={Boolean(busy)}
                             >
                               <RefreshCw size={15} className={busy === "test" ? "spin" : ""} />
-                              Testar
+                              {t("test")}
                             </button>
                           )}
                           {canAnalyze && capability?.manual_collection && (
@@ -987,7 +999,7 @@ export default function AccountsPage() {
                                 || account.connection_status !== "connected"
                               }
                             >
-                              <Play size={15} /> Analisar
+                              <Play size={15} /> {t("analyze")}
                             </button>
                           )}
                         </div>
@@ -1017,20 +1029,21 @@ function OciPrivateKeyFields({
   error?: string;
   disabled?: boolean;
 }) {
+  const t = useTranslations("settings.accounts");
   return (
     <>
       <label className="span-2">
-        Arquivo da chave privada PEM
+        {t("pemFile")}
         <input
           type="file"
           accept=".pem,.key,text/plain,application/x-pem-file"
           onChange={(event) => void readPemFile(event)}
           disabled={disabled}
         />
-        <small>O arquivo é lido apenas para este envio e limitado a 64 KiB.</small>
+        <small>{t("pemNote")}</small>
       </label>
       <label className="span-2">
-        Chave privada PEM
+        {t("pemKey")}
         <textarea
           value={form.oci.private_key_pem}
           onChange={(e) => setForm({
@@ -1045,7 +1058,7 @@ function OciPrivateKeyFields({
           disabled={disabled}
         />
         {error && <span className="field-error">{error}</span>}
-        <small>Alternativa ao arquivo: cole o PEM. O formulário não persiste segredos em storage do navegador.</small>
+        <small>{t("pemAlternate")}</small>
       </label>
     </>
   );
