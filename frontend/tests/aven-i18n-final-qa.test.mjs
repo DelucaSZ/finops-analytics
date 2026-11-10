@@ -144,3 +144,10 @@ test("shared API errors localize known statuses without mutating contracts", () 
  assert.ok(api.includes('/auth/csrf'));
  assert.ok(api.includes('credentials: "include"'));
 });
+
+test("theme selector preserves preference identifiers and localizes visible option copy", () => {
+ const selector=source("components/theme-selector.tsx");
+ assert.ok(selector.includes('useTranslations("settings.appearance")'));
+ for(const value of ["light","dark","system"]) assert.ok(selector.includes('value: "'+value+'"'));
+ for(const locale of ["pt-BR","en-US"]){const m=messages(locale).settings.appearance;for(const key of ["system","light","dark","systemDescription","lightDescription","darkDescription"])assert.ok(m[key]);}
+});

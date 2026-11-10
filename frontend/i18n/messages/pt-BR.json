@@ -1619,7 +1619,14 @@
       "title": "Aparência",
       "description": "Ajuste o tema visual do {product} neste navegador.",
       "themeTitle": "Tema da interface",
-      "themeDescription": "Novos usuários usam a preferência do sistema por padrão."
+      "themeDescription": "Novos usuários usam a preferência do sistema por padrão.",
+      "fieldset": "Tema",
+      "system": "Sistema",
+      "systemDescription": "Acompanha a preferência do dispositivo.",
+      "light": "Claro",
+      "lightDescription": "Superfícies claras e contraste para ambientes iluminados.",
+      "dark": "Escuro",
+      "darkDescription": "Superfícies escuras com contraste reduzido."
     },
     "security": {
       "title": "Minha segurança",

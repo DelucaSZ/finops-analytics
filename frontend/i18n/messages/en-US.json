@@ -1619,7 +1619,14 @@
       "title": "Appearance",
       "description": "Adjust the {product} interface theme in this browser.",
       "themeTitle": "Interface theme",
-      "themeDescription": "New users use their system preference by default."
+      "themeDescription": "New users use their system preference by default.",
+      "fieldset": "Theme",
+      "system": "System",
+      "systemDescription": "Follows your device preference.",
+      "light": "Light",
+      "lightDescription": "Light surfaces and contrast for bright environments.",
+      "dark": "Dark",
+      "darkDescription": "Dark surfaces with reduced glare."
     },
     "security": {
       "title": "My security",
