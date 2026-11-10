@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 
@@ -27,80 +28,6 @@ type Event = {
 };
 
 const PAGE_SIZE = 50;
-
-const labels: Record<string, string> = {
-  "auth.login": "Login concluído",
-  "auth.login_failed": "Tentativa de login recusada",
-  "auth.logout": "Saída da conta",
-  "auth.logout_all": "Todas as sessões encerradas",
-  "auth.session_revoked": "Sessão encerrada pelo titular",
-  "auth.reauthenticated": "Identidade confirmada",
-  "auth.password_changed": "Senha alterada",
-  "auth.password_reset": "Senha redefinida",
-  "auth.invitation_accepted": "Convite aceito",
-  "user.created": "Usuário criado",
-  "user.updated": "Cadastro alterado",
-  "user.invited": "Usuário convidado",
-  "user.invitation_renewed": "Convite renovado",
-  "user.password_reset_issued": "Link de recuperação gerado",
-  "user.sessions_revoked": "Sessões encerradas por administrador",
-  "user.session_revoked": "Sessão encerrada por administrador",
-  "user.create": "Usuário criado",
-  "user.update": "Usuário alterado",
-  "user.enable": "Usuário ativado",
-  "user.disable": "Usuário desativado",
-  "user.invite": "Usuário convidado",
-  "user.invitation_renew": "Convite renovado",
-  "user.password_reset_issue": "Reset administrativo de senha emitido",
-  "user.sessions_revoke": "Sessões de usuário revogadas",
-  "user.mfa_reset": "MFA de usuário redefinido",
-  "mfa.setup_started": "Cadastro do autenticador iniciado",
-  "mfa.enabled": "Autenticador ativado ou substituído",
-  "mfa.login_failed": "Segundo fator recusado",
-  "mfa.login_verified": "Login com segundo fator concluído",
-  "mfa.recovery_used": "Código de recuperação utilizado",
-  "mfa.recovery_regenerated": "Códigos de recuperação regenerados",
-  "mfa.reset": "MFA redefinido",
-  "account.create": "Conta cloud criada",
-  "account.update": "Conta cloud alterada",
-  "account.enable": "Conta cloud ativada",
-  "account.disable": "Conta cloud desativada",
-  "account.delete": "Conta cloud removida",
-  "account.connection_test": "Conexão da conta testada",
-  "account.schedule_update": "Agenda de coleta alterada",
-  "policy.update": "Policy alterada",
-  "policy.reset": "Policy restaurada para o padrão",
-  "pricing.create": "Preço criado",
-  "pricing.update": "Preço alterado",
-  "pricing.override": "Nova versão de preço criada",
-  "pricing.deactivate": "Preço desativado",
-  "billing.profile_create": "Perfil de Billing criado",
-  "billing.profile_update": "Perfil de Billing alterado",
-  "tls.apply": "Configuração HTTPS/TLS aplicada",
-  "tls.mode_change": "Modo HTTPS/TLS alterado",
-  "opportunity.treat": "Oportunidade tratada",
-  "opportunity.reject": "Oportunidade rejeitada",
-  "opportunity.reopen": "Oportunidade reaberta",
-  "opportunity.archive": "Oportunidade arquivada",
-  "opportunity.unarchive": "Oportunidade desarquivada",
-  "opportunity.bulk_treat": "Oportunidades tratadas em massa",
-  "opportunity.bulk_reject": "Oportunidades rejeitadas em massa",
-  "opportunity.bulk_reopen": "Oportunidades reabertas em massa",
-};
-
-const modules = [
-  ["", "Todos"],
-  ["users", "Usuários"],
-  ["security", "Segurança"],
-  ["auth", "Acessos"],
-  ["mfa", "MFA"],
-  ["accounts", "Contas"],
-  ["policies", "Policies"],
-  ["opportunities", "Oportunidades"],
-  ["pricing", "Pricing"],
-  ["billing", "Billing"],
-  ["tls", "HTTPS"],
-] as const;
 
 const actionModule: Record<string, string> = {
   "user.create": "users",
@@ -143,7 +70,7 @@ function fieldLabel(value: string) {
   return value.replaceAll("_", " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-function actionLabel(action: string) {
+function actionLabel(action: string, labels: Record<string, string>) {
   if (labels[action]) return labels[action];
   return action.split(".").map(fieldLabel).join(" · ");
 }
@@ -298,6 +225,67 @@ function UserAutocomplete({
 }
 
 export default function AuditPage() {
+  const t = useTranslations("settings.audit");
+  const localizedEvents: Record<string, string> = {
+    "auth.login": t("events.auth_login"),
+    "auth.login_failed": t("events.auth_login_failed"),
+    "auth.logout": t("events.auth_logout"),
+    "auth.logout_all": t("events.auth_logout_all"),
+    "auth.session_revoked": t("events.auth_session_revoked"),
+    "auth.reauthenticated": t("events.auth_reauthenticated"),
+    "auth.password_changed": t("events.auth_password_changed"),
+    "auth.password_reset": t("events.auth_password_reset"),
+    "auth.invitation_accepted": t("events.auth_invitation_accepted"),
+    "user.created": t("events.user_created"),
+    "user.updated": t("events.user_updated"),
+    "user.invited": t("events.user_invited"),
+    "user.invitation_renewed": t("events.user_invitation_renewed"),
+    "user.password_reset_issued": t("events.user_password_reset_issued"),
+    "user.sessions_revoked": t("events.user_sessions_revoked"),
+    "user.session_revoked": t("events.user_session_revoked"),
+    "user.create": t("events.user_create"),
+    "user.update": t("events.user_update"),
+    "user.enable": t("events.user_enable"),
+    "user.disable": t("events.user_disable"),
+    "user.invite": t("events.user_invite"),
+    "user.invitation_renew": t("events.user_invitation_renew"),
+    "user.password_reset_issue": t("events.user_password_reset_issue"),
+    "user.sessions_revoke": t("events.user_sessions_revoke"),
+    "user.mfa_reset": t("events.user_mfa_reset"),
+    "mfa.setup_started": t("events.mfa_setup_started"),
+    "mfa.enabled": t("events.mfa_enabled"),
+    "mfa.login_failed": t("events.mfa_login_failed"),
+    "mfa.login_verified": t("events.mfa_login_verified"),
+    "mfa.recovery_used": t("events.mfa_recovery_used"),
+    "mfa.recovery_regenerated": t("events.mfa_recovery_regenerated"),
+    "mfa.reset": t("events.mfa_reset"),
+    "account.create": t("events.account_create"),
+    "account.update": t("events.account_update"),
+    "account.enable": t("events.account_enable"),
+    "account.disable": t("events.account_disable"),
+    "account.delete": t("events.account_delete"),
+    "account.connection_test": t("events.account_connection_test"),
+    "account.schedule_update": t("events.account_schedule_update"),
+    "policy.update": t("events.policy_update"),
+    "policy.reset": t("events.policy_reset"),
+    "pricing.create": t("events.pricing_create"),
+    "pricing.update": t("events.pricing_update"),
+    "pricing.override": t("events.pricing_override"),
+    "pricing.deactivate": t("events.pricing_deactivate"),
+    "billing.profile_create": t("events.billing_profile_create"),
+    "billing.profile_update": t("events.billing_profile_update"),
+    "tls.apply": t("events.tls_apply"),
+    "tls.mode_change": t("events.tls_mode_change"),
+    "opportunity.treat": t("events.opportunity_treat"),
+    "opportunity.reject": t("events.opportunity_reject"),
+    "opportunity.reopen": t("events.opportunity_reopen"),
+    "opportunity.archive": t("events.opportunity_archive"),
+    "opportunity.unarchive": t("events.opportunity_unarchive"),
+    "opportunity.bulk_treat": t("events.opportunity_bulk_treat"),
+    "opportunity.bulk_reject": t("events.opportunity_bulk_reject"),
+    "opportunity.bulk_reopen": t("events.opportunity_bulk_reopen"),
+  };
+  const modules: Array<readonly [string, string]> = [["",t("all")],["users",t("modules.users")],["security",t("modules.security")],["auth",t("modules.auth")],["mfa","MFA"],["accounts",t("modules.accounts")],["policies",t("modules.policies")],["opportunities",t("modules.opportunities")],["pricing",t("modules.pricing")],["billing","Billing"],["tls","HTTPS"]];
   const initial = useMemo(() => {
     if (typeof window === "undefined") return new URLSearchParams();
     return new URLSearchParams(window.location.search);
@@ -321,7 +309,7 @@ export default function AuditPage() {
 
   const availableActions = Object.keys(actionModule)
     .filter((key) => !module || actionModule[key] === module)
-    .sort((a, b) => actionLabel(a).localeCompare(actionLabel(b)));
+    .sort((a, b) => actionLabel(a, localizedEvents).localeCompare(actionLabel(b, localizedEvents)));
 
   const query = useMemo(() => {
     const params = new URLSearchParams({
@@ -399,7 +387,7 @@ export default function AuditPage() {
     actorQuery && `Executado por: ${actorQuery}`,
     subjectQuery && `Usuário afetado: ${subjectQuery}`,
     module && `Módulo: ${modules.find(([value]) => value === module)?.[1] || module}`,
-    action && `Ação: ${actionLabel(action)}`,
+    action && `Ação: ${actionLabel(action, localizedEvents)}`,
     source && `Origem: ${source}`,
     eventKind !== "all" && `Tipo: ${eventKind === "security" ? "Segurança" : "Administrativo"}`,
     fromIso && `Desde: ${formatDate(fromIso)}`,
@@ -466,7 +454,7 @@ export default function AuditPage() {
           <select value={action} onChange={(event) => { setAction(event.target.value); resetPagination(); }}>
             <option value="">Todas</option>
             {availableActions.map((value) => (
-              <option key={value} value={value}>{actionLabel(value)}</option>
+              <option key={value} value={value}>{actionLabel(value, localizedEvents)}</option>
             ))}
           </select>
         </label>
@@ -567,7 +555,7 @@ export default function AuditPage() {
                   <tr key={`${item.event_kind}:${item.id}`}>
                     <td><span>{formatDate(item.created_at)}</span></td>
                     <td>
-                      <strong>{actionLabel(item.action)}</strong>
+                      <strong>{actionLabel(item.action, localizedEvents)}</strong>
                       <span>{item.module} · {item.event_kind === "administrative" ? "Administrativo" : "Segurança"}</span>
                     </td>
                     <td>
@@ -616,7 +604,7 @@ export default function AuditPage() {
             <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "flex-start" }}>
               <div>
                 <span>DETALHE DO EVENTO</span>
-                <h2>{actionLabel(selected.action)}</h2>
+                <h2>{actionLabel(selected.action, localizedEvents)}</h2>
               </div>
               <button className="button" onClick={() => setSelected(null)}>Fechar</button>
             </div>
