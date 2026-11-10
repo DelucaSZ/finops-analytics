@@ -1,3 +1,4 @@
+import {formatLocaleCurrency, formatLocaleNumber} from "../i18n/formatters.mjs";
 export const PROVIDER_LABELS = Object.freeze({
   aws: "AWS",
   oci: "OCI",
@@ -11,24 +12,11 @@ export function providerLabel(provider) {
 }
 
 export function formatMoney(value, currency = "USD", locale = "pt-BR") {
-  const numeric = Number(value);
-  try {
-    return new Intl.NumberFormat(locale, {
-      style: "currency",
-      currency: currency || "USD",
-      minimumFractionDigits: 2,
-    }).format(Number.isFinite(numeric) ? numeric : 0);
-  } catch {
-    return `${currency || "—"} ${(Number.isFinite(numeric) ? numeric : 0).toLocaleString(locale, {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    })}`;
-  }
+  return formatLocaleCurrency(value, currency, locale, {minimumFractionDigits: 2});
 }
 
 export function formatNumber(value, locale = "pt-BR") {
-  const numeric = Number(value);
-  return new Intl.NumberFormat(locale).format(Number.isFinite(numeric) ? numeric : 0);
+  return formatLocaleNumber(value, locale);
 }
 
 export function formatAccountLabel(accountName, accountId) {

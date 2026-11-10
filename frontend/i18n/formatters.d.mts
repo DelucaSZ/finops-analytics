@@ -1,0 +1,10 @@
+export const DEFAULT_FORMAT_LOCALE: "pt-BR";
+export const DISPLAY_TIME_ZONE: "UTC";
+export type NumericValue = number | string | bigint | null | undefined;
+export function formatLocaleNumber(value: NumericValue, locale?: string, options?: Intl.NumberFormatOptions): string;
+export function formatLocaleCurrency(value: NumericValue, currency: string, locale?: string, options?: Intl.NumberFormatOptions): string;
+export function formatLocalePercentage(value: NumericValue, locale?: string, options?: Intl.NumberFormatOptions & {valueMode?: "points" | "fraction"}): string;
+export function formatLocaleDate(value: string | Date | null | undefined, locale?: string, options?: Intl.DateTimeFormatOptions): string;
+export function formatLocaleDateTime(value: string | Date | null | undefined, locale?: string, options?: Intl.DateTimeFormatOptions): string;
+export function formatLocaleDuration(value: NumericValue, unit?: Intl.NumberFormatOptions["unit"], locale?: string): string;
+export function formatLocaleRelative(value: NumericValue, unit: Intl.RelativeTimeFormatUnit, locale?: string, options?: Intl.RelativeTimeFormatOptions): string;

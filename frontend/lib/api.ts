@@ -1,3 +1,4 @@
+import {formatLocaleCurrency, formatLocaleDate, formatLocaleDateTime} from "@/i18n/formatters.mjs";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const API_TIMEOUT_MS = 30_000;
 const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
@@ -109,18 +110,12 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
   return response.json() as Promise<T>;
 }
 
-export function usd(value: number | string): string {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  }).format(Number(value));
+export function usd(value: number | string, locale = "pt-BR"): string {
+  return formatLocaleCurrency(value, "USD", locale, {minimumFractionDigits: 2});
 }
 
-export function formatDate(value: string | null): string {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
+export function formatDate(value: string | null, locale = "pt-BR"): string {
+  return value && /^\d{4}-\d{2}-\d{2}$/.test(value)
+    ? formatLocaleDate(value, locale)
+    : formatLocaleDateTime(value, locale);
 }
