@@ -2033,7 +2033,34 @@
       "create": "Create account",
       "save": "Save changes",
       "emptyAdmin": "Add an AWS or OCI account to get started.",
-      "emptyViewer": "Accounts can only be registered by administrators."
+      "emptyViewer": "Accounts can only be registered by administrators.",
+      "validation": {
+        "name": "Enter a name with at least 2 characters.",
+        "provider": "Select AWS or OCI.",
+        "interval": "Select a valid analysis interval.",
+        "awsId": "AWS Account ID must contain exactly 12 digits.",
+        "roleArn": "Enter a valid IAM Role ARN.",
+        "roleAccount": "The Role ARN Account ID must match the account.",
+        "externalId": "External ID must contain at least 16 characters.",
+        "regions": "Enter at least one AWS region.",
+        "tenancy": "Enter a Tenancy OCID.",
+        "userOcid": "Enter a User OCID.",
+        "connectionRegion": "Enter the OCI connection region.",
+        "compartment": "To include subcompartments, include the root or at least one base compartment.",
+        "fingerprint": "Enter the API Signing Key fingerprint.",
+        "pem": "Enter a PEM private key between 64 bytes and 64 KiB."
+      },
+      "scopeNoRegions": "No regions",
+      "scopeUnavailable": "Integration unavailable",
+      "scopeRoot": "tenancy root",
+      "scopeCompartments": "{count, plural, one {# compartment} other {# compartments}}",
+      "scopeSubcompartments": "includes subcompartments",
+      "scopeEmpty": "Empty scope",
+      "scheduleUnsupported": "Not implemented",
+      "scheduleDisabled": "Disabled",
+      "schedule12": "Every 12 hours",
+      "schedule24": "Daily",
+      "schedule168": "Weekly"
     }
   },
   "scans": {

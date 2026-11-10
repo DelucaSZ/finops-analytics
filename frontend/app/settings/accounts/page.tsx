@@ -54,20 +54,20 @@ function errorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
-function scopeSummary(account: CloudAccount) {
+function scopeSummary(account: CloudAccount, labels: { noRegions: string; unavailable: string; root: string; count: (count: number) => string; subcompartments: string; empty: string }) {
   if (account.aws_configuration) {
     return account.aws_configuration.regions.length
       ? account.aws_configuration.regions.join(", ")
-      : "Nenhuma região";
+      : labels.noRegions;
   }
   const oci = account.oci_configuration;
-  if (!oci) return "Integração não disponível";
+  if (!oci) return labels.unavailable;
   const parts: string[] = [];
   if (oci.scope_regions.length) parts.push(oci.scope_regions.join(", "));
-  if (oci.include_root_compartment) parts.push("tenancy root");
-  if (oci.compartment_ocids.length) parts.push(oci.compartment_ocids.length + " compartment(s)");
-  if (oci.include_subcompartments) parts.push("inclui subcompartments");
-  return parts.length ? parts.join(" · ") : "Escopo vazio";
+  if (oci.include_root_compartment) parts.push(labels.root);
+  if (oci.compartment_ocids.length) parts.push(labels.count(oci.compartment_ocids.length));
+  if (oci.include_subcompartments) parts.push(labels.subcompartments);
+  return parts.length ? parts.join(" · ") : labels.empty;
 }
 
 export default function AccountsPage() {
@@ -292,6 +292,22 @@ export default function AccountsPage() {
     const validation = validateAccountForm(form, {
       mode: mode === "edit" ? "edit" : "create",
       replaceCredentials,
+      messages: {
+        name: t("validation.name"),
+        provider: t("validation.provider"),
+        interval: t("validation.interval"),
+        awsId: t("validation.awsId"),
+        roleArn: t("validation.roleArn"),
+        roleAccount: t("validation.roleAccount"),
+        externalId: t("validation.externalId"),
+        regions: t("validation.regions"),
+        tenancy: t("validation.tenancy"),
+        userOcid: t("validation.userOcid"),
+        connectionRegion: t("validation.connectionRegion"),
+        compartment: t("validation.compartment"),
+        fingerprint: t("validation.fingerprint"),
+        pem: t("validation.pem"),
+      },
     });
     setFieldErrors(validation);
     if (Object.keys(validation).length) {
@@ -943,7 +959,7 @@ export default function AccountsPage() {
                         {account.last_error && <span className="account-table-error" title={account.last_error}>{account.last_error}</span>}
                       </td>
                       <td>
-                        <span title={scopeSummary(account)}>{scopeSummary(account)}</span>
+                        <span title={scopeSummary(account, {noRegions:t("scopeNoRegions"), unavailable:t("scopeUnavailable"), root:t("scopeRoot"), count:(count)=>t("scopeCompartments", {count}), subcompartments:t("scopeSubcompartments"), empty:t("scopeEmpty")})}>{scopeSummary(account, {noRegions:t("scopeNoRegions"), unavailable:t("scopeUnavailable"), root:t("scopeRoot"), count:(count)=>t("scopeCompartments", {count}), subcompartments:t("scopeSubcompartments"), empty:t("scopeEmpty")})}</span>
                         {capability && !capability.manual_collection && (
                           <small className="account-capability-note">
                             {account.connection_status === "connected"
@@ -953,7 +969,7 @@ export default function AccountsPage() {
                         )}
                       </td>
                       <td>{formatDate(account.last_connection_test_at)}</td>
-                      <td>{scheduleSummary(account, capability)}</td>
+                      <td>{!capability?.scheduling ? t("scheduleUnsupported") : !account.schedule_enabled ? t("scheduleDisabled") : account.scan_interval_hours === 12 ? t("schedule12") : account.scan_interval_hours === 24 ? t("schedule24") : account.scan_interval_hours === 168 ? t("schedule168") : scheduleSummary(account, capability)}</td>
                       <td>
                         <div className="settings-row-actions account-row-actions">
                           {canManageAccounts && (

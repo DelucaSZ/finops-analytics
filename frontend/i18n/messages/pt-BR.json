@@ -2033,7 +2033,34 @@
       "create": "Cadastrar conta",
       "save": "Salvar alterações",
       "emptyAdmin": "Adicione uma conta AWS ou OCI para começar.",
-      "emptyViewer": "O cadastro é realizado por administradores."
+      "emptyViewer": "O cadastro é realizado por administradores.",
+      "validation": {
+        "name": "Informe um nome com pelo menos 2 caracteres.",
+        "provider": "Selecione AWS ou OCI.",
+        "interval": "Selecione um intervalo de análise válido.",
+        "awsId": "AWS Account ID deve conter exatamente 12 dígitos.",
+        "roleArn": "Informe um Role ARN IAM válido.",
+        "roleAccount": "O Account ID do Role ARN deve ser o mesmo da conta.",
+        "externalId": "External ID deve possuir pelo menos 16 caracteres.",
+        "regions": "Informe pelo menos uma região AWS.",
+        "tenancy": "Informe um Tenancy OCID.",
+        "userOcid": "Informe um User OCID.",
+        "connectionRegion": "Informe a região de conexão OCI.",
+        "compartment": "Para incluir subcompartments, inclua a raiz ou ao menos um compartment-base.",
+        "fingerprint": "Informe o fingerprint da API Signing Key.",
+        "pem": "Informe uma chave privada PEM entre 64 bytes e 64 KiB."
+      },
+      "scopeNoRegions": "Nenhuma região",
+      "scopeUnavailable": "Integração não disponível",
+      "scopeRoot": "tenancy root",
+      "scopeCompartments": "{count, plural, one {# compartment} other {# compartments}}",
+      "scopeSubcompartments": "inclui subcompartments",
+      "scopeEmpty": "Escopo vazio",
+      "scheduleUnsupported": "Não implementado",
+      "scheduleDisabled": "Desativado",
+      "schedule12": "A cada 12 horas",
+      "schedule24": "Diariamente",
+      "schedule168": "Semanalmente"
     }
   },
   "scans": {
