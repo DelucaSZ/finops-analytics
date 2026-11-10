@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useLocale, useTranslations } from "next-intl";
 import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
 import { Button, Input, Select } from "@/components/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,11 +30,12 @@ import type {
 } from "@/lib/types";
 
 const number = (value: number) => formatNumber(value);
-function preciseDate(value: string | null) {
-  return value ? new Date(value).toLocaleString("pt-BR") : "—";
+function preciseDate(value: string | null, locale: string) {
+  return value ? new Date(value).toLocaleString(locale) : "—";
 }
 
 function RunStatus({ run }: { run: CollectionItem }) {
+  const t = useTranslations("collections.workspace");
   const Icon =
     run.status === "SUCCESS"
       ? CheckCircle2
@@ -45,8 +47,8 @@ function RunStatus({ run }: { run: CollectionItem }) {
       className={`collection-status collection-${run.status.toLowerCase()}`}
     >
       <Icon size={16} aria-hidden="true" />
-      {COLLECTION_STATUSES[run.status] || run.status}
-      {run.has_warnings ? " · com avisos" : ""}
+      {run.status === "SUCCESS" ? t("status.success") : run.status === "FAILED" ? t("status.failed") : run.status === "RUNNING" ? t("status.running") : run.status}
+      {run.has_warnings ? t("withWarnings") : ""}
     </span>
   );
 }
@@ -58,12 +60,13 @@ function RunLink({
   run: CollectionItem | null;
   href: (id: string) => string;
 }) {
+  const t = useTranslations("collections.workspace");
   return run ? (
     <Link href={href(run.id)}>
       <RunStatus run={run} /> · {formatDate(run.started_at)}
     </Link>
   ) : (
-    <span>Nenhuma registrada</span>
+    <span>{t("noneRecorded")}</span>
   );
 }
 
@@ -72,6 +75,8 @@ export function CollectionWorkspace({
 }: {
   collectionId?: string;
 }) {
+  const t = useTranslations("collections.workspace");
+  const locale = useLocale();
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams().toString();
@@ -142,10 +147,10 @@ export function CollectionWorkspace({
   const requestError = collectionId ? detailRequest.error : listRequest.error;
   const error = requestError
     ? requestError instanceof ApiError && requestError.status === 404
-      ? "Coleta não encontrada."
+      ? t("errors.notFound")
       : collectionId
-        ? "Não foi possível carregar a coleta."
-        : "Não foi possível carregar as coletas."
+        ? t("errors.detailLoad")
+        : t("errors.listLoad")
     : "";
 
   const hasFilters = Boolean(
@@ -160,12 +165,12 @@ export function CollectionWorkspace({
     (account) => account.account_id === state.account_id && (!state.provider || account.provider === state.provider),
   );
   const activeFilters = [
-    state.provider ? `Cloud: ${providerLabel(state.provider)}` : "",
-    state.account_id ? `Conta: ${formatAccountLabel(selectedAccount?.account_name, state.account_id)}` : "",
-    state.status ? `Status: ${COLLECTION_STATUSES[state.status] || state.status}` : "",
-    state.analyzer_version ? `Versão: ${state.analyzer_version}` : "",
-    state.date_from ? `A partir de: ${preciseDate(state.date_from)}` : "",
-    state.date_to ? `Até: ${preciseDate(state.date_to)}` : "",
+    state.provider ? t("filterSummary.cloud", {value: providerLabel(state.provider)}) : "",
+    state.account_id ? t("filterSummary.account", {value: formatAccountLabel(selectedAccount?.account_name, state.account_id)}) : "",
+    state.status ? t("filterSummary.status", {value: state.status === "SUCCESS" ? t("status.success") : state.status === "FAILED" ? t("status.failed") : t("status.running")}) : "",
+    state.analyzer_version ? t("filterSummary.version", {value: state.analyzer_version}) : "",
+    state.date_from ? t("filterSummary.from", {value: preciseDate(state.date_from, locale)}) : "",
+    state.date_to ? t("filterSummary.to", {value: preciseDate(state.date_to, locale)}) : "",
   ].filter(Boolean);
   const detailHref = (id: string) =>
     `/collections/${encodeURIComponent(id)}?${query}`;
@@ -204,22 +209,22 @@ export function CollectionWorkspace({
     return () => window.clearInterval(timer);
   }, [collectionId, detailRequest.refetch, hasRunning, listRequest.refetch]);
 
-  const statusOptions = Object.entries(COLLECTION_STATUSES);
+  const statusOptions = Object.entries(COLLECTION_STATUSES).map(([value]) => ({value, label: value === "SUCCESS" ? t("status.success") : value === "FAILED" ? t("status.failed") : t("status.running")}));
   return (
     <>
       <PageHeader
-        eyebrow="OPERAÇÃO CLOUD"
-        title={collectionId ? `Coleta #${collectionId.slice(0, 8)}` : "Coletas"}
-        description="Execuções por cloud e conta, com histórico, resultados e falhas."
+        eyebrow={t("eyebrow")}
+        title={collectionId ? t("collectionIdTitle", {id: collectionId.slice(0, 8)}) : t("title")}
+        description={t("description")}
       />
       <div className="collection-toolbar">
         {collectionId && (
           <Link className="button ghost" href={`/collections?${query}`}>
-            ← Voltar às coletas
+            {t("back")}
           </Link>
         )}
         <span>
-          Horários no fuso local do navegador · atualização a cada 15s apenas durante coletas em andamento
+          {t("refreshNote")}
         </span>
         <Button
           variant="ghost"
@@ -233,7 +238,7 @@ export function CollectionWorkspace({
             }
           }}
         >
-          Atualizar
+          {t("refresh")}
         </Button>
       </div>
       {!collectionId && (
@@ -246,7 +251,7 @@ export function CollectionWorkspace({
               draft.date_to &&
               new Date(draft.date_from) >= new Date(draft.date_to)
             ) {
-              setValidation("O início deve ser anterior ao fim do período.");
+              setValidation("DATE_RANGE_INVALID");
               return;
             }
             setValidation("");
@@ -254,28 +259,28 @@ export function CollectionWorkspace({
           }}
         >
           <div className="opportunity-filter-heading">
-            <strong>Filtros de coletas</strong>
+            <strong>{t("filtersTitle")}</strong>
             {hasFilters && (
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={() => router.push("/collections")}
               >
-                Limpar filtros
+                {t("clearFilters")}
               </Button>
             )}
           </div>
           {activeFilters.length > 0 && (
-            <div className="active-filter-summary" aria-label="Filtros ativos">
+            <div className="active-filter-summary" aria-label={t("activeFilters")}>
               {activeFilters.map((label) => <span key={label}>{label}</span>)}
             </div>
           )}
           <div className="opportunity-filter-grid">
             <div className="opportunity-filter">
               <Input
-                label="Cloud"
+                label={t("cloud")}
                 list="collection-providers"
-                placeholder="Todas as clouds"
+                placeholder={t("allClouds")}
                 value={draft.provider}
                 onChange={(event) =>
                   setDraft({
@@ -295,11 +300,11 @@ export function CollectionWorkspace({
             </div>
             <div className="opportunity-filter account-filter">
               <Input
-                label="Conta · nome ou identificador"
+                label={t("accountSearch")}
                 list="collection-accounts"
-                placeholder="Busque e selecione ou informe o ID"
+                placeholder={t("accountPlaceholder")}
                 value={draft.account_id}
-                helperText={options.has_more_accounts ? "Digite para buscar mais contas." : undefined}
+                helperText={options.has_more_accounts ? t("moreAccounts") : undefined}
                 onChange={(event) =>
                   setDraft({ ...draft, account_id: event.target.value })
                 }
@@ -318,11 +323,11 @@ export function CollectionWorkspace({
             </div>
             <div className="opportunity-filter">
               <Select
-                label="Status"
+                label={t("statusLabel")}
                 value={draft.status}
                 options={[
-                  { value: "", label: "Todos" },
-                  ...statusOptions.map(([value, label]) => ({ value, label })),
+                  { value: "", label: t("all") },
+                  ...statusOptions,
                 ]}
                 onChange={(event) =>
                   setDraft({ ...draft, status: event.target.value })
@@ -332,7 +337,7 @@ export function CollectionWorkspace({
             <div className="opportunity-filter">
               <Input
                 type="datetime-local"
-                label="Início do período (inclusivo)"
+                label={t("periodStart")}
                 value={localDateTime(draft.date_from)}
                 onChange={(event) =>
                   setDraft({
@@ -347,7 +352,7 @@ export function CollectionWorkspace({
             <div className="opportunity-filter">
               <Input
                 type="datetime-local"
-                label="Fim do período (exclusivo)"
+                label={t("periodEnd")}
                 value={localDateTime(draft.date_to)}
                 onChange={(event) =>
                   setDraft({
@@ -361,8 +366,8 @@ export function CollectionWorkspace({
             </div>
             <div className="opportunity-filter">
               <Input
-                label="Versão dos analyzers"
-                placeholder="Todas as versões"
+                label={t("analyzerVersion")}
+                placeholder={t("allVersions")}
                 value={draft.analyzer_version}
                 onChange={(event) =>
                   setDraft({ ...draft, analyzer_version: event.target.value })
@@ -372,17 +377,16 @@ export function CollectionWorkspace({
           </div>
           {optionsError && (
             <p role="status">
-              Não foi possível carregar sugestões. Você ainda pode informar a
-              cloud e o ID da conta.
+              {t("suggestionsError")}
             </p>
           )}
           {validation && (
             <p className="form-error" role="alert">
-              {validation}
+              {validation === "DATE_RANGE_INVALID" ? t("dateRangeInvalid") : validation}
             </p>
           )}
           <div className="collection-toolbar">
-            <Button type="submit">Aplicar filtros</Button>
+            <Button type="submit">{t("applyFilters")}</Button>
             <Button
               variant="ghost"
               onClick={() => {
@@ -397,7 +401,7 @@ export function CollectionWorkspace({
                 });
               }}
             >
-              Últimos 30 dias
+              {t("last30Days")}
             </Button>
           </div>
         </form>
@@ -412,67 +416,67 @@ export function CollectionWorkspace({
               else void listRequest.refetch();
             }}
           >
-            Tentar novamente
+            {t("retry")}
           </Button>
         </div>
       )}
       {(loading || refreshing) && (
         <p role="status">
-          {loading ? "Carregando coletas…" : "Atualizando coletas…"}
+          {loading ? t("loading") : t("updating")}
         </p>
       )}
       {!collectionId && data?.account_summary && (
         <section
           className="panel collection-account-summary"
-          aria-label="Últimas coletas da conta"
+          aria-label={t("lastAccountRuns")}
         >
           <p>
-            Contexto da conta/cloud selecionada, considerando todo o histórico.
+            {t("accountContext")}
           </p>
           <p>
-            <strong>Última execução: </strong>
+            <strong>{t("lastRun")} </strong>
             <RunLink run={data.account_summary.latest_run} href={detailHref} />
           </p>
           <p>
-            <strong>Última conclusão com sucesso: </strong>
+            <strong>{t("lastSuccess")} </strong>
             <RunLink
               run={data.account_summary.latest_success}
               href={detailHref}
             />
           </p>
-          <small>Sucesso com avisos pode conter resultados incompletos.</small>
+          <small>{t("warningNote")}</small>
         </section>
       )}
       {!collectionId && (
         <section
           className="panel table-panel"
-          aria-label="Histórico de coletas"
+          aria-label={t("history")}
           aria-busy={loading}
         >
           <div className="panel-heading collection-toolbar">
-            <h2>{data ? `${number(data.total)} coleta(s)` : "Histórico"}</h2>
+            <h2>{data ? t("count", {count: data.total}) : t("history")}</h2>
             <label>
-              Ordenar por{" "}
+              {t("sortBy")}{" "}
               <select
-                aria-label="Ordenar por"
+                aria-label={t("sortBy")}
                 value={state.sort}
                 onChange={(event) => change({ sort: event.target.value })}
               >
-                <option value="started_at">Início</option>
+                <option value="started_at">{t("started")}</option>
                 <option value="opportunities_found">
-                  Oportunidades encontradas
+                  {t("opportunitiesFound")}
                 </option>
               </select>
             </label>
             <label>
-              Direção{" "}
+              {t("direction")}{" "}
               <select
-                aria-label="Direção"
+                aria-label={t("direction")}
                 value={state.order}
                 onChange={(event) => change({ order: event.target.value })}
               >
-                <option value="desc">Decrescente</option>
-                <option value="asc">Crescente</option>
+                <option value="desc">{t("descending")}</option>
+                <option value="asc">{t("ascending")}</option>
               </select>
             </label>
           </div>
@@ -480,19 +484,13 @@ export function CollectionWorkspace({
             className="data-table-wrap"
             tabIndex={0}
             role="region"
-            aria-label="Tabela de coletas"
+            aria-label={t("tableLabel")}
           >
             <table className="data-table collection-table">
               <thead>
                 <tr>
                   {[
-                    "Início / fim",
-                    "Cloud",
-                    "Conta",
-                    "Status",
-                    "Duração",
-                    "Recursos",
-                    "Oportunidades encontradas",
+                    t("columns.period"), t("cloud"), t("account"), t("statusLabel"), t("duration"), t("resources"), t("opportunitiesFound"),
                   ].map((label) => (
                     <th scope="col" key={label}>
                       {label}
@@ -528,7 +526,7 @@ export function CollectionWorkspace({
                       >
                         {formatDate(run.started_at)}
                       </Link>
-                      <span>Fim: {formatDate(run.finished_at)}</span>
+                      <span>{t("finished")}: {formatDate(run.finished_at)}</span>
                       <code>{run.id.slice(0, 8)}</code>
                     </td>
                     <td>{providerLabel(run.provider)}</td>
@@ -543,11 +541,11 @@ export function CollectionWorkspace({
                     <td>
                       {run.resources_analyzed_available
                         ? number(run.resources_analyzed)
-                        : "Não disponível"}
+                        : t("unavailable")}
                     </td>
                     <td>
                       {run.status === "RUNNING"
-                        ? "Aguardando conclusão"
+                        ? t("waitingCompletion")
                         : number(run.opportunities_found)}
                     </td>
                   </tr>
@@ -559,23 +557,23 @@ export function CollectionWorkspace({
             <div className="empty-table">
               <p>
                 {hasFilters
-                  ? "Nenhuma coleta encontrada para estes filtros."
+                  ? t("emptyFiltered")
                   : state.page > 1
-                    ? "Nenhuma coleta nesta página."
-                    : "Ainda não existem coletas."}
+                    ? t("emptyPage")
+                    : t("emptyAll")}
               </p>
               {hasFilters && (
                 <Button variant="ghost" onClick={() => router.push("/collections")}>
-                  Limpar filtros
+                  {t("clearFilters")}
                 </Button>
               )}
             </div>
           )}
           <div className="collection-toolbar collection-pagination">
             <label>
-              Por página{" "}
+              {t("perPage")}{" "}
               <select
-                aria-label="Por página"
+                aria-label={t("perPage")}
                 value={state.page_size}
                 onChange={(event) =>
                   change({ page_size: Number(event.target.value) })
@@ -587,27 +585,25 @@ export function CollectionWorkspace({
               </select>
             </label>
             <span>
-              Página {state.page} de {data?.total_pages || 1}
+              {t("pagination", {page: state.page, total: data?.total_pages || 1})}
             </span>
             <Button
               variant="ghost"
               disabled={loading || state.page <= 1}
               onClick={() => change({ page: state.page - 1 })}
             >
-              Anterior
+              {t("previous")}
             </Button>
             <Button
               variant="ghost"
               disabled={loading || !data || state.page >= data.total_pages}
               onClick={() => change({ page: state.page + 1 })}
             >
-              Próxima
+              {t("next")}
             </Button>
           </div>
           <p className="collection-note">
-            Recursos: o coletor atual ainda não informa esse total.
-            Oportunidades encontradas: total persistido ao concluir; confira as
-            observações no detalhe.
+            {t("resourcesNote")}
           </p>
         </section>
       )}
@@ -622,127 +618,120 @@ export function CollectionWorkspace({
             <CollectionComparisonActions run={detail} />
           ) : (
             <div className="alert" role="status">
-              <strong>Detalhes históricos expirados.</strong>
+              <strong>{t("expiredDetails")}</strong>
               <p>
-                O resumo desta CollectionRun foi preservado, mas as observações detalhadas
-                já não estão disponíveis pela política de retenção.
+                {t("expiredDescription")}
               </p>
             </div>
           )}
           {detail.status === "FAILED" && (
             <div className="alert error" role="alert">
-              <strong>Falha durante a coleta</strong>
+              <strong>{t("failedCollection")}</strong>
               <p>
-                {detail.error_detail || "O motivo da falha não foi registrado."}
+                {detail.error_detail || t("failureNotRecorded")}
               </p>
             </div>
           )}
           {detail.has_warnings && (
             <div className="alert" role="status">
               <strong>
-                Concluída com avisos: resultados podem estar incompletos.
+                {t("completedWithWarnings")}
               </strong>
               <p>
                 {detail.warning_detail ||
-                  "Um ou mais analyzers não concluíram a coleta."}
+                  t("analyzersIncomplete")}
               </p>
             </div>
           )}
           {detail.status === "RUNNING" && (
             <p role="status">
-              {durationLabel(detail, now)}. As métricas finais ainda não estão
-              disponíveis.
+              {t("runningDetail", {duration: durationLabel(detail, now)})}
             </p>
           )}
           <dl className="collection-metadata">
             <div>
-              <dt>Cloud</dt>
+              <dt>{t("cloud")}</dt>
               <dd>{providerLabel(detail.provider)}</dd>
             </div>
             <div>
-              <dt>Conta</dt>
+              <dt>{t("account")}</dt>
               <dd>
                 {detail.account_name || detail.account_id}
                 {detail.account_name && <small>{detail.account_id}</small>}
               </dd>
             </div>
             <div>
-              <dt>Início</dt>
+              <dt>{t("started")}</dt>
               <dd>{preciseDate(detail.started_at)}</dd>
             </div>
             <div>
-              <dt>Fim</dt>
+              <dt>{t("finished")}</dt>
               <dd>{preciseDate(detail.finished_at)}</dd>
             </div>
             <div>
-              <dt>Duração</dt>
+              <dt>{t("duration")}</dt>
               <dd>{durationLabel(detail, now)}</dd>
             </div>
             <div>
-              <dt>Versão dos analyzers</dt>
-              <dd>{detail.analyzer_version || "Não registrada"}</dd>
+              <dt>{t("analyzerVersion")}</dt>
+              <dd>{detail.analyzer_version || t("notRecorded")}</dd>
             </div>
             {detail.trigger && (
               <div>
-                <dt>Gatilho</dt>
+                <dt>{t("trigger")}</dt>
                 <dd>
                   {detail.trigger === "manual"
-                    ? "Manual"
+                    ? t("manual")
                     : detail.trigger === "scheduled"
-                      ? "Agendada"
+                      ? t("scheduled")
                       : detail.trigger}
                 </dd>
               </div>
             )}
             {detail.scan_id && (
               <div>
-                <dt>Scan de origem</dt>
+                <dt>{t("sourceScan")}</dt>
                 <dd>
                   <code>{detail.scan_id}</code>
                 </dd>
               </div>
             )}
             <div>
-              <dt>Recursos analisados</dt>
+              <dt>{t("resourcesAnalyzed")}</dt>
               <dd>
                 {detail.resources_analyzed_available
                   ? number(detail.resources_analyzed)
-                  : "Não disponível"}
+                  : t("unavailable")}
               </dd>
             </div>
             <div>
-              <dt>Oportunidades encontradas</dt>
+              <dt>{t("opportunitiesFound")}</dt>
               <dd>
                 {detail.status === "RUNNING"
-                  ? "Aguardando conclusão"
+                  ? t("waitingCompletion")
                   : number(detail.opportunities_found)}
               </dd>
             </div>
             <div>
-              <dt>Detalhes de observação retidos</dt>
+              <dt>{t("retainedObservations")}</dt>
               <dd>{number(detail.opportunities_observed)}</dd>
             </div>
           </dl>
           <p>
-            O total encontrado é persistido na CollectionRun. A contagem de detalhes
-            retidos representa apenas observations ainda disponíveis no banco; o total
-            de recursos ainda não é medido pelo coletor atual.
+            {t("detailSummaryNote")}
           </p>
           {detail.detailed_observations_available ? (
             <>
               <Link className="button primary" href={collectionOpportunitiesUrl(detail.id)}>
-                Ver oportunidades desta coleta
+                {t("viewOpportunities")}
               </Link>
               <p className="collection-note">
-                A tela abre na aba Abertas. Use também Tratadas e Rejeitadas; o
-                filtro desta coleta permanece aplicado. As evidências históricas
-                estão no detalhe de cada oportunidade.
+                {t("opportunityNavigationNote")}
               </p>
             </>
           ) : (
             <p className="collection-note">
-              A listagem detalhada desta coleta não é exibida porque a ausência de
-              observations expiradas não significa que a coleta encontrou zero oportunidades.
+              {t("expiredOpportunitiesNote")}
             </p>
           )}
         </section>
