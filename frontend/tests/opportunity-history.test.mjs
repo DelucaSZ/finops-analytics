@@ -85,45 +85,45 @@ test("financial totals remain separate rows per currency", () => {
 });
 
 test("UI identifies open cycles as preview instead of definitive snapshot", () => {
-  assert.match(pageSource, /Prévia — período ainda não fechado/);
-  assert.match(pageSource, /Snapshots definitivos são materializados somente no fechamento/);
+  assert.match(pageSource, /t\("cycle\.preview"\)/);
+  assert.match(pageSource, /t\("snapshot\.previewDescription"\)/);
 });
 
 test("UI preserves legacy history access", () => {
   assert.match(pageSource, /\/opportunities\?view=history/);
-  assert.match(pageSource, /Arquivadas atualmente \/ Histórico legado/);
+  assert.match(pageSource, /t\("nav\.legacy"\)/);
 });
 
 test("UI exposes historical cycle selector", () => {
-  assert.match(pageSource, /Período histórico/);
+  assert.match(pageSource, /t\("filters\.period"\)/);
   assert.match(pageSource, /history-cycle/);
 });
 
 test("UI exposes closed snapshot lifecycle and presence", () => {
-  assert.match(pageSource, /Status no fechamento/);
-  assert.match(pageSource, /Presença no fechamento/);
+  assert.match(pageSource, /t\("detail\.status"\)/);
+  assert.match(pageSource, /t\("detail\.presence"\)/);
 });
 
 test("UI exposes historical financial values and currency-aware formatter", () => {
-  assert.match(pageSource, /Custo no período/);
-  assert.match(pageSource, /Economia estimada/);
+  assert.match(pageSource, /t\("detail\.periodCost"\)/);
+  assert.match(pageSource, /t\("detail\.estimatedSavings"\)/);
   assert.match(pageSource, /formatMoney\(selected\.current_monthly_cost, selected\.currency\)/);
 });
 
 test("UI exposes first and last observation timestamps and occurrence count", () => {
-  assert.match(pageSource, /Primeira observação no ciclo/);
-  assert.match(pageSource, /Última observação no ciclo/);
-  assert.match(pageSource, /Observações no ciclo/);
+  assert.match(pageSource, /t\("detail\.firstObserved"\)/);
+  assert.match(pageSource, /t\("detail\.lastObserved"\)/);
+  assert.match(pageSource, /t\("detail\.occurrences"\)/);
 });
 
 test("UI exposes collection coverage including failed runs", () => {
-  assert.match(pageSource, /Cobertura de coletas/);
+  assert.match(pageSource, /t\("summary\.collections"\)/);
   assert.match(pageSource, /cycle\.coverage\.failed/);
   assert.match(pageSource, /cycle\.coverage\.running/);
 });
 
 test("UI exposes historical empty state and detail link to current opportunity", () => {
-  assert.match(pageSource, /Nenhum snapshot encontrado para este ciclo e filtros/);
-  assert.match(pageSource, /Ver oportunidade atual/);
-  assert.match(pageSource, /estado atual é independente deste snapshot/);
+  assert.match(pageSource, /t\("snapshot\.empty"\)/);
+  assert.match(pageSource, /t\("detail\.openCurrent"\)/);
+  assert.match(pageSource, /t\("detail\.independent"\)/);
 });
