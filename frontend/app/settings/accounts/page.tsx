@@ -130,7 +130,7 @@ export default function AccountsPage() {
       setLoadError("");
       return true;
     } catch (err) {
-      const message = errorMessage(err, "Falha ao carregar contas");
+      const message = errorMessage(err, t("errorLoad"));
       setLoadError(message);
       setError(message);
       return false;
@@ -153,7 +153,7 @@ export default function AccountsPage() {
       })
       .catch((err) => {
         if (!active) return;
-        const message = errorMessage(err, "Falha ao carregar contas");
+        const message = errorMessage(err, t("errorLoad"));
         setError(message);
         setLoadError(message);
       })
@@ -183,7 +183,7 @@ export default function AccountsPage() {
   }
 
   function closeEditor() {
-    if (dirty && !window.confirm("Descartar as alterações não salvas?")) return;
+    if (dirty && !window.confirm(t("discard"))) return;
     resetEditor();
     setError("");
   }
@@ -208,7 +208,7 @@ export default function AccountsPage() {
         ? { ...current, aws: { ...current.aws, external_id: generated.external_id } }
         : current);
     } catch (err) {
-      setError(errorMessage(err, "Falha ao gerar External ID"));
+      setError(errorMessage(err, t("errorExternal")));
     } finally {
       setExternalIdBusy(false);
     }
@@ -216,7 +216,7 @@ export default function AccountsPage() {
 
   async function chooseProvider(provider: string) {
     if (provider !== "aws" && provider !== "oci") {
-      setError("Cadastro ainda não implementado para " + providerLabel(provider) + ".");
+      setError(t("notImplemented", {provider: providerLabel(provider)}));
       return;
     }
     const next = createEmptyAccountForm(provider);
@@ -230,7 +230,7 @@ export default function AccountsPage() {
 
   async function openEdit(account: CloudAccount) {
     if (!canManageAccounts) return;
-    if (dirty && !window.confirm("Descartar as alterações não salvas e editar outra conta?")) return;
+    if (dirty && !window.confirm(t("discardEdit"))) return;
     setFormBusy(true);
     setError("");
     setMessage("");
@@ -242,7 +242,7 @@ export default function AccountsPage() {
       setFieldErrors({});
       setMode("edit");
     } catch (err) {
-      setError(errorMessage(err, "Falha ao carregar a conta"));
+      setError(errorMessage(err, t("errorAccount")));
     } finally {
       setFormBusy(false);
     }
@@ -255,9 +255,9 @@ export default function AccountsPage() {
     if (file.size > 65536) {
       setFieldErrors((current) => ({
         ...current,
-        private_key_pem: "A chave privada excede o limite de 64 KiB aceito pelo backend.",
+        private_key_pem: t("largeKey"),
       }));
-      setError("A chave privada excede o limite de 64 KiB aceito pelo backend.");
+      setError(t("largeKey"));
       return;
     }
     const pem = await file.text();
@@ -311,7 +311,7 @@ export default function AccountsPage() {
     });
     setFieldErrors(validation);
     if (Object.keys(validation).length) {
-      setError("Confira os campos destacados antes de salvar.");
+      setError(t("checkFields"));
       return;
     }
     setFormBusy(true);
@@ -327,13 +327,13 @@ export default function AccountsPage() {
         resetEditor();
         setMessage(
           created.provider === "oci"
-            ? "Conta OCI cadastrada. A credencial foi armazenada; execute o teste de conexão antes de considerar o acesso validado."
-            : "Conta AWS cadastrada. Agora valide a conexão.",
+            ? t("createdOci")
+            : t("createdAws"),
         );
       } else if (mode === "edit" && editingAccount) {
         const payload = buildUpdateAccountPayload(editingAccount, form, { replaceCredentials });
         if (!Object.keys(payload).length) {
-          setMessage("Nenhuma alteração para salvar.");
+          setMessage(t("noChanges"));
           setFormBusy(false);
           return;
         }
@@ -344,10 +344,10 @@ export default function AccountsPage() {
         resetEditor();
         setMessage(
           replaceCredentials
-            ? "Credencial OCI substituída e validada antes da ativação."
+            ? t("credentialsReplaced")
             : saved.connection_status === "untested"
-              ? "Alterações salvas. A configuração precisa ser testada novamente."
-              : "Alterações salvas.",
+              ? t("savedRetest")
+              : t("saved"),
         );
       }
       invalidateApiQueries(queryKeys.dashboard.all);
@@ -355,7 +355,7 @@ export default function AccountsPage() {
       invalidateApiQueries(queryKeys.collections.all);
       await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Falha ao salvar a conta"));
+      setError(errorMessage(err, t("errorSave")));
     } finally {
       setFormBusy(false);
     }
@@ -364,7 +364,7 @@ export default function AccountsPage() {
   async function testConnection(account: CloudAccount) {
     if (!canManageAccounts) return;
     if (mode === "edit" && editingAccount?.id === account.id && dirty) {
-      setError("Salve ou descarte as alterações desta conta antes de testar. O teste usa a configuração persistida.");
+      setError(t("saveBeforeTest"));
       return;
     }
     setAccountBusy(account.id, "test");
@@ -377,15 +377,15 @@ export default function AccountsPage() {
       );
       if (!result.ok) {
         const suffix = result.error_code ? " (" + result.error_code + ")" : "";
-        throw new Error((result.error || "A conexão não pôde ser validada") + suffix);
+        throw new Error((result.error || t("connectionInvalid")) + suffix);
       }
       const checks = result.verified_checks?.length
-        ? " Verificações: " + result.verified_checks.join(", ") + "."
+        ? t("verifiedChecks", {checks: result.verified_checks.join(", ")})
         : "";
-      setMessage("Conexão com " + account.name + " validada." + checks);
+      setMessage(t("connectionValidated", {name:account.name}) + checks);
       await loadAccounts();
     } catch (err) {
-      setError(errorMessage(err, "Falha no teste de conexão"));
+      setError(errorMessage(err, t("errorConnection")));
       await loadAccounts();
     } finally {
       setAccountBusy(account.id, null);
@@ -396,7 +396,7 @@ export default function AccountsPage() {
     if (!canAnalyze) return;
     const capability = capabilityByProvider.get(account.provider);
     if (!capability?.manual_collection) {
-      setError("Coleta ainda não implementada para " + providerLabel(account.provider) + ".");
+      setError(t("notCollectable", {provider:providerLabel(account.provider)}));
       return;
     }
     setAccountBusy(account.id, "scan");
@@ -408,9 +408,9 @@ export default function AccountsPage() {
       });
       invalidateApiQueries(queryKeys.dashboard.all);
       invalidateApiQueries(queryKeys.collections.all);
-      setMessage("Análise de " + account.name + " adicionada à fila.");
+      setMessage(t("queued", {name:account.name}));
     } catch (err) {
-      setError(errorMessage(err, "Falha ao iniciar análise"));
+      setError(errorMessage(err, t("errorScan")));
     } finally {
       setAccountBusy(account.id, null);
     }
@@ -419,16 +419,14 @@ export default function AccountsPage() {
   async function copyText(value: string, label: string) {
     try {
       await navigator.clipboard.writeText(value);
-      setMessage(label + " copiado.");
+      setMessage(t("copied", {label}));
       setError("");
     } catch {
-      setError("Não foi possível copiar para a área de transferência.");
+      setError(t("copyFailed"));
     }
   }
 
-  const editorTitle = mode === "create"
-    ? "Adicionar conta"
-    : "Editar " + (editingAccount?.name || "conta");
+  const editorTitle = mode === "create" ? t("add") : t("accountEdited", {name: editingAccount?.name || t("accountGeneric")});
   const formCapability = form.provider ? capabilityByProvider.get(form.provider) : undefined;
 
   return (
@@ -963,8 +961,8 @@ export default function AccountsPage() {
                         {capability && !capability.manual_collection && (
                           <small className="account-capability-note">
                             {account.connection_status === "connected"
-                              ? `Conexão validada. Coleta ${capability.label} ainda não disponível.`
-                              : `Coleta ${capability.label} ainda não disponível.`}
+                              ? t("connectedCollection", {provider:capability.label})
+                              : t("disabledCollection", {provider:capability.label})}
                           </small>
                         )}
                       </td>
