@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
 import { Button, Input, Select } from "@/components/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -29,9 +30,9 @@ import type {
   CollectionPage,
 } from "@/lib/types";
 
-const number = (value: number) => formatNumber(value);
+const number = (value: number, locale = "pt-BR") => formatNumber(value, locale);
 function preciseDate(value: string | null, locale: string) {
-  return value ? new Date(value).toLocaleString(locale) : "—";
+  return formatLocaleDateTime(value, locale);
 }
 
 function RunStatus({ run }: { run: CollectionItem }) {
@@ -61,9 +62,10 @@ function RunLink({
   href: (id: string) => string;
 }) {
   const t = useTranslations("collections.workspace");
+  const locale = useLocale();
   return run ? (
     <Link href={href(run.id)}>
-      <RunStatus run={run} /> · {formatDate(run.started_at)}
+      <RunStatus run={run} /> · {formatDate(run.started_at, locale)}
     </Link>
   ) : (
     <span>{t("noneRecorded")}</span>
@@ -524,9 +526,9 @@ export function CollectionWorkspace({
                           }).catch(() => undefined);
                         }}
                       >
-                        {formatDate(run.started_at)}
+                        {formatDate(run.started_at, locale)}
                       </Link>
-                      <span>{t("finished")}: {formatDate(run.finished_at)}</span>
+                      <span>{t("finished")}: {formatDate(run.finished_at, locale)}</span>
                       <code>{run.id.slice(0, 8)}</code>
                     </td>
                     <td>{providerLabel(run.provider)}</td>
@@ -540,13 +542,13 @@ export function CollectionWorkspace({
                     <td>{durationLabel(run, now)}</td>
                     <td>
                       {run.resources_analyzed_available
-                        ? number(run.resources_analyzed)
+                        ? number(run.resources_analyzed, locale)
                         : t("unavailable")}
                     </td>
                     <td>
                       {run.status === "RUNNING"
                         ? t("waitingCompletion")
-                        : number(run.opportunities_found)}
+                        : number(run.opportunities_found, locale)}
                     </td>
                   </tr>
                 ))}
@@ -700,7 +702,7 @@ export function CollectionWorkspace({
               <dt>{t("resourcesAnalyzed")}</dt>
               <dd>
                 {detail.resources_analyzed_available
-                  ? number(detail.resources_analyzed)
+                  ? number(detail.resources_analyzed, locale)
                   : t("unavailable")}
               </dd>
             </div>
@@ -709,12 +711,12 @@ export function CollectionWorkspace({
               <dd>
                 {detail.status === "RUNNING"
                   ? t("waitingCompletion")
-                  : number(detail.opportunities_found)}
+                  : number(detail.opportunities_found, locale)}
               </dd>
             </div>
             <div>
               <dt>{t("retainedObservations")}</dt>
-              <dd>{number(detail.opportunities_observed)}</dd>
+              <dd>{number(detail.opportunities_observed, locale)}</dd>
             </div>
           </dl>
           <p>

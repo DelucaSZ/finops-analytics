@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { api, formatDate } from "@/lib/api";
 
@@ -229,6 +229,7 @@ function UserAutocomplete({
 }
 
 export default function AuditPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.audit");
   const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
   const localizedEvents: Record<string, string> = {
@@ -395,8 +396,8 @@ export default function AuditPage() {
     action && t("filterAction", {value:actionLabel(action, localizedEvents)}),
     source && t("filterSource", {value:source}),
     eventKind !== "all" && t("filterKind", {value:eventKind === "security" ? t("security") : t("administrative")}),
-    fromIso && t("filterFrom", {value:formatDate(fromIso)}),
-    toIso && t("filterTo", {value:formatDate(toIso)}),
+    fromIso && t("filterFrom", {value:formatDate(fromIso, locale)}),
+    toIso && t("filterTo", {value:formatDate(toIso, locale)}),
   ].filter(Boolean) as string[];
 
   return (
@@ -557,7 +558,7 @@ export default function AuditPage() {
                 const actor = actorLabel(item, words);
                 return (
                   <tr key={`${item.event_kind}:${item.id}`}>
-                    <td><span>{formatDate(item.created_at)}</span></td>
+                    <td><span>{formatDate(item.created_at, locale)}</span></td>
                     <td>
                       <strong>{actionLabel(item.action, localizedEvents)}</strong>
                       <span>{modules.find(([key]) => key === item.module)?.[1] || item.module} · {item.event_kind === "administrative" ? t("administrative") : t("security")}</span>
@@ -613,7 +614,7 @@ export default function AuditPage() {
               <button className="button" onClick={() => setSelected(null)}>{t("close")}</button>
             </div>
             <dl>
-              <dt>{t("date")}</dt><dd>{formatDate(selected.created_at)}</dd>
+              <dt>{t("date")}</dt><dd>{formatDate(selected.created_at, locale)}</dd>
               <dt>{t("responsible")}</dt><dd>{actorLabel(selected, words).name}</dd>
               <dt>{t("responsibleEmail")}</dt><dd>{selected.actor.email || "—"}</dd>
               <dt>{t("module")}</dt><dd>{modules.find(([key]) => key === selected.module)?.[1] || selected.module}</dd>

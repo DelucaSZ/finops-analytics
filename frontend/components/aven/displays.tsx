@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import {formatLocaleCurrency} from "@/i18n/formatters.mjs";
 import {
   AlertCircle,
   AlertTriangle,
@@ -23,7 +24,7 @@ function classNames(...values: Array<string | undefined | false>) {
 }
 
 export interface CurrencyDisplayProps extends Omit<HTMLAttributes<HTMLSpanElement>, "children"> {
-  value: number | null | undefined;
+  value: number | string | null | undefined;
   currency: string;
   locale?: string;
   compact?: boolean;
@@ -50,14 +51,12 @@ export function CurrencyDisplay({
     return <span className={classNames(styles.numeric, className)} {...props}>{nullDisplay}</span>;
   }
 
-  const formatted = new Intl.NumberFormat(locale ?? activeLocale, {
-    style: "currency",
-    currency,
+  const formatted = formatLocaleCurrency(value, currency, locale ?? activeLocale, {
     currencyDisplay,
     notation: compact ? "compact" : "standard",
     minimumFractionDigits,
     maximumFractionDigits,
-  }).format(value);
+  });
 
   return <span className={classNames(styles.numeric, className)} {...props}>{formatted}</span>;
 }

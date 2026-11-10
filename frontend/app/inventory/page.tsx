@@ -2,6 +2,7 @@
 
 import { Suspense, useMemo, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowDown,
@@ -88,16 +89,10 @@ function humanize(value?: string | null) {
 }
 
 function formatDateTime(value?: string | null, locale = "pt-BR") {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (!Number.isFinite(date.getTime())) return "—";
-  return new Intl.DateTimeFormat(locale, {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
+  return formatLocaleDateTime(value, locale, {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit", dateStyle: undefined, timeStyle: undefined,
+  });
 }
 
 function inventoryError(error: unknown, fallback: string, messages: { forbidden: string; invalid: string; limited: string; unavailable: string }) {

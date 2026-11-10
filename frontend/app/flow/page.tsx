@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
+import {formatLocaleDate, formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { ExternalLink, Plus, RotateCcw } from "lucide-react";
@@ -177,12 +178,11 @@ function periodRange(preset: PeriodPreset, customFrom: string, customTo: string)
 }
 
 function effectiveDate(value: string, locale: string): string {
-  const [year, month, day] = value.slice(0, 10).split("-");
-  return year && month && day ? new Intl.DateTimeFormat(locale, {year:"numeric",month:"2-digit",day:"2-digit"}).format(new Date(Number(year),Number(month)-1,Number(day))) : value;
+  return formatLocaleDate(value.slice(0, 10), locale, {year:"numeric",month:"2-digit",day:"2-digit",dateStyle:undefined});
 }
 
 function createdAt(value: string, locale: string): string {
-  return new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+  return formatLocaleDateTime(value, locale);
 }
 
 function providerLabel(provider: string): string {
@@ -202,10 +202,9 @@ function queryString(values: Record<string, string | number | undefined>) {
 }
 
 function Money({ amount, currency }: { amount: string | number; currency: string }) {
-  const value = Number(amount);
   return (
     <CurrencyDisplay
-      value={Number.isFinite(value) ? value : null}
+      value={amount}
       currency={currency}
       minimumFractionDigits={2}
       maximumFractionDigits={8}

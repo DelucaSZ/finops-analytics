@@ -1,3 +1,4 @@
+import {formatLocaleNumber} from "../i18n/formatters.mjs";
 export const RDS_RESERVATION_TABS = ["coverage", "reservations", "expiring", "opportunities"];
 export const RDS_COVERAGE_STATUSES = ["FULL", "PARTIAL", "UNCOVERED", "UNKNOWN"];
 export const RDS_EXPIRATION_RANGES = ["LE_7", "LE_15", "LE_30", "GT_30", "EXPIRED"];
@@ -130,9 +131,9 @@ export function opportunityTypeLabel(value) {
   }[value] || value;
 }
 
-export function formatNu(value) {
+export function formatNu(value, locale = "pt-BR") {
   const number = Number(value || 0);
-  return `${number.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} NU`;
+  return formatLocaleNumber(number, locale, {maximumFractionDigits: 2}) + " NU";
 }
 
 export function clampPercentage(value) {
@@ -140,7 +141,7 @@ export function clampPercentage(value) {
   return Math.max(0, Math.min(100, Number.isFinite(number) ? number : 0));
 }
 
-export function coverageDisplayModel(item) {
+export function coverageDisplayModel(item, locale = "pt-BR") {
   const required = Number(item?.required_units || 0);
   const covered = Number(item?.covered_units || 0);
   const status = String(item?.coverage_status || "UNKNOWN").toUpperCase();
@@ -148,20 +149,20 @@ export function coverageDisplayModel(item) {
     status,
     label: coverageStatusLabel(status),
     percentage: optionalNumber(item?.coverage_percentage),
-    capacity: `${formatNu(covered)} / ${formatNu(required)}`,
-    uncovered: formatNu(Math.max(0, required - covered)),
+    capacity: `${formatNu(covered, locale)} / ${formatNu(required, locale)}`,
+    uncovered: formatNu(Math.max(0, required - covered), locale),
     tone: status === "FULL" ? "positive" : status === "PARTIAL" ? "warning" : status === "UNCOVERED" ? "critical" : "neutral",
   };
 }
 
-export function reservationUtilizationDisplay(item) {
+export function reservationUtilizationDisplay(item, locale = "pt-BR") {
   const total = Number(item?.total_capacity || 0);
   const allocated = Number(item?.allocated_capacity || 0);
   const unused = Number(item?.unused_capacity || 0);
   return {
     percentage: optionalNumber(item?.utilization_percentage),
-    capacity: `${formatNu(allocated)} / ${formatNu(total)}`,
-    unused: formatNu(unused),
+    capacity: `${formatNu(allocated, locale)} / ${formatNu(total, locale)}`,
+    unused: formatNu(unused, locale),
   };
 }
 

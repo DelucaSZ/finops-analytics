@@ -1,3 +1,4 @@
+import {formatLocaleCurrency} from "../i18n/formatters.mjs";
 export function normalizeDecimalInput(value) {
   const normalized = String(value ?? "").trim().replace(",", ".");
   if (!/^\d+(?:\.\d{1,8})?$/.test(normalized)) return null;
@@ -40,16 +41,12 @@ export function sourceLabel(source) {
   }[source] || source.replaceAll("_", " ");
 }
 
-export function formatBrlDecimal(value) {
-  const raw = String(value ?? "0").trim();
-  const negative = raw.startsWith("-");
-  const unsigned = negative ? raw.slice(1) : raw;
-  const [wholeRaw = "0", fractionRaw = ""] = unsigned.split(".");
-  const whole = wholeRaw.replace(/^0+(?=\d)/, "") || "0";
-  const grouped = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
-  const trimmed = fractionRaw.replace(/0+$/, "");
-  const fraction = (trimmed || "00").padEnd(2, "0");
-  return `R$ ${negative ? "-" : ""}${grouped},${fraction}`;
+// Preserve the exact decimal string returned by OCI pricing (up to 8 places).
+export function formatBrlDecimal(value, locale = "pt-BR") {
+  // Preserve the legacy ASCII space in Portuguese pricing summaries.
+  return formatLocaleCurrency(value ?? "0", "BRL", locale, {
+    minimumFractionDigits: 2, maximumFractionDigits: 8,
+  }).replace(/\u00a0/g, " ");
 }
 
 export function toDatetimeLocal(value = new Date()) {

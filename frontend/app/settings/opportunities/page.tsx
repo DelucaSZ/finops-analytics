@@ -84,6 +84,7 @@ function editable(policy: OpportunityPolicy) {
 }
 
 export default function OpportunityPolicyPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.opportunities");
   const [policy, setPolicy] = useState<OpportunityPolicy | null>(null);
   const [initial, setInitial] = useState<OpportunityPolicy | null>(null);
@@ -195,15 +196,15 @@ export default function OpportunityPolicyPage() {
       {message && <Alert variant="success" title={message === "OPP_POLICY_UPDATED" ? t("updated") : message} />}
 
       <section className={styles.statusGrid} aria-label={t("summaryAria")}>
-        <PolicyStatus label={t("version")} value={String(policy.version)} detail={t("updatedAt", {date: formatDate(policy.updated_at)})} />
+        <PolicyStatus label={t("version")} value={String(policy.version)} detail={t("updatedAt", {date: formatDate(policy.updated_at, locale)})} />
         <PolicyStatus
           label={t("currentCycle")}
           value={cycle?.label || t("notCreated")}
-          detail={cycle ? `${formatDate(cycle.period_start)} → ${formatDate(cycle.period_end)}` : t("willCreate")}
+          detail={cycle ? `${formatDate(cycle.period_start, locale)} → ${formatDate(cycle.period_end, locale)}` : t("willCreate")}
         />
         <PolicyStatus
           label={t("nextClosure")}
-          value={policy.next_cycle_start ? formatDate(policy.next_cycle_start) : "—"}
+          value={policy.next_cycle_start ? formatDate(policy.next_cycle_start, locale) : "—"}
           detail={policy.automatic_cycle_close_enabled ? t("automatic") : t("manualClosure")}
         />
       </section>
@@ -266,8 +267,8 @@ export default function OpportunityPolicyPage() {
             title={t("preservedPeriod")}
             description={(
               <span>
-                {t("periodFrom")} <strong>{formatDate(cycle.period_start)}</strong> {t("periodTo")}{" "}
-                <strong>{formatDate(cycle.period_end)}</strong>{t("periodChanges")}
+                {t("periodFrom")} <strong>{formatDate(cycle.period_start, locale)}</strong> {t("periodTo")}{" "}
+                <strong>{formatDate(cycle.period_end, locale)}</strong>{t("periodChanges")}
               </span>
             )}
           />
@@ -391,9 +392,9 @@ export default function OpportunityPolicyPage() {
 
       <Section appearance="card" title={t("lastRuns")}>
         <div className={styles.maintenanceGrid}>
-          <MaintenanceItem label={t("retention")} value={formatDate(policy.maintenance.last_retention_run_at)} />
-          <MaintenanceItem label={t("automaticClosure")} value={formatDate(policy.maintenance.last_cycle_close_check_at)} />
-          <MaintenanceItem label={t("observationCleanup")} value={formatDate(policy.maintenance.last_observation_cleanup_at)} />
+          <MaintenanceItem label={t("retention")} value={formatDate(policy.maintenance.last_retention_run_at, locale)} />
+          <MaintenanceItem label={t("automaticClosure")} value={formatDate(policy.maintenance.last_cycle_close_check_at, locale)} />
+          <MaintenanceItem label={t("observationCleanup")} value={formatDate(policy.maintenance.last_observation_cleanup_at, locale)} />
         </div>
       </Section>
     </div>

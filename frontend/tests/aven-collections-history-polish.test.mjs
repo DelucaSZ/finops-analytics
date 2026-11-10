@@ -53,7 +53,7 @@ test("Collection scheduling uses shared Aven controls without changing schedule 
   assert.match(schedule, /onScheduleEnabledChange\(event\.target\.checked\)/);
   assert.match(schedule, /value=\{String\(scanIntervalHours\)\}/);
   assert.match(schedule, /onIntervalChange\(Number\(event\.target\.value\)\)/);
-  assert.match(schedule, /formatDate\(nextScanAt\)/);
+  assert.match(schedule, /formatDate\(nextScanAt, locale\)/);
   assert.doesNotMatch(schedule, /<input\b|<select\b/);
 });
 

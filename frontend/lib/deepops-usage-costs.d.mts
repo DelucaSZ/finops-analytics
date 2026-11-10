@@ -37,10 +37,10 @@ export function buildUsageCostQuery(
   filters: Record<string, string | number | null | undefined>,
   extra?: Record<string, string | number | null | undefined>,
 ): string;
-export function formatUsageCostMoney(value: string | number, currency: string): string;
-export function formatUsageNumber(value: string | number): string;
-export function formatUsageCostDate(value: string | null | undefined): string;
-export function formatUsagePeriodLabel(period: UsageCostPeriod | null): string;
+export function formatUsageCostMoney(value: string | number, currency: string, locale?: string): string;
+export function formatUsageNumber(value: string | number, locale?: string): string;
+export function formatUsageCostDate(value: string | null | undefined, locale?: string): string;
+export function formatUsagePeriodLabel(period: UsageCostPeriod | null, locale?: string): string;
 export function summarizeUsage(items: UsageCostSummaryItem[]): Omit<UsageCostSummaryItem, "group">;
 export function usageByGroup(items: UsageCostSummaryItem[]): Map<string | null, UsageCostSummaryItem>;
 export function costItemsByCurrency<T extends UsageCostItem>(items: T[]): Array<[string, T[]]>;

@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import {useLocale, useTranslations} from "next-intl";
 import {
   Building2,
   Check,
@@ -71,6 +71,7 @@ function scopeSummary(account: CloudAccount, labels: { noRegions: string; unavai
 }
 
 export default function AccountsPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.accounts");
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
@@ -966,7 +967,7 @@ export default function AccountsPage() {
                           </small>
                         )}
                       </td>
-                      <td>{formatDate(account.last_connection_test_at)}</td>
+                      <td>{formatDate(account.last_connection_test_at, locale)}</td>
                       <td>{!capability?.scheduling ? t("scheduleUnsupported") : !account.schedule_enabled ? t("scheduleDisabled") : account.scan_interval_hours === 12 ? t("schedule12") : account.scan_interval_hours === 24 ? t("schedule24") : account.scan_interval_hours === 168 ? t("schedule168") : scheduleSummary(account, capability)}</td>
                       <td>
                         <div className="settings-row-actions account-row-actions">

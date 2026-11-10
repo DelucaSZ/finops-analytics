@@ -26,8 +26,8 @@ export function patchRdsReservationUrl(state: RdsReservationQueryState, changes:
 export function buildRdsDashboardQuery(state: RdsReservationQueryState, kind: "summary" | "options" | "coverage" | "reservations" | "expiring" | "opportunities"): string;
 export function coverageStatusLabel(value: string): string;
 export function opportunityTypeLabel(value: string): string;
-export function formatNu(value: number | string): string;
+export function formatNu(value: number | string, locale?: string): string;
 export function clampPercentage(value: number | string): number;
-export function coverageDisplayModel(item: { required_units?: number; covered_units?: number; coverage_percentage?: number; coverage_status?: string }): { status: string; label: string; percentage: number; capacity: string; uncovered: string; tone: string };
-export function reservationUtilizationDisplay(item: { total_capacity?: number; allocated_capacity?: number; unused_capacity?: number; utilization_percentage?: number }): { percentage: number; capacity: string; unused: string };
+export function coverageDisplayModel(item: { required_units?: number; covered_units?: number; coverage_percentage?: number; coverage_status?: string }, locale?: string): { status: string; label: string; percentage: number; capacity: string; uncovered: string; tone: string };
+export function reservationUtilizationDisplay(item: { total_capacity?: number; allocated_capacity?: number; unused_capacity?: number; utilization_percentage?: number }, locale?: string): { percentage: number; capacity: string; unused: string };
 export function crossAccountLabel(scope: string): string;

@@ -21,8 +21,8 @@ test("obsolete Task 23.25 layout patch stays retired after the Aven migrations",
 test("opportunity detection timestamps remain explicit in the Aven surface", () => {
   assert.match(opportunitiesSource, /t\("filters\.firstSeen"\)/);
   assert.match(opportunitiesSource, /t\("filters\.lastSeen"\)/);
-  assert.match(detailSource, /<dt>\{t\("field\.firstSeen"\)\}<\/dt><dd>\{formatDate\(detail\.first_seen_at\)\}/);
-  assert.match(detailSource, /<dt>\{t\("field\.lastSeen"\)\}<\/dt><dd>\{formatDate\(detail\.last_seen_at\)\}/);
+  assert.match(detailSource, /<dt>\{t\("field\.firstSeen"\)\}<\/dt><dd>\{formatDate\(detail\.first_seen_at, locale\)\}/);
+  assert.match(detailSource, /<dt>\{t\("field\.lastSeen"\)\}<\/dt><dd>\{formatDate\(detail\.last_seen_at, locale\)\}/);
 });
 
 test("opportunity detail keeps collection references linked without legacy CSS hooks", () => {

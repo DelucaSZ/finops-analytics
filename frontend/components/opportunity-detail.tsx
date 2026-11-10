@@ -117,6 +117,7 @@ function MonthlySavings({ detail }: { detail: OpportunityDetailType }) {
 }
 
 export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive }: Props) {
+  const locale = useLocale();
   const t = useTranslations("opportunities.detail");
   const status = useTranslations("opportunities.status");
   const severity = useTranslations("opportunities.severity");
@@ -285,12 +286,12 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     <div><dt>{t("field.potential")}</dt><dd><MonthlySavings detail={detail} /></dd></div>
                     <div><dt>{t("field.currentCost")}</dt><dd><MoneyValue value={detail.current_monthly_cost} currency={detail.currency} /></dd></div>
                     <div><dt>{t("field.confidence")}</dt><dd>{detail.confidence ? severityLabel(detail.confidence) : "—"}</dd></div>
-                    <div><dt>{t("field.firstSeen")}</dt><dd>{formatDate(detail.first_seen_at)}{detail.first_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>{t("openFirstCollection")} {detail.first_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
-                    <div><dt>{t("field.lastSeen")}</dt><dd>{formatDate(detail.last_seen_at)}{detail.last_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>{t("openLastCollection")} {detail.last_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
-                    {detail.treated_at ? <div><dt>{t("field.treatedAt")}</dt><dd>{formatDate(detail.treated_at)}</dd></div> : null}
-                    {detail.rejected_at ? <div><dt>{t("field.rejectedAt")}</dt><dd>{formatDate(detail.rejected_at)}</dd></div> : null}
-                    {detail.resolved_externally_at ? <div><dt>{t("field.resolvedExternallyAt")}</dt><dd>{formatDate(detail.resolved_externally_at)}</dd></div> : null}
-                    {detail.archived ? <div><dt>{t("field.archivedAt")}</dt><dd>{formatDate(detail.archived_at)}</dd></div> : null}
+                    <div><dt>{t("field.firstSeen")}</dt><dd>{formatDate(detail.first_seen_at, locale)}{detail.first_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.first_seen_collection_run_id)}`}>{t("openFirstCollection")} {detail.first_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    <div><dt>{t("field.lastSeen")}</dt><dd>{formatDate(detail.last_seen_at, locale)}{detail.last_seen_collection_run_id ? <span className={styles.secondary}><Link href={`/collections/${encodeURIComponent(detail.last_seen_collection_run_id)}`}>{t("openLastCollection")} {detail.last_seen_collection_run_id.slice(0, 8)}</Link></span> : null}</dd></div>
+                    {detail.treated_at ? <div><dt>{t("field.treatedAt")}</dt><dd>{formatDate(detail.treated_at, locale)}</dd></div> : null}
+                    {detail.rejected_at ? <div><dt>{t("field.rejectedAt")}</dt><dd>{formatDate(detail.rejected_at, locale)}</dd></div> : null}
+                    {detail.resolved_externally_at ? <div><dt>{t("field.resolvedExternallyAt")}</dt><dd>{formatDate(detail.resolved_externally_at, locale)}</dd></div> : null}
+                    {detail.archived ? <div><dt>{t("field.archivedAt")}</dt><dd>{formatDate(detail.archived_at, locale)}</dd></div> : null}
                     {detail.archived ? <div><dt>{t("field.archiveReason")}</dt><dd>{archiveReasonLabels[detail.archive_reason || ""] || detail.archive_reason || "—"}</dd></div> : null}
                     <div><dt>{t("field.occurrences")}</dt><dd>{detail.total_occurrence_count}</dd></div>
                     <div><dt>{t("field.retained")}</dt><dd>{observations?.retained_total ?? "—"}</dd></div>
@@ -305,7 +306,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     </div>
                     <dl className={styles.decisionGrid}>
                       <div><dt>{t("decision.by")}</dt><dd>{currentDecision?.changed_by_name || t("decision.notRecorded")}</dd></div>
-                      <div><dt>{t("decision.date")}</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null)}</dd></div>
+                      <div><dt>{t("decision.date")}</dt><dd>{formatDate(currentDecision?.changed_at ?? (detail.status === "treated" ? detail.treated_at : detail.rejected_at) ?? null, locale)}</dd></div>
                       {detail.status === "rejected" ? <div><dt>{t("decision.reason")}</dt><dd>{rejectionReasonLabels[detail.rejection_reason || ""] || detail.rejection_reason || t("decision.notRecorded")}</dd></div> : null}
                       <div className={styles.decisionNote}><dt>{t("decision.note")}</dt><dd>{currentDecision?.note || (detail.status === "treated" ? detail.treatment_note : detail.rejection_note) || t("decision.noNote")}</dd></div>
                     </dl>
@@ -317,7 +318,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                   {selectedObservation ? (
                     <div className={styles.historicalBanner}>
                       <strong>{t("evidence.historical")}</strong>
-                      <span>{t("evidence.collectionDate",{date:formatDate(selectedObservation.observed_at)})}</span>
+                      <span>{t("evidence.collectionDate",{date:formatDate(selectedObservation.observed_at, locale)})}</span>
                       <Button variant="ghost" size="sm" onClick={() => setSelectedObservation(null)}>{t("evidence.backToLatest")}</Button>
                     </div>
                   ) : null}
@@ -343,7 +344,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                       {observations.items.map((item) => (
                         <article key={item.id} className={styles.historyItem} data-selected={selectedObservation?.id === item.id || undefined}>
                           <div className={styles.historyTop}>
-                            <div className={styles.historyMetric}><strong>{formatDate(item.observed_at)}</strong><span className={styles.secondary}>{item.collection_provider} · {item.collection_account_id}</span></div>
+                            <div className={styles.historyMetric}><strong>{formatDate(item.observed_at, locale)}</strong><span className={styles.secondary}>{item.collection_provider} · {item.collection_account_id}</span></div>
                             <StatusIndicator status={severityTone(item.severity)} label={t("impact",{value:severityLabel(item.severity)})} />
                             <div className={styles.historyMetric}><strong><MoneyValue value={item.estimated_monthly_savings} currency={item.currency} />{t("savings.perMonth")}</strong><span className={styles.secondary}>{t("detection.estimatedSavings")}</span></div>
                           </div>
@@ -369,7 +370,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                     <div className={styles.decisionHistory}>
                       {decisions.items.map((item) => (
                         <article key={item.id} className={styles.decisionItem}>
-                          <strong>{formatDate(item.changed_at)} · {item.changed_by_name || t("history.unknownUser")}</strong>
+                          <strong>{formatDate(item.changed_at, locale)} · {item.changed_by_name || t("history.unknownUser")}</strong>
                           <div className={styles.metadataLine}><StatusIndicator status={statusTone(item.from_status)} label={statusLabel(item.from_status)} /><span aria-hidden="true">→</span><StatusIndicator status={statusTone(item.to_status)} label={statusLabel(item.to_status)} /></div>
                           {item.reason ? <span className={styles.secondary}>{t("history.reason")} {rejectionReasonLabels[item.reason] || item.reason}</span> : null}
                           {item.note ? <p className={styles.secondary}>{item.note}</p> : null}

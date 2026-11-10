@@ -8,6 +8,6 @@ export function pricingLifecycleStatus(
 export function pricingStatusLabel(status: string): string;
 export function unitLabel(unit: string): string;
 export function sourceLabel(source: string): string;
-export function formatBrlDecimal(value: string | number): string;
+export function formatBrlDecimal(value: string | number, locale?: string): string;
 export function toDatetimeLocal(value?: Date | string): string;
 export function datetimeLocalToIso(value: string): string | null;

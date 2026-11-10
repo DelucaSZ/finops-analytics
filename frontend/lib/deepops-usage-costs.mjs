@@ -1,3 +1,4 @@
+import {formatLocaleDate, formatLocaleDateTime, formatLocaleNumber} from "../i18n/formatters.mjs";
 export const USAGE_COST_PERIOD_PRESETS = [
   { value: "today", label: "Hoje" },
   { value: "last-7-days", label: "Últimos 7 dias" },
@@ -92,7 +93,7 @@ export function buildUsageCostQuery(filters, extra = {}) {
   return query ? `?${query}` : "";
 }
 
-export function formatUsageCostMoney(value, currency) {
+export function formatUsageCostMoney(value, currency, locale = "pt-BR") {
   const amount = Number(value);
   if (!Number.isFinite(amount)) return `${currency} —`;
   const absolute = Math.abs(amount);
@@ -101,43 +102,36 @@ export function formatUsageCostMoney(value, currency) {
   if (absolute > 0 && absolute < 0.0001) digits = 6;
   if (absolute > 0 && absolute < 0.000001) digits = 8;
 
-  const formatter = new Intl.NumberFormat("pt-BR", {
+  const formatter = new Intl.NumberFormat(locale, {
     style: "currency",
     currency,
     currencyDisplay: "symbol",
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-  const formatted = formatter.format(amount);
+  const formatted = formatter.format(typeof value === "string" ? value : amount);
   if (amount !== 0 && Number(amount.toFixed(digits)) === 0) {
     return `< ${formatter.format(10 ** -digits)}`;
   }
   return formatted;
 }
 
-export function formatUsageNumber(value) {
-  return new Intl.NumberFormat("pt-BR", { maximumFractionDigits: 0 }).format(Number(value) || 0);
+export function formatUsageNumber(value, locale = "pt-BR") {
+  return formatLocaleNumber(value, locale, {maximumFractionDigits: 0});
 }
 
-export function formatUsageCostDate(value) {
-  if (!value) return "—";
-  return new Intl.DateTimeFormat("pt-BR", {
-    dateStyle: "short",
-    timeStyle: "short",
-  }).format(new Date(value));
+export function formatUsageCostDate(value, locale = "pt-BR") {
+  return formatLocaleDateTime(value, locale);
 }
 
-export function formatUsagePeriodLabel(period) {
-  if (!period) return "Período inválido";
+export function formatUsagePeriodLabel(period, locale = "pt-BR") {
+  if (!period) return locale === "en-US" ? "Invalid period" : "Período inválido";
   const format = (key) => {
-    const [year, month, day] = key.split("-").map(Number);
-    return new Intl.DateTimeFormat("pt-BR", { dateStyle: "medium" }).format(
-      new Date(year, month - 1, day),
-    );
+    return formatLocaleDate(key, locale, {dateStyle: "medium"});
   };
   return period.start_key === period.end_key
     ? format(period.start_key)
-    : `${format(period.start_key)} a ${format(period.end_key)}`;
+    : `${format(period.start_key)}${locale === "en-US" ? " to " : " a "}${format(period.end_key)}`;
 }
 
 export function summarizeUsage(items) {

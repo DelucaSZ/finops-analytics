@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { History, LockKeyhole, RefreshCw } from "lucide-react";
 import {
   DataState,
@@ -131,6 +131,7 @@ function severityTone(severity: string) {
 }
 
 export default function OpportunityHistoryCyclesPage() {
+  const locale = useLocale();
   const t = useTranslations("opportunities.cycles");
   const statusT = useTranslations("opportunities.status");
   const severityT = useTranslations("opportunities.severity");
@@ -325,7 +326,7 @@ export default function OpportunityHistoryCyclesPage() {
         <Section
           appearance="card"
           title={`${cycle.label} · ${cycleState(cycle.status)}`}
-          description={`${formatDate(cycle.period_start)} ${t("detail.periodTo")} ${formatDate(cycle.period_end)} · ${t("detail.timezone")} ${cycle.timezone}${cycle.closed_at ? ` · ${t("cycle.closedAt",{date:formatDate(cycle.closed_at)})}` : ` · ${t("cycle.preview")}`}`}
+          description={`${formatDate(cycle.period_start, locale)} ${t("detail.periodTo")} ${formatDate(cycle.period_end, locale)} · ${t("detail.timezone")} ${cycle.timezone}${cycle.closed_at ? ` · ${t("cycle.closedAt",{date:formatDate(cycle.closed_at, locale)})}` : ` · ${t("cycle.preview")}`}`}
           actions={cycle.status === "OPEN" ? (
             <Button
               leadingIcon={<LockKeyhole {...iconDefaults} />}
@@ -360,7 +361,7 @@ export default function OpportunityHistoryCyclesPage() {
               label={t("summary.potential")}
               value={savings.length ? (
                 <span className={styles.moneyList}>
-                  {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
+                  {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency, locale)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
               supportingText={t("summary.noFx")}
@@ -369,7 +370,7 @@ export default function OpportunityHistoryCyclesPage() {
               label={t("summary.current")}
               value={costs.length ? (
                 <span className={styles.moneyList}>
-                  {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
+                  {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency, locale)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
               supportingText={t("summary.captured")}
@@ -431,10 +432,10 @@ export default function OpportunityHistoryCyclesPage() {
                     </div>
                   </TableCell>
                   <TableCell kind="badge"><StatusIndicator status={severityTone(item.severity)} label={["high","medium","low"].includes(item.severity) ? severityT(item.severity as "high" | "medium" | "low") : item.severity} /></TableCell>
-                  <TableCell kind="currency" numeric>{formatMoney(item.current_monthly_cost, item.currency)}</TableCell>
-                  <TableCell kind="currency" numeric>{formatMoney(item.estimated_monthly_savings, item.currency)}</TableCell>
+                  <TableCell kind="currency" numeric>{formatMoney(item.current_monthly_cost, item.currency, locale)}</TableCell>
+                  <TableCell kind="currency" numeric>{formatMoney(item.estimated_monthly_savings, item.currency, locale)}</TableCell>
                   <TableCell kind="numeric" numeric>{item.occurrence_count_in_cycle}</TableCell>
-                  <TableCell kind="date">{formatDate(item.last_observed_in_cycle_at)}</TableCell>
+                  <TableCell kind="date">{formatDate(item.last_observed_in_cycle_at, locale)}</TableCell>
                 </TableRow>
               ))}
               {!snapshots.items.length && (
@@ -472,13 +473,13 @@ export default function OpportunityHistoryCyclesPage() {
             <div><dt>{t("detail.presence")}</dt><dd>{presenceLabel(selected.presence_status)}</dd></div>
             <div><dt>{t("detail.severityConfidence")}</dt><dd>{(["high","medium","low"].includes(selected.severity) ? severityT(selected.severity as "high" | "medium" | "low") : selected.severity)} · {(["high","medium","low"].includes(selected.confidence) ? severityT(selected.confidence as "high" | "medium" | "low") : selected.confidence)}</dd></div>
             <div><dt>{t("detail.archived")}</dt><dd>{selected.archived ? `${t("detail.yes")}${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : t("detail.no")}</dd></div>
-            <div><dt>{t("detail.periodCost")}</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency)}{t("detail.perMonth")}</dd></div>
-            <div><dt>{t("detail.estimatedSavings")}</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency)}{t("detail.perMonth")}</dd></div>
-            <div><dt>{t("detail.firstObserved")}</dt><dd>{formatDate(selected.first_observed_in_cycle_at)}</dd></div>
-            <div><dt>{t("detail.lastObserved")}</dt><dd>{formatDate(selected.last_observed_in_cycle_at)}</dd></div>
+            <div><dt>{t("detail.periodCost")}</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.estimatedSavings")}</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.firstObserved")}</dt><dd>{formatDate(selected.first_observed_in_cycle_at, locale)}</dd></div>
+            <div><dt>{t("detail.lastObserved")}</dt><dd>{formatDate(selected.last_observed_in_cycle_at, locale)}</dd></div>
             <div><dt>{t("detail.occurrences")}</dt><dd>{selected.occurrence_count_in_cycle}</dd></div>
-            <div><dt>{t("detail.firstSeen")}</dt><dd>{formatDate(selected.first_seen_at)}</dd></div>
-            <div><dt>{t("detail.lastSeen")}</dt><dd>{formatDate(selected.last_seen_at)}</dd></div>
+            <div><dt>{t("detail.firstSeen")}</dt><dd>{formatDate(selected.first_seen_at, locale)}</dd></div>
+            <div><dt>{t("detail.lastSeen")}</dt><dd>{formatDate(selected.last_seen_at, locale)}</dd></div>
             <div><dt>{t("detail.lastCollection")}</dt><dd>{selected.last_collection_run_id_in_cycle || "—"}</dd></div>
           </dl>
           <div className={styles.detailNotes}>

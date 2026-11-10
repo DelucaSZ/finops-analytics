@@ -1,3 +1,4 @@
+import {formatLocaleDate} from "../i18n/formatters.mjs";
 export const BILLING_PERIOD_PRESETS = [
   { value: "this_month", label: "Este mês" },
   { value: "previous_month", label: "Mês anterior" },
@@ -171,7 +172,7 @@ export function formatBillingMoney(amount, currency, locale = "pt-BR") {
         currency: unit,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(numeric);
+      }).format(typeof amount === "string" ? amount : numeric);
     } catch {
       // Cost Explorer may return a non-ISO unit. Preserve it instead of inventing a currency.
     }
@@ -179,7 +180,7 @@ export function formatBillingMoney(amount, currency, locale = "pt-BR") {
   const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(numeric);
+  }).format(typeof amount === "string" ? amount : numeric);
   return unit ? `${unit} ${formatted}` : formatted;
 }
 
@@ -213,7 +214,7 @@ export function formatBillingAxisMoney(amount, currency, locale = "pt-BR") {
 export function formatBillingDate(value, locale = "pt-BR") {
   const parsed = parseDateKey(value);
   return parsed
-    ? new Intl.DateTimeFormat(locale, { day: "2-digit", month: "2-digit", year: "numeric" }).format(parsed)
+    ? formatLocaleDate(value, locale, {day: "2-digit", month: "2-digit", year: "numeric", dateStyle: undefined})
     : value;
 }
 
@@ -223,7 +224,7 @@ export function formatBillingAxisDate(value, granularity, locale = "pt-BR") {
   const options = granularity === "MONTHLY"
     ? { month: "short", year: "2-digit" }
     : { day: "2-digit", month: "2-digit" };
-  return new Intl.DateTimeFormat(locale, options).format(parsed).replace(/\.$/, "");
+  return formatLocaleDate(value, locale, options).replace(/\.$/, "");
 }
 
 export function formatBillingRange(period, locale = "pt-BR") {
