@@ -653,7 +653,7 @@ function OpportunitiesContent() {
         <div className={styles.rowActions}>
           <Button variant="ghost" size="sm" onClick={() => openDetail(finding.id)}>{t("actions.details")}</Button>
           <Button variant="outline" size="sm" loading={unarchiveSavingId === finding.id} onClick={() => void restoreHistoryRow(finding)}>
-            {finding.status === "rejected" ? "Reabrir oportunidade" : "Desarquivar"}
+            {finding.status === "rejected" ? t("actions.reopenOpportunity") : t("actions.unarchive")}
           </Button>
         </div>
       );
