@@ -363,7 +363,7 @@ export default function OpportunityHistoryCyclesPage() {
                   {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
-              supportingText=t("summary.noFx")
+              supportingText={t("summary.noFx")}
             />
             <MetricCard
               label={t("summary.current")}
@@ -372,7 +372,7 @@ export default function OpportunityHistoryCyclesPage() {
                   {costs.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
-              supportingText=t("summary.captured")
+              supportingText={t("summary.captured")}
             />
             <MetricCard
               label={t("summary.collections")}
