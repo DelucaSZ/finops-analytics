@@ -237,42 +237,44 @@ test("workspace source exposes history without regressing operational semantics"
   const archiveHistory = await readFile(new URL("../components/opportunity-archive-history.tsx", import.meta.url), "utf8");
   const dialog = await readFile(new URL("../components/opportunity-decision-dialog.tsx", import.meta.url), "utf8");
 
-  for (const label of ["Abertas", "Tratadas", "Rejeitadas", "Histórico"]) {
-    assert.match(page, new RegExp(label));
+  const pt = JSON.parse(await readFile(new URL("../i18n/messages/pt-BR.json", import.meta.url), "utf8"));
+  for (const key of ["open","treated","rejected","history"]) {
+    assert.ok(page.includes(`t("tabs.${key}")`), `missing localized tab ${key}`);
+    assert.ok(pt.opportunities.tabs[key]);
   }
   for (const primitive of ["FilterBar", "Tabs", "TabsList", "TabsTrigger", "Section", "MetricCard"]) {
     assert.match(page, new RegExp(`\\b${primitive}\\b`), `expected Aven component ${primitive}`);
   }
 
   assert.match(page, /archive_state/);
-  assert.match(page, /Presença técnica/);
-  assert.match(page, /Arquivada desde/);
-  assert.match(page, /Desarquivar/);
-  assert.match(page, /Moedas preservadas separadamente; nenhuma conversão FX é aplicada/);
+  assert.match(page, /t\("filters\.technicalPresence"\)/);
+  assert.match(page, /t\("filters\.archivedFrom"\)/);
+  assert.match(page, /t\("actions\.unarchive"\)/);
+  assert.match(page, /t\("summary\.noConversion"\)/);
   assert.match(page, /totals\[currency\] = \(totals\[currency\] \|\| 0\) \+ amount/);
   assert.doesNotMatch(page, /exchangeRate|fxRate|convertCurrency/);
   assert.match(page, /\/opportunities\/stats/);
   assert.match(page, /opportunity_id/);
-  assert.match(page, /Selecionar página atual/);
+  assert.match(page, /t\("table\.selectPage"\)/);
   assert.match(page, /buildLifecycleRequest/);
   assert.match(page, /archiveSucceeded/);
   assert.match(page, /restoreHistoryRow/);
   assert.doesNotMatch(page, /window\.prompt/);
   assert.doesNotMatch(page, /location\.reload|window\.location\.reload/);
 
-  assert.match(detail, /Por que|FindingEvidence/);
-  assert.match(detail, /Histórico de detecção/);
-  assert.match(detail, /Histórico de decisões/);
+  assert.match(detail, /FindingEvidence/);
+  assert.match(detail, /t\("detection\.title"\)/);
+  assert.match(detail, /t\("history\.title"\)/);
   assert.match(detail, /OpportunityPresenceHistory/);
   assert.match(detail, /OpportunityArchiveHistory/);
   assert.match(detail, /StatusIndicator status=\{statusTone\(detail\.status\)\} label=\{statusLabel\(detail\.status\)\}/);
   assert.match(detail, /StatusIndicator status=\{statusTone\(detail\.presence_status\)\} label=\{statusLabel\(detail\.presence_status\)\}/);
-  assert.match(detail, /Decisão atual/);
-  assert.match(detail, /Arquivada em/);
-  assert.match(detail, /Desarquivar/);
-  assert.match(detail, /Ver histórico completo/);
-  assert.match(archiveHistory, /Política de retenção/);
-  assert.match(archiveHistory, /Reaparecimento automático/);
+  assert.match(detail, /t\("decision\.title"\)/);
+  assert.match(detail, /t\("field\.archivedAt"\)/);
+  assert.match(detail, /t\("actions\.unarchive"\)/);
+  assert.match(detail, /t\("detection\.full"\)/);
+  assert.match(archiveHistory, /t\("reason\.retentionPolicy"\)/);
+  assert.match(archiveHistory, /t\("reason\.reappeared"\)/);
   assert.match(dialog, /FALSE_POSITIVE/);
   assert.match(dialog, /OPERATIONAL_EXCEPTION/);
   assert.match(dialog, /OTHER/);
