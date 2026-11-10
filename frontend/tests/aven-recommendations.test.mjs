@@ -92,9 +92,9 @@ test("Recommendations preserves savings currency and monthly semantics", async (
   assert.ok(page.includes("finding.estimated_monthly_savings"));
   assert.ok(page.includes("finding.currency"));
   assert.ok(page.includes("<CurrencyDisplay"));
-  assert.ok(page.includes("/mês"));
+  assert.ok(page.includes('t("savings.perMonth")'));
   assert.ok(page.includes('finding.rule_key === "cost_growth_anomaly"'));
-  assert.ok(page.includes("Não estimada"));
+  assert.ok(page.includes('t("savings.notEstimated")'));
   assert.ok(page.includes("pageSavingsEntries"));
   assert.ok(!page.includes('finding.currency || "USD"'));
   assert.ok(!page.includes("exchangeRate"));
@@ -120,8 +120,8 @@ test("Recommendations switches between curated cards and dense tables by real vo
 
 test("Recommendations differentiates filtered empty state and avoids false optimization claims", async () => {
   const page = await source("../app/opportunities/page.tsx");
-  assert.ok(page.includes("Nenhuma oportunidade corresponde aos filtros"));
-  assert.ok(page.includes("A engine não retornou recomendações nesse estado"));
+  assert.ok(page.includes('t("table.emptyFiltered")'));
+  assert.ok(page.includes('t("table.emptyDescription")'));
   assert.ok(!/100% otimizado/i.test(page));
 });
 
