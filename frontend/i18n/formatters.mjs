@@ -69,8 +69,11 @@ export function formatLocaleDate(value, locale = DEFAULT_FORMAT_LOCALE, options 
   const date = calendarDate(value);
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && !date) return "—";
   if (!date) return formatLocaleDateTime(value, locale, { dateStyle: "short", timeStyle: undefined, ...options });
+  // Intl forbids dateStyle alongside explicit calendar fields.
+  const hasFields = ["weekday", "era", "year", "month", "day", "hour", "minute", "second"]
+    .some((key) => options[key] !== undefined);
   return new Intl.DateTimeFormat(normalizedLocale(locale), {
-    dateStyle: "short", ...options, timeZone: "UTC",
+    ...(hasFields ? {} : {dateStyle: "short"}), ...options, timeZone: "UTC",
   }).format(date);
 }
 

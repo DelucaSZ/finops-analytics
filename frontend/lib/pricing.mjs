@@ -43,9 +43,10 @@ export function sourceLabel(source) {
 
 // Preserve the exact decimal string returned by OCI pricing (up to 8 places).
 export function formatBrlDecimal(value, locale = "pt-BR") {
+  // Preserve the legacy ASCII space in Portuguese pricing summaries.
   return formatLocaleCurrency(value ?? "0", "BRL", locale, {
     minimumFractionDigits: 2, maximumFractionDigits: 8,
-  });
+  }).replace(/\u00a0/g, " ");
 }
 
 export function toDatetimeLocal(value = new Date()) {

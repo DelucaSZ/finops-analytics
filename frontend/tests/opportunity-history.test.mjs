@@ -107,7 +107,7 @@ test("UI exposes closed snapshot lifecycle and presence", () => {
 test("UI exposes historical financial values and currency-aware formatter", () => {
   assert.match(pageSource, /t\("detail\.periodCost"\)/);
   assert.match(pageSource, /t\("detail\.estimatedSavings"\)/);
-  assert.match(pageSource, /formatMoney\(selected\.current_monthly_cost, selected\.currency\)/);
+  assert.match(pageSource, /formatMoney\(selected\.current_monthly_cost, selected\.currency, locale\)/);
 });
 
 test("UI exposes first and last observation timestamps and occurrence count", () => {

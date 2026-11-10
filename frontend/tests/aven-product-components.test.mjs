@@ -53,7 +53,7 @@ test("MetricCard differentiates null data from numeric zero and reuses Skeleton"
 test("CurrencyDisplay requires explicit currency and uses Intl.NumberFormat", () => {
   const source = read("displays.tsx");
   assert.match(source, /currency: string/);
-  assert.match(source, /style: "currency"/);
+  assert.match(source, /formatLocaleCurrency\(value, currency, locale \?\? activeLocale/);
   assert.match(source, /new Intl\.NumberFormat/);
   assert.doesNotMatch(source, /provider.*currency|currency.*provider/i);
 });
