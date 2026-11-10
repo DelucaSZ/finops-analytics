@@ -151,3 +151,11 @@ test("theme selector preserves preference identifiers and localizes visible opti
  for(const value of ["light","dark","system"]) assert.ok(selector.includes('value: "'+value+'"'));
  for(const locale of ["pt-BR","en-US"]){const m=messages(locale).settings.appearance;for(const key of ["system","light","dark","systemDescription","lightDescription","darkDescription"])assert.ok(m[key]);}
 });
+
+test("status badges translate display labels without altering technical status classes", () => {
+ const badge=source("components/status-badge.tsx");
+ assert.ok(badge.includes('useTranslations("common.status")'));
+ assert.ok(badge.includes('data-status={normalized || "unknown"}'));
+ for(const locale of ["pt-BR","en-US"]){const status=messages(locale).common.status;for(const key of ["open","treated","rejected","resolvedExternally","completedWithWarnings"]) assert.ok(status[key]);}
+ assert.equal(messages("en-US").common.status.failed,"Failed");
+});

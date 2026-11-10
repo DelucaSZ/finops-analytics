@@ -67,6 +67,26 @@
       "negative": "negative",
       "neutral": "neutral",
       "announcement": "{label}: {direction}, {sentiment}, {value}"
+    },
+    "status": {
+      "connected": "Connected",
+      "untested": "Not tested",
+      "error": "Error",
+      "pending": "Pending",
+      "running": "Running",
+      "success": "Completed",
+      "completed": "Completed",
+      "completedWithWarnings": "With warnings",
+      "failed": "Failed",
+      "open": "Open",
+      "treated": "Treated",
+      "rejected": "Rejected",
+      "active": "Active",
+      "missing": "Missing",
+      "resolvedExternally": "Resolved externally",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
     }
   },
   "shell": {

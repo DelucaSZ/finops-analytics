@@ -67,6 +67,26 @@
       "negative": "negativa",
       "neutral": "neutra",
       "announcement": "{label}: {direction}, {sentiment}, {value}"
+    },
+    "status": {
+      "connected": "Conectada",
+      "untested": "Não testada",
+      "error": "Erro",
+      "pending": "Pendente",
+      "running": "Em andamento",
+      "success": "Concluída",
+      "completed": "Concluída",
+      "completedWithWarnings": "Com alertas",
+      "failed": "Falhou",
+      "open": "Aberta",
+      "treated": "Tratada",
+      "rejected": "Rejeitada",
+      "active": "Ativa",
+      "missing": "Ausente",
+      "resolvedExternally": "Resolvida externamente",
+      "high": "Alta",
+      "medium": "Média",
+      "low": "Baixa"
     }
   },
   "shell": {
