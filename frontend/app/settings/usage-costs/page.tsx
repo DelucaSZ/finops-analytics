@@ -521,13 +521,13 @@ export default function AvenUsageCostsPage() {
   return (
     <>
       <PageHeader
-        eyebrow=t("eyebrow")
-        title=t("title")
-        description=t("description")
-        actions={<button className="button secondary" onClick={() => setRefreshToken((value) => value + 1)}><RefreshCw size={16} /> Atualizar</button>}
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
+        actions={<button className="button secondary" onClick={() => setRefreshToken((value) => value + 1)}><RefreshCw size={16} /> {t("refresh")}</button>}
       />
 
-      <section className={styles.filtersPanel} aria-label=t("filtersAria")>
+      <section className={styles.filtersPanel} aria-label={t("filtersAria")}>
         <div className={styles.filtersGrid}>
           <label className={styles.field}>
             <span>{t("period")}</span>
@@ -567,7 +567,7 @@ export default function AvenUsageCostsPage() {
             <span>{t("analyzer")}</span>
             <select value={analyzer} onChange={(event) => setAnalyzer(event.target.value)}>
               <option value="">{t("allMasculine")}</option>
-              {options.analyzers.map((item) => <option value={item.value} key={item.value}>{({today:t("presetToday"),"last-7-days":t("preset7"),"this-month":t("presetMonth"),"previous-month":t("presetPrevious"),"last-3-months":t("preset3"),custom:t("presetCustom")} as Record<string,string>)[item.value] ?? item.label}</option>)}
+              {options.analyzers.map((item) => <option value={item.value} key={item.value}>{friendlyUsageLabel(item.value === SHARED_ANALYZER ? null : item.value, "analyzer", locale)}</option>)}
             </select>
           </label>
         </div>
@@ -615,7 +615,7 @@ export default function AvenUsageCostsPage() {
       </div>
 
       {usageError && <div className={styles.errorBanner} role="alert"><strong>{t("telemetryError")}</strong> {usageError}</div>}
-      {costError && <div className={styles.errorBanner} role="alert"><strong>{t("costError")}</strong> {costError} A telemetria continua sendo apresentada quando disponível.</div>}
+      {costError && <div className={styles.errorBanner} role="alert"><strong>{t("costError")}</strong> {costError} {t("telemetryAvailable")}</div>}
 
       {!usageLoading && !usageError && !hasUsage && (
         <section className={styles.emptyState}>
@@ -654,10 +654,10 @@ export default function AvenUsageCostsPage() {
 
       {cost && usage && (
         <div className={styles.breakdownGrid}>
-          <BreakdownSection title=t("costByAccount") subtitle=t("costByAccountNote") kind="account" cost={cost.account} usage={usage.account} accounts={awsAccounts} />
-          <BreakdownSection title=t("costByOperation") subtitle=t("costByOperationNote") kind="operation" cost={cost.operation} usage={usage.operation} accounts={awsAccounts} showProvenance />
-          <BreakdownSection title=t("costByCollector") subtitle=t("costByCollectorNote") kind="collector" cost={cost.collector} usage={usage.collector} accounts={awsAccounts} />
-          <BreakdownSection title=t("costByAnalyzer") subtitle=t("costByAnalyzerNote") kind="analyzer" cost={cost.analyzer} usage={usage.analyzer} accounts={awsAccounts} />
+          <BreakdownSection title={t("costByAccount")} subtitle={t("costByAccountNote")} kind="account" cost={cost.account} usage={usage.account} accounts={awsAccounts} />
+          <BreakdownSection title={t("costByOperation")} subtitle={t("costByOperationNote")} kind="operation" cost={cost.operation} usage={usage.operation} accounts={awsAccounts} showProvenance />
+          <BreakdownSection title={t("costByCollector")} subtitle={t("costByCollectorNote")} kind="collector" cost={cost.collector} usage={usage.collector} accounts={awsAccounts} />
+          <BreakdownSection title={t("costByAnalyzer")} subtitle={t("costByAnalyzerNote")} kind="analyzer" cost={cost.analyzer} usage={usage.analyzer} accounts={awsAccounts} />
         </div>
       )}
 

@@ -42,3 +42,15 @@ test("dashboard exposes independent loading/error semantics and stale request pr
   assert.ok(page.includes("AbortController"));
   assert.ok(page.includes("sequence.current"));
 });
+
+// Locale-specific presentation must preserve serialized query identifiers.
+test("Usage & Costs copy follows locale without changing filter keys", async () => {
+ const pt = JSON.parse(await readFile(new URL("../i18n/messages/pt-BR.json", import.meta.url), "utf8"));
+ const en = JSON.parse(await readFile(new URL("../i18n/messages/en-US.json", import.meta.url), "utf8"));
+ assert.deepEqual(Object.keys(pt.settings.usageCosts).sort(), Object.keys(en.settings.usageCosts).sort());
+ assert.equal(pt.settings.usageCosts.title, "Uso e custos");
+ assert.equal(en.settings.usageCosts.title, "Usage & costs");
+ const page = await readFile(pageUrl, "utf8");
+ for (const key of ["cloud_account_id", "group_by", "collection_run", "date_from", "date_to"]) assert.ok(page.includes(key));
+ assert.ok(page.includes('friendlyUsageLabel(item.value === SHARED_ANALYZER ? null : item.value, "analyzer", locale)'));
+});
