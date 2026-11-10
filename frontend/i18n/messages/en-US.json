@@ -2119,7 +2119,8 @@
         "notFound": "Collection not found.",
         "detailLoad": "Unable to load collection.",
         "listLoad": "Unable to load collections."
-      }
+      },
+      "trigger": "Trigger"
     }
   }
 }

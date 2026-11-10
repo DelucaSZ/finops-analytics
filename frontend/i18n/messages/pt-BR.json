@@ -2119,7 +2119,8 @@
         "notFound": "Coleta não encontrada.",
         "detailLoad": "Não foi possível carregar a coleta.",
         "listLoad": "Não foi possível carregar as coletas."
-      }
+      },
+      "trigger": "Gatilho"
     }
   }
 }
