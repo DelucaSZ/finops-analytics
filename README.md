@@ -257,6 +257,7 @@ npm run lint:design-system
 npm run lint:i18n
 npm run lint:i18n:references
 npm run lint:i18n:coverage -- --report
+# Em CI: npm run smoke:i18n:browser (Chromium + playwright-core, após build)
 npm run lint
 npm run typecheck
 npm test
