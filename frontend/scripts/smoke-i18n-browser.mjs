@@ -80,6 +80,29 @@ try {
   assert.ok(page.url().includes("/settings/appearance"));
   const cookie = (await ctx.cookies(BASE)).find(item=>item.name==="aven.locale");
   assert.equal(cookie?.value,"en-US");
+  // Round-trip the selector in the same mounted client session; no full document navigation.
+  await page.evaluate(() => { window.__avenLocaleQaSentinel = "preserved"; });
+  await page.getByRole("button",{name:/Language:/}).click();
+  await page.getByRole("menuitemradio",{name:/Português/}).click();
+  await page.waitForFunction(() => document.documentElement.lang === "pt-BR",null,{timeout:20000});
+  await page.getByText("Aparência",{exact:true}).first().waitFor();
+  assert.equal((await ctx.cookies(BASE)).find(item=>item.name==="aven.locale")?.value, "pt-BR");
+  assert.equal(await page.evaluate(() => window.__avenLocaleQaSentinel), "preserved");
+  assert.equal(await page.locator("html").getAttribute("data-theme-preference"),"dark");
+  await page.getByRole("button",{name:/Idioma:/}).click();
+  await page.getByRole("menuitemradio",{name:/English/}).click();
+  await page.waitForFunction(() => document.documentElement.lang === "en-US",null,{timeout:20000});
+  assert.equal((await ctx.cookies(BASE)).find(item=>item.name==="aven.locale")?.value, "en-US");
+  assert.equal(await page.evaluate(() => window.__avenLocaleQaSentinel), "preserved");
+
+  for (const theme of ["light","system","dark"]) {
+    await page.locator('input[name="aven-theme"][value="'+theme+'"]').check();
+    assert.equal(await page.locator("html").getAttribute("data-theme-preference"),theme);
+  }
+
+  const nextTab = await ctx.newPage();
+  await check(nextTab, "en-US", "Welcome back");
+  await nextTab.close();
   await page.reload({waitUntil:"domcontentloaded"});
   await page.waitForFunction(() => document.documentElement.lang === "en-US");
   assert.equal(await page.locator("html").getAttribute("data-theme-preference"), "dark");
