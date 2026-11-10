@@ -59,7 +59,7 @@ test("percentages explicitly distinguish points from fractions", () => {
 
 test("civil dates retain selected day across locales and time zones", () => {
   assert.equal(formatLocaleDate("2026-11-10", "pt-BR"), "10/11/2026");
-  assert.equal(formatLocaleDate("2026-11-10", "en-US"), "11/10/26");
+  assert.equal(formatLocaleDate("2026-11-10", "en-US"), "11/10/2026");
   assert.equal(formatLocaleDate("2024-02-29", "pt-BR"), "29/02/2024");
   assert.equal(formatLocaleDate("2026-02-29", "pt-BR"), "—");
   assert.equal(formatLocaleDate("2026-12-31", "pt-BR"), "31/12/2026");

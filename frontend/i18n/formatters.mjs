@@ -73,7 +73,9 @@ export function formatLocaleDate(value, locale = DEFAULT_FORMAT_LOCALE, options 
   const hasFields = ["weekday", "era", "year", "month", "day", "hour", "minute", "second"]
     .some((key) => options[key] !== undefined);
   return new Intl.DateTimeFormat(normalizedLocale(locale), {
-    ...(hasFields ? {} : {dateStyle: "short"}), ...options, timeZone: "UTC",
+    ...(hasFields ? {} : options.dateStyle ? {dateStyle: "short"} : {
+      year: "numeric", month: "2-digit", day: "2-digit",
+    }), ...options, timeZone: "UTC",
   }).format(date);
 }
 
