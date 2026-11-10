@@ -55,9 +55,9 @@ test("HTTPS settings preserves its functional TLS contracts under the tokenized 
   assert.ok(page.includes('api<TlsStatus>("/tls/apply"'));
   assert.ok(page.includes("server_certificate:"));
   assert.ok(page.includes("intermediate_chain:"));
-  assert.ok(page.includes("Certificado do servidor (PEM)"));
-  assert.ok(page.includes("Cadeia intermediária / CA Bundle (PEM)"));
-  assert.ok(page.includes("TLS local válido"));
+  assert.ok(page.includes('t("serverCertificate")'));
+  assert.ok(page.includes('t("intermediateChain")'));
+  assert.ok(page.includes('t("localValid")'));
   assert.ok(page.includes("Validação do endpoint"));
   assert.ok(page.includes("A:"));
   assert.ok(page.includes("AAAA:"));
