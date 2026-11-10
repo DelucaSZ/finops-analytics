@@ -313,7 +313,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                 ) : null}
 
                 <section className={styles.section} aria-labelledby="evidence-title">
-                  <div className={styles.sectionHeader}><div><h3 id="evidence-title">{t("evidence.title")}</h3><p>Métricas e fatos persistidos pela recomendação; nenhum valor é recalculado na interface.</p></div></div>
+                  <div className={styles.sectionHeader}><div><h3 id="evidence-title">{t("evidence.title")}</h3><p>{t("evidence.description")}</p></div></div>
                   {selectedObservation ? (
                     <div className={styles.historicalBanner}>
                       <strong>{t("evidence.historical")}</strong>
@@ -376,7 +376,7 @@ export function OpportunityDetail({ opportunityId, onClose, onAction, onArchive 
                         </article>
                       ))}
                     </div>
-                  ) : <p className={styles.secondary}>Nenhuma decisão manual registrada.</p>}
+                  ) : <p className={styles.secondary}>{t("history.empty")}</p>}
                 </section>
 
                 <details className={styles.technicalDetails}>
