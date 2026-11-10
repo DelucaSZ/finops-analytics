@@ -150,7 +150,6 @@ function UserAutocomplete({
   selectedId: string;
   onChange: (query: string, id: string) => void;
 }) {
-  const locale = useLocale();
   const t = useTranslations("settings.audit");
   const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
   const [options, setOptions] = useState<UserOption[]>([]);

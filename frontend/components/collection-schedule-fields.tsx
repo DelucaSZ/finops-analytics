@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import {useLocale, useTranslations} from "next-intl";
 import { Checkbox, Select } from "@/components/ui";
 import { formatDate } from "@/lib/api";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -30,6 +30,7 @@ export function CollectionScheduleFields({
   onIntervalChange,
 }: CollectionScheduleFieldsProps) {
   const t = useTranslations("settings.schedule");
+  const locale = useLocale();
   if (!supported) {
     return (
       <div className="span-2 account-form-note" role="status">
@@ -66,7 +67,7 @@ export function CollectionScheduleFields({
         {showNextScan && scheduleEnabled && (
           <div className="account-form-note">
             <strong>{t("nextExecution")}</strong><br />
-            {nextScanAt ? formatDate(nextScanAt) : t("nextUnavailable")}
+            {nextScanAt ? formatDate(nextScanAt, locale) : t("nextUnavailable")}
           </div>
         )}
         {showNextScan && !scheduleEnabled && (
