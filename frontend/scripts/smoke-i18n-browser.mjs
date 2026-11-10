@@ -1,11 +1,36 @@
 import assert from "node:assert/strict";
-import {existsSync, mkdirSync} from "node:fs";
-import {spawn} from "node:child_process";
+import {existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync} from "node:fs";
+import {join} from "node:path";
+import {tmpdir} from "node:os";
+import {createServer as httpsServer} from "node:https";
+import {request as httpRequest} from "node:http";
+import {execFileSync,spawn} from "node:child_process";
 import {setTimeout as delay} from "node:timers/promises";
 import {chromium} from "playwright-core";
 
 const PORT = Number(process.env.AVEN_QA_PORT || 3227);
-const BASE = "http://127.0.0.1:" + PORT;
+const TLS_PORT = PORT + 1;
+const BASE = "https://localhost:" + TLS_PORT;
+const UPSTREAM = "http://127.0.0.1:" + PORT;
+// Production cookies have Secure=true. Exercise them over a local HTTPS origin,
+// never by weakening cookie options or disabling application security.
+const certificateDir = mkdtempSync(join(tmpdir(), "aven-i18n-qa-"));
+const keyPath = join(certificateDir, "key.pem");
+const certPath = join(certificateDir, "cert.pem");
+execFileSync("openssl", ["req","-x509","-newkey","rsa:2048","-nodes",
+  "-keyout",keyPath,"-out",certPath,"-days","1",
+  "-subj","/CN=localhost","-addext","subjectAltName=DNS:localhost"],{stdio:"ignore"});
+const proxy = httpsServer({key:readFileSync(keyPath),cert:readFileSync(certPath)}, (request,response) => {
+  const upstream = httpRequest({hostname:"127.0.0.1",port:PORT,path:request.url,method:request.method,
+    headers:{...request.headers,host:"localhost:" + TLS_PORT,
+      "x-forwarded-host":"localhost:" + TLS_PORT,"x-forwarded-proto":"https"}}, (remote) => {
+    response.writeHead(remote.statusCode ?? 502,remote.headers);
+    remote.pipe(response);
+  });
+  upstream.on("error",error=>{response.writeHead(502);response.end(String(error));});
+  request.pipe(upstream);
+});
+await new Promise((resolve,reject)=>proxy.once("error",reject).listen(TLS_PORT,"127.0.0.1",resolve));
 const BROWSER = process.env.CHROME_BIN || ["/usr/bin/google-chrome", "/usr/bin/google-chrome-stable", "/usr/bin/chromium"].find(existsSync);
 if (!BROWSER) throw new Error("Browser QA requires Chrome/Chromium; none found on this runner.");
 const browser = await chromium.launch({executablePath: BROWSER, headless: true, args: ["--no-sandbox"]});
@@ -23,12 +48,12 @@ const check = async (page, locale, heading) => {
 try {
   let running = false;
   for (let attempt = 0; attempt < 60; attempt++) {
-    try {const r=await fetch(BASE + "/login"); if(r.ok){running=true;break;}} catch {}
+    try {const r=await fetch(UPSTREAM + "/login"); if(r.ok){running=true;break;}} catch {}
     await delay(1000);
   }
   assert.ok(running, "Next production server did not start");
   const clientErrors = [];
-  const ctx = await browser.newContext({viewport: {width: 1440, height: 900}});
+  const ctx = await browser.newContext({ignoreHTTPSErrors:true,viewport: {width: 1440, height: 900}});
   const page = await ctx.newPage();
   page.on("console", msg => {if(msg.type()==="error" && /hydration|mismatch|did not match|server rendered/i.test(msg.text())) clientErrors.push(msg.text());});
   page.on("pageerror", err => {if(/hydration|mismatch/i.test(err.message)) clientErrors.push(err.message);});
@@ -66,11 +91,11 @@ try {
     assert.ok(fits, "Topbar exceeds viewport at " + viewport.width);
   }
 
-  const other = await browser.newContext({viewport:{width:390,height:844}});
+  const other = await browser.newContext({ignoreHTTPSErrors:true,viewport:{width:390,height:844}});
   const otherPage = await other.newPage();
   await check(otherPage, "pt-BR", "Bem-vindo de volta");
   await other.addCookies([{name:"aven.locale",value:"invalid",url:BASE}]);
-  await check(otherPage, "pt-BR", "Acess");
+  await check(otherPage, "pt-BR", "Bem-vindo de volta");
   assert.equal(await page.locator("html").getAttribute("lang"), "en-US", "Independent contexts must not leak locale");
   await other.close();
   assert.deepEqual(clientErrors, [], "No hydration mismatch in browser console");
@@ -79,4 +104,6 @@ try {
 } finally {
   server.kill("SIGTERM");
   await browser.close();
+  await new Promise(resolve=>proxy.close(resolve));
+  rmSync(certificateDir,{recursive:true,force:true});
 }
