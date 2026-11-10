@@ -39,6 +39,20 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     };
   }, [retry]);
 
+  const navigationLabels: Record<string, string> = {
+    appearance: t("navigation.appearance"),
+    accounts: t("navigation.accounts"),
+    policies: t("navigation.policies"),
+    security: t("navigation.security"),
+    sessions: t("navigation.sessions"),
+    users: t("navigation.users"),
+    audit: t("navigation.audit"),
+    https: t("navigation.https"),
+    pricing: t("navigation.pricing"),
+    billingProfiles: t("navigation.billingProfiles"),
+    usageCosts: t("navigation.usageCosts"),
+    retention: t("navigation.retention"),
+  };
   const tabs = useMemo(() => settingsTabsForRole(role), [role]);
   const activeTab = useMemo(
     () => tabs.find((tab) => isSettingsTabActive(path, tab.href))?.href ?? tabs[0]?.href ?? path,
@@ -103,7 +117,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           <TabsList className={styles.tabs} aria-label={t("navigation.ariaLabel")}>
             {tabs.map((tab) => (
               <TabsTrigger key={tab.href} value={tab.href}>
-                {t(`navigation.${tab.labelKey}`)}
+                {navigationLabels[tab.labelKey] ?? tab.labelKey}
               </TabsTrigger>
             ))}
           </TabsList>

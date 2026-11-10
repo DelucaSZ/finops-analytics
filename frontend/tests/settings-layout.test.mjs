@@ -22,7 +22,7 @@ test("Settings layout preserves route navigation through the official Aven Tabs 
   for (const primitive of ["Tabs", "TabsList", "TabsTrigger", "TabsContent"]) {
     assert.ok(layout.includes(primitive), `expected ${primitive} in Settings layout`);
   }
-  assert.ok(layout.includes('aria-label="Áreas de Configurações"'));
+  assert.ok(layout.includes('aria-label={t("navigation.ariaLabel")}'));
   assert.ok(layout.includes("settingsTabsForRole"));
   assert.ok(layout.includes("isSettingsTabActive"));
   assert.ok(layout.includes("router.push(href)"));
