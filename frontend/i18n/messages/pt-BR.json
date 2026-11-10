@@ -1699,5 +1699,27 @@
     "viewCollection": "Ver coleta",
     "compare": "Comparar",
     "noCollectionRun": "Sem CollectionRun"
+  },
+  "collections": {
+    "manual": {
+      "execute": "Executar coleta",
+      "description": "Selecione uma cloud e uma conta conectada. O escopo já configurado na conta será utilizado.",
+      "noAccount": "Nenhuma conta disponível para coleta manual",
+      "goToAccounts": "Ir para Contas",
+      "provider": "Cloud",
+      "account": "Conta",
+      "select": "Selecione",
+      "noProviderAccounts": "Nenhuma conta elegível para esta cloud.",
+      "cancel": "Cancelar",
+      "success": "Coleta de {account} solicitada com sucesso.",
+      "loadFailed": "Não foi possível carregar as contas disponíveis para coleta manual.",
+      "errors": {
+        "conflict": "Já existe uma coleta em andamento para esta conta ou a coleta manual está temporariamente indisponível.",
+        "forbidden": "Você não tem permissão para iniciar esta coleta.",
+        "ineligible": "A conta não atende mais às condições necessárias para iniciar a coleta.",
+        "failed": "Não foi possível solicitar a coleta. Tente novamente.",
+        "selectAccount": "Selecione uma conta elegível para coleta manual."
+      }
+    }
   }
 }

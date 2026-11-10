@@ -1699,5 +1699,27 @@
     "viewCollection": "View collection",
     "compare": "Compare",
     "noCollectionRun": "No CollectionRun"
+  },
+  "collections": {
+    "manual": {
+      "execute": "Run collection",
+      "description": "Select a cloud provider and a connected account. The scope already configured for this account will be used.",
+      "noAccount": "No accounts available for manual collection",
+      "goToAccounts": "Go to Accounts",
+      "provider": "Cloud",
+      "account": "Account",
+      "select": "Select",
+      "noProviderAccounts": "No eligible accounts for this cloud provider.",
+      "cancel": "Cancel",
+      "success": "Collection for {account} requested successfully.",
+      "loadFailed": "Unable to load accounts available for manual collection.",
+      "errors": {
+        "conflict": "A collection is already running for this account, or manual collection is temporarily unavailable.",
+        "forbidden": "You do not have permission to start this collection.",
+        "ineligible": "This account no longer meets the requirements to start a collection.",
+        "failed": "Unable to request collection. Try again.",
+        "selectAccount": "Select an eligible account for manual collection."
+      }
+    }
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { Play } from "lucide-react";
 import {
@@ -33,22 +34,23 @@ type CurrentUser = { role: string };
 function manualCollectionError(error: unknown) {
   if (error instanceof ApiError) {
     if (error.status === 409) {
-      return "Já existe uma coleta em andamento para esta conta ou a coleta manual está temporariamente indisponível.";
+      return "MANUAL_CONFLICT";
     }
     if (error.status === 403) {
-      return "Você não tem permissão para iniciar esta coleta.";
+      return "MANUAL_FORBIDDEN";
     }
     if (error.status === 422) {
-      return "A conta não atende mais às condições necessárias para iniciar a coleta.";
+      return "MANUAL_INELIGIBLE";
     }
     return error.message;
   }
   return error instanceof Error
     ? error.message
-    : "Não foi possível solicitar a coleta. Tente novamente.";
+    : "MANUAL_REQUEST_FAILED";
 }
 
 export function ManualCollectionLauncher() {
+  const t = useTranslations("collections.manual");
   const messageTimer = useRef<number | null>(null);
   const [accounts, setAccounts] = useState<CloudAccount[]>([]);
   const [capabilities, setCapabilities] = useState<ProviderCapabilities[]>([]);
@@ -92,7 +94,7 @@ export function ManualCollectionLauncher() {
       })
       .catch(() => {
         if (!active) return;
-        setLoadError("Não foi possível carregar as contas disponíveis para coleta manual.");
+        setLoadError("MANUAL_LOAD_FAILED");
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -148,7 +150,7 @@ export function ManualCollectionLauncher() {
       (account) => String(account.id) === cloudAccountId,
     );
     if (!selected) {
-      setError("Selecione uma conta elegível para coleta manual.");
+      setError("MANUAL_SELECT_ACCOUNT");
       return;
     }
 
@@ -160,7 +162,7 @@ export function ManualCollectionLauncher() {
       });
       invalidateApiQueries(queryKeys.dashboard.all);
       invalidateApiQueries(queryKeys.collections.all);
-      setMessage(`Coleta de ${selected.name} solicitada com sucesso.`);
+      setMessage(selected.name);
       setOpen(false);
       if (messageTimer.current !== null) window.clearTimeout(messageTimer.current);
       messageTimer.current = window.setTimeout(() => setMessage(""), 5000);
@@ -181,7 +183,7 @@ export function ManualCollectionLauncher() {
         </Button>
       </div>
 
-      {message && <Alert className={styles.feedback} variant="success" description={message} />}
+      {message && <Alert className={styles.feedback} variant="success" description={t("success", {account: message})} />}
 
       <Dialog
         open={open}
@@ -192,31 +194,31 @@ export function ManualCollectionLauncher() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Executar coleta</DialogTitle>
+            <DialogTitle>{t("execute")}</DialogTitle>
             <DialogDescription>
-              Selecione uma cloud e uma conta conectada. O escopo já configurado na conta será utilizado.
+              {t("description")}
             </DialogDescription>
           </DialogHeader>
 
           <form className={styles.form} onSubmit={submit}>
             {loadError ? (
-              <Alert variant="danger" description={loadError} />
+              <Alert variant="danger" description={loadError === "MANUAL_LOAD_FAILED" ? t("loadFailed") : loadError} />
             ) : eligibleProviders.length === 0 ? (
               <Alert
                 variant="info"
-                title="Nenhuma conta disponível para coleta manual"
+                title={t("noAccount")}
                 actions={(
                   <Link href="/settings/accounts" className={styles.linkAction} onClick={closeDialog}>
-                    Ir para Contas
+                    {t("goToAccounts")}
                   </Link>
                 )}
               />
             ) : (
               <>
                 <Select
-                  label="Cloud"
+                  label={t("provider")}
                   value={provider}
-                  placeholder="Selecione"
+                  placeholder={t("select")}
                   disabled={submitting}
                   options={eligibleProviders.map((item) => ({
                     value: item.provider,
@@ -229,11 +231,11 @@ export function ManualCollectionLauncher() {
                   }}
                 />
                 <Select
-                  label="Conta"
+                  label={t("account")}
                   value={cloudAccountId}
-                  placeholder="Selecione"
+                  placeholder={t("select")}
                   disabled={submitting || !provider}
-                  helperText={provider && providerAccounts.length === 0 ? "Nenhuma conta elegível para esta cloud." : undefined}
+                  helperText={provider && providerAccounts.length === 0 ? t("noProviderAccounts") : undefined}
                   options={providerAccounts.map((account) => ({
                     value: String(account.id),
                     label: account.name,
@@ -246,7 +248,7 @@ export function ManualCollectionLauncher() {
               </>
             )}
 
-            {error && <Alert variant="danger" description={error} />}
+            {error && <Alert variant="danger" description={error === "MANUAL_CONFLICT" ? t("errors.conflict") : error === "MANUAL_FORBIDDEN" ? t("errors.forbidden") : error === "MANUAL_INELIGIBLE" ? t("errors.ineligible") : error === "MANUAL_REQUEST_FAILED" ? t("errors.failed") : error === "MANUAL_SELECT_ACCOUNT" ? t("errors.selectAccount") : error} />}
 
             <DialogFooter className={styles.actions}>
               <Button variant="secondary" onClick={closeDialog} disabled={submitting}>
