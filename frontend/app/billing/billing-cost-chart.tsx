@@ -430,7 +430,7 @@ export function BillingCostChart({
                       onMouseEnter={() => setHovered((current) => current ? { ...current, seriesKey: item.key } : current)}
                     >
                       <i style={{ background: seriesColor(item.key) }} aria-hidden="true" />
-                      <span title={seriesLabel(item)}>{item.label}</span>
+                      <span title={seriesLabel(item)}>{seriesLabel(item)}</span>
                       <strong>
                         <CurrencyDisplay
                           value={item.amount}

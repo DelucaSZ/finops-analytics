@@ -175,3 +175,11 @@ test("coverage scanner ignores identity-coded enums while detecting real error c
  assert.equal(matches.length,1);
  assert.equal(matches[0].text,"Falha ao carregar dados");
 });
+
+test("billing chart other-bucket labels use translated series label",()=>{
+ const chart=source("app/billing/billing-cost-chart.tsx");
+ assert.ok(chart.includes('item.key === OTHER_SERIES_KEY ? t("charts.other")'));
+ assert.ok(chart.includes('<span title={seriesLabel(item)}>{seriesLabel(item)}</span>'));
+ assert.ok(!chart.includes('<span title={seriesLabel(item)}>{item.label}</span>'));
+ assert.equal(messages("en-US").billing.charts.other,"Other");
+});
