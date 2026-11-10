@@ -79,7 +79,8 @@ export function scanFileCandidates(source, relativePath = "fixture.tsx") {
       const key = propertyName(node.name);
       if (key && UI_PROPS.has(key)) {
         const value = literal(node.initializer);
-        if (value !== null) add(node, "presentation-property", value);
+        // Maps such as {error: "error"} carry technical status identifiers, not copy.
+        if (value !== null && value.toLowerCase() !== key.toLowerCase()) add(node, "presentation-property", value);
       }
     }
     ts.forEachChild(node, visit);

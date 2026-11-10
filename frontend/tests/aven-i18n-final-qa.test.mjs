@@ -168,3 +168,10 @@ test("dropdown menu items retain explicit radio role for accessible language sel
  assert.ok(language.includes('role="menuitemradio"'));
  assert.ok(language.includes("aria-checked={selected}"));
 });
+
+test("coverage scanner ignores identity-coded enums while detecting real error copy",()=>{
+ const file="frontend/lib/fixture.ts";
+ const matches=scanFileCandidates('const technical={error:"error",success:"success"}; const visible={error:"Falha ao carregar dados"};',file);
+ assert.equal(matches.length,1);
+ assert.equal(matches[0].text,"Falha ao carregar dados");
+});
