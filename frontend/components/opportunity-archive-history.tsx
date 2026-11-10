@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Archive } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { formatDate } from "@/lib/api";
 import { cachePolicy } from "@/lib/query-keys.mjs";
@@ -28,6 +28,7 @@ type ArchiveHistoryPage = {
 };
 
 export function OpportunityArchiveHistory({ opportunityId }: { opportunityId: string }) {
+  const locale = useLocale();
   const t = useTranslations("opportunities.archiveHistory");
   const reasonLabels: Record<string,string> = { MANUAL:t("reason.manual"), RETENTION_POLICY:t("reason.retentionPolicy"), REAPPEARED:t("reason.reappeared") };
   const eventDescription = (item: ArchiveHistoryEntry) => {
@@ -67,7 +68,7 @@ export function OpportunityArchiveHistory({ opportunityId }: { opportunityId: st
             <article key={item.id}>
               <div className="decision-marker" />
               <div>
-                <strong>{formatDate(item.occurred_at)} · {item.changed_by_name || t("system")}</strong>
+                <strong>{formatDate(item.occurred_at, locale)} · {item.changed_by_name || t("system")}</strong>
                 <p>{item.action === "ARCHIVE" ? t("archived") : t("unarchived")}</p>
                 <span>{t("reasonLabel")} {reasonLabels[item.reason] || item.reason}</span>
                 <span>{eventDescription(item)}</span>

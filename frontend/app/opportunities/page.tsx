@@ -419,7 +419,7 @@ function OpportunitiesContent() {
     const account = options.accounts.find((item) => item.provider.toLowerCase() === run.provider.toLowerCase() && item.account_id === run.account_id);
     return {
       value: run.id,
-      label: `${formatDate(run.started_at)} · ${providerLabel(run.provider)} · ${formatAccountLabel(account?.account_name, run.account_id)} · ${run.status}`,
+      label: `${formatDate(run.started_at, locale)} · ${providerLabel(run.provider)} · ${formatAccountLabel(account?.account_name, run.account_id)} · ${run.status}`,
     };
   });
   if (state.collectionRunId && !collectionRunOptions.some((item) => item.value === state.collectionRunId)) {
@@ -724,7 +724,7 @@ function OpportunitiesContent() {
           />
           <MetricCard
             label={isHistory ? t("summary.lastArchive") : t("summary.lastDetection")}
-            value={formatDate(isHistory ? newestArchive : newestObservation)}
+            value={formatDate(isHistory ? newestArchive : newestObservation, locale)}
             supportingText={isHistory ? t("summary.archiveDescription") : t("summary.detectionDescription")}
             icon={isHistory ? <Archive {...iconDefaults} /> : <CalendarClock {...iconDefaults} />}
             loading={listRequest.isLoading}
@@ -858,7 +858,7 @@ function OpportunitiesContent() {
                 impact={<StatusIndicator status={severityTone(finding.severity)} label={severityLabel(finding.severity)} />}
                 confidence={finding.confidence ? <StatusIndicator status={confidenceTone(finding.confidence)} label={severityLabel(finding.confidence)} /> : "—"}
                 resource={<ResourceIdentifier primary={finding.resource_name || finding.resource_id} technicalId={finding.resource_name ? finding.resource_id : undefined} copyValue={finding.resource_id} />}
-                metadata={<div className={styles.cardMetadata}><span>{formatAccountLabel(finding.account_name, finding.account_id)}</span><span>{finding.region || t("table.noRegion")}</span><span>{finding.service || t("table.noService")}</span>{finding.resource_type ? <span>{humanize(finding.resource_type)}</span> : null}<span>{t("table.lastDetected",{date:formatDate(finding.last_seen_at)})}</span>{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div>}
+                metadata={<div className={styles.cardMetadata}><span>{formatAccountLabel(finding.account_name, finding.account_id)}</span><span>{finding.region || t("table.noRegion")}</span><span>{finding.service || t("table.noService")}</span>{finding.resource_type ? <span>{humanize(finding.resource_type)}</span> : null}<span>{t("table.lastDetected",{date:formatDate(finding.last_seen_at, locale)})}</span>{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div>}
                 actions={recommendationActions(finding)}
                 onMouseEnter={() => { void prefetchApiQuery({ key: queryKeys.opportunities.detail(finding.id), path: `/opportunities/${finding.id}`, ...cachePolicy.detail }).catch(() => undefined); }}
               />
@@ -888,7 +888,7 @@ function OpportunitiesContent() {
                     <TableCell>{formatAccountLabel(finding.account_name, finding.account_id)}<span className={styles.secondary}>{finding.region || t("table.noRegion")} · {finding.service || t("table.noService")}</span>{finding.resource_type ? <span className={styles.secondary}>{humanize(finding.resource_type)}</span> : null}</TableCell>
                     <TableCell><div className={styles.statusStack}><StatusIndicator status={severityTone(finding.severity)} label={t("table.impactLabel",{value:severityLabel(finding.severity)})} /><StatusIndicator status={confidenceTone(finding.confidence)} label={t("table.confidenceLabel",{value:finding.confidence ? severityLabel(finding.confidence) : "—"})} /></div></TableCell>
                     <TableCell numeric><SavingsValue finding={finding} /><span className={styles.secondary}>{t("table.currentCost")} <MoneyValue value={finding.current_monthly_cost} currency={finding.currency} /></span></TableCell>
-                    <TableCell><div className={styles.statusStack}><StatusIndicator status={statusTone(finding.status)} label={statusLabel(finding.status)} />{isHistory ? <StatusIndicator status={statusTone(finding.presence_status)} label={statusLabel(finding.presence_status)} /> : null}{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div><span className={styles.secondary}>{isHistory ? t("table.archivedDate",{date:formatDate(finding.archived_at)}) : t("table.lastDetected",{date:formatDate(finding.last_seen_at)})}</span></TableCell>
+                    <TableCell><div className={styles.statusStack}><StatusIndicator status={statusTone(finding.status)} label={statusLabel(finding.status)} />{isHistory ? <StatusIndicator status={statusTone(finding.presence_status)} label={statusLabel(finding.presence_status)} /> : null}{finding.needs_review ? <StatusIndicator status="warning" label={t("table.detectedAgain")} /> : null}</div><span className={styles.secondary}>{isHistory ? t("table.archivedDate",{date:formatDate(finding.archived_at, locale)}) : t("table.lastDetected",{date:formatDate(finding.last_seen_at, locale)})}</span></TableCell>
                     <TableCell>{recommendationActions(finding)}</TableCell>
                   </TableRow>
                 ))}

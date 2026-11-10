@@ -3,7 +3,7 @@
 import Link from "next/link";
 
 import { Activity } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { StatusBadge } from "@/components/status-badge";
 import { formatDate } from "@/lib/api";
 import { providerLabel } from "@/lib/cloud.mjs";
@@ -42,6 +42,7 @@ type PresenceHistoryPage = {
 };
 
 export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: string }) {
+  const locale = useLocale();
   const t = useTranslations("opportunities.presenceHistory");
   const status = useTranslations("opportunities.status");
   const reasonLabels: Record<PresenceReason,string> = {NOT_OBSERVED_IN_SUCCESSFUL_SCOPE:t("reason.notObservedInSuccessfulScope"),MISSING_THRESHOLD_REACHED:t("reason.missingThresholdReached"),OBSERVED_AGAIN:t("reason.observedAgain")};
@@ -81,7 +82,7 @@ export function OpportunityPresenceHistory({ opportunityId }: { opportunityId: s
             <article key={item.id}>
               <div className="decision-marker" />
               <div>
-                <strong>{formatDate(item.occurred_at)}</strong>
+                <strong>{formatDate(item.occurred_at, locale)}</strong>
                 <p>
                   <StatusBadge value={item.from_status} label={status(item.from_status === "resolved_externally" ? "resolvedExternally" : item.from_status)} /> <span aria-hidden="true">→</span>{" "}
                   <StatusBadge value={item.to_status} label={status(item.to_status === "resolved_externally" ? "resolvedExternally" : item.to_status)} />

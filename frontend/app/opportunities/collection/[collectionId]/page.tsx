@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Suspense, useMemo } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
@@ -55,6 +55,7 @@ type RunOpportunityPage = {
 };
 
 export default function CollectionOpportunitiesPage() {
+  const locale = useLocale();
   const t = useTranslations("opportunities.collection");
   return (
     <Suspense fallback={<p role="status">{t("loading")}</p>}>
@@ -64,6 +65,7 @@ export default function CollectionOpportunitiesPage() {
 }
 
 function CollectionOpportunitiesContent() {
+  const locale = useLocale();
   const t = useTranslations("opportunities.collection");
   const statusT = useTranslations("opportunities.status");
   const decisionLabel = (value:string) => value === "resolved_externally" ? statusT("resolvedExternally") : ["open","treated","rejected","active","missing"].includes(value) ? statusT(value as "open" | "treated" | "rejected" | "active" | "missing") : value;
@@ -216,8 +218,8 @@ function CollectionOpportunitiesContent() {
                       {item.archived_at ? <span>{t("table.archived")}</span> : null}
                     </td>
                     <td>
-                      {formatDate(item.first_seen_at)}
-                      <span>{formatDate(item.last_seen_at)}</span>
+                      {formatDate(item.first_seen_at, locale)}
+                      <span>{formatDate(item.last_seen_at, locale)}</span>
                     </td>
                   </tr>
                 ))}

@@ -90,7 +90,7 @@ export function FindingEvidence({
       <div className="evidence-heading">
         <div>
           <h3>{t("why", {product:PRODUCT_NAME})}</h3>
-          {observedAt && <span>{t("observedAt", {date:formatDate(observedAt)})}</span>}
+          {observedAt && <span>{t("observedAt", {date:formatDate(observedAt, locale)})}</span>}
         </div>
         <span className="evidence-rule-name">{evidence.rule.name}</span>
       </div>
@@ -212,7 +212,7 @@ export function FindingEvidence({
 
       <p className="evidence-source">
         {t("source")} {evidence.source}
-        {evidence.evaluated_at ? ` · ${t("evaluatedAt", {date:formatDate(evidence.evaluated_at)})}` : ""}
+        {evidence.evaluated_at ? ` · ${t("evaluatedAt", {date:formatDate(evidence.evaluated_at, locale)})}` : ""}
       </p>
     </section>
   );

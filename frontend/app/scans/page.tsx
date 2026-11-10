@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
 import { Activity } from "lucide-react";
 import { DataState, PageHeader, Section, StatusIndicator, type ProductStatus } from "@/components/aven";
@@ -21,6 +21,7 @@ function statusPresentation(status: string, labels: Record<string, string>): { s
 }
 
 export default function ScansPage() {
+  const locale = useLocale();
   const t = useTranslations("scans");
   const labels = {completed: t("status.completed"), failed: t("status.failed"), running: t("status.running"), pending: t("status.pending"), warnings: t("status.warnings"), unknown: t("status.unknown")};
   const [scans, setScans] = useState<Scan[]>([]);
@@ -121,8 +122,8 @@ export default function ScansPage() {
                       </span>
                     </TableCell>
                     <TableCell>{scan.trigger === "manual" ? t("trigger.manual") : t("trigger.scheduled")}</TableCell>
-                    <TableCell>{formatDate(scan.started_at || scan.created_at)}</TableCell>
-                    <TableCell>{formatDate(scan.completed_at)}</TableCell>
+                    <TableCell>{formatDate(scan.started_at || scan.created_at, locale)}</TableCell>
+                    <TableCell>{formatDate(scan.completed_at, locale)}</TableCell>
                     <TableCell numeric>{scan.findings_count}</TableCell>
                     <TableCell>
                       <span className={styles.cellStack}>

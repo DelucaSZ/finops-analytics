@@ -1,7 +1,7 @@
 "use client";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
 import { IdentityProof } from "@/components/identity-proof";
 import { api, ApiError, formatDate } from "@/lib/api";
@@ -35,6 +35,7 @@ type Action =
   | "mfa"
   | "sessions";
 export default function UsersPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.users");
   const roles: Record<string, string> = { admin: t("roles.admin"), operator: t("roles.operator"), viewer: t("roles.viewer") };
   const titles: Record<Action, string> = {
@@ -253,7 +254,7 @@ export default function UsersPage() {
         <section className="security-card settings-panel">
           <h2>{t("accessLinkFor", {email: access.email})}</h2>
           <p>
-            {t("linkExpires", {date: formatDate(access.expires_at)})}
+            {t("linkExpires", {date: formatDate(access.expires_at, locale)})}
           </p>
           <label>
             Link privado
@@ -339,9 +340,9 @@ export default function UsersPage() {
                         {item.user_agent || t("unknownBrowser")}
                       </strong>
                       <p>
-                        {t("sessionTimeline", {start: formatDate(item.created_at), last: formatDate(item.last_seen_at)})}
+                        {t("sessionTimeline", {start: formatDate(item.created_at, locale), last: formatDate(item.last_seen_at, locale)})}
                       </p>
-                      <p>{t("sessionExpires", {date: formatDate(item.expires_at)})}</p>
+                      <p>{t("sessionExpires", {date: formatDate(item.expires_at, locale)})}</p>
                     </div>
                     <button
                       className="button"

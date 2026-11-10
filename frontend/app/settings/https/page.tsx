@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { IdentityProof } from "@/components/identity-proof";
 import { PageHeader } from "@/components/page-header";
 import { api, ApiError, formatDate } from "@/lib/api";
@@ -111,6 +111,7 @@ function trustLabel(trust: TrustInfo | null) {
 }
 
 export default function HttpsSettingsPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.https");
   const [status, setStatus] = useState<TlsStatus | null>(null);
   const [mode, setMode] = useState<"automatic" | "custom">("automatic");
@@ -296,17 +297,17 @@ export default function HttpsSettingsPage() {
                 </>
               )}
               {status.applied_at && (
-                <p>{t("appliedAt")}: {formatDate(status.applied_at)}</p>
+                <p>{t("appliedAt")}: {formatDate(status.applied_at, locale)}</p>
               )}
               {status.last_validated_at && (
-                <p>{t("lastValidated")}: {formatDate(status.last_validated_at)}</p>
+                <p>{t("lastValidated")}: {formatDate(status.last_validated_at, locale)}</p>
               )}
               {status.certificate && (
                 <>
                   <p>{t("issuer")}: {status.certificate.issuer}</p>
                   <p>
-                    Validade: {formatDate(status.certificate.valid_from)} até{" "}
-                    {formatDate(status.certificate.valid_until)}
+                    Validade: {formatDate(status.certificate.valid_from, locale)} até{" "}
+                    {formatDate(status.certificate.valid_until, locale)}
                   </p>
                   <p>
                     SHA-256: <code>{status.certificate.fingerprint_sha256}</code>
@@ -477,7 +478,7 @@ export default function HttpsSettingsPage() {
             <div className="settings-help">
               <p>
                 Certificado validado · emissor {validation.certificate.issuer} ·
-                expira em {formatDate(validation.certificate.valid_until)}
+                expira em {formatDate(validation.certificate.valid_until, locale)}
               </p>
               {validation.chain && <p>{validation.chain.message}</p>}
               {validation.trust && <p>{validation.trust.message}</p>}

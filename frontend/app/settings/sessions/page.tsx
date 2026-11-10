@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { PageHeader, Section } from "@/components/aven";
 import {
   Alert,
@@ -28,6 +28,7 @@ type Session = {
 };
 
 export default function SessionsPage() {
+  const locale = useLocale();
   const t = useTranslations("settings.sessions");
   const router = useRouter();
   const [sessions, setSessions] = useState<Session[]>([]);
@@ -111,9 +112,9 @@ export default function SessionsPage() {
               <TableRow key={session.id}>
                 <TableCell>{session.current ? t("current") : t("other")}</TableCell>
                 <TableCell>{session.user_agent || t("unknownBrowser")}</TableCell>
-                <TableCell>{formatDate(session.created_at)}</TableCell>
-                <TableCell>{formatDate(session.last_seen_at)}</TableCell>
-                <TableCell>{formatDate(session.expires_at)}</TableCell>
+                <TableCell>{formatDate(session.created_at, locale)}</TableCell>
+                <TableCell>{formatDate(session.last_seen_at, locale)}</TableCell>
+                <TableCell>{formatDate(session.expires_at, locale)}</TableCell>
                 <TableCell>
                   <Button
                     size="sm"

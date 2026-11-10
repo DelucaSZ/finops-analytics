@@ -220,14 +220,15 @@ function CoverageSummary({ summary, loading }: { summary?: RdsReservationsSummar
 
 function CapacitySummary({ summary, loading }: { summary?: RdsReservationsSummary; loading: boolean }) {
   const t = useTranslations("reservations");
+  const locale = useLocale();
   return (
     <Section appearance="card" title={t("capacity.title")} description={t("capacity.description")}>
       <DataState loading={loading}>
         <div className={styles.capacityGrid}>
-          <div className={styles.capacityPrimary}><span>{t("capacity.utilization")}</span><strong><PercentageDisplay value={summary?.reservations.utilization_percentage} /></strong><small>{formatNu(summary?.reservations.used_units ?? 0)} / {formatNu(summary?.reservations.reserved_units ?? 0)}</small></div>
-          <div><span>{t("capacity.reserved")}</span><strong>{formatNu(summary?.reservations.reserved_units ?? 0)}</strong></div>
-          <div><span>{t("capacity.allocated")}</span><strong>{formatNu(summary?.reservations.used_units ?? 0)}</strong></div>
-          <div><span>{t("capacity.unused")}</span><strong>{formatNu(summary?.reservations.unused_units ?? 0)}</strong></div>
+          <div className={styles.capacityPrimary}><span>{t("capacity.utilization")}</span><strong><PercentageDisplay value={summary?.reservations.utilization_percentage} /></strong><small>{formatNu(summary?.reservations.used_units ?? 0, locale)} / {formatNu(summary?.reservations.reserved_units ?? 0, locale)}</small></div>
+          <div><span>{t("capacity.reserved")}</span><strong>{formatNu(summary?.reservations.reserved_units ?? 0, locale)}</strong></div>
+          <div><span>{t("capacity.allocated")}</span><strong>{formatNu(summary?.reservations.used_units ?? 0, locale)}</strong></div>
+          <div><span>{t("capacity.unused")}</span><strong>{formatNu(summary?.reservations.unused_units ?? 0, locale)}</strong></div>
         </div>
       </DataState>
     </Section>
@@ -261,6 +262,7 @@ function Filters({ state, options, loading, onChange, onClear }: {
 
 function CoverageTable({ page, loading, error }: { page?: RdsPage<RdsCoverageItem>; loading: boolean; error?: string }) {
   const t = useTranslations("reservations");
+  const locale = useLocale();
   const coverageLabels: Record<string,string> = {FULL:t("coverage.full"),PARTIAL:t("coverage.partial"),UNCOVERED:t("coverage.uncovered"),UNKNOWN:t("coverage.unknown")};
   const items = page?.items ?? [];
   const hasState = loading || Boolean(error) || items.length === 0;
@@ -268,7 +270,7 @@ function CoverageTable({ page, loading, error }: { page?: RdsPage<RdsCoverageIte
     <Table>
       <TableHeader><TableRow staticRow><TableHead>{t("table.resource")}</TableHead><TableHead>{t("table.technology")}</TableHead><TableHead>{t("table.accountRegion")}</TableHead><TableHead numeric>{t("table.coverage")}</TableHead><TableHead>{t("table.status")}</TableHead></TableRow></TableHeader>
       {hasState ? <TableState loading={loading} error={error} empty={!loading && !error && items.length === 0} emptyTitle={t("table.noCoverage")} emptyDescription={t("table.noCoverageDescription")} colSpan={5} /> : (
-        <TableBody>{items.map((item) => <TableRow key={item.instance_id}><TableCell><ResourceIdentifier primary={item.instance} copyValue={item.instance} /><span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.engine_version || t("table.versionUnavailable")}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric><PercentageDisplay value={item.coverage_percentage} /><span className={styles.secondary}>{formatNu(item.covered_units)} / {formatNu(item.required_units)}</span></TableCell><TableCell><StatusIndicator status={coverageTone(item.coverage_status)} label={coverageLabels[item.coverage_status] ?? coverageStatusLabel(item.coverage_status)} /></TableCell></TableRow>)}</TableBody>
+        <TableBody>{items.map((item) => <TableRow key={item.instance_id}><TableCell><ResourceIdentifier primary={item.instance} copyValue={item.instance} /><span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.engine_version || t("table.versionUnavailable")}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric><PercentageDisplay value={item.coverage_percentage} /><span className={styles.secondary}>{formatNu(item.covered_units, locale)} / {formatNu(item.required_units, locale)}</span></TableCell><TableCell><StatusIndicator status={coverageTone(item.coverage_status)} label={coverageLabels[item.coverage_status] ?? coverageStatusLabel(item.coverage_status)} /></TableCell></TableRow>)}</TableBody>
       )}
     </Table>
   );
@@ -284,7 +286,7 @@ function ReservationsTable({ page, loading, error, expiring = false }: { page?: 
     <Table>
       <TableHeader><TableRow staticRow><TableHead>{t("table.reservation")}</TableHead><TableHead>{t("table.technologyClass")}</TableHead><TableHead>{t("table.accountRegion")}</TableHead><TableHead numeric>{t("table.quantity")}</TableHead><TableHead numeric>{t("table.utilization")}</TableHead><TableHead>{t("table.expiration")}</TableHead><TableHead>{t("table.status")}</TableHead></TableRow></TableHeader>
       {hasState ? <TableState loading={loading} error={error} empty={!loading && !error && items.length === 0} emptyTitle={expiring ? t("table.noExpiring") : t("table.noReservations")} emptyDescription={expiring ? t("table.noExpiringDescription") : t("table.noReservationsDescription")} colSpan={7} /> : (
-        <TableBody>{items.map((item) => { const expiration = expirationState(item); return <TableRow key={item.reservation_id}><TableCell><ResourceIdentifier primary={item.reservation} copyValue={item.reservation} /></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric>{item.quantity}</TableCell><TableCell numeric><PercentageDisplay value={item.utilization_percentage} /><span className={styles.secondary}>{formatNu(item.allocated_capacity)} / {formatNu(item.total_capacity)}</span></TableCell><TableCell>{formatDate(item.expiration_at, locale)}<span className={styles.secondary}>{daysRemainingLabel(item.days_remaining)}</span></TableCell><TableCell>{expiring ? <StatusIndicator status={expiration.status} label={expiration.label === "Expired" ? t("expiration.expired") : expiration.label === "Expiring soon" ? t("expiration.expiringSoon") : t("expiration.expiring")} /> : <StatusIndicator status={reservationTone(item.state)} label={item.state.toLowerCase() === "active" ? t("presence.active") : humanize(item.state)} />}</TableCell></TableRow>; })}</TableBody>
+        <TableBody>{items.map((item) => { const expiration = expirationState(item); return <TableRow key={item.reservation_id}><TableCell><ResourceIdentifier primary={item.reservation} copyValue={item.reservation} /></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric>{item.quantity}</TableCell><TableCell numeric><PercentageDisplay value={item.utilization_percentage} /><span className={styles.secondary}>{formatNu(item.allocated_capacity, locale)} / {formatNu(item.total_capacity, locale)}</span></TableCell><TableCell>{formatDate(item.expiration_at, locale)}<span className={styles.secondary}>{daysRemainingLabel(item.days_remaining)}</span></TableCell><TableCell>{expiring ? <StatusIndicator status={expiration.status} label={expiration.label === "Expired" ? t("expiration.expired") : expiration.label === "Expiring soon" ? t("expiration.expiringSoon") : t("expiration.expiring")} /> : <StatusIndicator status={reservationTone(item.state)} label={item.state.toLowerCase() === "active" ? t("presence.active") : humanize(item.state)} />}</TableCell></TableRow>; })}</TableBody>
       )}
     </Table>
   );
@@ -343,8 +345,8 @@ function ReservationsContent() {
   const refresh = () => { void operational.refetch(); void summary.refetch(); void options.refetch(); void main.refetch(); };
   const metrics: Array<{ label: string; value: ReactNode; supportingText: string; icon: ReactNode }> = [
     { label: t("metrics.active"), value: summary.data?.reservations.active ?? "—", supportingText: t("metrics.activeDescription"), icon: <Cloud {...iconDefaults} /> },
-    { label: t("metrics.coverage"), value: <PercentageDisplay value={summary.data?.coverage.coverage_percentage} />, supportingText: t("metrics.covered", {covered:formatNu(summary.data?.coverage.covered_units ?? 0),required:formatNu(summary.data?.coverage.required_units ?? 0)}), icon: <ShieldCheck {...iconDefaults} /> },
-    { label: t("metrics.utilization"), value: <PercentageDisplay value={summary.data?.reservations.utilization_percentage} />, supportingText: t("metrics.allocated", {allocated:formatNu(summary.data?.reservations.used_units ?? 0),reserved:formatNu(summary.data?.reservations.reserved_units ?? 0)}), icon: <Gauge {...iconDefaults} /> },
+    { label: t("metrics.coverage"), value: <PercentageDisplay value={summary.data?.coverage.coverage_percentage} />, supportingText: t("metrics.covered", {covered:formatNu(summary.data?.coverage.covered_units ?? 0, locale),required:formatNu(summary.data?.coverage.required_units ?? 0, locale)}), icon: <ShieldCheck {...iconDefaults} /> },
+    { label: t("metrics.utilization"), value: <PercentageDisplay value={summary.data?.reservations.utilization_percentage} />, supportingText: t("metrics.allocated", {allocated:formatNu(summary.data?.reservations.used_units ?? 0, locale),reserved:formatNu(summary.data?.reservations.reserved_units ?? 0, locale)}), icon: <Gauge {...iconDefaults} /> },
     { label: t("metrics.expiring"), value: summary.data?.expiring_next_30_days ?? "—", supportingText: t("metrics.expiringDescription"), icon: <TimerReset {...iconDefaults} /> },
     { label: t("metrics.uncovered"), value: summary.data?.rds.uncovered ?? "—", supportingText: t("metrics.unknown", {count:summary.data?.rds.unknown ?? 0}), icon: <AlertTriangle {...iconDefaults} /> },
   ];
