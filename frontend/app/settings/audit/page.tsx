@@ -148,6 +148,7 @@ function UserAutocomplete({
   selectedId: string;
   onChange: (query: string, id: string) => void;
 }) {
+  const t = useTranslations("settings.audit");
   const [options, setOptions] = useState<UserOption[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -179,11 +180,11 @@ function UserAutocomplete({
       <input
         value={query}
         maxLength={254}
-        placeholder="Nome ou e-mail"
+        placeholder={t("nameOrEmail")}
         onFocus={() => setOpen(true)}
         onChange={(event) => onChange(event.target.value, "")}
       />
-      {selectedId && <span>Usuário selecionado</span>}
+      {selectedId && <span>{t("selectedUser")}</span>}
       {open && !selectedId && options.length > 0 && (
         <div
           role="listbox"
@@ -384,37 +385,36 @@ export default function AuditPage() {
   }
 
   const activeFilters = [
-    actorQuery && `Executado por: ${actorQuery}`,
-    subjectQuery && `Usuário afetado: ${subjectQuery}`,
-    module && `Módulo: ${modules.find(([value]) => value === module)?.[1] || module}`,
-    action && `Ação: ${actionLabel(action, localizedEvents)}`,
-    source && `Origem: ${source}`,
-    eventKind !== "all" && `Tipo: ${eventKind === "security" ? "Segurança" : "Administrativo"}`,
-    fromIso && `Desde: ${formatDate(fromIso)}`,
-    toIso && `Até: ${formatDate(toIso)}`,
+    actorQuery && t("filterActor", {value:actorQuery}),
+    subjectQuery && t("filterSubject", {value:subjectQuery}),
+    module && t("filterModule", {value:modules.find(([value]) => value === module)?.[1] || module}),
+    action && t("filterAction", {value:actionLabel(action, localizedEvents)}),
+    source && t("filterSource", {value:source}),
+    eventKind !== "all" && t("filterKind", {value:eventKind === "security" ? t("security") : t("administrative")}),
+    fromIso && t("filterFrom", {value:formatDate(fromIso)}),
+    toIso && t("filterTo", {value:formatDate(toIso)}),
   ].filter(Boolean) as string[];
 
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES"
-        title="Auditoria"
-        description="Trilha cronológica de segurança e alterações administrativas persistentes."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <button className="button" disabled={busy} onClick={() => setRefresh((value) => value + 1)}>
-            Atualizar histórico
+            {t("refresh")}
           </button>
         }
       />
 
       <p className="settings-help">
-        O responsável é exibido pelo snapshot registrado no momento do evento. Senhas, tokens,
-        chaves privadas e outros segredos são removidos antes da persistência.
+        {t("help")}
       </p>
 
       <div className="settings-filters">
         <UserAutocomplete
-          label="Executado por"
+          label={t("actor")}
           query={actorQuery}
           selectedId={actorId}
           onChange={(value, id) => {
@@ -424,7 +424,7 @@ export default function AuditPage() {
           }}
         />
         <UserAutocomplete
-          label="Usuário afetado"
+          label={t("subject")}
           query={subjectQuery}
           selectedId={subjectId}
           onChange={(value, id) => {
@@ -434,7 +434,7 @@ export default function AuditPage() {
           }}
         />
         <label>
-          Módulo
+          {t("module")}
           <select
             value={module}
             onChange={(event) => {
@@ -450,33 +450,33 @@ export default function AuditPage() {
           </select>
         </label>
         <label>
-          Ação
+          {t("action")}
           <select value={action} onChange={(event) => { setAction(event.target.value); resetPagination(); }}>
-            <option value="">Todas</option>
+            <option value="">{t("allFeminine")}</option>
             {availableActions.map((value) => (
               <option key={value} value={value}>{actionLabel(value, localizedEvents)}</option>
             ))}
           </select>
         </label>
         <label>
-          Origem
+          {t("source")}
           <select value={source} onChange={(event) => { setSource(event.target.value); resetPagination(); }}>
-            <option value="">Todas</option>
+            <option value="">{t("allFeminine")}</option>
             <option value="UI">UI</option>
             <option value="API">API</option>
             <option value="SYSTEM">SYSTEM</option>
           </select>
         </label>
         <label>
-          Tipo de evento
+          {t("eventKind")}
           <select value={eventKind} onChange={(event) => { setEventKind(event.target.value); resetPagination(); }}>
-            <option value="all">Todos</option>
-            <option value="administrative">Administrativos</option>
-            <option value="security">Segurança</option>
+            <option value="all">{t("all")}</option>
+            <option value="administrative">{t("administrativePlural")}</option>
+            <option value="security">{t("security")}</option>
           </select>
         </label>
         <label>
-          Data inicial
+          {t("dateFrom")}
           <input
             type="date"
             value={fromIso ? fromIso.slice(0, 10) : ""}
@@ -484,7 +484,7 @@ export default function AuditPage() {
           />
         </label>
         <label>
-          Data final
+          {t("dateTo")}
           <input
             type="date"
             value={toIso ? toIso.slice(0, 10) : ""}
@@ -494,9 +494,9 @@ export default function AuditPage() {
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)" }}>
-        <button className="button" onClick={() => applyPreset(24)}>Últimas 24h</button>
-        <button className="button" onClick={() => applyPreset(24 * 7)}>7 dias</button>
-        <button className="button" onClick={() => applyPreset(24 * 30)}>30 dias</button>
+        <button className="button" onClick={() => applyPreset(24)}>{t("last24h")}</button>
+        <button className="button" onClick={() => applyPreset(24 * 7)}>{t("last7d")}</button>
+        <button className="button" onClick={() => applyPreset(24 * 30)}>{t("last30d")}</button>
         <button
           className="button"
           onClick={() => {
@@ -508,13 +508,13 @@ export default function AuditPage() {
             resetPagination();
           }}
         >
-          Hoje
+          {t("today")}
         </button>
-        <button className="button" onClick={clearFilters}>Limpar filtros</button>
+        <button className="button" onClick={clearFilters}>{t("clear")}</button>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "var(--space-2)", marginBottom: "var(--space-4)", alignItems: "center" }}>
-        <strong>{data.total} eventos encontrados</strong>
+        <strong>{t("totalEvents", {count:data.total})}</strong>
         {activeFilters.map((filter) => (
           <span
             key={filter}
@@ -532,22 +532,22 @@ export default function AuditPage() {
       {error && <p className="form-error" role="alert">{error}</p>}
 
       <div className="data-table-wrap">
-        <table className="data-table" aria-label="Eventos de auditoria">
+        <table className="data-table" aria-label={t("tableAria")}>
           <thead>
             <tr>
-              <th scope="col">Data/hora</th>
-              <th scope="col">Evento</th>
-              <th scope="col">Responsável</th>
-              <th scope="col">Objeto afetado</th>
-              <th scope="col">Alterações</th>
-              <th scope="col">Origem</th>
+              <th scope="col">{t("dateTime")}</th>
+              <th scope="col">{t("event")}</th>
+              <th scope="col">{t("responsible")}</th>
+              <th scope="col">{t("entity")}</th>
+              <th scope="col">{t("changes")}</th>
+              <th scope="col">{t("source")}</th>
             </tr>
           </thead>
           <tbody>
             {busy ? (
-              <tr><td colSpan={6}>Carregando histórico…</td></tr>
+              <tr><td colSpan={6}>{t("loading")}</td></tr>
             ) : data.items.length === 0 ? (
-              <tr><td colSpan={6}>Nenhum evento encontrado para os filtros atuais.</td></tr>
+              <tr><td colSpan={6}>{t("empty")}</td></tr>
             ) : (
               data.items.map((item) => {
                 const actor = actorLabel(item);
@@ -556,7 +556,7 @@ export default function AuditPage() {
                     <td><span>{formatDate(item.created_at)}</span></td>
                     <td>
                       <strong>{actionLabel(item.action, localizedEvents)}</strong>
-                      <span>{item.module} · {item.event_kind === "administrative" ? "Administrativo" : "Segurança"}</span>
+                      <span>{item.module} · {item.event_kind === "administrative" ? t("administrative") : t("security")}</span>
                     </td>
                     <td>
                       <strong>{actor.name}</strong>
@@ -568,7 +568,7 @@ export default function AuditPage() {
                     </td>
                     <td>
                       <span>{changeSummary(item)}</span>
-                      <button className="button" onClick={() => setSelected(item)}>Ver detalhes</button>
+                      <button className="button" onClick={() => setSelected(item)}>{t("details")}</button>
                     </td>
                     <td><strong>{item.source}</strong></td>
                   </tr>
@@ -581,11 +581,11 @@ export default function AuditPage() {
 
       <div className="settings-pagination">
         <button className="button" disabled={busy || offset === 0} onClick={() => setOffset(Math.max(0, offset - PAGE_SIZE))}>
-          Anterior
+          {t("previous")}
         </button>
-        <span>{data.total} eventos · Página {Math.floor(offset / PAGE_SIZE) + 1}</span>
+        <span>{t("pagination", {count:data.total, page:Math.floor(offset / PAGE_SIZE) + 1})}</span>
         <button className="button" disabled={busy || offset + PAGE_SIZE >= data.total} onClick={() => setOffset(offset + PAGE_SIZE)}>
-          Próxima
+          {t("next")}
         </button>
       </div>
 
@@ -593,7 +593,7 @@ export default function AuditPage() {
         <div
           role="dialog"
           aria-modal="true"
-          aria-label="Detalhes do evento de auditoria"
+          aria-label={t("detailsAria")}
           style={{ position: "fixed", inset: 0, zIndex: 100, background: "var(--overlay)", display: "flex", justifyContent: "flex-end" }}
           onClick={() => setSelected(null)}
         >
@@ -603,27 +603,27 @@ export default function AuditPage() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", gap: "var(--space-4)", alignItems: "flex-start" }}>
               <div>
-                <span>DETALHE DO EVENTO</span>
+                <span>{t("detailsHeading")}</span>
                 <h2>{actionLabel(selected.action, localizedEvents)}</h2>
               </div>
-              <button className="button" onClick={() => setSelected(null)}>Fechar</button>
+              <button className="button" onClick={() => setSelected(null)}>{t("close")}</button>
             </div>
             <dl>
-              <dt>Data</dt><dd>{formatDate(selected.created_at)}</dd>
-              <dt>Responsável</dt><dd>{actorLabel(selected).name}</dd>
-              <dt>E-mail do responsável</dt><dd>{selected.actor.email || "—"}</dd>
-              <dt>Módulo</dt><dd>{selected.module}</dd>
-              <dt>Origem</dt><dd>{selected.source}</dd>
-              <dt>Objeto afetado</dt><dd>{selected.entity.label || "—"}</dd>
-              <dt>ID da entidade</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.entity.id || "—"}</dd>
+              <dt>{t("date")}</dt><dd>{formatDate(selected.created_at)}</dd>
+              <dt>{t("responsible")}</dt><dd>{actorLabel(selected).name}</dd>
+              <dt>{t("responsibleEmail")}</dt><dd>{selected.actor.email || "—"}</dd>
+              <dt>{t("module")}</dt><dd>{selected.module}</dd>
+              <dt>{t("source")}</dt><dd>{selected.source}</dd>
+              <dt>{t("entity")}</dt><dd>{selected.entity.label || "—"}</dd>
+              <dt>{t("entityId")}</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.entity.id || "—"}</dd>
               <dt>Correlation ID</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.correlation_id || "—"}</dd>
             </dl>
 
-            <h3>Alterações</h3>
+            <h3>{t("changes")}</h3>
             {changeEntries(selected).length ? (
               <div className="data-table-wrap">
                 <table className="data-table">
-                  <thead><tr><th>Campo</th><th>Antes</th><th>Depois</th></tr></thead>
+                  <thead><tr><th>{t("field")}</th><th>{t("before")}</th><th>{t("after")}</th></tr></thead>
                   <tbody>
                     {changeEntries(selected).map(([field, change]) => (
                       <tr key={field}>
@@ -636,12 +636,12 @@ export default function AuditPage() {
                 </table>
               </div>
             ) : (
-              <p>{selected.reason || "Este evento é semântico e não possui diff de campos."}</p>
+              <p>{selected.reason || t("noDiff")}</p>
             )}
 
             {Object.keys(selected.metadata || {}).length > 0 && (
               <>
-                <h3>Contexto seguro</h3>
+                <h3>{t("safeContext")}</h3>
                 <div className="data-table-wrap">
                   <table className="data-table">
                     <tbody>
