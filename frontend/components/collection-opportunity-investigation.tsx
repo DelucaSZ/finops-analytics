@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/api";
 import { formatNumber, providerLabel } from "@/lib/cloud.mjs";
 import {
@@ -84,18 +85,19 @@ function MetricLink({ href, label, value, title }: { href: string; label: string
 }
 
 export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }) {
+  const t = useTranslations("collections.investigation");
   const request = useApiQuery<RunChanges>({
     key: ["collections", run.id, "opportunity-changes"],
     path: `/collections/${encodeURIComponent(run.id)}/opportunity-changes`,
     ...cachePolicy.detail,
   });
 
-  if (request.isLoading) return <p role="status">Carregando investigação de oportunidades…</p>;
+  if (request.isLoading) return <p role="status">{t("loading")}</p>;
   if (request.error || !request.data) {
     return (
       <div className="alert error" role="alert">
-        Não foi possível carregar a comparação de oportunidades desta coleta.
-        <button className="button ghost" onClick={() => void request.refetch()}>Tentar novamente</button>
+        {t("loadError")}
+        <button className="button ghost" onClick={() => void request.refetch()}>{t("retry")}</button>
       </div>
     );
   }
@@ -105,58 +107,58 @@ export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }
   const comparisonAvailable = data.comparable;
 
   return (
-    <section aria-label="Investigação de oportunidades desta coleta">
+    <section aria-label={t("ariaLabel")}>
       <div className="collection-toolbar">
-        <h3>Oportunidades desta coleta</h3>
-        <span>{data.comparison_status === "PARTIAL" ? "Comparação parcial" : data.comparison_status}</span>
+        <h3>{t("title")}</h3>
+        <span>{data.comparison_status === "PARTIAL" ? t("partial") : data.comparison_status}</span>
       </div>
 
       {data.comparison_status === "RUNNING" && (
         <div className="alert" role="status">
-          <strong>Coleta em andamento.</strong>
-          <p>Observações já persistidas podem ser exibidas, mas ainda não representam o resultado definitivo.</p>
+          <strong>{t("runningTitle")}</strong>
+          <p>{t("runningDescription")}</p>
         </div>
       )}
       {data.comparison_status === "FAILED" && (
         <div className="alert error" role="status">
-          <strong>Comparação indisponível.</strong>
-          <p>Esta coleta falhou e não possui cobertura suficiente para comparar oportunidades.</p>
+          <strong>{t("failedTitle")}</strong>
+          <p>{t("failedDescription")}</p>
         </div>
       )}
       {data.comparison_status === "EXPIRED" && (
         <div className="alert" role="status">
-          <strong>Detalhes históricos indisponíveis.</strong>
-          <p>Os detalhes por oportunidade desta coleta ou da baseline expiraram pela política de retenção. O total agregado conhecido continua preservado.</p>
+          <strong>{t("expiredTitle")}</strong>
+          <p>{t("expiredDescription")}</p>
         </div>
       )}
 
       {data.target_details_available && (
         <div className="collection-metadata">
           <div>
-            <dt>Observadas</dt>
-            <dd><MetricLink href={buildObservedOpportunitiesHref(run.id, scope)} value={data.summary.observed} label="Ver oportunidades observadas" /></dd>
+            <dt>{t("observed")}</dt>
+            <dd><MetricLink href={buildObservedOpportunitiesHref(run.id, scope)} value={data.summary.observed} label={t("viewObserved")} /></dd>
           </div>
           <div>
-            <dt>Identificadas pela primeira vez</dt>
-            <dd><MetricLink href={buildFirstSeenOpportunitiesHref(run.id, scope)} value={data.summary.first_seen} label="Ver novas nesta coleta" /></dd>
+            <dt>{t("firstSeen")}</dt>
+            <dd><MetricLink href={buildFirstSeenOpportunitiesHref(run.id, scope)} value={data.summary.first_seen} label={t("viewFirstSeen")} /></dd>
           </div>
           {comparisonAvailable && (
             <>
               <div>
-                <dt>Novas vs coleta anterior</dt>
-                <dd><MetricLink href={buildNewVsPreviousHref(run.id, scope)} value={data.summary.new_vs_previous} label="Ver novas vs coleta anterior" title="Presentes nesta execução e ausentes na coleta comparável anterior." /></dd>
+                <dt>{t("newVsPrevious")}</dt>
+                <dd><MetricLink href={buildNewVsPreviousHref(run.id, scope)} value={data.summary.new_vs_previous} label={t("viewNewVsPrevious")} title={t("newDescription")} /></dd>
               </div>
               <div>
-                <dt>Reapareceram</dt>
-                <dd><MetricLink href={buildReappearedHref(run.id, scope)} value={data.summary.reappeared} label="Ver reaparecidas" title="Já haviam sido detectadas antes, ficaram ausentes na baseline e voltaram nesta execução." /></dd>
+                <dt>{t("reappeared")}</dt>
+                <dd><MetricLink href={buildReappearedHref(run.id, scope)} value={data.summary.reappeared} label={t("viewReappeared")} title={t("reappearedDescription")} /></dd>
               </div>
               <div>
-                <dt>Continuaram presentes</dt>
-                <dd><MetricLink href={buildContinuedHref(run.id, scope)} value={data.summary.continued} label="Ver continuaram presentes" /></dd>
+                <dt>{t("continued")}</dt>
+                <dd><MetricLink href={buildContinuedHref(run.id, scope)} value={data.summary.continued} label={t("viewContinued")} /></dd>
               </div>
               <div>
-                <dt>Não detectadas nesta execução</dt>
-                <dd><MetricLink href={buildNoLongerDetectedHref(run.id, scope)} value={data.summary.no_longer_detected} label="Ver não detectadas" title="Somente ausências em scopes com cobertura autoritativa são classificadas." /></dd>
+                <dt>{t("noLongerDetected")}</dt>
+                <dd><MetricLink href={buildNoLongerDetectedHref(run.id, scope)} value={data.summary.no_longer_detected} label={t("viewNoLongerDetected")} title={t("noLongerDescription")} /></dd>
               </div>
             </>
           )}
@@ -165,60 +167,60 @@ export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }
 
       {data.reason === "NO_BASELINE" && (
         <div className="alert" role="status">
-          <strong>Sem coleta anterior comparável.</strong>
-          <p>Esta é a primeira coleta comparável desta conta. Métricas relativas à execução anterior não são inferidas.</p>
+          <strong>{t("noBaseline")}</strong>
+          <p>{t("noBaselineDescription")}</p>
         </div>
       )}
 
       <div className="collection-toolbar">
-        <h3>Comparação com coleta anterior</h3>
+        <h3>{t("comparisonTitle")}</h3>
         {data.baseline ? (
           <Link className="button ghost" href={`/collections/${encodeURIComponent(data.baseline.id)}`}>
-            Abrir baseline
+            {t("openBaseline")}
           </Link>
         ) : null}
       </div>
       {data.baseline ? (
         <dl className="collection-metadata">
           <div><dt>Baseline</dt><dd>{formatDate(data.baseline.started_at)}</dd></div>
-          <div><dt>Cloud</dt><dd>{providerLabel(data.baseline.provider)}</dd></div>
-          <div><dt>Conta</dt><dd>{data.baseline.account_id}</dd></div>
-          <div><dt>Status</dt><dd>{data.baseline.status}</dd></div>
-          <div><dt>Versão dos analyzers</dt><dd>{data.baseline.analyzer_version || "Não registrada"}</dd></div>
+          <div><dt>{t("cloud")}</dt><dd>{providerLabel(data.baseline.provider)}</dd></div>
+          <div><dt>{t("account")}</dt><dd>{data.baseline.account_id}</dd></div>
+          <div><dt>{t("status")}</dt><dd>{data.baseline.status === "SUCCESS" ? t("statusSuccess") : data.baseline.status === "FAILED" ? t("statusFailed") : data.baseline.status === "RUNNING" ? t("statusRunning") : data.baseline.status}</dd></div>
+          <div><dt>{t("analyzerVersion")}</dt><dd>{data.baseline.analyzer_version || t("notRecorded")}</dd></div>
           <div><dt>Run</dt><dd><code>{data.baseline.id.slice(0, 8)}</code></dd></div>
         </dl>
       ) : (
-        <p className="collection-note">Nenhuma baseline foi utilizada nesta execução.</p>
+        <p className="collection-note">{t("noBaselineUsed")}</p>
       )}
 
-      <h3>Cobertura dos scopes</h3>
+      <h3>{t("scopeCoverage")}</h3>
       <dl className="collection-metadata">
-        <div><dt>Total</dt><dd>{number(data.coverage.total_scopes)}</dd></div>
-        <div><dt>SUCCESS</dt><dd>{number(data.coverage.successful_scopes)}</dd></div>
-        <div><dt>FAILED</dt><dd>{number(data.coverage.failed_scopes)}</dd></div>
-        <div><dt>SKIPPED</dt><dd>{number(data.coverage.skipped_scopes)}</dd></div>
-        <div><dt>Comparáveis</dt><dd>{number(data.coverage.comparable_scopes)}</dd></div>
+        <div><dt>{t("total")}</dt><dd>{number(data.coverage.total_scopes)}</dd></div>
+        <div><dt>{t("coverageSuccess")}</dt><dd>{number(data.coverage.successful_scopes)}</dd></div>
+        <div><dt>{t("coverageFailed")}</dt><dd>{number(data.coverage.failed_scopes)}</dd></div>
+        <div><dt>{t("coverageSkipped")}</dt><dd>{number(data.coverage.skipped_scopes)}</dd></div>
+        <div><dt>{t("comparable")}</dt><dd>{number(data.coverage.comparable_scopes)}</dd></div>
       </dl>
 
       {data.warnings.map((warning) => (
         <div className="alert" role="status" key={warning.code}>
-          <strong>{warning.code === "RULES_VERSION_CHANGED" ? "Versões de regras diferentes" : "Atenção à comparação"}</strong>
+          <strong>{warning.code === "RULES_VERSION_CHANGED" ? t("rulesVersionsDiffer") : t("comparisonAttention")}</strong>
           <p>{warning.message}</p>
         </div>
       ))}
 
       {data.scope_issues.length > 0 && (
         <div>
-          <h3>Scopes sem sucesso</h3>
-          <div className="data-table-wrap" tabIndex={0} role="region" aria-label="Scopes sem sucesso">
+          <h3>{t("scopesUnsuccessful")}</h3>
+          <div className="data-table-wrap" tabIndex={0} role="region" aria-label={t("scopesUnsuccessful")}>
             <table className="data-table">
-              <thead><tr><th>Scope</th><th>Status</th><th>Erro</th></tr></thead>
+              <thead><tr><th>{t("scope")}</th><th>{t("status")}</th><th>{t("error")}</th></tr></thead>
               <tbody>
                 {data.scope_issues.map((issue) => (
                   <tr key={`${issue.provider}:${issue.account_id}:${issue.region}:${issue.rule_key}`}>
                     <td>{issue.region} · {issue.service || issue.rule_key}<span>{issue.rule_key}</span></td>
-                    <td>{issue.status}</td>
-                    <td>{issue.error_detail || "Sem detalhe registrado"}</td>
+                    <td>{issue.status === "SUCCESS" ? t("statusSuccess") : issue.status === "FAILED" ? t("statusFailed") : issue.status === "RUNNING" ? t("statusRunning") : issue.status}</td>
+                    <td>{issue.error_detail || t("noDetails")}</td>
                   </tr>
                 ))}
               </tbody>
