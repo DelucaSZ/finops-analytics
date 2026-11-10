@@ -55,6 +55,7 @@ type RunOpportunityPage = {
 };
 
 export default function CollectionOpportunitiesPage() {
+  const t = useTranslations("opportunities.collection");
   return (
     <Suspense fallback={<p role="status">{t("loading")}</p>}>
       <CollectionOpportunitiesContent />
