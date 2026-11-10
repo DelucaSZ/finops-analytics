@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import {useLocale} from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -157,12 +158,13 @@ function sourceLabel(source: string) {
 }
 
 function CostTotals({ totals }: { totals: CostTotal[] }) {
+  const locale = useLocale();
   if (!totals.length) return <strong className={styles.unavailableValue}>Indisponível</strong>;
   return (
     <div className={styles.moneyStack}>
       {totals.map((total) => (
         <strong key={total.currency}>
-          {formatUsageCostMoney(total.gross_estimated_cost, total.currency)}
+          {formatUsageCostMoney(total.gross_estimated_cost, total.currency, locale)}
         </strong>
       ))}
     </div>
@@ -170,6 +172,7 @@ function CostTotals({ totals }: { totals: CostTotal[] }) {
 }
 
 function CostChart({ response }: { response: CostResponse }) {
+  const locale = useLocale();
   const groups = costItemsByCurrency(response.items);
   if (!groups.length) {
     return <div className={styles.sectionState}>Não há custo precificado para plotar neste período.</div>;
@@ -205,7 +208,7 @@ function CostChart({ response }: { response: CostResponse }) {
                 <path d={path} className={styles.costLine} />
                 {points.map((point, index) => (
                   <circle key={`${point.period}-${currency}`} cx={x(index)} cy={y(Number(point.gross_estimated_cost))} r="4" className={styles.costPoint}>
-                    <title>{`${point.period}: ${formatUsageCostMoney(point.gross_estimated_cost, currency)}`}</title>
+                    <title>{`${point.period}: ${formatUsageCostMoney(point.gross_estimated_cost, currency, locale)}`}</title>
                   </circle>
                 ))}
                 <text x={padX} y={height - 7} className={styles.axisLabel}>{first.period}</text>
@@ -236,6 +239,7 @@ function BreakdownSection({
   accounts: CloudAccount[];
   showProvenance?: boolean;
 }) {
+  const locale = useLocale();
   const usageMap = usageByGroup(usage.items);
   const accountMap = new Map(accounts.map((account) => [account.native_account_id, account]));
   const groups = costItemsByCurrency(cost.items);
@@ -294,20 +298,20 @@ function BreakdownSection({
                                 {row.components.map((component, index) => (
                                   <div key={`${component.pricing_rule_id}-${component.effective_from}-${index}`}>
                                     <span>Regra {component.pricing_rule_id}</span>
-                                    <span>{formatUsageNumber(component.usage_quantity)} {component.pricing_unit}</span>
-                                    <span>{formatUsageCostMoney(component.unit_price, component.currency)} / {formatUsageNumber(component.unit_quantity)} {component.pricing_unit}</span>
-                                    <span>Vigência: {formatUsageCostDate(component.effective_from)}</span>
+                                    <span>{formatUsageNumber(component.usage_quantity, locale)} {component.pricing_unit}</span>
+                                    <span>{formatUsageCostMoney(component.unit_price, component.currency, locale)} / {formatUsageNumber(component.unit_quantity, locale)} {component.pricing_unit}</span>
+                                    <span>Vigência: {formatUsageCostDate(component.effective_from, locale)}</span>
                                     <span>Fonte: {sourceLabel(component.source)}</span>
                                   </div>
                                 ))}
                               </details>
                             )}
                           </td>
-                          <td>{formatUsageNumber(technical?.requests ?? 0)}</td>
-                          <td>{formatUsageNumber(technical?.metric_queries ?? 0)}</td>
-                          <td>{formatUsageNumber(technical?.failed_events ?? row.failed_events)}</td>
-                          <td><strong>{formatUsageCostMoney(row.gross_estimated_cost, currency)}</strong></td>
-                          <td>{share === null ? "—" : `${share.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}</td>
+                          <td>{formatUsageNumber(technical?.requests ?? 0, locale)}</td>
+                          <td>{formatUsageNumber(technical?.metric_queries ?? 0, locale)}</td>
+                          <td>{formatUsageNumber(technical?.failed_events ?? row.failed_events, locale)}</td>
+                          <td><strong>{formatUsageCostMoney(row.gross_estimated_cost, currency, locale)}</strong></td>
+                          <td>{share === null ? "—" : `${share.toLocaleString(locale, { maximumFractionDigits: 1 })}%`}</td>
                         </tr>
                       );
                     })}
@@ -323,6 +327,7 @@ function BreakdownSection({
 }
 
 export default function AvenUsageCostsPage() {
+  const locale = useLocale();
   const [preset, setPreset] = useState("this-month");
   const [customStart, setCustomStart] = useState("");
   const [customEnd, setCustomEnd] = useState("");
@@ -569,7 +574,7 @@ export default function AvenUsageCostsPage() {
           </div>
         )}
         <div className={styles.filterMeta}>
-          <span>{formatUsagePeriodLabel(period)}</span>
+          <span>{formatUsagePeriodLabel(period, locale)}</span>
           <span>Filtro temporal aplicado sobre <code>occurred_at</code>.</span>
         </div>
         {!period && <p className={styles.warning} role="alert">Informe um período personalizado válido.</p>}
@@ -590,17 +595,17 @@ export default function AvenUsageCostsPage() {
         </article>
         <article className={styles.kpiCard}>
           <span>Requests CloudWatch</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.requests)}</strong>
+          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.requests, locale)}</strong>
           <small>Requests observados pela telemetria no período.</small>
         </article>
         <article className={styles.kpiCard}>
           <span>Metric queries</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.metric_queries)}</strong>
+          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.metric_queries, locale)}</strong>
           <small>Exibidas separadamente; não são somadas a requests.</small>
         </article>
         <article className={styles.kpiCard}>
           <span>Falhas</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.failed_events)}</strong>
+          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.failed_events, locale)}</strong>
           <small>Uma execução com falha pode ter requests e custo estimado.</small>
         </article>
       </div>
@@ -634,10 +639,10 @@ export default function AvenUsageCostsPage() {
         <div className={styles.panelBody}>
           {usageLoading ? <div className={styles.sectionState}>Carregando uso técnico…</div> : usageError ? <div className={styles.sectionError}>Não foi possível carregar a telemetria.</div> : (
             <div className={styles.usageGrid}>
-              <div><span>Eventos</span><strong>{formatUsageNumber(usageTotal.events)}</strong></div>
-              <div><span>Requests</span><strong>{formatUsageNumber(usageTotal.requests)}</strong></div>
-              <div><span>Metric queries</span><strong>{formatUsageNumber(usageTotal.metric_queries)}</strong></div>
-              <div><span>Métricas solicitadas</span><strong>{formatUsageNumber(usageTotal.metrics_requested)}</strong></div>
+              <div><span>Eventos</span><strong>{formatUsageNumber(usageTotal.events, locale)}</strong></div>
+              <div><span>Requests</span><strong>{formatUsageNumber(usageTotal.requests, locale)}</strong></div>
+              <div><span>Metric queries</span><strong>{formatUsageNumber(usageTotal.metric_queries, locale)}</strong></div>
+              <div><span>Métricas solicitadas</span><strong>{formatUsageNumber(usageTotal.metrics_requested, locale)}</strong></div>
             </div>
           )}
         </div>
@@ -654,12 +659,12 @@ export default function AvenUsageCostsPage() {
 
       {cost?.summary.unpriced_usage && cost.summary.unpriced_usage.length > 0 && (
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><h2>Uso sem precificação</h2><p>Usage factual preservado que ainda não encontrou regra de pricing válida.</p></div><span className={styles.warningBadge}>{formatUsageNumber(cost.summary.unpriced_events)} eventos</span></div>
+          <div className={styles.panelHeader}><div><h2>Uso sem precificação</h2><p>Usage factual preservado que ainda não encontrou regra de pricing válida.</p></div><span className={styles.warningBadge}>{formatUsageNumber(cost.summary.unpriced_events, locale)} eventos</span></div>
           <div className={styles.panelBody}>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
                 <thead><tr><th>Operação</th><th>Região</th><th>Eventos</th><th>Requests</th><th>Motivo</th></tr></thead>
-                <tbody>{cost.summary.unpriced_usage.map((item) => <tr key={`${item.operation}-${item.region}`}><td>{item.operation}</td><td>{item.region}</td><td>{formatUsageNumber(item.events)}</td><td>{formatUsageNumber(item.requests)}</td><td>{item.reason}</td></tr>)}</tbody>
+                <tbody>{cost.summary.unpriced_usage.map((item) => <tr key={`${item.operation}-${item.region}`}><td>{item.operation}</td><td>{item.region}</td><td>{formatUsageNumber(item.events, locale)}</td><td>{formatUsageNumber(item.requests, locale)}</td><td>{item.reason}</td></tr>)}</tbody>
               </table>
             </div>
           </div>
@@ -682,12 +687,12 @@ export default function AvenUsageCostsPage() {
                     return (
                       <tr key={runId}>
                         <td><Link href={`/collections/${runId}`}>{runId.slice(0, 8)}…</Link></td>
-                        <td>{formatUsageCostDate(run?.started_at)}</td>
+                        <td>{formatUsageCostDate(run?.started_at, locale)}</td>
                         <td>{run ? (account ? accountLabel(account) : run.account_name || run.account_id) : "—"}</td>
                         <td><span className={run?.status === "FAILED" ? styles.failedStatus : styles.status}>{run?.status ?? "—"}</span></td>
-                        <td>{formatUsageNumber(technical?.requests ?? 0)}</td>
-                        <td>{formatUsageNumber(technical?.metric_queries ?? 0)}</td>
-                        <td>{costs.length ? costs.map((item) => <div key={item.currency}>{formatUsageCostMoney(item.gross_estimated_cost, item.currency)}</div>) : "Sem custo precificado"}</td>
+                        <td>{formatUsageNumber(technical?.requests ?? 0, locale)}</td>
+                        <td>{formatUsageNumber(technical?.metric_queries ?? 0, locale)}</td>
+                        <td>{costs.length ? costs.map((item) => <div key={item.currency}>{formatUsageCostMoney(item.gross_estimated_cost, item.currency, locale)}</div>) : "Sem custo precificado"}</td>
                       </tr>
                     );
                   })}
@@ -695,7 +700,7 @@ export default function AvenUsageCostsPage() {
               </table>
             </div>
           )}
-          {unassignedRunUsage && <p className={styles.note}>{formatUsageNumber(unassignedRunUsage.requests)} requests do recorte não estão atribuídos a uma CollectionRun específica.</p>}
+          {unassignedRunUsage && <p className={styles.note}>{formatUsageNumber(unassignedRunUsage.requests, locale)} requests do recorte não estão atribuídos a uma CollectionRun específica.</p>}
         </div>
       </section>
 
@@ -703,7 +708,7 @@ export default function AvenUsageCostsPage() {
         <div className={styles.panelHeader}><div><h2>Sobre esta estimativa</h2><p>Premissas e provenance do CloudWatch Cost Engine.</p></div></div>
         <div className={styles.assumptions}>
           <div><span>Definição</span><strong>Estimativa do custo das chamadas CloudWatch geradas pelo próprio Aven</strong><p>Não é o custo total de CloudWatch da conta e não é a fatura final da AWS.</p></div>
-          <div><span>Fonte de pricing</span><strong>{cost?.summary.pricing_sources.length ? cost.summary.pricing_sources.map(sourceLabel).join(", ") : "Sem regra aplicada no recorte"}</strong><p>Verificado em {formatUsageCostDate(cost?.summary.pricing_verified_at)}.</p></div>
+          <div><span>Fonte de pricing</span><strong>{cost?.summary.pricing_sources.length ? cost.summary.pricing_sources.map(sourceLabel).join(", ") : "Sem regra aplicada no recorte"}</strong><p>Verificado em {formatUsageCostDate(cost?.summary.pricing_verified_at, locale)}.</p></div>
           <div><span>Free tier</span><strong>{cost?.summary.free_tier_applied ? "Aplicado pelo Cost Engine" : "Não aplicado"}</strong><p>Por padrão, a estimativa é bruta: o Aven não conhece necessariamente o consumo compartilhado do free tier por outras workloads da conta.</p></div>
           <div><span>Completude</span><strong>{cost?.summary.is_complete ? "Completa para as regras disponíveis" : "Incompleta"}</strong><p>{cost?.summary.unpriced_events ?? 0} eventos sem pricing; {cost?.summary.inexact_request_events ?? 0} eventos com request count inexato.</p></div>
           <div><span>Vigências</span><strong>{versions > 1 ? `${versions} versões de pricing aplicadas` : versions === 1 ? "1 versão de pricing aplicada" : "Nenhuma versão aplicada"}</strong><p>O frontend não usa o preço atual para recalcular histórico.</p></div>

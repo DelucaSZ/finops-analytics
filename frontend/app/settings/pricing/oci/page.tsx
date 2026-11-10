@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import {useLocale} from "next-intl";
+import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { Check, History, Pencil, Plus, Search, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { api } from "@/lib/api";
@@ -88,6 +90,7 @@ function apiMessage(error: unknown, fallback: string) {
 }
 
 export default function OciPricingPage() {
+  const locale = useLocale();
   const [items, setItems] = useState<PricingItem[]>([]);
   const [meta, setMeta] = useState<PricingMeta | null>(null);
   const [total, setTotal] = useState(0);
@@ -265,10 +268,10 @@ export default function OciPricingPage() {
                       <td>{item.description}</td>
                       <td>{unitLabel(item.unit)}</td>
                       <td>
-                        <strong>{formatBrlDecimal(item.price)}</strong>
+                        <strong>{formatBrlDecimal(item.price, locale)}</strong>
                         <small>{item.currency}</small>
                       </td>
-                      <td>{formatRange(item)}</td>
+                      <td>{formatRange(item, locale)}</td>
                       <td><span className={statusClass(itemStatus)}>{pricingStatusLabel(itemStatus)}</span></td>
                       <td>{sourceLabel(item.source)}</td>
                       <td>
@@ -353,6 +356,7 @@ function PricingForm({
   onClose: () => void;
   onSaved: (message: string) => Promise<void>;
 }) {
+  const locale = useLocale();
   const [service, setService] = useState(item?.service ?? meta?.services[0] ?? "");
   const [sku, setSku] = useState(item?.sku ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
@@ -525,8 +529,8 @@ function PricingForm({
           {mode === "edit" && item && (
             <div className={styles.preview}>
               <strong>Alteração não destrutiva</strong>
-              <span>Preço atual: {formatBrlDecimal(item.price)}</span>
-              <span>Novo preço: {normalizedPrice ? formatBrlDecimal(normalizedPrice) : "—"}</span>
+              <span>Preço atual: {formatBrlDecimal(item.price, locale)}</span>
+              <span>Novo preço: {normalizedPrice ? formatBrlDecimal(normalizedPrice, locale) : "—"}</span>
               <span>A versão atual será encerrada na nova vigência; o valor anterior continuará no histórico.</span>
             </div>
           )}
@@ -545,6 +549,7 @@ function PricingForm({
 }
 
 function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
+  const locale = useLocale();
   const [rows, setRows] = useState<PricingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -580,11 +585,11 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
             {rows.map((row) => (
               <article key={row.id}>
                 <div>
-                  <strong>{formatBrlDecimal(row.price)}</strong>
+                  <strong>{formatBrlDecimal(row.price, locale)}</strong>
                   <span>{row.currency} · {unitLabel(row.unit)}</span>
                 </div>
                 <div>
-                  <strong>{formatRange(row)}</strong>
+                  <strong>{formatRange(row, locale)}</strong>
                   <span>{pricingStatusLabel(pricingLifecycleStatus(row))}</span>
                 </div>
                 <div>
@@ -601,6 +606,7 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
 }
 
 function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
+  const locale = useLocale();
   const [data, setData] = useState<PricingAuditPage | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -645,14 +651,14 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
                 <article key={event.id}>
                   <div>
                     <strong>{auditActionLabel(event.action)}</strong>
-                    <span>{formatAuditDate(event.occurred_at)}</span>
+                    <span>{formatAuditDate(event.occurred_at, locale)}</span>
                   </div>
                   <div>
                     <strong>{auditActorLabel(event)}</strong>
                     <span>{event.reason ? `Motivo: ${event.reason}` : "Sem motivo informado"}</span>
                   </div>
                   <div>
-                    <strong>{auditDiff(event)}</strong>
+                    <strong>{auditDiff(event, locale)}</strong>
                     <span>Versão: {event.pricing_item_id}</span>
                   </div>
                 </article>
@@ -691,20 +697,20 @@ function auditActorLabel(event: PricingAuditEvent) {
   return event.actor_name || event.actor_email || "Usuário removido";
 }
 
-function auditDiff(event: PricingAuditEvent) {
+function auditDiff(event: PricingAuditEvent, locale = "pt-BR") {
   const before = event.before_data;
   const after = event.after_data;
   if (!before && after?.price) {
-    return `Preço: ${formatBrlDecimal(after.price)} ${after.currency ?? ""}`.trim();
+    return `Preço: ${formatBrlDecimal(after.price, locale)} ${after.currency ?? ""}`.trim();
   }
   if (before?.price !== after?.price && before?.price && after?.price) {
-    return `Preço: ${formatBrlDecimal(before.price)} → ${formatBrlDecimal(after.price)} ${after.currency ?? before.currency ?? ""}`.trim();
+    return `Preço: ${formatBrlDecimal(before.price, locale)} → ${formatBrlDecimal(after.price, locale)} ${after.currency ?? before.currency ?? ""}`.trim();
   }
   if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) {
     return `Status: ${before.enabled ? "habilitado" : "desabilitado"} → ${after.enabled ? "habilitado" : "desabilitado"}`;
   }
   if (before?.effective_until !== after?.effective_until) {
-    return `Fim da vigência: ${formatAuditOptionalDate(before?.effective_until)} → ${formatAuditOptionalDate(after?.effective_until)}`;
+    return `Fim da vigência: ${formatAuditOptionalDate(before?.effective_until, locale)} → ${formatAuditOptionalDate(after?.effective_until, locale)}`;
   }
   if (before?.description !== after?.description) {
     return "Descrição alterada";
@@ -712,22 +718,21 @@ function auditDiff(event: PricingAuditEvent) {
   return "Alteração registrada";
 }
 
-function formatAuditOptionalDate(value: string | null | undefined) {
-  return value ? formatAuditDate(value) : "aberta";
+function formatAuditOptionalDate(value: string | null | undefined, locale = "pt-BR") {
+  return value ? formatAuditDate(value, locale) : "aberta";
 }
 
-function formatAuditDate(value: string) {
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
+function formatAuditDate(value: string, locale = "pt-BR") {
+  return formatLocaleDateTime(value, locale);
 }
 
 function ReadOnlyField({ label, value }: { label: string; value: string }) {
   return <label><span>{label}</span><input value={value} readOnly disabled /></label>;
 }
 
-function formatRange(item: PricingItem) {
-  const formatter = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" });
-  const start = formatter.format(new Date(item.effective_from));
-  const end = item.effective_until ? formatter.format(new Date(item.effective_until)) : "aberta";
+function formatRange(item: PricingItem, locale = "pt-BR") {
+  const start = formatLocaleDateTime(item.effective_from, locale);
+  const end = item.effective_until ? formatLocaleDateTime(item.effective_until, locale) : (locale === "en-US" ? "open" : "aberta");
   return `${start} → ${end}`;
 }
 

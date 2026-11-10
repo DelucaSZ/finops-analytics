@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/api";
 import { formatNumber, providerLabel } from "@/lib/cloud.mjs";
 import {
@@ -73,12 +73,13 @@ type RunIdentity = {
   account_id: string;
 };
 
-const number = (value: number) => formatNumber(value);
+const number = (value: number, locale = "pt-BR") => formatNumber(value, locale);
 
 function MetricLink({ href, label, value, title }: { href: string; label: string; value: number; title?: string }) {
+  const locale = useLocale();
   return (
     <Link className="collection-link" href={href} title={title}>
-      <strong>{number(value)}</strong>
+      <strong>{number(value, locale)}</strong>
       <span>{label}</span>
     </Link>
   );
@@ -86,6 +87,7 @@ function MetricLink({ href, label, value, title }: { href: string; label: string
 
 export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }) {
   const t = useTranslations("collections.investigation");
+  const locale = useLocale();
   const request = useApiQuery<RunChanges>({
     key: ["collections", run.id, "opportunity-changes"],
     path: `/collections/${encodeURIComponent(run.id)}/opportunity-changes`,
@@ -182,7 +184,7 @@ export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }
       </div>
       {data.baseline ? (
         <dl className="collection-metadata">
-          <div><dt>Baseline</dt><dd>{formatDate(data.baseline.started_at)}</dd></div>
+          <div><dt>Baseline</dt><dd>{formatDate(data.baseline.started_at, locale)}</dd></div>
           <div><dt>{t("cloud")}</dt><dd>{providerLabel(data.baseline.provider)}</dd></div>
           <div><dt>{t("account")}</dt><dd>{data.baseline.account_id}</dd></div>
           <div><dt>{t("status")}</dt><dd>{data.baseline.status === "SUCCESS" ? t("statusSuccess") : data.baseline.status === "FAILED" ? t("statusFailed") : data.baseline.status === "RUNNING" ? t("statusRunning") : data.baseline.status}</dd></div>
@@ -195,11 +197,11 @@ export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }
 
       <h3>{t("scopeCoverage")}</h3>
       <dl className="collection-metadata">
-        <div><dt>{t("total")}</dt><dd>{number(data.coverage.total_scopes)}</dd></div>
-        <div><dt>{t("coverageSuccess")}</dt><dd>{number(data.coverage.successful_scopes)}</dd></div>
-        <div><dt>{t("coverageFailed")}</dt><dd>{number(data.coverage.failed_scopes)}</dd></div>
-        <div><dt>{t("coverageSkipped")}</dt><dd>{number(data.coverage.skipped_scopes)}</dd></div>
-        <div><dt>{t("comparable")}</dt><dd>{number(data.coverage.comparable_scopes)}</dd></div>
+        <div><dt>{t("total")}</dt><dd>{number(data.coverage.total_scopes, locale)}</dd></div>
+        <div><dt>{t("coverageSuccess")}</dt><dd>{number(data.coverage.successful_scopes, locale)}</dd></div>
+        <div><dt>{t("coverageFailed")}</dt><dd>{number(data.coverage.failed_scopes, locale)}</dd></div>
+        <div><dt>{t("coverageSkipped")}</dt><dd>{number(data.coverage.skipped_scopes, locale)}</dd></div>
+        <div><dt>{t("comparable")}</dt><dd>{number(data.coverage.comparable_scopes, locale)}</dd></div>
       </dl>
 
       {data.warnings.map((warning) => (

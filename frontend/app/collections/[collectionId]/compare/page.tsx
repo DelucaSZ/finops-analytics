@@ -36,17 +36,17 @@ const categories: Array<{
 
 const categoryValues = new Set(categories.map((item) => item.value));
 
-function signedMoney(value: number | string, currency: string, perMonth: string) {
+function signedMoney(value: number | string, currency: string, perMonth: string, locale: string) {
   const number = Number(value);
   const prefix = number > 0 ? "+" : "";
-  return `${prefix}${formatMoney(number, currency)}${perMonth}`;
+  return `${prefix}${formatMoney(value, currency, locale)}${perMonth}`;
 }
 
 function displayValue(value: unknown, locale: string, format: {perMonth: string;structured: (count:number)=>string;empty:string;changed:string}, unit?: string | null): string {
   if (value === null || value === undefined) return "—";
   const currencyUnit = unit?.match(/^([A-Z]{3})_MONTH$/);
   if (currencyUnit && (typeof value === "number" || typeof value === "string")) {
-    return `${formatMoney(value, currencyUnit[1])}${format.perMonth}`;
+    return `${formatMoney(value, currencyUnit[1], locale)}${format.perMonth}`;
   }
   if (typeof value === "number") {
     const rendered = value.toLocaleString(locale, { maximumFractionDigits: 2 });
@@ -269,7 +269,7 @@ function CollectionComparisonContent() {
           {selectedBaseline ? (
             <>
               <Link href={`/collections/${selectedBaseline.id}`}>
-                {formatDate(selectedBaseline.started_at)}
+                {formatDate(selectedBaseline.started_at, locale)}
               </Link>
               <strong>
                 {formatAccountLabel(providerLabel(selectedBaseline.provider), selectedBaseline.account_id)}
@@ -284,7 +284,7 @@ function CollectionComparisonContent() {
         <div className={styles.runSide}>
           <span className="eyebrow">{t("current")}</span>
           <Link href={`/collections/${comparison.target.id}`}>
-            {formatDate(comparison.target.started_at)}
+            {formatDate(comparison.target.started_at, locale)}
           </Link>
           <strong>
             {formatAccountLabel(providerLabel(comparison.target.provider), comparison.target.account_id)}
@@ -303,7 +303,7 @@ function CollectionComparisonContent() {
             {!options.length && <option value="">{t("noCompatible")}</option>}
             {options.map((option) => (
               <option value={option.id} key={option.id}>
-                {formatDate(option.started_at)} · {statusLabel(option.status)} · Rules{" "}
+                {formatDate(option.started_at, locale)} · {statusLabel(option.status)} · Rules{" "}
                 {option.rules_version || "n/d"}
                 {!option.detailed_observations_available ? t("expiredDetail") : ""}
               </option>
@@ -355,15 +355,15 @@ function CollectionComparisonContent() {
         <section className={styles.financialGrid}>
           <article>
             <span>{t("baselineImpact")}</span>
-            <strong>{formatMoney(financial.baseline_total, financial.currency)}{t("perMonth")}</strong>
+            <strong>{formatMoney(financial.baseline_total, financial.currency, locale)}{t("perMonth")}</strong>
           </article>
           <article>
             <span>{t("currentImpact")}</span>
-            <strong>{formatMoney(financial.target_total, financial.currency)}{t("perMonth")}</strong>
+            <strong>{formatMoney(financial.target_total, financial.currency, locale)}{t("perMonth")}</strong>
           </article>
           <article>
             <span>{t("delta")}</span>
-            <strong>{signedMoney(financial.delta, financial.currency, t("perMonth"))}</strong>
+            <strong>{signedMoney(financial.delta, financial.currency, t("perMonth"), locale)}</strong>
             {financial.delta_percent !== null && (
               <small>
                 {Number(financial.delta_percent) > 0 ? "+" : ""}
@@ -424,7 +424,7 @@ function CollectionComparisonContent() {
                       {item.baseline ? (
                         <>
                           <StatusBadge value={item.baseline.severity} />
-                          <span>{formatMoney(item.baseline.estimated_monthly_savings, item.baseline.currency)}/mês</span>
+                          <span>{formatMoney(item.baseline.estimated_monthly_savings, item.baseline.currency, locale)}/mês</span>
                           <span>{item.baseline.evidence_summary || t("noSummary")}</span>
                         </>
                       ) : (
@@ -435,7 +435,7 @@ function CollectionComparisonContent() {
                       {item.target ? (
                         <>
                           <StatusBadge value={item.target.severity} />
-                          <span>{formatMoney(item.target.estimated_monthly_savings, item.target.currency)}/mês</span>
+                          <span>{formatMoney(item.target.estimated_monthly_savings, item.target.currency, locale)}/mês</span>
                           <span>{item.target.evidence_summary || t("noSummary")}</span>
                         </>
                       ) : (
