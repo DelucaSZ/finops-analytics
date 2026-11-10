@@ -38,24 +38,24 @@ test("Audit page exposes operational filters and persists them in URL", async ()
   assert.ok(page.includes('params.set("from", fromIso)'));
   assert.ok(page.includes('params.set("to", toIso)'));
   assert.ok(page.includes("window.history.replaceState"));
-  assert.ok(page.includes("Últimas 24h"));
-  assert.ok(page.includes("7 dias"));
-  assert.ok(page.includes("30 dias"));
-  assert.ok(page.includes("Hoje"));
-  assert.ok(page.includes("Limpar filtros"));
+  assert.ok(page.includes('t("last24h")'));
+  assert.ok(page.includes('t("last7d")'));
+  assert.ok(page.includes('t("last30d")'));
+  assert.ok(page.includes('t("today")'));
+  assert.ok(page.includes('t("clear")'));
 });
 
 test("Audit page summarizes changes and opens a reusable detail view", async () => {
   const page = await readFile(pageUrl, "utf8");
 
   assert.ok(page.includes(".slice(0, 2)"));
-  assert.ok(page.includes("Alterações resumidas por limite de tamanho"));
-  assert.ok(page.includes("Ver detalhes"));
-  assert.ok(page.includes('aria-label="Detalhes do evento de auditoria"'));
+  assert.ok(page.includes('t("presentation.truncated")'));
+  assert.ok(page.includes('t("details")'));
+  assert.ok(page.includes('t("detailsAria")'));
   assert.ok(page.includes("Correlation ID"));
-  assert.ok(page.includes("Contexto seguro"));
-  assert.ok(page.includes("Antes"));
-  assert.ok(page.includes("Depois"));
+  assert.ok(page.includes('t("safeContext")'));
+  assert.ok(page.includes('t("before")'));
+  assert.ok(page.includes('t("after")'));
   assert.ok(!page.includes("JSON.stringify(item.changes"));
   assert.ok(!page.includes("<pre>{"));
 });
@@ -66,7 +66,7 @@ test("Audit page keeps server-side pagination and result count", async () => {
   assert.ok(page.includes("const PAGE_SIZE = 50"));
   assert.ok(page.includes("offset + PAGE_SIZE >= data.total"));
   assert.ok(page.includes("setOffset(Math.max(0, offset - PAGE_SIZE))"));
-  assert.ok(page.includes("eventos encontrados"));
-  assert.ok(page.includes("Nenhum evento encontrado para os filtros atuais"));
-  assert.ok(page.includes("Carregando histórico"));
+  assert.ok(page.includes('t("count")'));
+  assert.ok(page.includes('t("empty")'));
+  assert.ok(page.includes('t("loading")'));
 });
