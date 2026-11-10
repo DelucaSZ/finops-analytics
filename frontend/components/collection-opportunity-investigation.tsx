@@ -184,12 +184,12 @@ export function CollectionOpportunityInvestigation({ run }: { run: RunIdentity }
       </div>
       {data.baseline ? (
         <dl className="collection-metadata">
-          <div><dt>Baseline</dt><dd>{formatDate(data.baseline.started_at, locale)}</dd></div>
+          <div><dt>{t("baseline")}</dt><dd>{formatDate(data.baseline.started_at, locale)}</dd></div>
           <div><dt>{t("cloud")}</dt><dd>{providerLabel(data.baseline.provider)}</dd></div>
           <div><dt>{t("account")}</dt><dd>{data.baseline.account_id}</dd></div>
           <div><dt>{t("status")}</dt><dd>{data.baseline.status === "SUCCESS" ? t("statusSuccess") : data.baseline.status === "FAILED" ? t("statusFailed") : data.baseline.status === "RUNNING" ? t("statusRunning") : data.baseline.status}</dd></div>
           <div><dt>{t("analyzerVersion")}</dt><dd>{data.baseline.analyzer_version || t("notRecorded")}</dd></div>
-          <div><dt>Run</dt><dd><code>{data.baseline.id.slice(0, 8)}</code></dd></div>
+          <div><dt>{t("run")}</dt><dd><code>{data.baseline.id.slice(0, 8)}</code></dd></div>
         </dl>
       ) : (
         <p className="collection-note">{t("noBaselineUsed")}</p>

@@ -2683,7 +2683,8 @@
         "detailLoad": "Não foi possível carregar a coleta.",
         "listLoad": "Não foi possível carregar as coletas."
       },
-      "trigger": "Gatilho"
+      "trigger": "Gatilho",
+      "collectionRun": "Execução de coleta"
     },
     "investigation": {
       "loading": "Carregando investigação de oportunidades…",
@@ -2737,7 +2738,9 @@
       "statusRunning": "Em andamento",
       "coverageSuccess": "Com sucesso",
       "coverageFailed": "Com falha",
-      "coverageSkipped": "Ignorados"
+      "coverageSkipped": "Ignorados",
+      "baseline": "Referência",
+      "run": "Execução"
     },
     "compare": {
       "eyebrow": "COMPARAÇÃO TEMPORAL",

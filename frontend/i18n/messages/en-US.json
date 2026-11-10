@@ -2683,7 +2683,8 @@
         "detailLoad": "Unable to load collection.",
         "listLoad": "Unable to load collections."
       },
-      "trigger": "Trigger"
+      "trigger": "Trigger",
+      "collectionRun": "Collection run"
     },
     "investigation": {
       "loading": "Loading collection opportunity investigation…",
@@ -2737,7 +2738,9 @@
       "statusRunning": "Running",
       "coverageSuccess": "Successful",
       "coverageFailed": "Failed",
-      "coverageSkipped": "Skipped"
+      "coverageSkipped": "Skipped",
+      "baseline": "Baseline",
+      "run": "Run"
     },
     "compare": {
       "eyebrow": "TEMPORAL COMPARISON",

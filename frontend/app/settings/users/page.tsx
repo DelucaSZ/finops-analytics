@@ -437,7 +437,7 @@ export default function UsersPage() {
               {action === "mfa" && (
                 <>
                   <label>
-                    Seu código MFA ou de recuperação
+                    {t("mfaCode")}
                     <input
                       autoComplete="one-time-code"
                       maxLength={64}
@@ -447,7 +447,7 @@ export default function UsersPage() {
                     />
                   </label>
                   <label>
-                    Motivo ou chamado de recuperação
+                    {t("recoveryReason")}
                     <textarea
                       minLength={10}
                       maxLength={500}
@@ -487,7 +487,7 @@ export default function UsersPage() {
         }}
       >
         <label>
-          Buscar por nome ou e-mail
+          {t("searchPrompt")}
           <input
             maxLength={254}
             value={q}
@@ -495,7 +495,7 @@ export default function UsersPage() {
           />
         </label>
         <label>
-          Situação
+          {t("statusLabel")}
           <select
             value={state}
             onChange={(e) => {
