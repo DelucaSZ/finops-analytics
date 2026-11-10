@@ -2217,7 +2217,17 @@
       "filterSource": "Origem: {value}",
       "filterKind": "Tipo: {value}",
       "filterFrom": "Desde: {value}",
-      "filterTo": "Até: {value}"
+      "filterTo": "Até: {value}",
+      "presentation": {
+        "yes": "Sim",
+        "no": "Não",
+        "truncated": "Alterações resumidas por limite de tamanho",
+        "securityEvent": "Evento de segurança",
+        "updatedItems": "{count, plural, one {# item alterado} other {# itens alterados}}",
+        "noDiff": "Ação sem diff de campos",
+        "unknownActor": "Responsável desconhecido",
+        "unauthenticated": "Tentativa não autenticada"
+      }
     }
   },
   "scans": {

@@ -75,15 +75,17 @@ function actionLabel(action: string, labels: Record<string, string>) {
   return action.split(".").map(fieldLabel).join(" · ");
 }
 
-function changeValue(value: unknown): string {
+type AuditPresentation = { yes: string; no: string; truncated: string; securityEvent: string; updatedItems: (count: number) => string; noDiff: string; unknownActor: string; unauthenticated: string };
+
+function changeValue(value: unknown, words: AuditPresentation): string {
   if (value === null || value === undefined) return "∅";
-  if (typeof value === "boolean") return value ? "Sim" : "Não";
+  if (typeof value === "boolean") return value ? words.yes : words.no;
   if (typeof value === "string" || typeof value === "number") {
     const text = String(value);
     return text.length > 160 ? `${text.slice(0, 157)}…` : text;
   }
   if (Array.isArray(value)) {
-    const text = value.map((item) => changeValue(item)).join(", ");
+    const text = value.map((item) => changeValue(item, words)).join(", ");
     return text.length > 160 ? `${text.slice(0, 157)}…` : text || "[]";
   }
   const text = JSON.stringify(value);
@@ -103,32 +105,32 @@ function changeEntries(item: Event): Array<[string, Change]> {
   });
 }
 
-function changeSummary(item: Event): string {
+function changeSummary(item: Event, words: AuditPresentation): string {
   const entries = changeEntries(item);
   if (!entries.length) {
-    if (item.changes?._truncated) return "Alterações resumidas por limite de tamanho";
-    if (item.event_kind === "security") return item.reason || "Evento de segurança";
+    if (item.changes?._truncated) return words.truncated;
+    if (item.event_kind === "security") return item.reason || words.securityEvent;
     const updated = item.metadata?.updated;
-    if (typeof updated === "number") return `${updated} itens alterados`;
-    return "Ação sem diff de campos";
+    if (typeof updated === "number") return words.updatedItems(updated);
+    return words.noDiff;
   }
   const head = entries
     .slice(0, 2)
-    .map(([field, change]) => `${fieldLabel(field)}: ${changeValue(change.from)} → ${changeValue(change.to)}`)
+    .map(([field, change]) => `${fieldLabel(field)}: ${changeValue(change.from, words)} → ${changeValue(change.to, words)}`)
     .join(" · ");
   return entries.length > 2 ? `${head} · +${entries.length - 2}` : head;
 }
 
-function actorLabel(item: Event): { name: string; email: string | null } {
+function actorLabel(item: Event, words: AuditPresentation): { name: string; email: string | null } {
   if (item.actor.name || item.actor.email) {
     return {
-      name: item.actor.name || item.actor.email || "Responsável desconhecido",
+      name: item.actor.name || item.actor.email || words.unknownActor,
       email: item.actor.name ? item.actor.email : null,
     };
   }
   if (item.source === "SYSTEM") return { name: "SYSTEM", email: null };
-  if (item.action === "auth.login_failed") return { name: "Tentativa não autenticada", email: null };
-  return { name: "Responsável desconhecido", email: null };
+  if (item.action === "auth.login_failed") return { name: words.unauthenticated, email: null };
+  return { name: words.unknownActor, email: null };
 }
 
 function localDateBoundary(date: string, end: boolean) {
@@ -149,6 +151,7 @@ function UserAutocomplete({
   onChange: (query: string, id: string) => void;
 }) {
   const t = useTranslations("settings.audit");
+  const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
   const [options, setOptions] = useState<UserOption[]>([]);
   const [open, setOpen] = useState(false);
 
@@ -227,6 +230,7 @@ function UserAutocomplete({
 
 export default function AuditPage() {
   const t = useTranslations("settings.audit");
+  const words: AuditPresentation = {yes:t("presentation.yes"),no:t("presentation.no"),truncated:t("presentation.truncated"),securityEvent:t("presentation.securityEvent"),updatedItems:(count)=>t("presentation.updatedItems", {count}),noDiff:t("presentation.noDiff"),unknownActor:t("presentation.unknownActor"),unauthenticated:t("presentation.unauthenticated")};
   const localizedEvents: Record<string, string> = {
     "auth.login": t("events.auth_login"),
     "auth.login_failed": t("events.auth_login_failed"),
@@ -550,13 +554,13 @@ export default function AuditPage() {
               <tr><td colSpan={6}>{t("empty")}</td></tr>
             ) : (
               data.items.map((item) => {
-                const actor = actorLabel(item);
+                const actor = actorLabel(item, words);
                 return (
                   <tr key={`${item.event_kind}:${item.id}`}>
                     <td><span>{formatDate(item.created_at)}</span></td>
                     <td>
                       <strong>{actionLabel(item.action, localizedEvents)}</strong>
-                      <span>{item.module} · {item.event_kind === "administrative" ? t("administrative") : t("security")}</span>
+                      <span>{modules.find(([key]) => key === item.module)?.[1] || item.module} · {item.event_kind === "administrative" ? t("administrative") : t("security")}</span>
                     </td>
                     <td>
                       <strong>{actor.name}</strong>
@@ -567,7 +571,7 @@ export default function AuditPage() {
                       <span>{item.entity.type}{item.entity.id ? ` · ${item.entity.id}` : ""}</span>
                     </td>
                     <td>
-                      <span>{changeSummary(item)}</span>
+                      <span>{changeSummary(item, words)}</span>
                       <button className="button" onClick={() => setSelected(item)}>{t("details")}</button>
                     </td>
                     <td><strong>{item.source}</strong></td>
@@ -610,9 +614,9 @@ export default function AuditPage() {
             </div>
             <dl>
               <dt>{t("date")}</dt><dd>{formatDate(selected.created_at)}</dd>
-              <dt>{t("responsible")}</dt><dd>{actorLabel(selected).name}</dd>
+              <dt>{t("responsible")}</dt><dd>{actorLabel(selected, words).name}</dd>
               <dt>{t("responsibleEmail")}</dt><dd>{selected.actor.email || "—"}</dd>
-              <dt>{t("module")}</dt><dd>{selected.module}</dd>
+              <dt>{t("module")}</dt><dd>{modules.find(([key]) => key === selected.module)?.[1] || selected.module}</dd>
               <dt>{t("source")}</dt><dd>{selected.source}</dd>
               <dt>{t("entity")}</dt><dd>{selected.entity.label || "—"}</dd>
               <dt>{t("entityId")}</dt><dd style={{ overflowWrap: "anywhere" }}>{selected.entity.id || "—"}</dd>
@@ -628,8 +632,8 @@ export default function AuditPage() {
                     {changeEntries(selected).map(([field, change]) => (
                       <tr key={field}>
                         <td><strong>{fieldLabel(field)}</strong></td>
-                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.from)}</td>
-                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.to)}</td>
+                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.from, words)}</td>
+                        <td style={{ overflowWrap: "anywhere" }}>{changeValue(change.to, words)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -646,7 +650,7 @@ export default function AuditPage() {
                   <table className="data-table">
                     <tbody>
                       {Object.entries(selected.metadata).map(([key, value]) => (
-                        <tr key={key}><th>{fieldLabel(key)}</th><td style={{ overflowWrap: "anywhere" }}>{changeValue(value)}</td></tr>
+                        <tr key={key}><th>{fieldLabel(key)}</th><td style={{ overflowWrap: "anywhere" }}>{changeValue(value, words)}</td></tr>
                       ))}
                     </tbody>
                   </table>

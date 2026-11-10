@@ -2217,7 +2217,17 @@
       "filterSource": "Source: {value}",
       "filterKind": "Type: {value}",
       "filterFrom": "Since: {value}",
-      "filterTo": "Until: {value}"
+      "filterTo": "Until: {value}",
+      "presentation": {
+        "yes": "Yes",
+        "no": "No",
+        "truncated": "Changes summarized due to size limits",
+        "securityEvent": "Security event",
+        "updatedItems": "{count, plural, one {# item changed} other {# items changed}}",
+        "noDiff": "Action with no field-level changes",
+        "unknownActor": "Unknown actor",
+        "unauthenticated": "Unauthenticated attempt"
+      }
     }
   },
   "scans": {
