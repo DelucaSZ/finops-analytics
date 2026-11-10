@@ -121,7 +121,7 @@ test("stage 20 drives account and policy capabilities from the backend contract"
 
   assert.match(policies, /\/cloud-accounts\/capabilities/);
   assert.match(policies, /finops_policies/);
-  assert.match(policies, /Nenhuma regra AWS é aplicada/);
+  assert.match(policies, /t\("unavailableDescription"\)/);
 
   assert.match(types, /export type ProviderCapabilities/);
   assert.match(types, /provider: string;/);

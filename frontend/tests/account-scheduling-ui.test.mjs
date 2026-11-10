@@ -50,10 +50,10 @@ test("AWS and OCI page use one shared capability-gated scheduling component", as
   assert.doesNotMatch(page, /form\.aws\.schedule_enabled/);
   assert.doesNotMatch(page, /form\.aws\.scan_interval_hours/);
   assert.doesNotMatch(component, /isAws|isOci|provider ===/);
-  assert.match(component, /Ativar coleta automática/);
-  assert.match(component, /Próxima execução prevista/);
-  assert.match(component, /Coleta automática desativada/);
-  assert.match(component, /Não implementado para este provider/);
+  assert.match(component, /t\("enable"\)/);
+  assert.match(component, /t\("nextExecution"\)/);
+  assert.match(component, /t\("disabled"\)/);
+  assert.match(component, /t\("unsupported"\)/);
 });
 
 test("scheduling UI only displays backend-owned next_scan_at", async () => {

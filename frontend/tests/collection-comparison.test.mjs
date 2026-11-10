@@ -38,8 +38,8 @@ test("execution history exposes CollectionRun detail and comparison navigation",
   );
 
   assert.match(scans, /\/collections\?limit=200/);
-  assert.match(scans, /Ver coleta/);
-  assert.match(scans, /Comparar/);
+  assert.match(scans, /t\("viewCollection"\)/);
+  assert.match(scans, /t\("compare"\)/);
   assert.match(detail, /comparison-options/);
   assert.match(detail, /run\.status === "SUCCESS"/);
   assert.match(detail, /Comparar com coleta anterior/);
