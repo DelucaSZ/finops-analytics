@@ -88,31 +88,23 @@ type ValidationResult = {
   trust: TrustInfo | null;
 };
 
-function endpointLabel(status: EndpointValidation["status"]) {
-  switch (status) {
-    case "VERIFIED":
-      return "Endpoint DNS validado";
-    case "MISMATCH":
-      return "Endpoint DNS divergente";
-    case "PARTIAL":
-      return "Validação DNS parcial";
-    case "UNREACHABLE":
-      return "Endpoint externo não pôde ser testado deste host";
-    default:
-      return "DNS A/AAAA não encontrado";
-  }
-}
-
-function trustLabel(trust: TrustInfo | null) {
-  if (!trust) return "Não avaliada";
-  if (trust.status === "PUBLIC_TRUSTED") return "Confiável pela trust store";
-  if (trust.status === "PRIVATE_OR_UNTRUSTED") return "CA privada/não pública";
-  return "Confiança requer atenção";
-}
-
 export default function HttpsSettingsPage() {
   const locale = useLocale();
   const t = useTranslations("settings.https");
+  const endpointLabels: Record<EndpointValidation["status"], string> = {
+    VERIFIED: t("endpointVerified"),
+    PARTIAL: t("endpointPartial"),
+    MISMATCH: t("endpointMismatch"),
+    UNREACHABLE: t("endpointUnreachable"),
+    DNS_NOT_FOUND: t("endpointDnsNotFound"),
+  };
+  const trustLabel = (trust: TrustInfo | null) => !trust
+    ? t("trustNotEvaluated")
+    : trust.status === "PUBLIC_TRUSTED"
+      ? t("trustPublic")
+      : trust.status === "PRIVATE_OR_UNTRUSTED"
+        ? t("trustPrivate")
+        : t("trustAttention");
   const [status, setStatus] = useState<TlsStatus | null>(null);
   const [mode, setMode] = useState<"automatic" | "custom">("automatic");
   const [domain, setDomain] = useState("");
@@ -268,28 +260,28 @@ export default function HttpsSettingsPage() {
               <p>{status.message}</p>
               {status.domain && (
                 <p>
-                  Domínio: <code>{status.domain}</code>
+                  {t("domain")}: <code>{status.domain}</code>
                 </p>
               )}
               {status.configured && (
                 <>
                   <p>
-                    Modo:{" "}
+                    {t("mode")}:{" "}
                     {status.mode === "automatic"
                       ? t("automaticMode")
                       : t("customCertificate")}
                   </p>
                   <p>
-                    HTTPS local:{" "}
+                    {t("localHttps")}:{" "}
                     {status.local_tls.healthy
                       ? t("expectedCertificate")
                       : t("notValidated")}
                   </p>
                   <p>
-                    DNS público: {status.dns.a.length + status.dns.aaaa.length} endpoint(s)
+                    {t("publicDns")}: {t("endpointCount", { count: status.dns.a.length + status.dns.aaaa.length })}
                   </p>
                   <p>
-                    Validação do endpoint: {endpointLabel(status.endpoint_validation.status)}
+                    {t("endpointValidation")}: {endpointLabels[status.endpoint_validation.status]}
                   </p>
                   <p>{status.endpoint_validation.message}</p>
                   <p>{t("trust")}: {trustLabel(status.trust)}</p>
@@ -306,7 +298,7 @@ export default function HttpsSettingsPage() {
                 <>
                   <p>{t("issuer")}: {status.certificate.issuer}</p>
                   <p>
-                    Validade: {formatDate(status.certificate.valid_from, locale)} até{" "}
+                    {t("validFrom")}: {formatDate(status.certificate.valid_from, locale)} {t("until")}{" "}
                     {formatDate(status.certificate.valid_until, locale)}
                   </p>
                   <p>
@@ -320,7 +312,7 @@ export default function HttpsSettingsPage() {
                   </p>
                   {status.certificate.chain_length !== undefined && (
                     <p>
-                      Certificados servidos na cadeia: {status.certificate.chain_length}
+                      {t("servedChainCertificates")}: {status.certificate.chain_length}
                     </p>
                   )}
                 </>
@@ -338,7 +330,7 @@ export default function HttpsSettingsPage() {
               )}
               {status.endpoint_validation.endpoints.map((endpoint) => (
                 <p key={`${endpoint.record_type}-${endpoint.address}`}>
-                  {endpoint.record_type} <code>{endpoint.address}</code> · {endpoint.status} ·{" "}
+                  {endpoint.record_type} <code>{endpoint.address}</code> · {endpointLabels[endpoint.status]} ·{" "}
                   {endpoint.message}
                 </p>
               ))}
@@ -348,21 +340,9 @@ export default function HttpsSettingsPage() {
 
         <section className="security-card">
           <h2>{t("howItWorks")}</h2>
-          <p>
-            No modo automático, o Caddy solicita e renova o certificado. O
-            domínio precisa apontar para este host e os desafios ACME precisam
-            alcançar as portas 80/443.
-          </p>
-          <p>
-            No modo próprio, o Aven valida separadamente o certificado do
-            servidor, as CAs intermediárias e a chave privada, ordena a cadeia e
-            monta o fullchain servido pelo Caddy.
-          </p>
-          <p>
-            O probe local confirma o Caddy. A resolução A/AAAA e os endpoints
-            publicados são diagnosticados separadamente; indisponibilidade do IP
-            público a partir da própria EC2 não desfaz um TLS local válido.
-          </p>
+          <p>{t("automaticExplanation")}</p>
+          <p>{t("customExplanation")}</p>
+          <p>{t("diagnosticExplanation")}</p>
         </section>
       </div>
 
@@ -421,10 +401,7 @@ export default function HttpsSettingsPage() {
                   required
                 />
               </label>
-              <p className="settings-help">
-                Cole aqui somente o certificado emitido para o domínio,
-                normalmente um único bloco BEGIN CERTIFICATE.
-              </p>
+              <p className="settings-help">{t("serverCertHelp")}</p>
 
               <label>
                 {t("intermediateChain")}
@@ -438,16 +415,11 @@ export default function HttpsSettingsPage() {
                     setValidation(null);
                   }}
                   placeholder={
-                    "-----BEGIN CERTIFICATE-----\n... CA intermediária ...\n-----END CERTIFICATE-----"
+                    "-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"
                   }
                 />
               </label>
-              <p className="settings-help">
-                Cole as CAs intermediárias fornecidas pela autoridade
-                certificadora. O Aven valida e ordena a cadeia. O Root CA
-                normalmente não deve ser enviado pelo servidor e será omitido do
-                fullchain quando identificado.
-              </p>
+              <p className="settings-help">{t("chainHelp")}</p>
 
               <label>
                 {t("privateKey")}
@@ -466,19 +438,14 @@ export default function HttpsSettingsPage() {
                   required
                 />
               </label>
-              <p className="settings-help">
-                A chave privada precisa corresponder ao certificado leaf e não
-                pode estar protegida por senha. Ela nunca é devolvida pela API e
-                o campo é limpo após uma aplicação bem-sucedida.
-              </p>
+              <p className="settings-help">{t("privateKeyHelp")}</p>
             </>
           )}
 
           {validation?.certificate && (
             <div className="settings-help">
               <p>
-                Certificado validado · emissor {validation.certificate.issuer} ·
-                expira em {formatDate(validation.certificate.valid_until, locale)}
+                {t("validatedCertificate", {issuer: validation.certificate.issuer, date: formatDate(validation.certificate.valid_until, locale)})}
               </p>
               {validation.chain && <p>{validation.chain.message}</p>}
               {validation.trust && <p>{validation.trust.message}</p>}
