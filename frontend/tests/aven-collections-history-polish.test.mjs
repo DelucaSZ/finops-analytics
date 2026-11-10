@@ -36,11 +36,11 @@ test("Collection filters consume Aven form primitives while preserving datetime 
     assert.ok(workspace.includes(component), `expected ${component} in CollectionWorkspace`);
   }
 
-  assert.match(workspace, /label="Cloud"/);
-  assert.match(workspace, /label="Conta · nome ou identificador"/);
-  assert.match(workspace, /label="Status"/);
-  assert.match(workspace, /type="datetime-local"[\s\S]*label="Início do período \(inclusivo\)"/);
-  assert.match(workspace, /type="datetime-local"[\s\S]*label="Fim do período \(exclusivo\)"/);
+  assert.match(workspace, /label=\{t\("cloud"\)\}/);
+  assert.match(workspace, /label=\{t\("accountSearch"\)\}/);
+  assert.match(workspace, /label=\{t\("statusLabel"\)\}/);
+  assert.match(workspace, /type="datetime-local"[\s\S]*label=\{t\("periodStart"\)\}/);
+  assert.match(workspace, /type="datetime-local"[\s\S]*label=\{t\("periodEnd"\)\}/);
   assert.match(workspace, /new Date\(event\.target\.value\)\.toISOString\(\)/);
   assert.doesNotMatch(workspace, /<input\b/);
 });
