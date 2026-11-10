@@ -482,7 +482,7 @@ function PricingForm({
                 inputMode="decimal"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
-                placeholder="0,00000000"
+                placeholder={locale === "en-US" ? "0.00000000" : "0,00000000"}
                 disabled={saving}
                 required
               />
