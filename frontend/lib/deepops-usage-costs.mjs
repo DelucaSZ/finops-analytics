@@ -164,13 +164,14 @@ export function costItemsByCurrency(items) {
   return [...groups.entries()].sort(([left], [right]) => left.localeCompare(right));
 }
 
-export function friendlyUsageLabel(value, kind = "generic") {
+export function friendlyUsageLabel(value, kind = "generic", locale = "pt-BR") {
+  const english = locale === "en-US";
   if (value === null || value === undefined || value === "") {
-    return kind === "analyzer" ? "Compartilhado / não atribuído" : "Não atribuído";
+    return kind === "analyzer" ? (english ? "Shared / unattributed" : "Compartilhado / não atribuído") : (english ? "Unattributed" : "Não atribuído");
   }
-  if (value === "Shared / Unattributed") return "Compartilhado / não atribuído";
+  if (value === "Shared / Unattributed") return english ? "Shared / unattributed" : "Compartilhado / não atribuído";
   if ((kind === "collector" || kind === "analyzer") && COLLECTOR_LABELS[value]) {
-    return COLLECTOR_LABELS[value];
+    return english ? ({rds_nonprod_idle: "RDS — non-production idle", load_balancer_no_traffic: "Load Balancer — no traffic"}[value] ?? COLLECTOR_LABELS[value]) : COLLECTOR_LABELS[value];
   }
   if (kind === "collector" || kind === "analyzer") {
     return String(value)

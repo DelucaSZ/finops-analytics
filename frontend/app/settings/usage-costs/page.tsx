@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {useLocale} from "next-intl";
+import {useLocale, useTranslations} from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -158,8 +158,9 @@ function sourceLabel(source: string) {
 }
 
 function CostTotals({ totals }: { totals: CostTotal[] }) {
+  const t = useTranslations("settings.usageCosts");
   const locale = useLocale();
-  if (!totals.length) return <strong className={styles.unavailableValue}>Indisponível</strong>;
+  if (!totals.length) return <strong className={styles.unavailableValue}>{t("unavailable")}</strong>;
   return (
     <div className={styles.moneyStack}>
       {totals.map((total) => (
@@ -172,10 +173,11 @@ function CostTotals({ totals }: { totals: CostTotal[] }) {
 }
 
 function CostChart({ response }: { response: CostResponse }) {
+  const t = useTranslations("settings.usageCosts");
   const locale = useLocale();
   const groups = costItemsByCurrency(response.items);
   if (!groups.length) {
-    return <div className={styles.sectionState}>Não há custo precificado para plotar neste período.</div>;
+    return <div className={styles.sectionState}>{t("noPricedChart")}</div>;
   }
 
   const width = 920;
@@ -200,10 +202,10 @@ function CostChart({ response }: { response: CostResponse }) {
           <div className={styles.chartGroup} key={currency}>
             <div className={styles.chartMeta}>
               <strong>{currency}</strong>
-              <span>{response.granularity === "monthly" ? "Buckets mensais" : "Buckets diários"}</span>
+              <span>{response.granularity === "monthly" ? t("monthlyBuckets") : t("dailyBuckets")}</span>
             </div>
             <div className={styles.chartScroll}>
-              <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`Custo estimado do Aven em ${currency} ao longo do tempo`}>
+              <svg className={styles.chart} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={t("chartAria", {currency})}>
                 <line x1={padX} x2={width - padX} y1={height - padY} y2={height - padY} className={styles.axisLine} />
                 <path d={path} className={styles.costLine} />
                 {points.map((point, index) => (
@@ -240,6 +242,7 @@ function BreakdownSection({
   showProvenance?: boolean;
 }) {
   const locale = useLocale();
+  const t = useTranslations("settings.usageCosts");
   const usageMap = usageByGroup(usage.items);
   const accountMap = new Map(accounts.map((account) => [account.native_account_id, account]));
   const groups = costItemsByCurrency(cost.items);
@@ -249,7 +252,7 @@ function BreakdownSection({
       const account = accountMap.get(value);
       return account ? accountLabel(account) : value;
     }
-    return friendlyUsageLabel(value, kind);
+    return friendlyUsageLabel(value, kind, locale);
   };
 
   const usageForCostGroup = (group: string | null) => {
@@ -266,22 +269,22 @@ function BreakdownSection({
         </div>
       </div>
       {!groups.length ? (
-        <div className={styles.sectionState}>Sem custo precificado para este recorte.</div>
+        <div className={styles.sectionState}>{t("noPricedSlice")}</div>
       ) : (
         <div className={styles.panelBody}>
           {groups.map(([currency, rows]) => (
             <div className={styles.currencyGroup} key={currency}>
-              <div className={styles.currencyHeading}><strong>{currency}</strong><span>Ordenado por custo estimado</span></div>
+              <div className={styles.currencyHeading}><strong>{currency}</strong><span>{t("sortedByCost")}</span></div>
               <div className={styles.tableWrap}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
-                      <th>{kind === "account" ? "Conta" : kind === "operation" ? "Operação" : kind === "collector" ? "Collector" : "Analyzer"}</th>
-                      <th>Requests</th>
-                      <th>Metric queries</th>
-                      <th>Falhas</th>
-                      <th>Custo estimado</th>
-                      <th>% do custo</th>
+                      <th>{kind === "account" ? t("account") : kind === "operation" ? t("operation") : kind === "collector" ? t("collector") : t("analyzer")}</th>
+                      <th>{t("requests")}</th>
+                      <th>{t("metricQueries")}</th>
+                      <th>{t("failures")}</th>
+                      <th>{t("estimatedCost")}</th>
+                      <th>{t("costShare")}</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -294,14 +297,14 @@ function BreakdownSection({
                             <strong>{label(row.group)}</strong>
                             {showProvenance && row.components.length > 0 && (
                               <details className={styles.provenance}>
-                                <summary>Pricing aplicado</summary>
+                                <summary>{t("appliedPricing")}</summary>
                                 {row.components.map((component, index) => (
                                   <div key={`${component.pricing_rule_id}-${component.effective_from}-${index}`}>
-                                    <span>Regra {component.pricing_rule_id}</span>
+                                    <span>{t("rule", {id: component.pricing_rule_id})}</span>
                                     <span>{formatUsageNumber(component.usage_quantity, locale)} {component.pricing_unit}</span>
                                     <span>{formatUsageCostMoney(component.unit_price, component.currency, locale)} / {formatUsageNumber(component.unit_quantity, locale)} {component.pricing_unit}</span>
-                                    <span>Vigência: {formatUsageCostDate(component.effective_from, locale)}</span>
-                                    <span>Fonte: {sourceLabel(component.source)}</span>
+                                    <span>{t("effectiveFrom", {date: formatUsageCostDate(component.effective_from, locale)})}</span>
+                                    <span>{t("source", {source: sourceLabel(component.source)})}</span>
                                   </div>
                                 ))}
                               </details>
@@ -327,6 +330,7 @@ function BreakdownSection({
 }
 
 export default function AvenUsageCostsPage() {
+  const t = useTranslations("settings.usageCosts");
   const locale = useLocale();
   const [preset, setPreset] = useState("this-month");
   const [customStart, setCustomStart] = useState("");
@@ -376,7 +380,7 @@ export default function AvenUsageCostsPage() {
     api<CloudAccount[]>("/cloud-accounts", { signal: controller.signal })
       .then(setAccounts)
       .catch((error) => {
-        if (!controller.signal.aborted) setOptionsError(message(error, "Falha ao carregar as contas AWS."));
+        if (!controller.signal.aborted) setOptionsError(message(error, t("accountsLoadFailed")));
       });
     return () => controller.abort();
   }, []);
@@ -390,9 +394,9 @@ export default function AvenUsageCostsPage() {
     Promise.all([summary("region"), summary("operation"), summary("collector"), summary("analyzer")])
       .then(([regions, operations, collectors, analyzers]) => {
         if (controller.signal.aborted) return;
-        const analyzerOptions = distinctUsageGroups(analyzers.items).map((value) => ({ value, label: friendlyUsageLabel(value, "analyzer") }));
+        const analyzerOptions = distinctUsageGroups(analyzers.items).map((value) => ({ value, label: friendlyUsageLabel(value, "analyzer", locale) }));
         if (analyzers.items.some((item) => item.group === null)) {
-          analyzerOptions.unshift({ value: SHARED_ANALYZER, label: "Compartilhado / não atribuído" });
+          analyzerOptions.unshift({ value: SHARED_ANALYZER, label: t("shared") });
         }
         setOptions({
           regions: distinctUsageGroups(regions.items),
@@ -402,7 +406,7 @@ export default function AvenUsageCostsPage() {
         });
       })
       .catch((error) => {
-        if (!controller.signal.aborted) setOptionsError(message(error, "Falha ao carregar opções da telemetria."));
+        if (!controller.signal.aborted) setOptionsError(message(error, t("telemetryOptionsFailed")));
       });
     return () => controller.abort();
   }, [period, refreshToken]);
@@ -439,7 +443,7 @@ export default function AvenUsageCostsPage() {
         if (current === sequence.current && !signal.aborted) setCost({ summary, timeseries, account, operation: operationCost, collector: collectorCost, analyzer: analyzerCost, collectionRun });
       })
       .catch((error) => {
-        if (!signal.aborted && current === sequence.current) setCostError(message(error, "Falha ao consultar o CloudWatch Cost Engine."));
+        if (!signal.aborted && current === sequence.current) setCostError(message(error, t("costsLoadFailed")));
       })
       .finally(() => {
         if (!signal.aborted && current === sequence.current) setCostLoading(false);
@@ -456,7 +460,7 @@ export default function AvenUsageCostsPage() {
         if (current === sequence.current && !signal.aborted) setUsage({ operation: operationUsage, account, collector: collectorUsage, analyzer: analyzerUsage, collectionRun });
       })
       .catch((error) => {
-        if (!signal.aborted && current === sequence.current) setUsageError(message(error, "Falha ao consultar a telemetria CloudWatch do Aven."));
+        if (!signal.aborted && current === sequence.current) setUsageError(message(error, t("telemetryLoadFailed")));
       })
       .finally(() => {
         if (!signal.aborted && current === sequence.current) setUsageLoading(false);
@@ -477,7 +481,7 @@ export default function AvenUsageCostsPage() {
         if (current === sequence.current && !signal.aborted) setCollections(response.items);
       })
       .catch((error) => {
-        if (!signal.aborted && current === sequence.current) setRunsError(message(error, "Falha ao carregar metadados das coletas."));
+        if (!signal.aborted && current === sequence.current) setRunsError(message(error, t("collectionsLoadFailed")));
       })
       .finally(() => {
         if (!signal.aborted && current === sequence.current) setRunsLoading(false);
@@ -517,132 +521,132 @@ export default function AvenUsageCostsPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Configurações · Aven"
-        title="Uso e custos"
-        description="Telemetria e estimativa do custo das chamadas CloudWatch geradas pelo próprio Aven. Não representa a fatura AWS nem o custo total de CloudWatch da conta."
+        eyebrow=t("eyebrow")
+        title=t("title")
+        description=t("description")
         actions={<button className="button secondary" onClick={() => setRefreshToken((value) => value + 1)}><RefreshCw size={16} /> Atualizar</button>}
       />
 
-      <section className={styles.filtersPanel} aria-label="Filtros de uso e custo">
+      <section className={styles.filtersPanel} aria-label=t("filtersAria")>
         <div className={styles.filtersGrid}>
           <label className={styles.field}>
-            <span>Período</span>
+            <span>{t("period")}</span>
             <select value={preset} onChange={(event) => setPreset(event.target.value)}>
-              {USAGE_COST_PERIOD_PRESETS.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
+              {USAGE_COST_PERIOD_PRESETS.map((item) => <option value={item.value} key={item.value}>{({today:t("presetToday"),"last-7-days":t("preset7"),"this-month":t("presetMonth"),"previous-month":t("presetPrevious"),"last-3-months":t("preset3"),custom:t("presetCustom")} as Record<string,string>)[item.value] ?? item.label}</option>)}
             </select>
           </label>
           <label className={styles.field}>
-            <span>Conta AWS</span>
+            <span>{t("awsAccount")}</span>
             <select value={accountId} onChange={(event) => setAccountId(event.target.value)}>
-              <option value="">Todas as contas autorizadas</option>
+              <option value="">{t("allAuthorized")}</option>
               {awsAccounts.map((account) => <option value={account.id} key={account.id}>{accountLabel(account)}</option>)}
             </select>
           </label>
           <label className={styles.field}>
-            <span>Operação</span>
+            <span>{t("operation")}</span>
             <select value={operation} onChange={(event) => setOperation(event.target.value)}>
-              <option value="">Todas</option>
+              <option value="">{t("allFeminine")}</option>
               {options.operations.map((value) => <option value={value} key={value}>{value}</option>)}
             </select>
           </label>
           <label className={styles.field}>
-            <span>Região</span>
+            <span>{t("region")}</span>
             <select value={region} onChange={(event) => setRegion(event.target.value)}>
-              <option value="">Todas</option>
+              <option value="">{t("allFeminine")}</option>
               {options.regions.map((value) => <option value={value} key={value}>{value}</option>)}
             </select>
           </label>
           <label className={styles.field}>
-            <span>Collector</span>
+            <span>{t("collector")}</span>
             <select value={collector} onChange={(event) => setCollector(event.target.value)}>
-              <option value="">Todos</option>
-              {options.collectors.map((value) => <option value={value} key={value}>{friendlyUsageLabel(value, "collector")}</option>)}
+              <option value="">{t("allMasculine")}</option>
+              {options.collectors.map((value) => <option value={value} key={value}>{friendlyUsageLabel(value, "collector", locale)}</option>)}
             </select>
           </label>
           <label className={styles.field}>
-            <span>Analyzer</span>
+            <span>{t("analyzer")}</span>
             <select value={analyzer} onChange={(event) => setAnalyzer(event.target.value)}>
-              <option value="">Todos</option>
-              {options.analyzers.map((item) => <option value={item.value} key={item.value}>{item.label}</option>)}
+              <option value="">{t("allMasculine")}</option>
+              {options.analyzers.map((item) => <option value={item.value} key={item.value}>{({today:t("presetToday"),"last-7-days":t("preset7"),"this-month":t("presetMonth"),"previous-month":t("presetPrevious"),"last-3-months":t("preset3"),custom:t("presetCustom")} as Record<string,string>)[item.value] ?? item.label}</option>)}
             </select>
           </label>
         </div>
         {preset === "custom" && (
           <div className={styles.customDates}>
-            <label className={styles.field}><span>De</span><input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label>
-            <label className={styles.field}><span>Até</span><input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label>
+            <label className={styles.field}><span>{t("from")}</span><input type="date" value={customStart} onChange={(event) => setCustomStart(event.target.value)} /></label>
+            <label className={styles.field}><span>{t("to")}</span><input type="date" value={customEnd} onChange={(event) => setCustomEnd(event.target.value)} /></label>
           </div>
         )}
         <div className={styles.filterMeta}>
           <span>{formatUsagePeriodLabel(period, locale)}</span>
-          <span>Filtro temporal aplicado sobre <code>occurred_at</code>.</span>
+          <span>{t("filterTime")} <code>occurred_at</code>.</span>
         </div>
-        {!period && <p className={styles.warning} role="alert">Informe um período personalizado válido.</p>}
+        {!period && <p className={styles.warning} role="alert">{t("invalidCustom")}</p>}
         {optionsError && <p className={styles.warning} role="alert">{optionsError}</p>}
       </section>
 
       {cost?.summary && !cost.summary.is_complete && (
         <div className={styles.warningBanner} role="alert">
-          <strong>Estimativa incompleta.</strong> Parte do uso ainda não possui regra de pricing válida; o valor monetário exibido é parcial.
+          <strong>{t("incompleteEstimate")}</strong> {t("incompleteEstimateNote")}
         </div>
       )}
 
       <div className={styles.kpiGrid}>
         <article className={styles.kpiCard}>
-          <span>Custo estimado do Aven</span>
-          {costLoading ? <strong>Carregando…</strong> : costError ? <strong>Indisponível</strong> : <CostTotals totals={cost?.summary.totals ?? []} />}
-          <small>Estimativa bruta retornada pelo CloudWatch Cost Engine.</small>
+          <span>{t("avenCost")}</span>
+          {costLoading ? <strong>{t("loading")}</strong> : costError ? <strong>{t("unavailable")}</strong> : <CostTotals totals={cost?.summary.totals ?? []} />}
+          <small>{t("rawEstimate")}</small>
         </article>
         <article className={styles.kpiCard}>
-          <span>Requests CloudWatch</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.requests, locale)}</strong>
-          <small>Requests observados pela telemetria no período.</small>
+          <span>{t("cloudwatchRequests")}</span>
+          <strong>{usageLoading ? t("loading") : formatUsageNumber(usageTotal.requests, locale)}</strong>
+          <small>{t("requestsObserved")}</small>
         </article>
         <article className={styles.kpiCard}>
-          <span>Metric queries</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.metric_queries, locale)}</strong>
-          <small>Exibidas separadamente; não são somadas a requests.</small>
+          <span>{t("metricQueries")}</span>
+          <strong>{usageLoading ? t("loading") : formatUsageNumber(usageTotal.metric_queries, locale)}</strong>
+          <small>{t("metricQueriesNote")}</small>
         </article>
         <article className={styles.kpiCard}>
-          <span>Falhas</span>
-          <strong>{usageLoading ? "Carregando…" : formatUsageNumber(usageTotal.failed_events, locale)}</strong>
-          <small>Uma execução com falha pode ter requests e custo estimado.</small>
+          <span>{t("failures")}</span>
+          <strong>{usageLoading ? t("loading") : formatUsageNumber(usageTotal.failed_events, locale)}</strong>
+          <small>{t("failuresNote")}</small>
         </article>
       </div>
 
-      {usageError && <div className={styles.errorBanner} role="alert"><strong>Erro de telemetria.</strong> {usageError}</div>}
-      {costError && <div className={styles.errorBanner} role="alert"><strong>Erro de pricing/custo.</strong> {costError} A telemetria continua sendo apresentada quando disponível.</div>}
+      {usageError && <div className={styles.errorBanner} role="alert"><strong>{t("telemetryError")}</strong> {usageError}</div>}
+      {costError && <div className={styles.errorBanner} role="alert"><strong>{t("costError")}</strong> {costError} A telemetria continua sendo apresentada quando disponível.</div>}
 
       {!usageLoading && !usageError && !hasUsage && (
         <section className={styles.emptyState}>
-          <h2>Nenhum uso CloudWatch do Aven foi registrado neste período.</h2>
-          <p>A telemetria começa a aparecer após novas coletas AWS instrumentadas; nenhum histórico anterior à instrumentação é estimado artificialmente.</p>
+          <h2>{t("noUsageTitle")}</h2>
+          <p>{t("noUsageNote")}</p>
         </section>
       )}
 
       {hasUsage && cost?.summary && cost.summary.totals.length === 0 && cost.summary.unpriced_events > 0 && (
-        <div className={styles.warningBanner} role="alert">Uso coletado, mas o custo não pôde ser estimado para o recorte porque não há regra de pricing aplicável.</div>
+        <div className={styles.warningBanner} role="alert">{t("unpricedWarning")}</div>
       )}
 
       <section className={styles.panel}>
         <div className={styles.panelHeader}>
-          <div><h2>Custo estimado ao longo do tempo</h2><p>Valores calculados pelo backend com a regra vigente no timestamp factual de cada usage event.</p></div>
-          {cost?.summary && !cost.summary.is_complete && <span className={styles.warningBadge}>Série monetária parcial</span>}
+          <div><h2>{t("timelineTitle")}</h2><p>{t("timelineDescription")}</p></div>
+          {cost?.summary && !cost.summary.is_complete && <span className={styles.warningBadge}>{t("partialSeries")}</span>}
         </div>
         <div className={styles.panelBody}>
-          {costLoading ? <div className={styles.sectionState}>Carregando evolução de custo…</div> : costError ? <div className={styles.sectionError}>Não foi possível carregar a série de custo.</div> : cost ? <CostChart response={cost.timeseries} /> : null}
+          {costLoading ? <div className={styles.sectionState}>{t("loadingCostTrend")}</div> : costError ? <div className={styles.sectionError}>{t("costTrendError")}</div> : cost ? <CostChart response={cost.timeseries} /> : null}
         </div>
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><h2>Uso técnico</h2><p>Dimensões técnicas permanecem separadas para evitar somar unidades incompatíveis.</p></div></div>
+        <div className={styles.panelHeader}><div><h2>{t("technicalUsage")}</h2><p>{t("technicalUsageNote")}</p></div></div>
         <div className={styles.panelBody}>
-          {usageLoading ? <div className={styles.sectionState}>Carregando uso técnico…</div> : usageError ? <div className={styles.sectionError}>Não foi possível carregar a telemetria.</div> : (
+          {usageLoading ? <div className={styles.sectionState}>{t("loadingTechnical")}</div> : usageError ? <div className={styles.sectionError}>{t("technicalError")}</div> : (
             <div className={styles.usageGrid}>
-              <div><span>Eventos</span><strong>{formatUsageNumber(usageTotal.events, locale)}</strong></div>
-              <div><span>Requests</span><strong>{formatUsageNumber(usageTotal.requests, locale)}</strong></div>
-              <div><span>Metric queries</span><strong>{formatUsageNumber(usageTotal.metric_queries, locale)}</strong></div>
-              <div><span>Métricas solicitadas</span><strong>{formatUsageNumber(usageTotal.metrics_requested, locale)}</strong></div>
+              <div><span>{t("events")}</span><strong>{formatUsageNumber(usageTotal.events, locale)}</strong></div>
+              <div><span>{t("requests")}</span><strong>{formatUsageNumber(usageTotal.requests, locale)}</strong></div>
+              <div><span>{t("metricQueries")}</span><strong>{formatUsageNumber(usageTotal.metric_queries, locale)}</strong></div>
+              <div><span>{t("requestedMetrics")}</span><strong>{formatUsageNumber(usageTotal.metrics_requested, locale)}</strong></div>
             </div>
           )}
         </div>
@@ -650,20 +654,20 @@ export default function AvenUsageCostsPage() {
 
       {cost && usage && (
         <div className={styles.breakdownGrid}>
-          <BreakdownSection title="Custo por conta" subtitle="Conta amigável e AWS Account ID, com custo separado por currency." kind="account" cost={cost.account} usage={usage.account} accounts={awsAccounts} />
-          <BreakdownSection title="Custo por operação" subtitle="Driver técnico de custo com provenance da regra aplicada." kind="operation" cost={cost.operation} usage={usage.operation} accounts={awsAccounts} showProvenance />
-          <BreakdownSection title="Custo por collector" subtitle="Quanto cada coleta instrumentada representa no custo estimado." kind="collector" cost={cost.collector} usage={usage.collector} accounts={awsAccounts} />
-          <BreakdownSection title="Custo por analyzer" subtitle="Somente attribution factual; uso compartilhado não é redistribuído." kind="analyzer" cost={cost.analyzer} usage={usage.analyzer} accounts={awsAccounts} />
+          <BreakdownSection title=t("costByAccount") subtitle=t("costByAccountNote") kind="account" cost={cost.account} usage={usage.account} accounts={awsAccounts} />
+          <BreakdownSection title=t("costByOperation") subtitle=t("costByOperationNote") kind="operation" cost={cost.operation} usage={usage.operation} accounts={awsAccounts} showProvenance />
+          <BreakdownSection title=t("costByCollector") subtitle=t("costByCollectorNote") kind="collector" cost={cost.collector} usage={usage.collector} accounts={awsAccounts} />
+          <BreakdownSection title=t("costByAnalyzer") subtitle=t("costByAnalyzerNote") kind="analyzer" cost={cost.analyzer} usage={usage.analyzer} accounts={awsAccounts} />
         </div>
       )}
 
       {cost?.summary.unpriced_usage && cost.summary.unpriced_usage.length > 0 && (
         <section className={styles.panel}>
-          <div className={styles.panelHeader}><div><h2>Uso sem precificação</h2><p>Usage factual preservado que ainda não encontrou regra de pricing válida.</p></div><span className={styles.warningBadge}>{formatUsageNumber(cost.summary.unpriced_events, locale)} eventos</span></div>
+          <div className={styles.panelHeader}><div><h2>{t("unpricedUsage")}</h2><p>{t("unpricedUsageNote")}</p></div><span className={styles.warningBadge}>{t("eventCount", {count: formatUsageNumber(cost.summary.unpriced_events, locale)})}</span></div>
           <div className={styles.panelBody}>
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>Operação</th><th>Região</th><th>Eventos</th><th>Requests</th><th>Motivo</th></tr></thead>
+                <thead><tr><th>{t("operation")}</th><th>{t("region")}</th><th>{t("events")}</th><th>{t("requests")}</th><th>{t("reason")}</th></tr></thead>
                 <tbody>{cost.summary.unpriced_usage.map((item) => <tr key={`${item.operation}-${item.region}`}><td>{item.operation}</td><td>{item.region}</td><td>{formatUsageNumber(item.events, locale)}</td><td>{formatUsageNumber(item.requests, locale)}</td><td>{item.reason}</td></tr>)}</tbody>
               </table>
             </div>
@@ -672,12 +676,12 @@ export default function AvenUsageCostsPage() {
       )}
 
       <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><h2>Execuções recentes</h2><p>CollectionRuns que produziram usage no recorte atual. FAILED não implica custo zero.</p></div></div>
+        <div className={styles.panelHeader}><div><h2>{t("recentRuns")}</h2><p>{t("recentRunsNote")}</p></div></div>
         <div className={styles.panelBody}>
-          {runsLoading || usageLoading || costLoading ? <div className={styles.sectionState}>Carregando execuções…</div> : runsError ? <div className={styles.sectionError}>{runsError}</div> : runIds.length === 0 ? <div className={styles.sectionState}>Nenhuma CollectionRun com usage no recorte.</div> : (
+          {runsLoading || usageLoading || costLoading ? <div className={styles.sectionState}>{t("runsLoading")}</div> : runsError ? <div className={styles.sectionError}>{runsError}</div> : runIds.length === 0 ? <div className={styles.sectionState}>{t("noRecentRuns")}</div> : (
             <div className={styles.tableWrap}>
               <table className={styles.table}>
-                <thead><tr><th>CollectionRun</th><th>Início</th><th>Conta</th><th>Status</th><th>Requests</th><th>Metric queries</th><th>Custo estimado</th></tr></thead>
+                <thead><tr><th>CollectionRun</th><th>{t("start")}</th><th>{t("account")}</th><th>{t("status")}</th><th>{t("requests")}</th><th>{t("metricQueries")}</th><th>{t("estimatedCost")}</th></tr></thead>
                 <tbody>
                   {runIds.map((runId) => {
                     const run = runMetadata.get(runId);
@@ -689,10 +693,10 @@ export default function AvenUsageCostsPage() {
                         <td><Link href={`/collections/${runId}`}>{runId.slice(0, 8)}…</Link></td>
                         <td>{formatUsageCostDate(run?.started_at, locale)}</td>
                         <td>{run ? (account ? accountLabel(account) : run.account_name || run.account_id) : "—"}</td>
-                        <td><span className={run?.status === "FAILED" ? styles.failedStatus : styles.status}>{run?.status ?? "—"}</span></td>
+                        <td><span className={run?.status === "FAILED" ? styles.failedStatus : styles.status}>{run?.status === "FAILED" ? t("statusFailed") : run?.status === "SUCCESS" ? t("statusSuccess") : run?.status === "RUNNING" ? t("statusRunning") : run?.status === "COMPLETED_WITH_WARNINGS" ? t("statusWarnings") : run?.status ?? "—"}</span></td>
                         <td>{formatUsageNumber(technical?.requests ?? 0, locale)}</td>
                         <td>{formatUsageNumber(technical?.metric_queries ?? 0, locale)}</td>
-                        <td>{costs.length ? costs.map((item) => <div key={item.currency}>{formatUsageCostMoney(item.gross_estimated_cost, item.currency, locale)}</div>) : "Sem custo precificado"}</td>
+                        <td>{costs.length ? costs.map((item) => <div key={item.currency}>{formatUsageCostMoney(item.gross_estimated_cost, item.currency, locale)}</div>) : t("noPricedCost")}</td>
                       </tr>
                     );
                   })}
@@ -700,19 +704,19 @@ export default function AvenUsageCostsPage() {
               </table>
             </div>
           )}
-          {unassignedRunUsage && <p className={styles.note}>{formatUsageNumber(unassignedRunUsage.requests, locale)} requests do recorte não estão atribuídos a uma CollectionRun específica.</p>}
+          {unassignedRunUsage && <p className={styles.note}>{t("unassignedRequests", {count: formatUsageNumber(unassignedRunUsage.requests, locale)})}</p>}
         </div>
       </section>
 
       <section className={styles.panel}>
-        <div className={styles.panelHeader}><div><h2>Sobre esta estimativa</h2><p>Premissas e provenance do CloudWatch Cost Engine.</p></div></div>
+        <div className={styles.panelHeader}><div><h2>{t("aboutEstimate")}</h2><p>{t("aboutEstimateNote")}</p></div></div>
         <div className={styles.assumptions}>
-          <div><span>Definição</span><strong>Estimativa do custo das chamadas CloudWatch geradas pelo próprio Aven</strong><p>Não é o custo total de CloudWatch da conta e não é a fatura final da AWS.</p></div>
-          <div><span>Fonte de pricing</span><strong>{cost?.summary.pricing_sources.length ? cost.summary.pricing_sources.map(sourceLabel).join(", ") : "Sem regra aplicada no recorte"}</strong><p>Verificado em {formatUsageCostDate(cost?.summary.pricing_verified_at, locale)}.</p></div>
-          <div><span>Free tier</span><strong>{cost?.summary.free_tier_applied ? "Aplicado pelo Cost Engine" : "Não aplicado"}</strong><p>Por padrão, a estimativa é bruta: o Aven não conhece necessariamente o consumo compartilhado do free tier por outras workloads da conta.</p></div>
-          <div><span>Completude</span><strong>{cost?.summary.is_complete ? "Completa para as regras disponíveis" : "Incompleta"}</strong><p>{cost?.summary.unpriced_events ?? 0} eventos sem pricing; {cost?.summary.inexact_request_events ?? 0} eventos com request count inexato.</p></div>
-          <div><span>Vigências</span><strong>{versions > 1 ? `${versions} versões de pricing aplicadas` : versions === 1 ? "1 versão de pricing aplicada" : "Nenhuma versão aplicada"}</strong><p>O frontend não usa o preço atual para recalcular histórico.</p></div>
-          <div><span>Moeda</span><strong>Sem conversão cambial</strong><p>Moedas são exibidas separadamente e nunca somadas entre si.</p></div>
+          <div><span>{t("definition")}</span><strong>{t("definitionValue")}</strong><p>{t("definitionNote")}</p></div>
+          <div><span>{t("pricingSource")}</span><strong>{cost?.summary.pricing_sources.length ? cost.summary.pricing_sources.map(sourceLabel).join(", ") : t("noAppliedRule")}</strong><p>{t("verifiedAt", {date: formatUsageCostDate(cost?.summary.pricing_verified_at, locale)})}</p></div>
+          <div><span>{t("freeTier")}</span><strong>{cost?.summary.free_tier_applied ? t("freeTierApplied") : t("notApplied")}</strong><p>{t("freeTierNote")}</p></div>
+          <div><span>{t("completeness")}</span><strong>{cost?.summary.is_complete ? t("complete") : t("incomplete")}</strong><p>{t("completenessEvents", {unpriced: formatUsageNumber(cost?.summary.unpriced_events ?? 0, locale), inexact: formatUsageNumber(cost?.summary.inexact_request_events ?? 0, locale)})}</p></div>
+          <div><span>{t("versions")}</span><strong>{versions > 1 ? t("versionsPlural", {count: versions}) : versions === 1 ? t("versionsOne") : t("versionsNone")}</strong><p>{t("versionsNote")}</p></div>
+          <div><span>{t("currency")}</span><strong>{t("noFX")}</strong><p>{t("noFXNote")}</p></div>
         </div>
         {cost?.summary.estimation_basis && <p className={styles.estimationBasis}>{cost.summary.estimation_basis}</p>}
       </section>
