@@ -60,6 +60,17 @@ try {
   await check(page, "pt-BR", "Bem-vindo de volta");
   await ctx.addCookies([{name:"aven.locale",value:"en-US",url: BASE}]);
   await check(page, "en-US", "Welcome back");
+  // Public recovery/invitation pages must render the selected locale without login.
+  for (const authRoute of ["/forgot-password","/reset-password","/accept-invitation"]) {
+    const response = await page.goto(BASE + authRoute,{waitUntil:"domcontentloaded"});
+    assert.equal(response?.status(),200, authRoute + " must respond successfully");
+    assert.equal(await page.locator("html").getAttribute("lang"),"en-US");
+  }
+  // The visual laboratory is development-only; never expose its fixture copy in production.
+  const previewResponse = await page.goto(BASE + "/dev/ui",{waitUntil:"domcontentloaded"});
+  assert.equal(await page.getByRole("heading",{name:"Aven UI System"}).count(),0);
+  assert.ok(previewResponse?.status()===404 || (await page.locator("body").innerText()).includes("404"),
+    "The production UI laboratory must return a not-found experience");
   await ctx.addCookies([{name:"aven.locale",value:"pt-BR",url: BASE}]);
 
   // Browser-fixture authentication only: no production credentials or mutations.
