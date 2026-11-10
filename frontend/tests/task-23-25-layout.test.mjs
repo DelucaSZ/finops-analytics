@@ -19,15 +19,15 @@ test("obsolete Task 23.25 layout patch stays retired after the Aven migrations",
 });
 
 test("opportunity detection timestamps remain explicit in the Aven surface", () => {
-  assert.match(opportunitiesSource, /Primeira identificação/);
-  assert.match(opportunitiesSource, /Última detecção/);
-  assert.match(detailSource, /<dt>Primeira identificação<\/dt><dd>\{formatDate\(detail\.first_seen_at\)\}/);
-  assert.match(detailSource, /<dt>Última detecção<\/dt><dd>\{formatDate\(detail\.last_seen_at\)\}/);
+  assert.match(opportunitiesSource, /t\("filters\.firstSeen"\)/);
+  assert.match(opportunitiesSource, /t\("filters\.lastSeen"\)/);
+  assert.match(detailSource, /<dt>\{t\("field\.firstSeen"\)\}<\/dt><dd>\{formatDate\(detail\.first_seen_at\)\}/);
+  assert.match(detailSource, /<dt>\{t\("field\.lastSeen"\)\}<\/dt><dd>\{formatDate\(detail\.last_seen_at\)\}/);
 });
 
 test("opportunity detail keeps collection references linked without legacy CSS hooks", () => {
-  assert.match(detailSource, /Abrir primeira coleta/i);
-  assert.match(detailSource, /Abrir última coleta/i);
+  assert.match(detailSource, /t\("openFirstCollection"\)/);
+  assert.match(detailSource, /t\("openLastCollection"\)/);
   assert.match(detailSource, /href=\{`\/collections\/\$\{encodeURIComponent\(detail\.first_seen_collection_run_id\)\}`\}/);
   assert.match(detailSource, /href=\{`\/collections\/\$\{encodeURIComponent\(detail\.last_seen_collection_run_id\)\}`\}/);
 });
