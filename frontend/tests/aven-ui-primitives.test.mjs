@@ -62,7 +62,8 @@ test("Tabs and Dropdown implement keyboard navigation", () => {
   for (const key of ["ArrowRight", "ArrowLeft", "Home", "End"]) assert.match(tabs, new RegExp(key));
   for (const key of ["ArrowDown", "ArrowUp", "Home", "End", "Escape"]) assert.match(dropdown, new RegExp(key));
   assert.match(dropdown, /role="menu"/);
-  assert.match(dropdown, /role="menuitem"/);
+  assert.match(dropdown, /role = "menuitem"/); // default for standard actions
+  assert.match(dropdown, /role=\{role\}/); // explicit menuitemradio/checkbox roles are preserved
 });
 
 test("Dialog and Drawer use native modal behavior with Escape/cancel handling", () => {
