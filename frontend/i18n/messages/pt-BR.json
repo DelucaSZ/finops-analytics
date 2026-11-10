@@ -1648,6 +1648,56 @@
       "unknownBrowser": "Navegador não identificado",
       "logoutCurrent": "Sair desta sessão",
       "revoke": "Encerrar sessão"
+    },
+    "schedule": {
+      "title": "Agendamento",
+      "unsupported": "Não implementado para este provedor.",
+      "enable": "Ativar coleta automática",
+      "description": "Quando ativado, o {product} executará automaticamente a coleta desta conta no intervalo selecionado.",
+      "interval": "Intervalo de coleta",
+      "interval12": "A cada 12 horas",
+      "interval24": "Diariamente",
+      "interval168": "Semanalmente",
+      "nextExecution": "Próxima execução prevista",
+      "nextUnavailable": "Próxima execução ainda não disponível",
+      "disabled": "Coleta automática desativada"
     }
+  },
+  "scans": {
+    "title": "Execuções",
+    "description": "Histórico das análises manuais e agendadas, com acesso ao CollectionRun auditável.",
+    "metadata": "Processamento · atualização operacional a cada 10 segundos",
+    "loadError": "Não foi possível atualizar as execuções.",
+    "awsScans": "Varreduras AWS",
+    "awsDescription": "Execuções persistidas e o CollectionRun correspondente quando disponível.",
+    "emptyTitle": "Nenhuma análise executada",
+    "emptyDescription": "O histórico aparecerá aqui após uma execução real.",
+    "tableLabel": "Histórico de execuções",
+    "column": {
+      "account": "Conta",
+      "trigger": "Gatilho",
+      "started": "Início",
+      "finished": "Conclusão",
+      "findings": "Achados",
+      "status": "Status",
+      "collection": "Coleta"
+    },
+    "status": {
+      "completed": "Concluída",
+      "failed": "Falhou",
+      "running": "Em andamento",
+      "pending": "Pendente",
+      "warnings": "Com alertas",
+      "unknown": "Desconhecido"
+    },
+    "trigger": {
+      "manual": "Manual",
+      "scheduled": "Agendada"
+    },
+    "account": "Conta {id}",
+    "detailError": "Erro disponível nos detalhes da execução.",
+    "viewCollection": "Ver coleta",
+    "compare": "Comparar",
+    "noCollectionRun": "Sem CollectionRun"
   }
 }

@@ -1,3 +1,6 @@
+"use client";
+
+import { useTranslations } from "next-intl";
 import { Checkbox, Select } from "@/components/ui";
 import { formatDate } from "@/lib/api";
 import { PRODUCT_NAME } from "@/lib/brand";
@@ -26,48 +29,49 @@ export function CollectionScheduleFields({
   onScheduleEnabledChange,
   onIntervalChange,
 }: CollectionScheduleFieldsProps) {
+  const t = useTranslations("settings.schedule");
   if (!supported) {
     return (
       <div className="span-2 account-form-note" role="status">
-        <strong>Agendamento</strong><br />
-        Não implementado para este provider.
+        <strong>{t("title")}</strong><br />
+        {t("unsupported")}
       </div>
     );
   }
 
   return (
     <fieldset className="span-2 account-provider-fieldset" disabled={disabled}>
-      <legend>Agendamento</legend>
+      <legend>{t("title")}</legend>
       <div className="form-grid">
         <div className="span-2">
           <Checkbox
             checked={scheduleEnabled}
             disabled={disabled}
-            label="Ativar coleta automática"
-            description={`Quando ativado, o ${PRODUCT_NAME} executará automaticamente a coleta desta conta no intervalo selecionado.`}
+            label={t("enable")}
+            description={t("description", {product: PRODUCT_NAME})}
             onChange={(event) => onScheduleEnabledChange(event.target.checked)}
           />
         </div>
         <Select
-          label="Intervalo de coleta"
+          label={t("interval")}
           value={String(scanIntervalHours)}
           disabled={disabled || !scheduleEnabled}
           error={error}
           options={SCHEDULE_INTERVAL_OPTIONS.map((option) => ({
             value: String(option.value),
-            label: option.label,
+            label: option.value === 12 ? t("interval12") : option.value === 24 ? t("interval24") : option.value === 168 ? t("interval168") : option.label,
           }))}
           onChange={(event) => onIntervalChange(Number(event.target.value))}
         />
         {showNextScan && scheduleEnabled && (
           <div className="account-form-note">
-            <strong>Próxima execução prevista</strong><br />
-            {nextScanAt ? formatDate(nextScanAt) : "Próxima execução ainda não disponível"}
+            <strong>{t("nextExecution")}</strong><br />
+            {nextScanAt ? formatDate(nextScanAt) : t("nextUnavailable")}
           </div>
         )}
         {showNextScan && !scheduleEnabled && (
           <div className="account-form-note">
-            <strong>Coleta automática desativada</strong>
+            <strong>{t("disabled")}</strong>
           </div>
         )}
       </div>

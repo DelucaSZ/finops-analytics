@@ -1648,6 +1648,56 @@
       "unknownBrowser": "Unrecognized browser",
       "logoutCurrent": "Sign out of this session",
       "revoke": "End session"
+    },
+    "schedule": {
+      "title": "Scheduling",
+      "unsupported": "Not implemented for this provider.",
+      "enable": "Enable automatic collection",
+      "description": "When enabled, {product} automatically collects this account's data at the selected interval.",
+      "interval": "Collection interval",
+      "interval12": "Every 12 hours",
+      "interval24": "Daily",
+      "interval168": "Weekly",
+      "nextExecution": "Next scheduled run",
+      "nextUnavailable": "Next run not available yet",
+      "disabled": "Automatic collection disabled"
     }
+  },
+  "scans": {
+    "title": "Runs",
+    "description": "History of manual and scheduled analyses, with access to the auditable CollectionRun.",
+    "metadata": "Processing · operational refresh every 10 seconds",
+    "loadError": "Unable to update runs.",
+    "awsScans": "AWS scans",
+    "awsDescription": "Persisted runs and their corresponding CollectionRun, when available.",
+    "emptyTitle": "No analyses executed",
+    "emptyDescription": "Run history will appear here after an actual execution.",
+    "tableLabel": "Run history",
+    "column": {
+      "account": "Account",
+      "trigger": "Trigger",
+      "started": "Started",
+      "finished": "Finished",
+      "findings": "Findings",
+      "status": "Status",
+      "collection": "Collection"
+    },
+    "status": {
+      "completed": "Completed",
+      "failed": "Failed",
+      "running": "Running",
+      "pending": "Pending",
+      "warnings": "Completed with warnings",
+      "unknown": "Unknown"
+    },
+    "trigger": {
+      "manual": "Manual",
+      "scheduled": "Scheduled"
+    },
+    "account": "Account {id}",
+    "detailError": "Error details are available in the run.",
+    "viewCollection": "View collection",
+    "compare": "Compare",
+    "noCollectionRun": "No CollectionRun"
   }
 }
