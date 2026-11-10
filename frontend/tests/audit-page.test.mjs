@@ -66,7 +66,7 @@ test("Audit page keeps server-side pagination and result count", async () => {
   assert.ok(page.includes("const PAGE_SIZE = 50"));
   assert.ok(page.includes("offset + PAGE_SIZE >= data.total"));
   assert.ok(page.includes("setOffset(Math.max(0, offset - PAGE_SIZE))"));
-  assert.ok(page.includes('t("count")'));
+  assert.ok(page.includes('t("totalEvents", {count:data.total})'));
   assert.ok(page.includes('t("empty")'));
   assert.ok(page.includes('t("loading")'));
 });
