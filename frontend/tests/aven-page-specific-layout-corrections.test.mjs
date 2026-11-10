@@ -17,22 +17,22 @@ function rule(source, selector) {
 test("Collections keeps filter behavior while using official form controls", () => {
   const source = read("components", "collection-workspace.tsx");
 
-  for (const label of [
-    "Cloud",
-    "Conta · nome ou identificador",
-    "Status",
-    "Início do período (inclusivo)",
-    "Fim do período (exclusivo)",
-    "Versão dos analyzers",
+  for (const key of [
+    "cloud",
+    "accountSearch",
+    "statusLabel",
+    "periodStart",
+    "periodEnd",
+    "analyzerVersion",
   ]) {
-    assert.match(source, new RegExp(`label=\\"${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\"`));
+    assert.ok(source.includes(`label={t("${key}")}`), `missing localized filter label: ${key}`);
   }
 
   assert.match(source, /import \{ Button, Input, Select \} from "@\/components\/ui"/);
   assert.match(source, /event\.preventDefault\(\)/);
   assert.match(source, /new Date\(draft\.date_from\) >= new Date\(draft\.date_to\)/);
   assert.match(source, /change\(\{ \.\.\.draft, page: 1 \}\)/);
-  assert.match(source, /<Button type="submit">Aplicar filtros<\/Button>/);
+  assert.ok(source.includes('<Button type="submit">{t("applyFilters")}</Button>'));
 });
 
 test("Collections neutralizes the legacy Opportunities field shell instead of stacking borders", () => {
