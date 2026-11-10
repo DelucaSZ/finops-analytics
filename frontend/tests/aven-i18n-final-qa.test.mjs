@@ -130,3 +130,17 @@ test("remaining settings/collection labels are localized", async () => {
  const userPage = source("app/settings/users/page.tsx");
  for (const key of ["mfaCode", "recoveryReason", "searchPrompt", "statusLabel"]) assert.ok(userPage.includes('t("' + key + '")'));
 });
+
+test("shared API errors localize known statuses without mutating contracts", () => {
+ const pt = messages("pt-BR").errors.api;
+ const en = messages("en-US").errors.api;
+ assert.deepEqual(Object.keys(pt).sort(), Object.keys(en).sort());
+ assert.match(pt.forbidden,/permissão/);
+ assert.match(en.forbidden,/permission/);
+ const api = source("lib/api.ts");
+ assert.ok(api.includes('document.documentElement.lang'));
+ assert.ok(api.includes('apiErrorText("sessionExpired")'));
+ assert.ok(api.includes('apiErrorText("reauthentication")'));
+ assert.ok(api.includes('/auth/csrf'));
+ assert.ok(api.includes('credentials: "include"'));
+});

@@ -120,7 +120,26 @@
     }
   },
   "errors": {
-    "translationUnavailable": "Translation unavailable"
+    "translationUnavailable": "Translation unavailable",
+    "api": {
+      "timeout": "The request timed out. Please try again.",
+      "sessionExpired": "Session expired. Sign in again.",
+      "enrollmentRequired": "Set up your authenticator to continue.",
+      "duplicateEmail": "This email is already registered.",
+      "lastAdmin": "Keep at least one active administrator with a password.",
+      "unknownUser": "User not found.",
+      "adminOnly": "Access is restricted to administrators.",
+      "permissionChanged": "Your permissions changed. Sign in again.",
+      "forbidden": "You do not have permission to perform this action.",
+      "notFound": "The requested resource was not found.",
+      "historicalExpired": "Historical detail is no longer available under the retention policy.",
+      "validation": "Check the fields and try again.",
+      "tooManyRequests": "Too many requests. Please try again shortly.",
+      "reauthentication": "Confirm your identity in My Security before continuing.",
+      "invalidCredentials": "Invalid email or password.",
+      "serverError": "Could not complete the request. Please try again.",
+      "generic": "Could not complete the request."
+    }
   },
   "auth": {
     "login": {

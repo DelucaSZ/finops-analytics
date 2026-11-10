@@ -120,7 +120,26 @@
     }
   },
   "errors": {
-    "translationUnavailable": "Tradução indisponível"
+    "translationUnavailable": "Tradução indisponível",
+    "api": {
+      "timeout": "A solicitação excedeu o tempo limite. Tente novamente.",
+      "sessionExpired": "Sessão expirada. Entre novamente.",
+      "enrollmentRequired": "Configure o autenticador para continuar.",
+      "duplicateEmail": "Este e-mail já está cadastrado.",
+      "lastAdmin": "Mantenha pelo menos um administrador ativo com senha definida.",
+      "unknownUser": "Usuário não encontrado.",
+      "adminOnly": "Acesso disponível somente para administradores.",
+      "permissionChanged": "Suas permissões mudaram. Entre novamente.",
+      "forbidden": "Você não tem permissão para realizar esta ação.",
+      "notFound": "O recurso solicitado não foi encontrado.",
+      "historicalExpired": "Os dados históricos detalhados não estão mais disponíveis pela política de retenção.",
+      "validation": "Confira os campos preenchidos e tente novamente.",
+      "tooManyRequests": "Muitas solicitações em pouco tempo. Tente novamente em instantes.",
+      "reauthentication": "Confirme sua identidade em Minha segurança antes de continuar.",
+      "invalidCredentials": "E-mail ou senha inválidos.",
+      "serverError": "Não foi possível concluir a solicitação. Tente novamente.",
+      "generic": "Não foi possível concluir a solicitação."
+    }
   },
   "auth": {
     "login": {
