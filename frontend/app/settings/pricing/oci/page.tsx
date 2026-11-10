@@ -92,6 +92,9 @@ function apiMessage(error: unknown, fallback: string) {
 export default function OciPricingPage() {
   const locale = useLocale();
   const t = useTranslations("settings.ociPricing");
+  const statusWords: Record<string, string> = {active:t("statusActive"),inactive:t("statusInactive"),future:t("statusFuture"),expired:t("statusExpired")};
+  const sourceWords: Record<string, string> = {IMPORTED_OCI_CALCULATOR:t("sourceImported"),MANUAL:t("sourceManual")};
+  const unitWords: Record<string, string> = {OCPU_HOUR:t("unitOcpu"),GB_RAM_HOUR:t("unitRam"),GB_MONTH:t("unitGb"),VPU_GB_MONTH:t("unitVpu"),INSTANCE_HOUR:t("unitInstance")};
   const [items, setItems] = useState<PricingItem[]>([]);
   const [meta, setMeta] = useState<PricingMeta | null>(null);
   const [total, setTotal] = useState(0);
@@ -267,14 +270,14 @@ export default function OciPricingPage() {
                       <td>{serviceLabel(item.service)}</td>
                       <td><code>{item.sku}</code></td>
                       <td>{item.description}</td>
-                      <td>{unitLabel(item.unit)}</td>
+                      <td>{unitWords[item.unit] ?? unitLabel(item.unit)}</td>
                       <td>
                         <strong>{formatBrlDecimal(item.price, locale)}</strong>
                         <small>{item.currency}</small>
                       </td>
                       <td>{formatRange(item, locale)}</td>
-                      <td><span className={statusClass(itemStatus)}>{pricingStatusLabel(itemStatus)}</span></td>
-                      <td>{sourceLabel(item.source)}</td>
+                      <td><span className={statusClass(itemStatus)}>{statusWords[itemStatus] ?? pricingStatusLabel(itemStatus)}</span></td>
+                      <td>{sourceWords[item.source] ?? sourceLabel(item.source)}</td>
                       <td>
                         <div className={styles.rowActions}>
                           <button className="button small ghost" onClick={() => setHistoryItem(item)}>
@@ -524,7 +527,7 @@ function PricingForm({
                   onChange={(event) => setEnabled(event.target.checked)}
                   disabled={saving}
                 />
-                Cadastrar como ativo
+                {t("createEnabled")}
               </label>
             )}
           </div>
@@ -553,6 +556,9 @@ function PricingForm({
 function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
   const locale = useLocale();
   const t = useTranslations("settings.ociPricing");
+  const statusWords: Record<string, string> = {active:t("statusActive"),inactive:t("statusInactive"),future:t("statusFuture"),expired:t("statusExpired")};
+  const sourceWords: Record<string, string> = {IMPORTED_OCI_CALCULATOR:t("sourceImported"),MANUAL:t("sourceManual")};
+  const unitWords: Record<string, string> = {OCPU_HOUR:t("unitOcpu"),GB_RAM_HOUR:t("unitRam"),GB_MONTH:t("unitGb"),VPU_GB_MONTH:t("unitVpu"),INSTANCE_HOUR:t("unitInstance")};
   const [rows, setRows] = useState<PricingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -589,15 +595,15 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
               <article key={row.id}>
                 <div>
                   <strong>{formatBrlDecimal(row.price, locale)}</strong>
-                  <span>{row.currency} · {unitLabel(row.unit)}</span>
+                  <span>{row.currency} · {unitWords[row.unit] ?? unitLabel(row.unit)}</span>
                 </div>
                 <div>
                   <strong>{formatRange(row, locale)}</strong>
-                  <span>{pricingStatusLabel(pricingLifecycleStatus(row))}</span>
+                  <span>{statusWords[pricingLifecycleStatus(row)] ?? pricingStatusLabel(pricingLifecycleStatus(row))}</span>
                 </div>
                 <div>
-                  <strong>{sourceLabel(row.source)}</strong>
-                  <span>{row.enabled ? "Habilitado" : "Desabilitado"}</span>
+                  <strong>{sourceWords[row.source] ?? sourceLabel(row.source)}</strong>
+                  <span>{row.enabled ? t("statusEnabled") : t("statusDisabled")}</span>
                 </div>
               </article>
             ))}
@@ -611,6 +617,8 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
 function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
   const locale = useLocale();
   const t = useTranslations("settings.ociPricing");
+  const actionWords: Record<string, string> = {CREATED:t("actionCreated"),PRICE_CHANGED:t("actionChanged"),FUTURE_VERSION_CREATED:t("actionFuture"),METADATA_CHANGED:t("actionMetadata"),DEACTIVATED:t("actionDeactivated"),REACTIVATED:t("actionReactivated"),VALIDITY_CHANGED:t("actionValidity"),IMPORTED:t("actionImported")};
+  const auditWords = {price:t("price"),status:t("status"),enabled:t("statusEnabled"),disabled:t("statusDisabled"),endValidity:t("endValidity"),descriptionChanged:t("descriptionChanged"),changeRecorded:t("changeRecorded"),open:t("openEnded")};
   const [data, setData] = useState<PricingAuditPage | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -654,15 +662,15 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
               {data.items.map((event) => (
                 <article key={event.id}>
                   <div>
-                    <strong>{auditActionLabel(event.action)}</strong>
+                    <strong>{auditActionLabel(event.action, actionWords)}</strong>
                     <span>{formatAuditDate(event.occurred_at, locale)}</span>
                   </div>
                   <div>
-                    <strong>{auditActorLabel(event)}</strong>
+                    <strong>{auditActorLabel(event, t("actorSystem"), t("actorRemoved"))}</strong>
                     <span>{event.reason ? t("auditReason") + ": " + event.reason : t("noReason")}</span>
                   </div>
                   <div>
-                    <strong>{auditDiff(event, locale)}</strong>
+                    <strong>{auditDiff(event, locale, auditWords)}</strong>
                     <span>{t("version")}: {event.pricing_item_id}</span>
                   </div>
                 </article>
@@ -682,48 +690,29 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
   );
 }
 
-function auditActionLabel(action: string) {
-  const labels: Record<string, string> = {
-    CREATED: "Preço criado",
-    PRICE_CHANGED: "Preço alterado",
-    FUTURE_VERSION_CREATED: "Vigência futura criada",
-    METADATA_CHANGED: "Metadados alterados",
-    DEACTIVATED: "Preço desativado",
-    REACTIVATED: "Preço reativado",
-    VALIDITY_CHANGED: "Vigência alterada",
-    IMPORTED: "Preço importado",
-  };
+function auditActionLabel(action: string, labels: Record<string, string>) {
   return labels[action] ?? action;
 }
 
-function auditActorLabel(event: PricingAuditEvent) {
-  if (event.actor_type === "SYSTEM") return "Sistema";
-  return event.actor_name || event.actor_email || "Usuário removido";
+function auditActorLabel(event: PricingAuditEvent, system: string, removed: string) {
+  if (event.actor_type === "SYSTEM") return system;
+  return event.actor_name || event.actor_email || removed;
 }
 
-function auditDiff(event: PricingAuditEvent, locale = "pt-BR") {
+type AuditWords = {price: string; status: string; enabled: string; disabled: string; endValidity: string; descriptionChanged: string; changeRecorded: string; open: string};
+function auditDiff(event: PricingAuditEvent, locale: string, words: AuditWords) {
   const before = event.before_data;
   const after = event.after_data;
-  if (!before && after?.price) {
-    return `Preço: ${formatBrlDecimal(after.price, locale)} ${after.currency ?? ""}`.trim();
-  }
-  if (before?.price !== after?.price && before?.price && after?.price) {
-    return `Preço: ${formatBrlDecimal(before.price, locale)} → ${formatBrlDecimal(after.price, locale)} ${after.currency ?? before.currency ?? ""}`.trim();
-  }
-  if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) {
-    return `Status: ${before.enabled ? "habilitado" : "desabilitado"} → ${after.enabled ? "habilitado" : "desabilitado"}`;
-  }
-  if (before?.effective_until !== after?.effective_until) {
-    return `Fim da vigência: ${formatAuditOptionalDate(before?.effective_until, locale)} → ${formatAuditOptionalDate(after?.effective_until, locale)}`;
-  }
-  if (before?.description !== after?.description) {
-    return "Descrição alterada";
-  }
-  return "Alteração registrada";
+  if (!before && after?.price) return `${words.price}: ${formatBrlDecimal(after.price, locale)} ${after.currency ?? ""}`.trim();
+  if (before?.price !== after?.price && before?.price && after?.price) return `${words.price}: ${formatBrlDecimal(before.price, locale)} → ${formatBrlDecimal(after.price, locale)} ${after.currency ?? before.currency ?? ""}`.trim();
+  if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) return `${words.status}: ${before.enabled ? words.enabled : words.disabled} → ${after.enabled ? words.enabled : words.disabled}`;
+  if (before?.effective_until !== after?.effective_until) return `${words.endValidity}: ${formatAuditOptionalDate(before?.effective_until, locale, words.open)} → ${formatAuditOptionalDate(after?.effective_until, locale, words.open)}`;
+  if (before?.description !== after?.description) return words.descriptionChanged;
+  return words.changeRecorded;
 }
 
-function formatAuditOptionalDate(value: string | null | undefined, locale = "pt-BR") {
-  return value ? formatAuditDate(value, locale) : "aberta";
+function formatAuditOptionalDate(value: string | null | undefined, locale: string, open: string) {
+  return value ? formatAuditDate(value, locale) : open;
 }
 
 function formatAuditDate(value: string, locale = "pt-BR") {
