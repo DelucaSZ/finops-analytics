@@ -1567,5 +1567,40 @@
         "noLongerDetected": "No longer detected"
       }
     }
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage the available platform settings.",
+    "retry": "Try again",
+    "loading": "Loading settings",
+    "navigation": {
+      "ariaLabel": "Settings areas",
+      "appearance": "Appearance",
+      "accounts": "Accounts",
+      "policies": "Policies",
+      "security": "My security",
+      "sessions": "Sessions",
+      "users": "Users",
+      "audit": "Audit",
+      "https": "HTTPS",
+      "pricing": "OCI Pricing",
+      "billingProfiles": "Billing Profiles",
+      "usageCosts": "Usage & Costs",
+      "retention": "Retention & History"
+    },
+    "errors": {
+      "loading": "Unable to load Settings",
+      "permissions": "Unable to load Settings permissions."
+    },
+    "restricted": {
+      "title": "Restricted access",
+      "description": "This area is available to administrators only."
+    },
+    "appearance": {
+      "title": "Appearance",
+      "description": "Adjust the {product} interface theme in this browser.",
+      "themeTitle": "Interface theme",
+      "themeDescription": "New users use their system preference by default."
+    }
   }
 }

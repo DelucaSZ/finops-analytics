@@ -1,19 +1,19 @@
 const commonSettingsTabs = [
-  { href: "/settings/appearance", label: "Aparência" },
-  { href: "/settings/accounts", label: "Contas" },
-  { href: "/settings/policies", label: "Políticas" },
-  { href: "/settings/security", label: "Minha segurança" },
-  { href: "/settings/sessions", label: "Sessões" },
+  { href: "/settings/appearance", labelKey: "appearance" },
+  { href: "/settings/accounts", labelKey: "accounts" },
+  { href: "/settings/policies", labelKey: "policies" },
+  { href: "/settings/security", labelKey: "security" },
+  { href: "/settings/sessions", labelKey: "sessions" },
 ];
 
 const adminSettingsTabs = [
-  { href: "/settings/users", label: "Usuários" },
-  { href: "/settings/audit", label: "Auditoria" },
-  { href: "/settings/https", label: "HTTPS" },
-  { href: "/settings/pricing/oci", label: "Pricing OCI" },
-  { href: "/settings/billing/profiles", label: "Billing Profiles" },
-  { href: "/settings/usage-costs", label: "Uso e custos" },
-  { href: "/settings/opportunities", label: "Retenção e histórico" },
+  { href: "/settings/users", labelKey: "users" },
+  { href: "/settings/audit", labelKey: "audit" },
+  { href: "/settings/https", labelKey: "https" },
+  { href: "/settings/pricing/oci", labelKey: "pricing" },
+  { href: "/settings/billing/profiles", labelKey: "billingProfiles" },
+  { href: "/settings/usage-costs", labelKey: "usageCosts" },
+  { href: "/settings/opportunities", labelKey: "retention" },
 ];
 
 export const legacySettingsRedirects = [

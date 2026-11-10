@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageContainer, PageHeader } from "@/components/aven";
 import { Alert, Button, Skeleton, Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui";
@@ -15,6 +16,7 @@ import styles from "./settings-layout.module.css";
 type CurrentUser = { role: string };
 
 export default function SettingsLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("settings");
   const path = usePathname();
   const router = useRouter();
   const navigationViewportRef = useRef<HTMLDivElement | null>(null);
@@ -30,7 +32,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         if (active) setRole(user.role);
       })
       .catch((err) => {
-        if (active) setError(err instanceof Error ? err.message : "Não foi possível carregar as permissões de Configurações.");
+        if (active) setError(err instanceof Error ? err.message : "ERR_SETTINGS_PERMISSIONS");
       });
     return () => {
       active = false;
@@ -54,16 +56,16 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     return (
       <PageContainer width="full" className={styles.statePage}>
         <PageHeader
-          title="Configurações"
-          description="Gerencie as configurações disponíveis da plataforma."
+          title={t("title")}
+          description={t("description")}
         />
         <Alert
           variant="danger"
-          title="Não foi possível carregar Configurações"
-          description={error}
+          title={t("errors.loading")}
+          description={error === "ERR_SETTINGS_PERMISSIONS" ? t("errors.permissions") : error}
           actions={
             <Button variant="outline" onClick={() => setRetry((value) => value + 1)}>
-              Tentar novamente
+              {t("retry")}
             </Button>
           }
         />
@@ -77,7 +79,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         width="full"
         className={styles.statePage}
         aria-busy="true"
-        aria-label="Carregando configurações"
+        aria-label={t("loading")}
       >
         <Skeleton className={styles.headerSkeleton} />
         <Skeleton className={styles.navigationSkeleton} />
@@ -98,10 +100,10 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
         }}
       >
         <div ref={navigationViewportRef} className={styles.navigationViewport}>
-          <TabsList className={styles.tabs} aria-label="Áreas de Configurações">
+          <TabsList className={styles.tabs} aria-label={t("navigation.ariaLabel")}>
             {tabs.map((tab) => (
               <TabsTrigger key={tab.href} value={tab.href}>
-                {tab.label}
+                {t(`navigation.${tab.labelKey}`)}
               </TabsTrigger>
             ))}
           </TabsList>
@@ -110,8 +112,8 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
           {adminOnly && role !== "admin" ? (
             <Alert
               variant="warning"
-              title="Acesso restrito"
-              description="Esta área está disponível apenas para administradores."
+              title={t("restricted.title")}
+              description={t("restricted.description")}
             />
           ) : (
             children

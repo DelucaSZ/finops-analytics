@@ -1,18 +1,20 @@
+import { getTranslations } from "next-intl/server";
 import { PageHeader, Section } from "@/components/aven";
 import { ThemeSelector } from "@/components/theme-selector";
 import { PRODUCT_NAME } from "@/lib/brand";
 
-export default function AppearanceSettingsPage() {
+export default async function AppearanceSettingsPage() {
+  const t = await getTranslations("settings.appearance");
   return (
     <>
       <PageHeader
-        title="Aparência"
-        description={`Ajuste o tema visual do ${PRODUCT_NAME} neste navegador.`}
+        title={t("title")}
+        description={t("description", {product: PRODUCT_NAME})}
       />
       <Section
         appearance="card"
-        title="Tema da interface"
-        description="Novos usuários usam a preferência do sistema por padrão."
+        title={t("themeTitle")}
+        description={t("themeDescription")}
       >
         <ThemeSelector />
       </Section>
