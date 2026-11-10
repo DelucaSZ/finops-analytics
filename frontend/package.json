@@ -16,7 +16,8 @@
     "test": "node --test tests/*.test.mjs",
     "lint:i18n": "node scripts/check-i18n.mjs",
     "lint:i18n:references": "node scripts/check-i18n-references.mjs",
-    "lint:i18n:coverage": "node scripts/check-i18n-coverage.mjs"
+    "lint:i18n:coverage": "node scripts/check-i18n-coverage.mjs",
+    "smoke:i18n:browser": "node scripts/smoke-i18n-browser.mjs"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

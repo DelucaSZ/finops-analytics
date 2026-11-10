@@ -75,6 +75,17 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      - name: Install browser QA driver
+        run: npm install --no-save --package-lock=false playwright-core@1.57.0
+      - name: Browser i18n smoke (isolated fixture, no real mutations)
+        run: npm run smoke:i18n:browser
+      - name: Upload browser QA screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-browser-qa
+          path: frontend/artifacts/i18n-browser/
+          if-no-files-found: ignore
       - name: Build production web image
         working-directory: ${{ github.workspace }}
         env:
