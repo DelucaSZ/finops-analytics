@@ -159,3 +159,12 @@ test("status badges translate display labels without altering technical status c
  for(const locale of ["pt-BR","en-US"]){const status=messages(locale).common.status;for(const key of ["open","treated","rejected","resolvedExternally","completedWithWarnings"]) assert.ok(status[key]);}
  assert.equal(messages("en-US").common.status.failed,"Failed");
 });
+
+test("dropdown menu items retain explicit radio role for accessible language selector",()=>{
+ const dropdown=source("components/ui/dropdown.tsx");
+ const language=source("components/app-shell/language-control.tsx");
+ assert.ok(dropdown.includes('role = "menuitem"'));
+ assert.ok(dropdown.includes("role={role}"));
+ assert.ok(language.includes('role="menuitemradio"'));
+ assert.ok(language.includes("aria-checked={selected}"));
+});
