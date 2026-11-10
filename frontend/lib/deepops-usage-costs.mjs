@@ -109,7 +109,7 @@ export function formatUsageCostMoney(value, currency, locale = "pt-BR") {
     minimumFractionDigits: digits,
     maximumFractionDigits: digits,
   });
-  const formatted = formatter.format(amount);
+  const formatted = formatter.format(typeof value === "string" ? value : amount);
   if (amount !== 0 && Number(amount.toFixed(digits)) === 0) {
     return `< ${formatter.format(10 ** -digits)}`;
   }

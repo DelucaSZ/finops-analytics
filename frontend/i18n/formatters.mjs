@@ -85,8 +85,11 @@ export function formatLocaleDateTime(value, locale = DEFAULT_FORMAT_LOCALE, opti
   }
   const date = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(date.getTime())) return "—";
+  const hasFields = ["weekday", "era", "year", "month", "day", "hour", "minute", "second"]
+    .some((key) => options[key] !== undefined);
   return new Intl.DateTimeFormat(normalizedLocale(locale), {
-    dateStyle: "short", timeStyle: "short", timeZone: DISPLAY_TIME_ZONE, ...options,
+    ...(hasFields ? {} : {dateStyle: "short", timeStyle: "short"}),
+    timeZone: DISPLAY_TIME_ZONE, ...options,
   }).format(date);
 }
 

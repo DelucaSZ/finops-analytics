@@ -56,6 +56,7 @@ import {
 } from "@/lib/rds-reservations-query.mjs";
 import type { RdsReservationQueryState } from "@/lib/rds-reservations-query.mjs";
 import { useApiQuery } from "@/lib/server-state";
+import {formatLocaleNumber} from "@/i18n/formatters.mjs";
 import styles from "./rds-reservations.module.css";
 
 function useTabLabels(): Record<RdsReservationQueryState["tab"], string> {
@@ -200,6 +201,7 @@ function TableState({ loading, error, empty, emptyTitle, emptyDescription, colSp
 
 function CoverageSummary({ summary, loading }: { summary?: RdsReservationsSummary; loading: boolean }) {
   const t = useTranslations("reservations");
+  const locale = useLocale();
   const total = summary?.rds.total ?? 0;
   const groups = [
     [t("coverage.fullShort"), summary?.rds.fully_covered ?? 0, styles.full],
@@ -209,10 +211,10 @@ function CoverageSummary({ summary, loading }: { summary?: RdsReservationsSummar
   ] as const;
   return (
     <ChartCard title={t("coverage.distribution")} description={t("coverage.chartDescription")} loading={loading} empty={!loading && total === 0} emptyTitle={t("coverage.noWorkloads")} emptyDescription={t("coverage.noEligible")} legend={(
-      <div className={styles.legend}>{groups.map(([label, value, tone]) => <span className={styles.legendItem} key={label}><span className={`${styles.dot} ${tone}`} aria-hidden="true" />{label}<strong>{value}</strong></span>)}</div>
+      <div className={styles.legend}>{groups.map(([label, value, tone]) => <span className={styles.legendItem} key={label}><span className={`${styles.dot} ${tone}`} aria-hidden="true" />{label}<strong>{formatLocaleNumber(value, locale)}</strong></span>)}</div>
     )}>
-      <div className={styles.distribution} role="img" aria-label={t("coverage.chartAria",{values:groups.map(([label, value]) => `${label} ${value}`).join(", ")})}>
-        {groups.map(([label, value, tone]) => value > 0 ? <span key={label} className={`${styles.segment} ${tone}`} style={{ inlineSize: `${(value / total) * 100}%` }} title={`${label}: ${value}`} /> : null)}
+      <div className={styles.distribution} role="img" aria-label={t("coverage.chartAria",{values:groups.map(([label, value]) => `${label} ${formatLocaleNumber(value, locale)}`).join(", ")})}>
+        {groups.map(([label, value, tone]) => value > 0 ? <span key={label} className={`${styles.segment} ${tone}`} style={{ inlineSize: `${(value / total) * 100}%` }} title={`${label}: ${formatLocaleNumber(value, locale)}`} /> : null)}
       </div>
     </ChartCard>
   );
@@ -286,7 +288,7 @@ function ReservationsTable({ page, loading, error, expiring = false }: { page?: 
     <Table>
       <TableHeader><TableRow staticRow><TableHead>{t("table.reservation")}</TableHead><TableHead>{t("table.technologyClass")}</TableHead><TableHead>{t("table.accountRegion")}</TableHead><TableHead numeric>{t("table.quantity")}</TableHead><TableHead numeric>{t("table.utilization")}</TableHead><TableHead>{t("table.expiration")}</TableHead><TableHead>{t("table.status")}</TableHead></TableRow></TableHeader>
       {hasState ? <TableState loading={loading} error={error} empty={!loading && !error && items.length === 0} emptyTitle={expiring ? t("table.noExpiring") : t("table.noReservations")} emptyDescription={expiring ? t("table.noExpiringDescription") : t("table.noReservationsDescription")} colSpan={7} /> : (
-        <TableBody>{items.map((item) => { const expiration = expirationState(item); return <TableRow key={item.reservation_id}><TableCell><ResourceIdentifier primary={item.reservation} copyValue={item.reservation} /></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric>{item.quantity}</TableCell><TableCell numeric><PercentageDisplay value={item.utilization_percentage} /><span className={styles.secondary}>{formatNu(item.allocated_capacity, locale)} / {formatNu(item.total_capacity, locale)}</span></TableCell><TableCell>{formatDate(item.expiration_at, locale)}<span className={styles.secondary}>{daysRemainingLabel(item.days_remaining)}</span></TableCell><TableCell>{expiring ? <StatusIndicator status={expiration.status} label={expiration.label === "Expired" ? t("expiration.expired") : expiration.label === "Expiring soon" ? t("expiration.expiringSoon") : t("expiration.expiring")} /> : <StatusIndicator status={reservationTone(item.state)} label={item.state.toLowerCase() === "active" ? t("presence.active") : humanize(item.state)} />}</TableCell></TableRow>; })}</TableBody>
+        <TableBody>{items.map((item) => { const expiration = expirationState(item); return <TableRow key={item.reservation_id}><TableCell><ResourceIdentifier primary={item.reservation} copyValue={item.reservation} /></TableCell><TableCell>{item.engine}<span className={styles.secondary}>{item.instance_class}</span></TableCell><TableCell>{item.account.name || item.account.account_id}<span className={styles.secondary}>{item.region}</span></TableCell><TableCell numeric>{formatLocaleNumber(item.quantity, locale)}</TableCell><TableCell numeric><PercentageDisplay value={item.utilization_percentage} /><span className={styles.secondary}>{formatNu(item.allocated_capacity, locale)} / {formatNu(item.total_capacity, locale)}</span></TableCell><TableCell>{formatDate(item.expiration_at, locale)}<span className={styles.secondary}>{daysRemainingLabel(item.days_remaining)}</span></TableCell><TableCell>{expiring ? <StatusIndicator status={expiration.status} label={expiration.label === "Expired" ? t("expiration.expired") : expiration.label === "Expiring soon" ? t("expiration.expiringSoon") : t("expiration.expiring")} /> : <StatusIndicator status={reservationTone(item.state)} label={item.state.toLowerCase() === "active" ? t("presence.active") : humanize(item.state)} />}</TableCell></TableRow>; })}</TableBody>
       )}
     </Table>
   );
@@ -344,11 +346,11 @@ function ReservationsContent() {
 
   const refresh = () => { void operational.refetch(); void summary.refetch(); void options.refetch(); void main.refetch(); };
   const metrics: Array<{ label: string; value: ReactNode; supportingText: string; icon: ReactNode }> = [
-    { label: t("metrics.active"), value: summary.data?.reservations.active ?? "—", supportingText: t("metrics.activeDescription"), icon: <Cloud {...iconDefaults} /> },
+    { label: t("metrics.active"), value: summary.data?.reservations.active == null ? "—" : formatLocaleNumber(summary.data.reservations.active, locale), supportingText: t("metrics.activeDescription"), icon: <Cloud {...iconDefaults} /> },
     { label: t("metrics.coverage"), value: <PercentageDisplay value={summary.data?.coverage.coverage_percentage} />, supportingText: t("metrics.covered", {covered:formatNu(summary.data?.coverage.covered_units ?? 0, locale),required:formatNu(summary.data?.coverage.required_units ?? 0, locale)}), icon: <ShieldCheck {...iconDefaults} /> },
     { label: t("metrics.utilization"), value: <PercentageDisplay value={summary.data?.reservations.utilization_percentage} />, supportingText: t("metrics.allocated", {allocated:formatNu(summary.data?.reservations.used_units ?? 0, locale),reserved:formatNu(summary.data?.reservations.reserved_units ?? 0, locale)}), icon: <Gauge {...iconDefaults} /> },
-    { label: t("metrics.expiring"), value: summary.data?.expiring_next_30_days ?? "—", supportingText: t("metrics.expiringDescription"), icon: <TimerReset {...iconDefaults} /> },
-    { label: t("metrics.uncovered"), value: summary.data?.rds.uncovered ?? "—", supportingText: t("metrics.unknown", {count:summary.data?.rds.unknown ?? 0}), icon: <AlertTriangle {...iconDefaults} /> },
+    { label: t("metrics.expiring"), value: summary.data?.expiring_next_30_days == null ? "—" : formatLocaleNumber(summary.data.expiring_next_30_days, locale), supportingText: t("metrics.expiringDescription"), icon: <TimerReset {...iconDefaults} /> },
+    { label: t("metrics.uncovered"), value: summary.data?.rds.uncovered == null ? "—" : formatLocaleNumber(summary.data.rds.uncovered, locale), supportingText: t("metrics.unknown", {count:summary.data?.rds.unknown ?? 0}), icon: <AlertTriangle {...iconDefaults} /> },
   ];
 
   return (

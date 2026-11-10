@@ -172,7 +172,7 @@ export function formatBillingMoney(amount, currency, locale = "pt-BR") {
         currency: unit,
         minimumFractionDigits: 2,
         maximumFractionDigits: 2,
-      }).format(numeric);
+      }).format(typeof amount === "string" ? amount : numeric);
     } catch {
       // Cost Explorer may return a non-ISO unit. Preserve it instead of inventing a currency.
     }
@@ -180,7 +180,7 @@ export function formatBillingMoney(amount, currency, locale = "pt-BR") {
   const formatted = new Intl.NumberFormat(locale, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  }).format(numeric);
+  }).format(typeof amount === "string" ? amount : numeric);
   return unit ? `${unit} ${formatted}` : formatted;
 }
 
