@@ -10,7 +10,7 @@ import {
   useLayoutEffect,
   useRef,
   useState,
-  type KeyboardEvent,
+  type KeyboardEvent as ReactKeyboardEvent,
   type OptionHTMLAttributes,
   type ReactNode,
   type SelectHTMLAttributes,
@@ -125,7 +125,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
       const target = event.target as Node;
       if (!shellRef.current?.contains(target) && !panelRef.current?.contains(target)) setOpen(false);
     };
-    const onEscape = (event: globalThis.KeyboardEvent) => {
+    const onEscape = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       event.preventDefault();
       setOpen(false);
@@ -204,7 +204,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
     }
   };
 
-  const handleKeyDown = (event: KeyboardEvent<HTMLButtonElement>) => {
+  const handleKeyDown = (event: ReactKeyboardEvent<HTMLButtonElement>) => {
     if (!available) return;
     if (event.key === "Escape" && open) {
       event.preventDefault();
@@ -293,6 +293,9 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
             aria-activedescendant={open && activeIndex >= 0 ? listId + "-option-" + activeIndex : undefined}
             onClick={() => open ? setOpen(false) : openList()}
             onKeyDown={handleKeyDown}
+            onBlur={(event) => {
+              if (!panelRef.current?.contains(event.relatedTarget as Node)) setOpen(false);
+            }}
           >
             <span className={cx(styles.selectValue, !selectedOption && styles.selectPlaceholder)}>
               {selectedOption?.label ?? placeholder ?? ""}
@@ -321,14 +324,14 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
           ref={panelRef}
           role="listbox"
           aria-label={ariaLabel ?? (typeof label === "string" ? label : undefined)}
-          aria-labelledby={labelledBy}
+          aria-labelledby={labelledBy ?? selectId}
           className={styles.selectPopover}
           data-side={position?.side}
           data-positioned={Boolean(position)}
           style={position ? {
             top: position.top,
             left: position.left,
-            minInlineSize: position.minInlineSize,
+            minInlineSize: Math.min(position.minInlineSize, window.visualViewport?.width ?? window.innerWidth),
             maxBlockSize: position.maxBlockSize,
           } : undefined}
         >
@@ -352,7 +355,7 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select
             </button>
           ))}
         </div>,
-        document.body,
+        triggerRef.current?.closest("dialog[open]") ?? document.body,
       )}
     </>
   );
