@@ -45,7 +45,7 @@ test('QA browser matrix explicitly covers the 24 protected routes in both langua
 
 test('QA explicitly checks Aven dropdown behavior, geometry and functional Billing request contract',()=>{
   for(const evidence of ["role=\"combobox\"","getByRole('listbox')","'ArrowDown'","'Escape'",
-    'data-aven-native-select','role(\'checkbox\')','/billing/aws/summary',
+    'data-aven-native-select',"getByRole('checkbox')",'/billing/aws/summary',
     'period=custom','from=2026-10-01','to=2026-10-31',
     'account_ids','measuredBounds','page.screenshot']){
     assert.ok(qa.includes(evidence),'missing QA assertion: '+evidence);
