@@ -364,4 +364,4 @@ try{
   console.log('Aven authenticated browser QA: '+JSON.stringify({mode:report.mode,
     cases:report.counts,failures:report.failures.length,report:OUT+'/report.json'}));
 }
-if(report.failures.length)process.exitCode=1;
+if(report.failures.length || (phase26 && report.counts.blocked))process.exitCode=1;
