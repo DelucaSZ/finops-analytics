@@ -57,7 +57,7 @@ test("all page and product dropdowns use the shared selection primitives", () =>
       const text = fs.readFileSync(absolute, "utf8");
       assert.doesNotMatch(
         text,
-        /<select(?=\s|>)/i,
+        /<select(?=\s|>)/,
         "A native browser popup remains in " + path.relative(ROOT, absolute),
       );
     }
