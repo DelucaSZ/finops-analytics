@@ -29,7 +29,20 @@ jobs:
       - run: npm run lint:i18n
       - run: npm run lint:i18n:references
       - run: npm test
-      - run: npm run build
+      - name: Production build (retry only known upstream next/font flake)
+        run: |
+          set -o pipefail
+          for attempt in 1 2 3; do
+            if npm run build 2>&1 | tee /tmp/aven-qa-next-build.log; then
+              exit 0
+            fi
+            if ! grep -q "Cannot read properties of null (reading '1')" /tmp/aven-qa-next-build.log; then
+              exit 1
+            fi
+            echo "Known upstream next/font Google CSS extensionless URL; retry $attempt/3"
+            sleep $((attempt * 4))
+          done
+          exit 1
       - name: Install existing browser driver
         run: npm install --no-save --package-lock=false playwright-core@1.57.0 axe-core@4.10.3
       - name: Authenticated full E2E, locale switch, functional and visual QA
