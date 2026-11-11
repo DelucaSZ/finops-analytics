@@ -49,7 +49,11 @@ def test_aws_defaults_and_account_independence():
 
 def test_aws_rds_is_a_valid_service():
     request = _request(
-        resource_configuration={"service": "rds", "engine": "postgres", "instance_class": "db.t3.medium"}
+        resource_configuration={
+            "service": "rds",
+            "engine": "postgres",
+            "instance_class": "db.t3.medium",
+        }
     )
     assert request.resource_configuration.service == "rds"
 
