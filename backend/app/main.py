@@ -11,6 +11,7 @@ from app.api.routes import (
     audit,
     auth,
     billing,
+    calculator,
     cloud_accounts,
     cloudwatch_cost,
     cloudwatch_usage,
@@ -89,6 +90,7 @@ async def sensitive_response_headers(request: Request, call_next):
             "/api/v1/pricing",
             "/api/v1/finops",
             "/api/v1/billing",
+            "/api/v1/calculator",
             "/api/v1/usage",
             "/api/v1/deepops-costs",
             "/api/v1/opportunity-history",
@@ -133,6 +135,7 @@ app.include_router(opportunity_policy.router, prefix="/api/v1")
 app.include_router(finops_ledger.router, prefix="/api/v1")
 app.include_router(finops_flow.router, prefix="/api/v1")
 app.include_router(billing.router, prefix="/api/v1")
+app.include_router(calculator.router, prefix="/api/v1")
 app.include_router(cloudwatch_usage.router, prefix="/api/v1")
 app.include_router(cloudwatch_cost.router, prefix="/api/v1")
 app.include_router(dashboard.router, prefix="/api/v1")
