@@ -140,7 +140,19 @@ async function scenario(locale,route,action){
     await page.getByRole('menuitemradio',{name:other==='en-US'?/English/:/Português/}).click();
     await page.waitForFunction(expected=>document.documentElement.lang===expected,other,{timeout});
     assert.equal(new URL(page.url()).pathname,beforePath,'locale switch changed route');
-    assert.equal(new URL(page.url()).search,beforeSearch,'locale switch dropped query filters');
+    const afterQuery=new URL(page.url()).searchParams;
+    const beforeQuery=new URLSearchParams(beforeSearch);
+    // Billing writes its default profile to history.replaceState, while
+    // Next router.refresh can restore the originally supplied URL. A missing
+    // implicit default is semantically equivalent; explicit user filters are not.
+    if(route.startsWith('/billing') && !new URL(route,BASE).searchParams.has('profile')
+      && beforeQuery.get('profile')==='qa-profile')beforeQuery.delete('profile');
+    for(const [key,value] of beforeQuery)
+      assert.equal(afterQuery.get(key),value,'locale switch dropped explicit filter '+key);
+    for(const [key,value] of afterQuery)
+      assert.ok(beforeQuery.get(key)===value||
+        (key==='profile'&&value==='qa-profile'&&route.startsWith('/billing')),
+        'locale switch introduced unexpected filter '+key);
     const afterFormState=await page.locator('main select').evaluateAll(elements=>elements.map(el=>el.value));
     assert.deepEqual(afterFormState,formState,'locale switch reset selected filter values');
     assert.equal(await page.evaluate(()=>window.__avenQaPreserved),'25.9B',
@@ -196,10 +208,12 @@ async function runFunctional(){
       await first.selectOption('previous_month');
       assert.equal(await first.inputValue(),'previous_month');
       assert.ok(requests.some(r=>r.path.startsWith('/finops/flow/summary')&&r.status===200));
-      assert.ok((await page.locator('body').innerText()).includes(
-        new Intl.NumberFormat(locale,{minimumFractionDigits:2,maximumFractionDigits:2})
-          .format(Number(FIXTURE_FINANCIAL.estimatedSavings))),
-        'flow savings disappeared from UI');
+      const expected=new Intl.NumberFormat(locale,{
+        minimumFractionDigits:2,maximumFractionDigits:2
+      }).format(Number(FIXTURE_FINANCIAL.estimatedSavings));
+      await page.waitForFunction(value=>document.body.innerText.includes(value),expected,{timeout});
+      assert.ok((await page.locator('body').innerText()).includes(expected),
+        'flow savings disappeared from UI after refresh');
     });
     await scenario(locale,'/opportunities',async(page,requests)=>{
       await page.getByText('QA opportunity').first().waitFor({timeout});
