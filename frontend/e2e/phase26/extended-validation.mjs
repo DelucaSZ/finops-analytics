@@ -22,7 +22,12 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   withinViewport(await menu.boundingBox(),viewport.width,viewport.height);
   const group=menu.getByRole('group');
   const list=group;
-  assert.ok(await group.getByRole('checkbox').count()>=15,'large AWS account list missing');
+  const visibleCount=await group.getByRole('checkbox').count();
+  assert.ok(visibleCount>=15,'large AWS account list missing: '+JSON.stringify({
+    accessible:visibleCount,domCount:await group.locator('input[type="checkbox"]').count(),
+    menuText:(await group.innerText()).slice(0,500),
+    cloudAccountRequests:requests.filter(r=>r.path.includes('cloud-accounts'))
+  }));
   const scroll=await list.evaluate(el=>({scroll:el.scrollHeight,client:el.clientHeight,
     overflow:getComputedStyle(el).overflowY}));
   assert.ok(scroll.scroll>scroll.client+25 && scroll.overflow==='auto',
