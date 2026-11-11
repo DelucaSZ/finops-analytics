@@ -219,6 +219,9 @@ async function runFunctional(){
       await page.getByText('QA opportunity').first().waitFor({timeout});
       const severity=page.locator('select').filter({has:page.locator('option[value="high"]')}).first();
       await severity.selectOption('high');
+      await page.waitForFunction(
+        ()=>new URL(location.href).searchParams.get('severity')==='high',null,{timeout}
+      );
       assert.match(page.url(),/severity=high/);
       assert.ok(requests.some(r=>r.path.startsWith('/opportunities?')&&r.status===200));
     });
