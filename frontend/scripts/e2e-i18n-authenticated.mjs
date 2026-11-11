@@ -38,7 +38,7 @@ const report={task:'25.9B',mode:full?'full':'smoke',backend:'simulated',commit:p
     technical:TECHNICAL_ROUTES.length},
   cases:[],failures:[],limitations:[],started:new Date().toISOString()};
 const toSlug=(path)=>path==='/'?'dashboard':path.replaceAll('/','_').replace(/[^a-z0-9_-]/gi,'_');
-const timeout=full?22000:17000;
+const timeout=full?12000:10000;
 const setLang=async(context,locale)=>context.addCookies([{name:'aven.locale',value:locale,url:BASE}]);
 const selector=page=>page.getByRole('button',{name:/^(?:Idioma|Language):/});
 function fail(record,error){
@@ -108,7 +108,10 @@ async function routeSuite(locale){
         record.unknownEndpoints=seen.filter(r=>r.unsupported).map(r=>r.method+' '+r.path);
         // This scenario asserts mounting and SSR only, NOT successful business API semantics.
         assert.deepEqual(record.pageErrors,[],'unexpected browser errors');
-        record.status='passed';
+        record.status=record.unknownEndpoints.length?'blocked':'passed';
+        if(record.status==='blocked')report.limitations.push({
+          route,locale,reason:'API contract fixture not implemented',endpoints:record.unknownEndpoints
+        });
       }catch(error){fail(record,error)}
       finally{await page.close()}
     }
@@ -159,7 +162,10 @@ async function scenario(locale,route,action){
     await page.waitForFunction(expected=>document.documentElement.lang===expected,other,{timeout});
     assert.equal((await ctx.cookies(BASE)).find(c=>c.name==='aven.locale')?.value,other,
       'cookie not persisted across reload');
-    record.status='passed';
+    record.status=record.unexpectedBackend.length?'blocked':'passed';
+    if(record.status==='blocked')report.limitations.push({
+      route,locale,reason:'functional scenario lacks API contract fixtures',endpoints:record.unexpectedBackend
+    });
   }catch(error){fail(record,error)}
   finally{await page.close();await ctx.close()}
 }
