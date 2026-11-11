@@ -211,8 +211,25 @@ async function runFunctional(){
     await scenario(locale,'/flow',async(page,requests)=>{
       await page.locator('h3').first().waitFor({timeout});
       const first=page.locator('select').first();
-      await first.selectOption('previous_month');
-      assert.equal(await first.inputValue(),'previous_month');
+      const trigger=page.locator('[data-aven-select] [role="combobox"]').first();
+      await trigger.focus();
+      await trigger.press('ArrowDown');
+      assert.equal(await trigger.getAttribute('aria-expanded'),'true',
+        'Aven dropdown did not open from keyboard');
+      const list=page.getByRole('listbox');
+      await list.waitFor({state:'visible',timeout});
+      const bounds=await list.boundingBox();
+      assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=1441,
+        'Aven dropdown escaped the viewport');
+      await trigger.press('Escape');
+      assert.equal(await trigger.getAttribute('aria-expanded'),'false',
+        'Aven dropdown did not close with Escape');
+      await trigger.click();
+      const label=(await first.locator('option[value="previous_month"]').textContent())?.trim();
+      assert.ok(label,'period option label is empty');
+      await page.getByRole('option',{name:label,exact:true}).click();
+      assert.equal(await first.inputValue(),'previous_month',
+        'Aven dropdown failed to retain the native filter value');
       assert.ok(requests.some(r=>r.path.startsWith('/finops/flow/summary')&&r.status===200));
       const expected=new Intl.NumberFormat(locale,{
         minimumFractionDigits:2,maximumFractionDigits:2
