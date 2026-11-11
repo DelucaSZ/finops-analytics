@@ -82,6 +82,15 @@ jobs:
         run: npm run smoke:i18n:browser
       - name: Authenticated routes i18n smoke (24 routes, two locales)
         run: npm run smoke:i18n:authenticated
+      - name: Phase 26 Aven visual and functional regression matrix (Chromium)
+        run: npm run test:aven:phase26
+      - name: Upload Phase 26 browser QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aven-phase26-visual-qa
+          path: frontend/artifacts/phase26/
+          if-no-files-found: warn
       - name: Upload authenticated route QA evidence
         if: always()
         uses: actions/upload-artifact@v4
