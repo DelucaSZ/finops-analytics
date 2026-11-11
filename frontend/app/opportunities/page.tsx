@@ -733,6 +733,7 @@ function OpportunitiesContent() {
       </Section>
 
       <Tabs
+        hasPanels={false}
         value={isHistory ? "history" : state.status || "open"}
         defaultValue="open"
         onValueChange={(value) => { if (value === "history") openHistory(); else changeStatus(value as "open" | "treated" | "rejected"); }}
