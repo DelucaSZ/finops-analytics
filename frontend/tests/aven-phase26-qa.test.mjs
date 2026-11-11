@@ -69,8 +69,8 @@ test('Avatar QA prevents oval geometry, cut initials, flex shrink and menu regre
 
 
 test('extended live-Chromium QA validates multiselect mutations, scrolling, disabled and hover state',()=>{
-  for(const evidence of ['runPhase26Extensions','getByRole(\'checkbox\')',
-    'scrollHeight','clientHeight','account_ids','UNBLENDED_COST',
+  for(const evidence of ['runPhase26Extensions','group.locator(\'input[type="checkbox"]\')',
+    'optionSemantics','aria-label','scrollHeight','clientHeight','account_ids','UNBLENDED_COST',
     'dataset.active','getComputedStyle','hover()','isDisabled()',
     'getByRole(\'listbox\')','aria-selected','clear.click()',
     'accounts','select-all','not-a-real-aws-account']){
