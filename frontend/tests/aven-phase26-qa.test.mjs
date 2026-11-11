@@ -10,6 +10,7 @@ const ROOT=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const read=(pathFromRoot)=>fs.readFileSync(path.join(ROOT,pathFromRoot),'utf8');
 const runner=read('scripts/e2e-i18n-authenticated.mjs');
 const qa=read('e2e/phase26/validation.mjs');
+const extended=read('e2e/phase26/extended-validation.mjs');
 const ci=read('../.github/workflows/ci.yml');
 const packageJson=JSON.parse(read('package.json'));
 
@@ -19,6 +20,7 @@ test('Task 26.3 has a runnable real Chromium suite with recorded artifacts',()=>
     'node scripts/e2e-i18n-authenticated.mjs --phase26');
   assert.match(runner,/const phase26 = process\.argv\.includes\('--phase26'\)/);
   assert.match(runner,/await runPhase26\(/);
+  assert.match(runner,/await runPhase26Extensions\(/);
   assert.match(runner,/chromium\.launch\(/);
   assert.match(runner,/backend:'simulated'/);
   assert.match(runner,/report\.cases\.filter\(c=>c\.status==='failed'\)/);
@@ -63,4 +65,17 @@ test('Avatar QA prevents oval geometry, cut initials, flex shrink and menu regre
     assert.ok(qa.includes(evidence),'missing avatar QA assertion: '+evidence);
   }
   assert.doesNotMatch(qa,/type="file"|uploadImage|uploadAvatar/);
+});
+
+
+test('extended live-Chromium QA validates multiselect mutations, scrolling, disabled and hover state',()=>{
+  for(const evidence of ['runPhase26Extensions','getByRole(\'checkbox\')',
+    'scrollHeight','clientHeight','account_ids','UNBLENDED_COST',
+    'data.active','getComputedStyle','hover()','isDisabled()',
+    'getByRole(\'listbox\')','aria-selected','last().click()',
+    'accounts','select-all','not-a-real-aws-account']){
+    assert.ok(extended.includes(evidence),'missing extended QA evidence: '+evidence);
+  }
+  assert.match(runner,/emptyBillingProfiles/);
+  assert.match(runner,/manyAccounts/);
 });
