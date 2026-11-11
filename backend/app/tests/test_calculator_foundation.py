@@ -47,6 +47,13 @@ def test_aws_defaults_and_account_independence():
     assert "account_id" not in request.model_fields
 
 
+def test_aws_rds_is_a_valid_service():
+    request = _request(
+        resource_configuration={"service": "rds", "engine": "postgres", "instance_class": "db.t3.medium"}
+    )
+    assert request.resource_configuration.service == "rds"
+
+
 def test_oci_accepts_db_system_without_inventing_a_price():
     request = _request(
         provider="oci",
@@ -65,7 +72,7 @@ def test_oci_accepts_db_system_without_inventing_a_price():
     [
         {"provider": "oci"},
         {"provider": "oci", "aws_financial": {}},
-        {"resource_configuration": {"service": "rds", "engine": "postgres"}},
+        {"resource_configuration": {"service": "compute", "shape": "VM.Standard.E5.Flex"}},
         {"region": "   "},
         {"quantity": 0},
         {"quantity": 100001},
