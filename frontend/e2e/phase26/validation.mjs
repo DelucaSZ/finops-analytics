@@ -70,6 +70,7 @@ async function checkSingleSelect(page,width,height) {
   });
   assert.ok(visual.radius>0&&visual.border!=='0px','select popup lost its Aven surface');
   assert.notEqual(visual.background,'rgba(0, 0, 0, 0)','transparent select popup');
+  assert.match(visual.background,/^rgb\(/,'select popup must be opaque in all themes');
   await trigger.press('Escape');
   assert.equal(await trigger.getAttribute('aria-expanded'),'false','Escape did not close select');
   await list.waitFor({state:'hidden'});
