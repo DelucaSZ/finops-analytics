@@ -22,6 +22,8 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   withinViewport(await menu.boundingBox(),viewport.width,viewport.height);
   const group=menu.getByRole('group');
   const list=group;
+  // Options arrive after the authenticated Billing bootstrap: never inspect a transient empty list.
+  await group.locator('input[type="checkbox"]').nth(14).waitFor({state:'attached',timeout:12000});
   const visibleCount=await group.locator('input[type="checkbox"]').count();
   assert.ok(visibleCount>=15,'large AWS account list missing: '+JSON.stringify({
     accessible:visibleCount,domCount:await group.locator('input[type="checkbox"]').count(),
@@ -41,15 +43,15 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
     'AWS option accessibility labels or checked semantics missing');
   const scroll=await list.evaluate(el=>({scroll:el.scrollHeight,client:el.clientHeight,
     overflow:getComputedStyle(el).overflowY}));
-  assert.ok(scroll.scroll>scroll.client+25 && scroll.overflow==='auto',
+  assert.ok(scroll.client>=36 && scroll.scroll>scroll.client+25 && scroll.overflow==='auto',
     'account list must scroll internally: '+JSON.stringify(scroll));
   const search=menu.getByRole('textbox').first();
   await search.fill('not-a-real-aws-account');
-  assert.equal(await group.locator('input[type="checkbox"]').count(),0,'search did not filter accounts');
+  await wait(page,()=>document.querySelector('[role="menu"] [role="group"]')?.querySelectorAll('input[type="checkbox"]').length===0);
   await search.fill('QA Additional AWS 16');
-  assert.equal(await group.locator('input[type="checkbox"]').count(),1,'search did not find long account');
+  await wait(page,()=>document.querySelector('[role="menu"] [role="group"]')?.querySelectorAll('input[type="checkbox"]').length===1);
   await search.fill('');
-  assert.ok(await group.locator('input[type="checkbox"]').count()>=15);
+  await group.locator('input[type="checkbox"]').nth(14).waitFor({state:'attached',timeout:12000});
   const original=await group.locator('input[type="checkbox"]').first().isChecked();
   assert.equal(original,true,'original AWS account selection lost');
 
@@ -72,6 +74,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
       r.payload.account_ids.includes(1) && r.payload.account_ids.includes(16)),
     'multi-account selection not reflected in Billing API payload');
   assert.equal(await group.locator('input[type="checkbox"]').count(),15);
+  await wait(page,()=>[...document.querySelectorAll('[role="menu"] [role="group"] input[type="checkbox"]')].every(e=>e.checked));
   assert.ok(await group.locator('input[type="checkbox"]').evaluateAll(elements=>elements.every(e=>e.checked)),
     'select-all did not check every AWS account');
   await page.screenshot({path:out+'/phase26-expanded-multiselect-'+locale+'-'+viewport.name+'.png',
