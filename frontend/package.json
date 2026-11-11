@@ -17,7 +17,9 @@
     "lint:i18n": "node scripts/check-i18n.mjs",
     "lint:i18n:references": "node scripts/check-i18n-references.mjs",
     "lint:i18n:coverage": "node scripts/check-i18n-coverage.mjs",
-    "smoke:i18n:browser": "node scripts/smoke-i18n-browser.mjs"
+    "smoke:i18n:browser": "node scripts/smoke-i18n-browser.mjs",
+    "audit:i18n:baseline": "node scripts/reconcile-i18n-baseline.mjs --check",
+    "audit:i18n:baseline:write": "node scripts/reconcile-i18n-baseline.mjs --write"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",
