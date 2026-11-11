@@ -86,9 +86,9 @@ test("Opportunities retains fixed column geometry for both PT-BR and EN-US, incl
     assert.match(styles, new RegExp(`table\\[data-opportunities-view="${view}"\\][\\s\\S]*?table-layout:\\s*fixed`));
     assert.match(styles, new RegExp(`@media \\(max-width:\\s*64rem\\)[\\s\\S]*?table\\[data-opportunities-view="${view}"\\][\\s\\S]*?min-inline-size:\\s*58rem`));
   }
-  assert.match(styles, /td:nth-child\\(2\\) > button/);
-  assert.match(styles, /text-overflow:\\s*ellipsis/);
-  assert.match(styles, /-webkit-line-clamp:\\s*2/);
+  assert.match(styles, /td:nth-child\(2\) > button/);
+  assert.match(styles, /text-overflow:\s*ellipsis/);
+  assert.match(styles, /-webkit-line-clamp:\s*2/);
 });
 
 test("Opportunities uses a semantic wide Drawer without changing the default Drawer size", () => {
