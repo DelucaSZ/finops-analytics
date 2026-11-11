@@ -44,7 +44,7 @@ export function formatUsagePeriodLabel(period: UsageCostPeriod | null, locale?: 
 export function summarizeUsage(items: UsageCostSummaryItem[]): Omit<UsageCostSummaryItem, "group">;
 export function usageByGroup(items: UsageCostSummaryItem[]): Map<string | null, UsageCostSummaryItem>;
 export function costItemsByCurrency<T extends UsageCostItem>(items: T[]): Array<[string, T[]]>;
-export function friendlyUsageLabel(value: string | null | undefined, kind?: string): string;
+export function friendlyUsageLabel(value: string | null | undefined, kind?: string, locale?: string): string;
 export function pricingVersionCount(items: UsageCostItem[]): number;
 export function distinctUsageGroups(items: UsageCostSummaryItem[]): string[];
 export function costShare(item: UsageCostItem, currencyItems: UsageCostItem[]): number | null;

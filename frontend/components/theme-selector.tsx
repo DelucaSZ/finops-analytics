@@ -2,40 +2,42 @@
 
 import { Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
+import { useTranslations } from "next-intl";
 import type { ThemePreference } from "@/lib/ui-preferences.mjs";
 
 const options: Array<{
   value: ThemePreference;
-  label: string;
-  description: string;
+  labelKey: "system" | "light" | "dark";
+  descriptionKey: "systemDescription" | "lightDescription" | "darkDescription";
   icon: typeof Monitor;
 }> = [
   {
     value: "system",
-    label: "Sistema",
-    description: "Acompanha a preferência do dispositivo.",
+    labelKey: "system",
+    descriptionKey: "systemDescription",
     icon: Monitor,
   },
   {
     value: "light",
-    label: "Claro",
-    description: "Superfícies claras e contraste para ambientes iluminados.",
+    labelKey: "light",
+    descriptionKey: "lightDescription",
     icon: Sun,
   },
   {
     value: "dark",
-    label: "Escuro",
-    description: "Superfícies escuras com contraste reduzido.",
+    labelKey: "dark",
+    descriptionKey: "darkDescription",
     icon: Moon,
   },
 ];
 
 export function ThemeSelector() {
   const { theme, setTheme } = useTheme();
+  const t = useTranslations("settings.appearance");
 
   return (
     <fieldset className="theme-selector">
-      <legend>Tema</legend>
+      <legend>{t("fieldset")}</legend>
       <div className="theme-options">
         {options.map((option) => {
           const Icon = option.icon;
@@ -53,8 +55,8 @@ export function ThemeSelector() {
               />
               <Icon size={18} aria-hidden="true" />
               <span>
-                <strong>{option.label}</strong>
-                <small>{option.description}</small>
+                <strong>{t(option.labelKey)}</strong>
+                <small>{t(option.descriptionKey)}</small>
               </span>
             </label>
           );

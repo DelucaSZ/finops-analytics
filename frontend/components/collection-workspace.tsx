@@ -612,7 +612,7 @@ export function CollectionWorkspace({
       {collectionId && detail && (
         <section className="panel collection-detail" aria-busy={loading}>
           <div className="collection-toolbar">
-            <h2>CollectionRun</h2>
+            <h2>{t("collectionRun")}</h2>
             <RunStatus run={detail} />
           </div>
           <code className="collection-id">{detail.id}</code>

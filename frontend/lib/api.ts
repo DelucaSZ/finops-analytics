@@ -1,6 +1,12 @@
+import ptBRMessages from "@/i18n/messages/pt-BR.json";
+import enUSMessages from "@/i18n/messages/en-US.json";
 import {formatLocaleCurrency, formatLocaleDate, formatLocaleDateTime} from "@/i18n/formatters.mjs";
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
 const API_TIMEOUT_MS = 30_000;
+function apiErrorText(key: keyof typeof ptBRMessages.errors.api): string {
+  const locale = typeof document !== "undefined" ? document.documentElement.lang : "pt-BR";
+  return (locale === "en-US" ? enUSMessages : ptBRMessages).errors.api[key];
+}
 const publicWrites = new Set(["/auth/mfa/verify", "/auth/login", "/auth/forgot-password", "/auth/reset-password", "/auth/accept-invitation"]);
 
 export class ApiError extends Error {
@@ -48,7 +54,7 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
     });
   } catch (error) {
     if (timedOut && !callerSignal?.aborted) {
-      throw new ApiError("A solicitação excedeu o tempo limite. Tente novamente.", 408);
+      throw new ApiError(apiErrorText("timeout"), 408);
     }
     throw error;
   } finally {
@@ -61,7 +67,7 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
       window.dispatchEvent(new Event("deepops:session-invalidated"));
       window.location.assign("/login");
     }
-    throw new ApiError("Sessão expirada. Entre novamente.", 401);
+    throw new ApiError(apiErrorText("sessionExpired"), 401);
   }
   if (!response.ok) {
     const payload = await response.json().catch(() => null);
@@ -78,32 +84,32 @@ export async function api<T>(path: string, init: RequestInit = {}, redirectOnUna
     if (detail === "mfa_enrollment_required" && typeof window !== "undefined") {
       window.dispatchEvent(new Event("deepops:session-invalidated"));
       window.location.assign("/mfa-setup");
-      throw new ApiError("Configure o autenticador para continuar.", 403);
+      throw new ApiError(apiErrorText("enrollmentRequired"), 403);
     }
     const translated: Record<string, string> = {
-      "Email is already registered": "Este e-mail já está cadastrado.",
-      "Cannot remove the last active administrator": "Mantenha pelo menos um administrador ativo com senha definida.",
-      "User not found": "Usuário não encontrado.",
-      "Administrator access required": "Acesso disponível somente para administradores.",
-      "Administrator access changed; sign in again": "Suas permissões mudaram. Entre novamente.",
+      "Email is already registered": apiErrorText("duplicateEmail"),
+      "Cannot remove the last active administrator": apiErrorText("lastAdmin"),
+      "User not found": apiErrorText("unknownUser"),
+      "Administrator access required": apiErrorText("adminOnly"),
+      "Administrator access changed; sign in again": apiErrorText("permissionChanged"),
     };
     const fallbackByStatus: Record<number, string> = {
-      403: "Você não tem permissão para realizar esta ação.",
-      404: "O recurso solicitado não foi encontrado.",
-      410: "Os dados históricos detalhados não estão mais disponíveis pela política de retenção.",
-      422: "Confira os campos preenchidos e tente novamente.",
-      429: "Muitas solicitações em pouco tempo. Tente novamente em instantes.",
+      403: apiErrorText("forbidden"),
+      404: apiErrorText("notFound"),
+      410: apiErrorText("historicalExpired"),
+      422: apiErrorText("validation"),
+      429: apiErrorText("tooManyRequests"),
     };
     const message = detail === "reauthentication_required"
-      ? "Confirme sua identidade em Minha segurança antes de continuar."
-      : Array.isArray(detail) ? "Confira os campos preenchidos e tente novamente."
-      : detail === "Invalid email or password" ? "E-mail ou senha inválidos."
+      ? apiErrorText("reauthentication")
+      : Array.isArray(detail) ? apiErrorText("validation")
+      : detail === "Invalid email or password" ? apiErrorText("invalidCredentials")
       : translated[typeof detail === "string" ? detail : ""]
         || (detailText && !detailText.includes("Traceback") ? detailText : undefined)
         || (response.status >= 500
-          ? "Não foi possível concluir a solicitação. Tente novamente."
+          ? apiErrorText("serverError")
           : fallbackByStatus[response.status])
-        || "Não foi possível concluir a solicitação.";
+        || apiErrorText("generic");
     throw new ApiError(message, response.status, detailText, detailCode);
   }
   if (response.status === 204) return undefined as T;

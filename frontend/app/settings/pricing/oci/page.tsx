@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {useLocale} from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { Check, History, Pencil, Plus, Search, XCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
@@ -91,6 +91,10 @@ function apiMessage(error: unknown, fallback: string) {
 
 export default function OciPricingPage() {
   const locale = useLocale();
+  const t = useTranslations("settings.ociPricing");
+  const statusWords: Record<string, string> = {active:t("statusActive"),inactive:t("statusInactive"),future:t("statusFuture"),expired:t("statusExpired")};
+  const sourceWords: Record<string, string> = {IMPORTED_OCI_CALCULATOR:t("sourceImported"),MANUAL:t("sourceManual")};
+  const unitWords: Record<string, string> = {OCPU_HOUR:t("unitOcpu"),GB_RAM_HOUR:t("unitRam"),GB_MONTH:t("unitGb"),VPU_GB_MONTH:t("unitVpu"),INSTANCE_HOUR:t("unitInstance")};
   const [items, setItems] = useState<PricingItem[]>([]);
   const [meta, setMeta] = useState<PricingMeta | null>(null);
   const [total, setTotal] = useState(0);
@@ -125,7 +129,7 @@ export default function OciPricingPage() {
       setTotal(data.total);
       setMeta(metadata);
     } catch (err) {
-      setError(apiMessage(err, "Falha ao carregar o catálogo OCI."));
+      setError(apiMessage(err, t("loadFailed")));
     } finally {
       setLoading(false);
     }
@@ -143,15 +147,15 @@ export default function OciPricingPage() {
 
   async function deactivate(item: PricingItem) {
     const confirmed = window.confirm(
-      "Desativar este preço?\n\nEle deixará de ser considerado em novos cálculos OCI quando não existir outra vigência válida para o mesmo SKU.",
+      t("deactivateConfirm"),
     );
     if (!confirmed) return;
     const reason = window.prompt(
-      "Motivo da alteração (mínimo 3 caracteres):",
+      t("reasonPrompt"),
       "",
     )?.trim();
     if (!reason || reason.length < 3) {
-      setError("Informe o motivo da alteração com pelo menos 3 caracteres.");
+      setError(t("reasonTooShort"));
       return;
     }
     setError("");
@@ -161,10 +165,10 @@ export default function OciPricingPage() {
         method: "POST",
         body: JSON.stringify({ reason }),
       });
-      setMessage(`Preço ${item.sku} desativado.`);
+      setMessage(t("priceDeactivated", {sku: item.sku}));
       await load();
     } catch (err) {
-      setError(apiMessage(err, "Não foi possível desativar o preço."));
+      setError(apiMessage(err, t("deactivateFailed")));
     }
   }
 
@@ -174,12 +178,12 @@ export default function OciPricingPage() {
   return (
     <>
       <PageHeader
-        eyebrow="CONFIGURAÇÕES · PRICING · OCI"
-        title="Pricing OCI"
-        description="Administre preços unitários OCI persistidos pelo Aven. Os valores atuais desta área são denominados em BRL."
+        eyebrow={t("eyebrow")}
+        title={t("title")}
+        description={t("description")}
         actions={
           <button className="button primary" onClick={() => setForm({ mode: "create" })}>
-            <Plus size={16} /> Novo preço
+            <Plus size={16} /> {t("newPrice")}
           </button>
         }
       />
@@ -190,20 +194,20 @@ export default function OciPricingPage() {
       <section className={`panel ${styles.filters}`}>
         <form onSubmit={applySearch} className={styles.search}>
           <label>
-            <span>Pesquisar</span>
+            <span>{t("search")}</span>
             <div className={styles.searchInput}>
               <Search size={16} />
               <input
                 value={queryDraft}
                 onChange={(event) => setQueryDraft(event.target.value)}
-                placeholder="SKU, descrição, item ou shape"
+                placeholder={t("searchPlaceholder")}
               />
             </div>
           </label>
-          <button className="button ghost" type="submit">Buscar</button>
+          <button className="button ghost" type="submit">{t("searchButton")}</button>
         </form>
         <label>
-          <span>Serviço</span>
+          <span>{t("service")}</span>
           <select
             value={service}
             onChange={(event) => {
@@ -211,12 +215,12 @@ export default function OciPricingPage() {
               setService(event.target.value);
             }}
           >
-            <option value="">Todos</option>
+            <option value="">{t("all")}</option>
             {meta?.services.map((value) => <option key={value} value={value}>{serviceLabel(value)}</option>)}
           </select>
         </label>
         <label>
-          <span>Status</span>
+          <span>{t("status")}</span>
           <select
             value={status}
             onChange={(event) => {
@@ -224,38 +228,38 @@ export default function OciPricingPage() {
               setStatus(event.target.value);
             }}
           >
-            <option value="active">Ativos</option>
-            <option value="inactive">Inativos</option>
-            <option value="future">Futuros</option>
-            <option value="expired">Expirados</option>
-            <option value="all">Todos</option>
+            <option value="active">{t("activePlural")}</option>
+            <option value="inactive">{t("inactivePlural")}</option>
+            <option value="future">{t("futurePlural")}</option>
+            <option value="expired">{t("expiredPlural")}</option>
+            <option value="all">{t("all")}</option>
           </select>
         </label>
       </section>
 
       <section className={`panel ${styles.catalog}`}>
         {loading ? (
-          <div className={styles.state} role="status">Carregando preços…</div>
+          <div className={styles.state} role="status">{t("loading")}</div>
         ) : items.length === 0 ? (
           <div className={styles.state}>
             {query || service || status !== "active"
-              ? "Nenhum preço corresponde aos filtros selecionados."
-              : "Nenhum preço encontrado."}
+              ? t("noFiltered")
+              : t("noResults")}
           </div>
         ) : (
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Serviço</th>
-                  <th>SKU</th>
-                  <th>Descrição</th>
-                  <th>Unidade</th>
-                  <th>Preço</th>
-                  <th>Vigência</th>
-                  <th>Status</th>
-                  <th>Origem</th>
-                  <th aria-label="Ações" />
+                  <th>{t("service")}</th>
+                  <th>{t("sku")}</th>
+                  <th>{t("itemDescription")}</th>
+                  <th>{t("unit")}</th>
+                  <th>{t("price")}</th>
+                  <th>{t("validity")}</th>
+                  <th>{t("status")}</th>
+                  <th>{t("source")}</th>
+                  <th aria-label={t("actions")} />
                 </tr>
               </thead>
               <tbody>
@@ -266,18 +270,18 @@ export default function OciPricingPage() {
                       <td>{serviceLabel(item.service)}</td>
                       <td><code>{item.sku}</code></td>
                       <td>{item.description}</td>
-                      <td>{unitLabel(item.unit)}</td>
+                      <td>{unitWords[item.unit] ?? unitLabel(item.unit)}</td>
                       <td>
                         <strong>{formatBrlDecimal(item.price, locale)}</strong>
                         <small>{item.currency}</small>
                       </td>
                       <td>{formatRange(item, locale)}</td>
-                      <td><span className={statusClass(itemStatus)}>{pricingStatusLabel(itemStatus)}</span></td>
-                      <td>{sourceLabel(item.source)}</td>
+                      <td><span className={statusClass(itemStatus)}>{statusWords[itemStatus] ?? pricingStatusLabel(itemStatus)}</span></td>
+                      <td>{sourceWords[item.source] ?? sourceLabel(item.source)}</td>
                       <td>
                         <div className={styles.rowActions}>
                           <button className="button small ghost" onClick={() => setHistoryItem(item)}>
-                            <History size={14} /> Vigências
+                            <History size={14} /> {t("versions")}
                           </button>
                           <button className="button small ghost" onClick={() => setAuditItem(item)}>
                             Auditoria
@@ -285,10 +289,10 @@ export default function OciPricingPage() {
                           {item.enabled && itemStatus !== "expired" && (
                             <>
                               <button className="button small ghost" onClick={() => setForm({ mode: "edit", item })}>
-                                <Pencil size={14} /> Alterar
+                                <Pencil size={14} /> {t("edit")}
                               </button>
                               <button className="button small ghost" onClick={() => void deactivate(item)}>
-                                <XCircle size={14} /> Desativar
+                                <XCircle size={14} /> {t("deactivate")}
                               </button>
                             </>
                           )}
@@ -303,7 +307,7 @@ export default function OciPricingPage() {
         )}
 
         <div className={styles.pagination}>
-          <span>{total} registro{total === 1 ? "" : "s"} · página {pageNumber} de {pageCount}</span>
+          <span>{t("recordCount", {count: total, page: pageNumber, pages: pageCount})}</span>
           <div>
             <button
               className="button small ghost"
@@ -357,6 +361,7 @@ function PricingForm({
   onSaved: (message: string) => Promise<void>;
 }) {
   const locale = useLocale();
+  const t = useTranslations("settings.ociPricing");
   const [service, setService] = useState(item?.service ?? meta?.services[0] ?? "");
   const [sku, setSku] = useState(item?.sku ?? "");
   const [description, setDescription] = useState(item?.description ?? "");
@@ -375,19 +380,19 @@ function PricingForm({
     const startsAt = datetimeLocalToIso(effectiveFrom);
     const normalizedReason = reason.trim();
     if (!normalizedPrice) {
-      setError("Informe um preço decimal válido com até 8 casas decimais.");
+      setError(t("validPrice"));
       return;
     }
     if (!startsAt) {
-      setError("Informe uma vigência válida.");
+      setError(t("validStart"));
       return;
     }
     if (mode === "edit" && normalizedReason.length < 3) {
-      setError("Informe o motivo da alteração com pelo menos 3 caracteres.");
+      setError(t("reasonTooShort"));
       return;
     }
     if (mode === "create" && normalizedReason && normalizedReason.length < 3) {
-      setError("Quando informado, o motivo deve ter pelo menos 3 caracteres.");
+      setError(t("optionalReason"));
       return;
     }
     setSaving(true);
@@ -407,7 +412,7 @@ function PricingForm({
             reason: normalizedReason || undefined,
           }),
         });
-        await onSaved(`Preço ${sku} cadastrado.`);
+        await onSaved(t("priceCreated", {sku}));
       } else if (item) {
         await api<PricingItem>(`/pricing/oci/${item.id}`, {
           method: "PATCH",
@@ -418,10 +423,10 @@ function PricingForm({
             reason: normalizedReason,
           }),
         });
-        await onSaved(`Nova vigência de ${item.sku} criada.`);
+        await onSaved(t("newVersionCreated", {sku: item.sku}));
       }
     } catch (err) {
-      setError(apiMessage(err, "Não foi possível salvar o preço."));
+      setError(apiMessage(err, t("saveFailed")));
     } finally {
       setSaving(false);
     }
@@ -432,18 +437,18 @@ function PricingForm({
       <section className={styles.modal} role="dialog" aria-modal="true" aria-labelledby="pricing-form-title">
         <div className={styles.modalHeader}>
           <div>
-            <div className="eyebrow">PRICING OCI</div>
-            <h2 id="pricing-form-title">{mode === "create" ? "Novo preço" : "Alterar preço"}</h2>
+            <div className="eyebrow">{t("formEyebrow")}</div>
+            <h2 id="pricing-form-title">{mode === "create" ? t("newPrice") : t("editPrice")}</h2>
           </div>
-          <button className="button small ghost" onClick={onClose} disabled={saving}>Fechar</button>
+          <button className="button small ghost" onClick={onClose} disabled={saving}>{t("close")}</button>
         </div>
         {error && <div className="alert error" role="alert">{error}</div>}
         <form onSubmit={submit} className={styles.form}>
           <div className={styles.formGrid}>
-            <ReadOnlyField label="Provider" value="OCI" />
-            <ReadOnlyField label="Moeda" value="BRL" />
+            <ReadOnlyField label={t("provider")} value="OCI" />
+            <ReadOnlyField label={t("currency")} value="BRL" />
             <label>
-              <span>Serviço</span>
+              <span>{t("service")}</span>
               <input
                 list="pricing-services"
                 value={service}
@@ -453,7 +458,7 @@ function PricingForm({
               />
             </label>
             <label>
-              <span>SKU</span>
+              <span>{t("sku")}</span>
               <input
                 value={sku}
                 onChange={(event) => setSku(event.target.value)}
@@ -462,7 +467,7 @@ function PricingForm({
               />
             </label>
             <label>
-              <span>Unidade</span>
+              <span>{t("unit")}</span>
               <input
                 list="pricing-units"
                 value={unit}
@@ -472,19 +477,19 @@ function PricingForm({
               />
             </label>
             <label>
-              <span>Preço unitário</span>
+              <span>{t("unitPrice")}</span>
               <input
                 inputMode="decimal"
                 value={price}
                 onChange={(event) => setPrice(event.target.value)}
-                placeholder="0,00000000"
+                placeholder={locale === "en-US" ? "0.00000000" : "0,00000000"}
                 disabled={saving}
                 required
               />
-              <small>Decimal com até 8 casas. Persistido sem formatação monetária.</small>
+              <small>{t("decimalHelp")}</small>
             </label>
             <label className={styles.fullField}>
-              <span>Descrição</span>
+              <span>{t("itemDescription")}</span>
               <input
                 value={description}
                 onChange={(event) => setDescription(event.target.value)}
@@ -493,7 +498,7 @@ function PricingForm({
               />
             </label>
             <label>
-              <span>Vigente a partir de</span>
+              <span>{t("validFrom")}</span>
               <input
                 type="datetime-local"
                 value={effectiveFrom}
@@ -503,11 +508,11 @@ function PricingForm({
               />
             </label>
             <label className={styles.fullField}>
-              <span>Motivo da alteração{mode === "create" ? " (opcional)" : ""}</span>
+              <span>{t("reason")}{mode === "create" ? " (" + t("optional") + ")" : ""}</span>
               <input
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
-                placeholder="Ex.: Atualização da tabela OCI de outubro/2026"
+                placeholder={t("reasonPlaceholder")}
                 disabled={saving}
                 required={mode === "edit"}
                 minLength={mode === "edit" ? 3 : undefined}
@@ -522,22 +527,22 @@ function PricingForm({
                   onChange={(event) => setEnabled(event.target.checked)}
                   disabled={saving}
                 />
-                Cadastrar como ativo
+                {t("createEnabled")}
               </label>
             )}
           </div>
           {mode === "edit" && item && (
             <div className={styles.preview}>
-              <strong>Alteração não destrutiva</strong>
-              <span>Preço atual: {formatBrlDecimal(item.price, locale)}</span>
-              <span>Novo preço: {normalizedPrice ? formatBrlDecimal(normalizedPrice, locale) : "—"}</span>
-              <span>A versão atual será encerrada na nova vigência; o valor anterior continuará no histórico.</span>
+              <strong>{t("nonDestructive")}</strong>
+              <span>{t("currentPrice")}: {formatBrlDecimal(item.price, locale)}</span>
+              <span>{t("nextPrice")}: {normalizedPrice ? formatBrlDecimal(normalizedPrice, locale) : "—"}</span>
+              <span>{t("previewHelp")}</span>
             </div>
           )}
           <div className={styles.formActions}>
-            <button type="button" className="button ghost" onClick={onClose} disabled={saving}>Cancelar</button>
+            <button type="button" className="button ghost" onClick={onClose} disabled={saving}>{t("cancel")}</button>
             <button type="submit" className="button primary" disabled={saving}>
-              {saving ? "Salvando…" : mode === "create" ? "Cadastrar preço" : "Criar nova vigência"}
+              {saving ? t("saving") : mode === "create" ? t("createPrice") : t("createVersion")}
             </button>
           </div>
           <datalist id="pricing-services">{meta?.services.map((value) => <option key={value} value={value} />)}</datalist>
@@ -550,6 +555,10 @@ function PricingForm({
 
 function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
   const locale = useLocale();
+  const t = useTranslations("settings.ociPricing");
+  const statusWords: Record<string, string> = {active:t("statusActive"),inactive:t("statusInactive"),future:t("statusFuture"),expired:t("statusExpired")};
+  const sourceWords: Record<string, string> = {IMPORTED_OCI_CALCULATOR:t("sourceImported"),MANUAL:t("sourceManual")};
+  const unitWords: Record<string, string> = {OCPU_HOUR:t("unitOcpu"),GB_RAM_HOUR:t("unitRam"),GB_MONTH:t("unitGb"),VPU_GB_MONTH:t("unitVpu"),INSTANCE_HOUR:t("unitInstance")};
   const [rows, setRows] = useState<PricingItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -561,7 +570,7 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
         if (active) setRows(data);
       })
       .catch((err) => {
-        if (active) setError(apiMessage(err, "Não foi possível carregar as vigências."));
+        if (active) setError(apiMessage(err, t("historyFailed")));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -574,27 +583,27 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
       <section className={`${styles.modal} ${styles.historyModal}`} role="dialog" aria-modal="true" aria-labelledby="pricing-history-title">
         <div className={styles.modalHeader}>
           <div>
-            <div className="eyebrow">HISTÓRICO DE VIGÊNCIAS</div>
+            <div className="eyebrow">{t("historyEyebrow")}</div>
             <h2 id="pricing-history-title">{item.sku}</h2>
           </div>
-          <button className="button small ghost" onClick={onClose}>Fechar</button>
+          <button className="button small ghost" onClick={onClose}>{t("close")}</button>
         </div>
         {error && <div className="alert error" role="alert">{error}</div>}
-        {loading ? <div className={styles.state}>Carregando vigências…</div> : (
+        {loading ? <div className={styles.state}>{t("historyLoading")}</div> : (
           <div className={styles.historyList}>
             {rows.map((row) => (
               <article key={row.id}>
                 <div>
                   <strong>{formatBrlDecimal(row.price, locale)}</strong>
-                  <span>{row.currency} · {unitLabel(row.unit)}</span>
+                  <span>{row.currency} · {unitWords[row.unit] ?? unitLabel(row.unit)}</span>
                 </div>
                 <div>
                   <strong>{formatRange(row, locale)}</strong>
-                  <span>{pricingStatusLabel(pricingLifecycleStatus(row))}</span>
+                  <span>{statusWords[pricingLifecycleStatus(row)] ?? pricingStatusLabel(pricingLifecycleStatus(row))}</span>
                 </div>
                 <div>
-                  <strong>{sourceLabel(row.source)}</strong>
-                  <span>{row.enabled ? "Habilitado" : "Desabilitado"}</span>
+                  <strong>{sourceWords[row.source] ?? sourceLabel(row.source)}</strong>
+                  <span>{row.enabled ? t("statusEnabled") : t("statusDisabled")}</span>
                 </div>
               </article>
             ))}
@@ -607,6 +616,9 @@ function PricingHistory({ item, onClose }: { item: PricingItem; onClose: () => v
 
 function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: () => void }) {
   const locale = useLocale();
+  const t = useTranslations("settings.ociPricing");
+  const actionWords: Record<string, string> = {CREATED:t("actionCreated"),PRICE_CHANGED:t("actionChanged"),FUTURE_VERSION_CREATED:t("actionFuture"),METADATA_CHANGED:t("actionMetadata"),DEACTIVATED:t("actionDeactivated"),REACTIVATED:t("actionReactivated"),VALIDITY_CHANGED:t("actionValidity"),IMPORTED:t("actionImported")};
+  const auditWords = {price:t("price"),status:t("status"),enabled:t("statusEnabled"),disabled:t("statusDisabled"),endValidity:t("endValidity"),descriptionChanged:t("descriptionChanged"),changeRecorded:t("changeRecorded"),open:t("openEnded")};
   const [data, setData] = useState<PricingAuditPage | null>(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -621,7 +633,7 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
         if (active) setData(result);
       })
       .catch((err) => {
-        if (active) setError(apiMessage(err, "Não foi possível carregar a auditoria."));
+        if (active) setError(apiMessage(err, t("auditFailed")));
       })
       .finally(() => {
         if (active) setLoading(false);
@@ -634,41 +646,41 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
       <section className={`${styles.modal} ${styles.historyModal}`} role="dialog" aria-modal="true" aria-labelledby="pricing-audit-title">
         <div className={styles.modalHeader}>
           <div>
-            <div className="eyebrow">AUDITORIA</div>
+            <div className="eyebrow">{t("auditEyebrow")}</div>
             <h2 id="pricing-audit-title">{item.sku}</h2>
           </div>
-          <button className="button small ghost" onClick={onClose}>Fechar</button>
+          <button className="button small ghost" onClick={onClose}>{t("close")}</button>
         </div>
         {error && <div className="alert error" role="alert">{error}</div>}
         {loading ? (
-          <div className={styles.state} role="status">Carregando auditoria…</div>
+          <div className={styles.state} role="status">{t("auditLoading")}</div>
         ) : !data || data.items.length === 0 ? (
-          <div className={styles.state}>Nenhum evento de auditoria registrado para este pricing key.</div>
+          <div className={styles.state}>{t("auditEmpty")}</div>
         ) : (
           <>
             <div className={styles.historyList}>
               {data.items.map((event) => (
                 <article key={event.id}>
                   <div>
-                    <strong>{auditActionLabel(event.action)}</strong>
+                    <strong>{auditActionLabel(event.action, actionWords)}</strong>
                     <span>{formatAuditDate(event.occurred_at, locale)}</span>
                   </div>
                   <div>
-                    <strong>{auditActorLabel(event)}</strong>
-                    <span>{event.reason ? `Motivo: ${event.reason}` : "Sem motivo informado"}</span>
+                    <strong>{auditActorLabel(event, t("actorSystem"), t("actorRemoved"))}</strong>
+                    <span>{event.reason ? t("auditReason") + ": " + event.reason : t("noReason")}</span>
                   </div>
                   <div>
-                    <strong>{auditDiff(event, locale)}</strong>
-                    <span>Versão: {event.pricing_item_id}</span>
+                    <strong>{auditDiff(event, locale, auditWords)}</strong>
+                    <span>{t("version")}: {event.pricing_item_id}</span>
                   </div>
                 </article>
               ))}
             </div>
             <div className={styles.pagination}>
-              <span>{data.total} evento{data.total === 1 ? "" : "s"} · página {data.page} de {Math.max(1, data.total_pages)}</span>
+              <span>{t("eventCount", {count: data.total, page: data.page, pages: Math.max(1, data.total_pages)})}</span>
               <div>
-                <button className="button small ghost" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>Anterior</button>
-                <button className="button small ghost" disabled={page >= data.total_pages || loading} onClick={() => setPage(page + 1)}>Próxima</button>
+                <button className="button small ghost" disabled={page <= 1 || loading} onClick={() => setPage(page - 1)}>{t("previous")}</button>
+                <button className="button small ghost" disabled={page >= data.total_pages || loading} onClick={() => setPage(page + 1)}>{t("next")}</button>
               </div>
             </div>
           </>
@@ -678,48 +690,29 @@ function PricingAuditHistory({ item, onClose }: { item: PricingItem; onClose: ()
   );
 }
 
-function auditActionLabel(action: string) {
-  const labels: Record<string, string> = {
-    CREATED: "Preço criado",
-    PRICE_CHANGED: "Preço alterado",
-    FUTURE_VERSION_CREATED: "Vigência futura criada",
-    METADATA_CHANGED: "Metadados alterados",
-    DEACTIVATED: "Preço desativado",
-    REACTIVATED: "Preço reativado",
-    VALIDITY_CHANGED: "Vigência alterada",
-    IMPORTED: "Preço importado",
-  };
+function auditActionLabel(action: string, labels: Record<string, string>) {
   return labels[action] ?? action;
 }
 
-function auditActorLabel(event: PricingAuditEvent) {
-  if (event.actor_type === "SYSTEM") return "Sistema";
-  return event.actor_name || event.actor_email || "Usuário removido";
+function auditActorLabel(event: PricingAuditEvent, system: string, removed: string) {
+  if (event.actor_type === "SYSTEM") return system;
+  return event.actor_name || event.actor_email || removed;
 }
 
-function auditDiff(event: PricingAuditEvent, locale = "pt-BR") {
+type AuditWords = {price: string; status: string; enabled: string; disabled: string; endValidity: string; descriptionChanged: string; changeRecorded: string; open: string};
+function auditDiff(event: PricingAuditEvent, locale: string, words: AuditWords) {
   const before = event.before_data;
   const after = event.after_data;
-  if (!before && after?.price) {
-    return `Preço: ${formatBrlDecimal(after.price, locale)} ${after.currency ?? ""}`.trim();
-  }
-  if (before?.price !== after?.price && before?.price && after?.price) {
-    return `Preço: ${formatBrlDecimal(before.price, locale)} → ${formatBrlDecimal(after.price, locale)} ${after.currency ?? before.currency ?? ""}`.trim();
-  }
-  if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) {
-    return `Status: ${before.enabled ? "habilitado" : "desabilitado"} → ${after.enabled ? "habilitado" : "desabilitado"}`;
-  }
-  if (before?.effective_until !== after?.effective_until) {
-    return `Fim da vigência: ${formatAuditOptionalDate(before?.effective_until, locale)} → ${formatAuditOptionalDate(after?.effective_until, locale)}`;
-  }
-  if (before?.description !== after?.description) {
-    return "Descrição alterada";
-  }
-  return "Alteração registrada";
+  if (!before && after?.price) return `${words.price}: ${formatBrlDecimal(after.price, locale)} ${after.currency ?? ""}`.trim();
+  if (before?.price !== after?.price && before?.price && after?.price) return `${words.price}: ${formatBrlDecimal(before.price, locale)} → ${formatBrlDecimal(after.price, locale)} ${after.currency ?? before.currency ?? ""}`.trim();
+  if (before?.enabled !== after?.enabled && before?.enabled !== undefined && after?.enabled !== undefined) return `${words.status}: ${before.enabled ? words.enabled : words.disabled} → ${after.enabled ? words.enabled : words.disabled}`;
+  if (before?.effective_until !== after?.effective_until) return `${words.endValidity}: ${formatAuditOptionalDate(before?.effective_until, locale, words.open)} → ${formatAuditOptionalDate(after?.effective_until, locale, words.open)}`;
+  if (before?.description !== after?.description) return words.descriptionChanged;
+  return words.changeRecorded;
 }
 
-function formatAuditOptionalDate(value: string | null | undefined, locale = "pt-BR") {
-  return value ? formatAuditDate(value, locale) : "aberta";
+function formatAuditOptionalDate(value: string | null | undefined, locale: string, open: string) {
+  return value ? formatAuditDate(value, locale) : open;
 }
 
 function formatAuditDate(value: string, locale = "pt-BR") {

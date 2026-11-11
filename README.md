@@ -254,11 +254,17 @@ npm run dev
 # Verificações do frontend
 npm run lint:brand
 npm run lint:design-system
+npm run lint:i18n
+npm run lint:i18n:references
+npm run lint:i18n:coverage -- --report
+# Em CI: npm run smoke:i18n:browser (Chromium + playwright-core, após build)
 npm run lint
 npm run typecheck
 npm test
 npm run build
 ~~~
+
+A interface oferece `pt-BR` (padrão) e `en-US`, com seletor na Topbar e preferência em cookie `aven.locale`. A camada `next-intl` usa catálogos ICU em ambos idiomas; a alteração de idioma não converte moedas nem altera consultas. Novos textos de interface devem ser localizados e ter proteção de regressão no PR. O relatório 25.9 distingue auditoria estática de verificações reais no navegador, que ainda podem estar pendentes.
 
 O CI contém verificações adicionais de segurança, migrações e smoke tests. Uma execução local parcial não substitui a validação integrada contra AWS/OCI e ambiente de produção.
 
@@ -276,6 +282,7 @@ O CI contém verificações adicionais de segurança, migrações e smoke tests.
 | Dashboard e coletas | [Dashboard](docs/dashboard.md), [Investigação por coleta](docs/collection-investigation.md) |
 | Governança | [Auditoria](docs/audit-events.md), [Usuários](docs/users-and-permissions.md), [Settings](docs/settings.md) |
 | Qualidade visual | [Regressão visual](frontend/docs/visual-regression.md) |
+| Internacionalização | [Guia pt-BR/en-US](docs/i18n/25.9-translation-guidelines.md), [relatório QA](docs/i18n/25.9-final-qa-report.md), [matriz](docs/i18n/25.9-test-matrix.md), [limitações](docs/i18n/25.9-known-limitations.md) |
 
 Os documentos de tarefas numeradas registram decisões históricas. Para o comportamento **atual**, prefira código, APIs, testes e guias operacionais mantidos.
 
@@ -293,3 +300,8 @@ Os documentos de tarefas numeradas registram decisões históricas. Para o compo
 
 **Identidade oficial:** Aven — *Clarity. Flow. Control.*  
 **Repositório:** [DelucaSZ/finops-analytics](https://github.com/DelucaSZ/finops-analytics)
+
+
+### Task 25.9 — validação automatizada da internacionalização
+
+A Task 25.9 adiciona verificadores de catálogo e referências, guardrail incremental contra novos textos fixos e smoke Chromium com HTTPS local. No CI do commit `32ed73d6`, os testes frontend passaram 552/552; [CI](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306806), [Compose](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306736) e [Auto Deploy Tests](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306922) foram aprovados. Veja [matriz](docs/i18n/25.9-test-matrix.md) e [limitações](docs/i18n/25.9-known-limitations.md). A integração automatizada não substitui homologação end-to-end das telas financeiras e administrativas em staging.

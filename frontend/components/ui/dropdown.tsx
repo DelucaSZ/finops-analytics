@@ -229,7 +229,7 @@ export interface DropdownMenuItemProps extends ButtonHTMLAttributes<HTMLButtonEl
 }
 
 export const DropdownMenuItem = forwardRef<HTMLButtonElement, DropdownMenuItemProps>(function DropdownMenuItem(
-  { danger = false, icon, onClick, className, children, type = "button", ...props },
+  { danger = false, icon, onClick, className, children, type = "button", role = "menuitem", ...props },
   ref,
 ) {
   const { setOpen, triggerRef } = useDropdown();
@@ -238,7 +238,7 @@ export const DropdownMenuItem = forwardRef<HTMLButtonElement, DropdownMenuItemPr
       {...props}
       ref={ref}
       type={type}
-      role="menuitem"
+      role={role}
       className={cx(styles.dropdownItem, className)}
       data-danger={danger || undefined}
       onClick={(event) => {
