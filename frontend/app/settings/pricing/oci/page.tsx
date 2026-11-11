@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
@@ -208,7 +209,7 @@ export default function OciPricingPage() {
         </form>
         <label>
           <span>{t("service")}</span>
-          <select
+          <NativeSelect
             value={service}
             onChange={(event) => {
               setOffset(0);
@@ -217,11 +218,11 @@ export default function OciPricingPage() {
           >
             <option value="">{t("all")}</option>
             {meta?.services.map((value) => <option key={value} value={value}>{serviceLabel(value)}</option>)}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           <span>{t("status")}</span>
-          <select
+          <NativeSelect
             value={status}
             onChange={(event) => {
               setOffset(0);
@@ -233,7 +234,7 @@ export default function OciPricingPage() {
             <option value="future">{t("futurePlural")}</option>
             <option value="expired">{t("expiredPlural")}</option>
             <option value="all">{t("all")}</option>
-          </select>
+          </NativeSelect>
         </label>
       </section>
 
