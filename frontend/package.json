@@ -21,7 +21,8 @@
     "smoke:i18n:authenticated": "node scripts/e2e-i18n-authenticated.mjs --smoke",
     "test:i18n:authenticated": "node scripts/e2e-i18n-authenticated.mjs --full",
     "audit:i18n:baseline": "node scripts/reconcile-i18n-baseline.mjs --check",
-    "audit:i18n:baseline:write": "node scripts/reconcile-i18n-baseline.mjs --write"
+    "audit:i18n:baseline:write": "node scripts/reconcile-i18n-baseline.mjs --write",
+    "test:aven:phase26": "node scripts/e2e-i18n-authenticated.mjs --phase26"
   },
   "dependencies": {
     "lucide-react": "^0.468.0",

@@ -94,7 +94,8 @@
   --drawer-inline-size-wide: min(50vw, calc(var(--space-16) * 13));
   --overlay-backdrop-filter: blur(var(--space-1));
 
-  --popover-background: var(--elevation-2-surface);
+  /* Floating selection panels must be opaque over dense Billing filters. */
+  --popover-background: var(--surface-popover-opaque);
   --popover-border: var(--elevation-2-border);
   --popover-radius: var(--radius-card);
   --popover-shadow: var(--elevation-2-shadow);
