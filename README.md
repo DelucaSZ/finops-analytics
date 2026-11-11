@@ -300,3 +300,8 @@ Os documentos de tarefas numeradas registram decisões históricas. Para o compo
 
 **Identidade oficial:** Aven — *Clarity. Flow. Control.*  
 **Repositório:** [DelucaSZ/finops-analytics](https://github.com/DelucaSZ/finops-analytics)
+
+
+### Task 25.9 — validação automatizada da internacionalização
+
+A Task 25.9 adiciona verificadores de catálogo e referências, guardrail incremental contra novos textos fixos e smoke Chromium com HTTPS local. No CI do commit `32ed73d6`, os testes frontend passaram 552/552; [CI](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306806), [Compose](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306736) e [Auto Deploy Tests](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306922) foram aprovados. Veja [matriz](docs/i18n/25.9-test-matrix.md) e [limitações](docs/i18n/25.9-known-limitations.md). A integração automatizada não substitui homologação end-to-end das telas financeiras e administrativas em staging.
