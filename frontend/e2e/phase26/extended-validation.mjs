@@ -25,7 +25,8 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   const visibleCount=await group.getByRole('checkbox').count();
   assert.ok(visibleCount>=15,'large AWS account list missing: '+JSON.stringify({
     accessible:visibleCount,domCount:await group.locator('input[type="checkbox"]').count(),
-    menuText:(await group.innerText()).slice(0,500),
+    menuText:(await menu.innerText()).slice(0,500),groupHTML:(await group.evaluate(el=>el.outerHTML)).slice(0,1500),
+    menuHTML:(await menu.evaluate(el=>el.outerHTML)).slice(0,1800),
     cloudAccountRequests:requests.filter(r=>r.path.includes('cloud-accounts'))
   }));
   const scroll=await list.evaluate(el=>({scroll:el.scrollHeight,client:el.clientHeight,
