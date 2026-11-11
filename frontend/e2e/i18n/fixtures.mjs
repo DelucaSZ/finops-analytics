@@ -188,9 +188,15 @@ export function apiFixture(path,method='GET',body=null) {
   if (pathname==='/collections/options')return {status:200,body:{
     ...commonOptions,has_more_accounts:false
   }};
-  if (pathname==='/collections')return {status:200,body:{
-    ...page([collection]),account_summary:null
-  }};
+  if (pathname==='/collections') {
+    // Legacy consumers (Scans and Opportunities) use the list API array contract
+    // with limit/offset; the Collection Workspace uses a paginated page contract.
+    const params=new URL(path,'https://qa.local').searchParams;
+    if (params.get('limit')==='200' ||
+        (params.get('limit')==='100' && params.has('offset')))
+      return {status:200,body:[collection]};
+    return {status:200,body:{...page([collection]),account_summary:null}};
+  }
   if (pathname==='/collections/qa-collection')return {status:200,body:{
     ...collection,opportunities_observed:1,warning_detail:null,trigger:'MANUAL'
   }};
@@ -202,15 +208,26 @@ export function apiFixture(path,method='GET',body=null) {
     rules_version_warning:null,warnings:[],category:'NEW',items:[],page:1,
     page_size:20,total:0,total_pages:0
   }};
+  if (pathname==='/collections/qa-collection/opportunity-changes')return {status:200,body:{
+    collection_run_id:'qa-collection',status:'SUCCESS',
+    comparison_status:'NO_BASELINE',baseline_run_id:null,baseline:null,
+    comparable:false,reason:'NO_BASELINE',target_details_available:true,
+    comparison_details_available:false,rules_version_changed:null,
+    partial_coverage:false,coverage:{total_scopes:1,successful_scopes:1,
+      failed_scopes:0,skipped_scopes:0,comparable_scopes:0},scope_issues:[],
+    summary:{observed:1,first_seen:1,new_vs_previous:0,reappeared:0,
+      continued:0,no_longer_detected:0,operational_new_vs_previous:0},
+    warnings:[]
+  }};
   if (pathname==='/collections/qa-collection/opportunities')
     return {status:200,body:{...page([finding]),page_size:25}};
   if (pathname==='/dashboard/summary')return {status:200,body:{
     scope:{provider:null,account_id:null,valid_scope_count:1,has_current_data:true},
     opportunities:{open:1,treated:0,rejected:0,new_since_previous:1},
-    severity:{high:1,medium:0,low:0,other:0},
+    severity:{critical:0,high:1,medium:0,low:0,other:0},
     financial:{metric:'estimated_monthly_savings',label:'Estimated monthly savings',
       period:'month',totals:[{currency:'USD',amount:'123.45'}]},
-    by_provider:[],by_account:[],top_opportunities:[],
+    by_provider:[],by_account:[],by_service:[],by_rule:[],top_opportunities:[],data_updated_at:FIXTURE_TIME,
     recent_changes:{new:1,no_longer_detected:0,changed:0,changed_available:true,
       comparable_scopes:1,scopes_without_baseline:0,rules_version_changed_scopes:0,
       rules_version_unknown_scopes:0}
