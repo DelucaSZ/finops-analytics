@@ -79,3 +79,18 @@ test('extended live-Chromium QA validates multiselect mutations, scrolling, disa
   assert.match(runner,/emptyBillingProfiles/);
   assert.match(runner,/manyAccounts/);
 });
+
+
+test('floating Aven dropdowns use opaque semantic surfaces in both themes',()=>{
+  const light=read('app/styles/tokens/semantic-light.css');
+  const dark=read('app/styles/tokens/semantic-dark.css');
+  const components=read('app/styles/tokens/components.css');
+  const primitives=read('components/ui/primitives.module.css');
+  const overlays=read('components/ui/overlays.module.css');
+  assert.match(light,/--surface-popover-opaque:\s*var\(--aven-color-neutral-0\)/);
+  assert.match(dark,/--surface-popover-opaque:\s*var\(--aven-color-neutral-800\)/);
+  assert.match(components,/--popover-background:\s*var\(--surface-popover-opaque\)/);
+  assert.match(primitives,/\.selectPopover\s*\{\s*background:\s*var\(--popover-background\)/);
+  assert.match(overlays,/\.dropdownContent\s*\{\s*background:\s*var\(--popover-background\)/);
+  assert.match(extended,/assertOpaqueSurface/);
+});
