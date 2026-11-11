@@ -22,7 +22,7 @@ class CalculatorPeriod(BaseModel):
     end_at: datetime | None = None
 
     @model_validator(mode="after")
-    def validate_period(self) -> "CalculatorPeriod":
+    def validate_period(self) -> CalculatorPeriod:
         if self.mode in {"hours", "days", "weeks"}:
             if self.amount is None or self.start_at is not None or self.end_at is not None:
                 raise ValueError("duration periods require amount and no date range")
@@ -105,7 +105,7 @@ class AwsFinancialTerms(BaseModel):
     tax_percent: Decimal = Field(default=Decimal("13"), ge=0, allow_inf_nan=False)
 
     @model_validator(mode="after")
-    def validate_conversion(self) -> "AwsFinancialTerms":
+    def validate_conversion(self) -> AwsFinancialTerms:
         if self.conversion_enabled and self.usd_brl_rate is None:
             raise ValueError("usd_brl_rate is required when conversion is enabled")
         if not self.conversion_enabled and self.usd_brl_rate is not None:
@@ -141,7 +141,7 @@ class CalculatorEstimateRequest(BaseModel):
         return value
 
     @model_validator(mode="after")
-    def validate_provider_service(self) -> "CalculatorEstimateRequest":
+    def validate_provider_service(self) -> CalculatorEstimateRequest:
         service = self.resource_configuration.service
         allowed = {"aws": {"ec2", "rds"}, "oci": {"compute", "db_system"}}
         if service not in allowed[self.provider]:
@@ -215,7 +215,7 @@ class CalculatorEstimateResponse(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_financial_consistency(self) -> "CalculatorEstimateResponse":
+    def validate_financial_consistency(self) -> CalculatorEstimateResponse:
         if self.pricing_currency != ("USD" if self.provider == "aws" else "BRL"):
             raise ValueError("provider pricing currency mismatch")
         if self.provider == "oci" and (
@@ -232,7 +232,9 @@ class CalculatorEstimateResponse(BaseModel):
             expected = "BRL" if self.conversion_enabled else "USD"
             if self.final_currency != expected:
                 raise ValueError("AWS final currency does not match conversion_enabled")
-        if any(component.currency != self.pricing_currency for component in self.pricing_components):
+        if any(
+            component.currency != self.pricing_currency for component in self.pricing_components
+        ):
             raise ValueError("mixed currencies in pricing components")
         if self.pricing_status == "priced" and (
             self.monthly_final_cost is None
