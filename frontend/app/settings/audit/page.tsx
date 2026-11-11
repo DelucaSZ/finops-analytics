@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { PageHeader } from "@/components/page-header";
@@ -440,7 +441,7 @@ export default function AuditPage() {
         />
         <label>
           {t("module")}
-          <select
+          <NativeSelect
             value={module}
             onChange={(event) => {
               const value = event.target.value;
@@ -452,33 +453,33 @@ export default function AuditPage() {
             {modules.map(([value, label]) => (
               <option key={value} value={value}>{label}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           {t("action")}
-          <select value={action} onChange={(event) => { setAction(event.target.value); resetPagination(); }}>
+          <NativeSelect value={action} onChange={(event) => { setAction(event.target.value); resetPagination(); }}>
             <option value="">{t("allFeminine")}</option>
             {availableActions.map((value) => (
               <option key={value} value={value}>{actionLabel(value, localizedEvents)}</option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
         <label>
           {t("source")}
-          <select value={source} onChange={(event) => { setSource(event.target.value); resetPagination(); }}>
+          <NativeSelect value={source} onChange={(event) => { setSource(event.target.value); resetPagination(); }}>
             <option value="">{t("allFeminine")}</option>
             <option value="UI">UI</option>
             <option value="API">API</option>
             <option value="SYSTEM">SYSTEM</option>
-          </select>
+          </NativeSelect>
         </label>
         <label>
           {t("eventKind")}
-          <select value={eventKind} onChange={(event) => { setEventKind(event.target.value); resetPagination(); }}>
+          <NativeSelect value={eventKind} onChange={(event) => { setEventKind(event.target.value); resetPagination(); }}>
             <option value="all">{t("all")}</option>
             <option value="administrative">{t("administrativePlural")}</option>
             <option value="security">{t("security")}</option>
-          </select>
+          </NativeSelect>
         </label>
         <label>
           {t("dateFrom")}
