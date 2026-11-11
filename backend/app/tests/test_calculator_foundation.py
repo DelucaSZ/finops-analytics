@@ -304,3 +304,37 @@ def test_priced_response_needs_totals_and_oci_cannot_be_taxed():
         )
     with pytest.raises(ValidationError):
         CalculatorEstimateResponse.model_validate({**base, "tax_percent": "13"})
+
+    # An unavailable price can never be presented as a zero-cost estimate.
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate(
+            {**base, "monthly_final_cost": "0", "period_final_cost": "0"}
+        )
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate({**base, "monthly_final_cost": "0"})
+
+    # The response cannot claim a different service or provider than its resource.
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate({**base, "service": "db_system"})
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate(
+            {**base, "provider": "aws", "pricing_currency": "USD", "final_currency": "USD"}
+        )
+
+    # OCI catalog prices are already net/final BRL; no hidden extra adjustment.
+    priced = {
+        **base,
+        "pricing_status": "priced",
+        "missing_pricing_components": [],
+        "monthly_original_cost": "100",
+        "monthly_net_cost": "100",
+        "monthly_final_cost": "100",
+        "period_original_cost": "100",
+        "period_net_cost": "100",
+        "period_final_cost": "100",
+    }
+    assert CalculatorEstimateResponse.model_validate(priced).monthly_final_cost == Decimal("100")
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate({**priced, "monthly_final_cost": "99"})
+    with pytest.raises(ValidationError):
+        CalculatorEstimateResponse.model_validate({**priced, "period_net_cost": "99"})
