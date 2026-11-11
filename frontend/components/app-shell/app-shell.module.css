@@ -255,9 +255,30 @@
   max-inline-size: var(--shell-user-trigger-max-inline-size);
 }
 
+/* Keep the user initials circular even when the Topbar has limited space. */
+.userTrigger .userAvatar[data-size="md"] {
+  aspect-ratio: 1;
+  block-size: var(--shell-user-avatar-size);
+  border-radius: var(--radius-full);
+  flex: 0 0 var(--shell-user-avatar-size);
+  inline-size: var(--shell-user-avatar-size);
+  min-block-size: var(--shell-user-avatar-size);
+  min-inline-size: var(--shell-user-avatar-size);
+}
+
+.userTrigger .userAvatar > span {
+  white-space: nowrap;
+}
+
+.userTrigger > svg:last-child {
+  flex-shrink: 0;
+}
+
 .userTriggerCopy {
   display: grid;
+  flex: 1 1 auto;
   min-inline-size: var(--space-0);
+  overflow: hidden;
   text-align: start;
 }
 

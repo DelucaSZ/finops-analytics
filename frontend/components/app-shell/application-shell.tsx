@@ -237,7 +237,7 @@ function UserControl({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className={styles.userTrigger} aria-label={t("menu")}>
-        <Avatar fallback={initials} alt={identityLabel} size="sm" />
+        <Avatar fallback={initials} alt={identityLabel} size="md" className={styles.userAvatar} />
         {(displayName || secondary) && (
           <span className={styles.userTriggerCopy}>
             {displayName && <strong>{displayName}</strong>}

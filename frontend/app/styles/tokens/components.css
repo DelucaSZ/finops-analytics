@@ -27,6 +27,7 @@
   --shell-brand-mark-size: var(--space-8);
   --shell-brand-wordmark-filter-dark: none;
   --shell-user-trigger-max-inline-size: calc(var(--space-16) + var(--space-16) + var(--space-16));
+  --shell-user-avatar-size: calc(var(--space-8) + var(--space-1));
 
   /* Shared authentication composition. */
   --auth-layout-padding: var(--space-12);
