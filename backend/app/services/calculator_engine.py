@@ -88,17 +88,19 @@ def duration_seconds(request: CalculatorEstimateRequest) -> Decimal | None:
     if period.mode == "custom":
         assert period.start_at is not None and period.end_at is not None
         delta = period.end_at.astimezone(UTC) - period.start_at.astimezone(UTC)
-        seconds = (
-            Decimal(delta.days * 86400 + delta.seconds)
-            + Decimal(delta.microseconds) / Decimal(1000000)
-        )
+        seconds = Decimal(delta.days * 86400 + delta.seconds) + Decimal(
+            delta.microseconds
+        ) / Decimal(1000000)
     else:
         assert period.amount is not None
-        seconds = period.amount * {
-            "hours": Decimal(3600),
-            "days": Decimal(86400),
-            "weeks": Decimal(604800),
-        }[period.mode]
+        seconds = (
+            period.amount
+            * {
+                "hours": Decimal(3600),
+                "days": Decimal(86400),
+                "weeks": Decimal(604800),
+            }[period.mode]
+        )
     if not seconds.is_finite() or not Decimal(0) < seconds <= MAX_SECONDS:
         raise ValueError("invalid_period_duration")
     return seconds
@@ -127,11 +129,7 @@ def _component_usage(
         if component.increment_seconds is not None or component.minimum_billable_seconds:
             raise ValueError("monthly_units_do_not_use_second_rounding")
         monthly = component.units_per_resource * quantity
-        period = (
-            monthly
-            if seconds is None
-            else monthly * seconds / (month_hours * Decimal(3600))
-        )
+        period = monthly if seconds is None else monthly * seconds / (month_hours * Decimal(3600))
     else:
         increment = component.increment_seconds
         if increment is None or not 1 <= increment <= 2678400:
@@ -201,9 +199,7 @@ def estimate_calculator_cost(
             component, quantity=request.quantity, seconds=seconds
         )
         price = lookup.price if lookup.available else None
-        if price is not None and (
-            price.identity != lookup.identity or price.currency != currency
-        ):
+        if price is not None and (price.identity != lookup.identity or price.currency != currency):
             raise ValueError("component_price_identity_or_currency_mismatch")
         monthly_cost = _finite(price.amount * monthly_units, "monthly_cost") if price else None
         period_cost = _finite(price.amount * period_units, "period_cost") if price else None
@@ -264,7 +260,8 @@ def estimate_calculator_cost(
         period_duration_hours=seconds / Decimal(3600) if seconds is not None else None,
         pricing_components=line_items,
         pricing_source=(next(iter(sources)) if len(sources) == 1 else "MULTIPLE_SOURCES")
-        if sources else None,
+        if sources
+        else None,
         pricing_reference_date=reference,
         pricing_currency=currency,
         final_currency=currency if terms is None or not terms.conversion_enabled else "BRL",
