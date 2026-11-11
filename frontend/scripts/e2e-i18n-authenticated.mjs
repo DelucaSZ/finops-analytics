@@ -261,7 +261,9 @@ async function visualAndAccessibility(){
             runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}
           });
           return result.violations.map(v=>({id:v.id,impact:v.impact,
-            nodes:v.nodes.length,description:v.help}));
+            nodes:v.nodes.length,description:v.help,
+            affected:v.nodes.map(node=>({target:node.target,
+              html:node.html?.slice(0,400),failureSummary:node.failureSummary?.slice(0,450)}))}));
         });
         record.axeViolations=issues;
         assert.deepEqual(issues.filter(v=>v.impact==='critical'||v.impact==='serious'),[],
