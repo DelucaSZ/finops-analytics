@@ -76,7 +76,7 @@ async function visit(page,route,locale,record,{screenshot=false}={}){
   assert.ok(response&&response.status()<500,'SSR failed: '+route+' HTTP '+response?.status());
   await page.waitForFunction(expected=>document.documentElement.lang===expected,locale,{timeout});
   await selector(page).waitFor({state:'visible',timeout});
-  assert.equal(new URL(page.url()).pathname,route,'protected route redirected or navigated away');
+  assert.equal(new URL(page.url()).pathname,new URL(route,BASE).pathname,'protected route redirected or navigated away');
   await page.locator('h1').first().waitFor({state:'visible',timeout});
   const content=await page.locator('body').innerText();
   assert.ok(content.trim().length>35,'page has no visible content');
@@ -124,8 +124,10 @@ async function scenario(locale,route,action){
     await visit(page,route,locale,record);
     await page.waitForTimeout(700);
     await action(page,requests);
+    const formState=await page.locator('main select').evaluateAll(elements=>elements.map(el=>el.value));
     const beforeUrl=new URL(page.url());
     const beforePath=beforeUrl.pathname,beforeSearch=beforeUrl.search;
+    const requestCheckpoint=requests.length;
     const beforePayloads=requests.filter(r=>r.status===200&&
       /^(\/billing\/aws\/|\/inventory\/resources|\/finops\/flow\/|\/opportunities\?|\/rds\/reservations-dashboard\/)/.test(r.path))
       .map(r=>({method:r.method,path:r.path,payload:r.payload}));
@@ -136,13 +138,20 @@ async function scenario(locale,route,action){
     await page.waitForFunction(expected=>document.documentElement.lang===expected,other,{timeout});
     assert.equal(new URL(page.url()).pathname,beforePath,'locale switch changed route');
     assert.equal(new URL(page.url()).search,beforeSearch,'locale switch dropped query filters');
+    const afterFormState=await page.locator('main select').evaluateAll(elements=>elements.map(el=>el.value));
+    assert.deepEqual(afterFormState,formState,'locale switch reset selected filter values');
     assert.equal(await page.evaluate(()=>window.__avenQaPreserved),'25.9B',
       'locale switch remounted client state');
     assert.equal((await ctx.cookies(BASE)).find(c=>c.name==='aven.locale')?.value,other);
     assert.deepEqual(record.pageErrors,[],'runtime errors after locale switch');
-    const afterPayloads=requests.slice(beforePayloads.length).filter(r=>r.status===200&&
+    const afterPayloads=requests.slice(requestCheckpoint).filter(r=>r.status===200&&
       /^(\/billing\/aws\/|\/inventory\/resources|\/finops\/flow\/|\/opportunities\?|\/rds\/reservations-dashboard\/)/.test(r.path))
       .map(r=>({method:r.method,path:r.path,payload:r.payload}));
+    // A locale may refetch business queries, but must not change their technical parameters.
+    for(const next of afterPayloads){
+      const previous=beforePayloads.find(p=>p.path===next.path&&p.method===next.method);
+      if(previous)assert.deepEqual(next.payload,previous.payload,'locale modified a business request');
+    }
     record.payloadsBefore=beforePayloads.length;
     record.payloadsAfter=afterPayloads.length;
     record.unexpectedBackend= requests.filter(r=>r.unsupported).map(r=>r.path);
