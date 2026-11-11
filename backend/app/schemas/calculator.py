@@ -86,10 +86,7 @@ class OciDbSystemConfiguration(BaseModel):
 
 
 ResourceConfiguration = Annotated[
-    AwsEc2Configuration
-    | AwsRdsConfiguration
-    | OciComputeConfiguration
-    | OciDbSystemConfiguration,
+    AwsEc2Configuration | AwsRdsConfiguration | OciComputeConfiguration | OciDbSystemConfiguration,
     Field(discriminator="service"),
 ]
 
