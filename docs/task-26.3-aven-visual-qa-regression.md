@@ -49,6 +49,13 @@ npm run test:aven:phase26
 
 The CI also runs Python backend checks, pytest, security checks and the production web image build as configured in `.github/workflows/ci.yml`. The new browser command is wired into that existing workflow.
 
+## Findings and corrections during Task 26.3
+
+- Initial Chromium run [43034149770](https://github.com/DelucaSZ/finops-analytics/actions/runs/43034149770): **68 passed, 2 failed, 0 blocked**, from 70 browser cases. Both failures occurred on `/collections` (one in each locale) while Playwright attempted to scroll a combobox inside a **hidden tab** into view. This is an **automation selector defect**, not a confirmed application regression.
+- Correction: scope actionable dropdown tests to `:visible` controls; preserve the separate structural assertion against native `<select>` tags in all mounted page content.
+- Add regression guard against hidden-tab interaction and ensure blocked synthetic API fixtures fail the Phase 26 CI gate instead of silently passing.
+- Rerun the dedicated Chromium matrix after the correction; do not count the first run as PASS.
+
 ## Execution status and evidence protocol
 
 - **Baseline integrated CI:** PASS on the `main` baseline commit above.
