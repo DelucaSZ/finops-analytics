@@ -127,7 +127,8 @@ async function scenario(locale,route,action){
     await visit(page,route,locale,record);
     await page.waitForTimeout(700);
     await action(page,requests);
-    const formState=await page.locator('main select').evaluateAll(elements=>elements.map(el=>el.value));
+    const formState=await page.locator('main select').evaluateAll(elements=>
+      Object.fromEntries(elements.filter(el=>el.id).map(el=>[el.id,el.value])));
     const beforeUrl=new URL(page.url());
     const beforePath=beforeUrl.pathname,beforeSearch=beforeUrl.search;
     const requestCheckpoint=requests.length;
@@ -153,8 +154,13 @@ async function scenario(locale,route,action){
       assert.ok(beforeQuery.get(key)===value||
         (key==='profile'&&value==='qa-profile'&&route.startsWith('/billing')),
         'locale switch introduced unexpected filter '+key);
-    const afterFormState=await page.locator('main select').evaluateAll(elements=>elements.map(el=>el.value));
-    assert.deepEqual(afterFormState,formState,'locale switch reset selected filter values');
+    const afterFormState=await page.locator('main select').evaluateAll(elements=>
+      Object.fromEntries(elements.filter(el=>el.id).map(el=>[el.id,el.value])));
+    // Newly mounted paging controls may appear asynchronously after a query;
+    // compare only existing select IDs, not an unstable positional DOM array.
+    for(const [id,value] of Object.entries(formState))
+      assert.equal(afterFormState[id],value,
+        'locale switch reset selected filter '+id);
     assert.equal(await page.evaluate(()=>window.__avenQaPreserved),'25.9B',
       'locale switch remounted client state');
     assert.equal((await ctx.cookies(BASE)).find(c=>c.name==='aven.locale')?.value,other);
