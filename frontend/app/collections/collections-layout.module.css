@@ -332,3 +332,16 @@
     align-items: stretch;
   }
 }
+
+
+/* Collections' old native-select wrappers now delegate borders to the Aven primitive. */
+.scope :global(.collection-toolbar label:has([data-aven-select])) {
+  display: grid;
+  gap: var(--form-field-gap);
+  inline-size: min(100%, var(--filter-field-default-inline-size));
+  min-inline-size: 0;
+}
+
+.scope :global(.baselinePicker [data-aven-select]) {
+  max-inline-size: 100%;
+}
