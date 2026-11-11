@@ -88,7 +88,7 @@ function technicalReason(row) {
   const text=normalize(row.original_text);
   if(row.category==="html_lang")return "HTML lang is a locale-controlled attribute, not translated copy";
   if(["locale_constant","locale_format"].includes(row.category))return "locale/formatter expression, not standalone interface copy";
-  if(/^(?:xMidYMid meet|ocid1\.|arn:|[A-Z_][A-Z_0-9./-]+$)/.test(text))return "technical code or SVG property";
+  if(/^(?:xMidYMid meet|ocid1\.|arn:|AWS|OCI|SKU|OCID|ARN|RDS|HTTPS|HTTP|IAM|MFA|API|UI|TLS|DNS|NU|BRL|USD|JSON|FAILED|SKIPPED)$/.test(text))return "technical resource code, protocol/acronym or status enum";
   if(/^(?:rotate\(|translate\(|scale\(|0 0 \$\{)/.test(text))return "SVG geometry expression";
   if(/^(?:UI|API|MFA|occurred_at|CollectionRun|api)$/.test(text))return "stable technical enum, acronym, schema field or API symbol";
   if(/^[a-z]{2}-[a-z0-9-]+-[0-9](?:,\s*[a-z]{2}-[a-z0-9-]+-[0-9])*$/.test(text))return "cloud region identifiers (examples, not copy)";
@@ -134,7 +134,7 @@ export function reconcile(records,sources,ptCatalog,enCatalog,devGuard) {
       result("non_translatable","technical_expression","medium",
         file+": "+technicalReason(r)+"; category "+r.category);
     } else {
-      const literal=facts.candidates.find(c=>normalize(c.text)===value);
+      const literal=facts.candidates.find(c=>normalize(c.text)===value && ["jsx","attribute"].includes(c.kind));
       if(r.historical_translation_required==="yes"&&literal) {
         r.current_line=String(literal.line);
         result("missing_translation","ast_visible_literal","high",
@@ -189,7 +189,7 @@ export function validateEvidence(rows,sources,ptCatalog,enCatalog) {
   for(const r of rows) {
     if(r.status==="missing_translation") {
       const candidates=indexed.get(r.current_file)?.candidates||[];
-      if(!candidates.some(c=>normalize(c.text)===normalize(r.original_text)))
+      if(!candidates.some(c=>normalize(c.text)===normalize(r.original_text)&&["jsx","attribute"].includes(c.kind)))
         throw Error("No AST-visible literal for missing_translation: "+r.id);
     }
     if(r.status==="non_translatable"&&r.match_strategy==="verified_technical_token"&&!technicalReason(r))
