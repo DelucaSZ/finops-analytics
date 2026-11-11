@@ -98,7 +98,7 @@ function technicalReason(row) {
   return null;
 }
 /** Every historical ID gets an evidence trail; catalog-only strings remain needs_review. */
-export function reconcile(records,sources,ptCatalog,enCatalog,devGuard) {
+export function reconcile(records,sources,ptCatalog,enCatalog,devGuard,{preserveReviewedEvidence=true}={}) {
   const pt=flatten(ptCatalog),en=flatten(enCatalog);
   const valueKeys=new Map();
   for(const [key,value] of pt){const text=normalize(value);if(!valueKeys.has(text))valueKeys.set(text,[]);valueKeys.get(text).push(key);}
@@ -108,6 +108,12 @@ export function reconcile(records,sources,ptCatalog,enCatalog,devGuard) {
     const r={...historic};
     if(ids.has(r.id))throw Error("Duplicate ID "+r.id);
     ids.add(r.id);
+    // Curated reviews are the source of truth only while their references still validate.
+    // `--refresh` provides a fresh, unaudited AST candidate pass without these annotations.
+    if(preserveReviewedEvidence && r.verification_method && r.match_strategy && r.evidence && r.confidence) {
+      output.push(r);
+      continue;
+    }
     for(const field of EXTRA_FIELDS)r[field]="";
     const file=r.historical_file,src=sources.get(file),facts=index.get(file),value=normalize(r.original_text);
     r.current_file=src===undefined?"":file;
@@ -186,19 +192,43 @@ function inventory() {
 export function validateEvidence(rows,sources,ptCatalog,enCatalog) {
   const pt=flatten(ptCatalog),en=flatten(enCatalog);
   const indexed=new Map([...sources].map(([f,s])=>[f,indexSource(s,f)]));
+  const allowed=new Set(["translated","non_translatable","external_content","obsolete",
+    "missing_translation","partial_translation","needs_review"]);
+  const devSource=sources.get("frontend/app/dev/ui/layout.tsx")||"";
   for(const r of rows) {
+    if(!allowed.has(r.status))throw Error("Invalid i18n status for "+r.id+": "+r.status);
+    if(!["high","medium","low"].includes(r.confidence))throw Error("Missing confidence "+r.id);
+    if(!r.match_strategy||!r.verification_method||!r.evidence||r.evidence.length<15)
+      throw Error("Insufficient auditable evidence for "+r.id);
+    if(r.current_file && !sources.has(r.current_file))throw Error("Stale source location "+r.id);
+    if(r.status==="needs_review"&&(!r.pending_action||r.pending_action.length<15))
+      throw Error("Unresolved record lacks an individual review action "+r.id);
+    if(r.status==="obsolete" && (!r.historical_file.startsWith("frontend/app/dev/ui/") ||
+      !/NODE_ENV\s*===\s*["']production["']\)\s*notFound\(\)/.test(devSource)))
+      throw Error("Obsolete status lacks production route gate "+r.id);
     if(r.status==="missing_translation") {
       const candidates=indexed.get(r.current_file)?.candidates||[];
-      if(!candidates.some(c=>normalize(c.text)===normalize(r.original_text)&&["jsx","attribute"].includes(c.kind)))
-        throw Error("No AST-visible literal for missing_translation: "+r.id);
+      if(!candidates.some(c=>normalize(c.text)===normalize(r.original_text) &&
+        ["jsx","attribute"].includes(c.kind)))
+        throw Error("No current AST-visible literal for missing_translation: "+r.id);
     }
-    if(r.status==="non_translatable"&&r.match_strategy==="verified_technical_token"&&!technicalReason(r))
-      throw Error("Unjustified technical token exclusion "+r.id);
-    if(r.status!=="translated")continue;
-    if(!r.translation_key)throw Error("Translated row lacks key "+r.id);
-    if(!pt.has(r.translation_key)||!en.has(r.translation_key))throw Error("Catalog mismatch "+r.id);
-    const refs=indexed.get(r.current_file)?.translations||[];
-    if(!refs.some(ref=>ref.key===r.translation_key))throw Error("No AST source use: "+r.id);
+    if(r.status==="non_translatable" &&
+      ["verified_technical_token","technical_source_ast_context"].includes(r.match_strategy) &&
+      !technicalReason(r))throw Error("Unjustified technical exclusion "+r.id);
+    if(r.status==="external_content" &&
+      !sources.get(r.current_file||r.historical_file)?.includes(normalize(r.original_text)))
+      throw Error("External expression no longer traceable "+r.id);
+    if(r.status==="translated"||r.status==="partial_translation") {
+      if(!r.translation_key)throw Error("Translated row lacks key "+r.id);
+      if(!pt.has(r.translation_key) || (r.status==="translated"&&!en.has(r.translation_key)))
+        throw Error("Catalog key missing "+r.id);
+      if(r.pt_br_value!==pt.get(r.translation_key)||
+        (r.status==="translated"&&r.en_us_value!==en.get(r.translation_key)))
+        throw Error("Catalog value changed; reverify semantic correspondence "+r.id);
+      const refs=indexed.get(r.current_file)?.translations||[];
+      if(!refs.some(ref=>ref.key===r.translation_key))
+        throw Error("No AST source use for "+r.id+": "+r.translation_key);
+    }
   }
 }
 if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
@@ -211,11 +241,14 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     const sources=inventory();
     const devGuard=/process\.env\.NODE_ENV\s*===\s*["']production["']\)\s*notFound\(\)/
       .test(sources.get("frontend/app/dev/ui/layout.tsx")||"");
-    const generated=reconcile(rows,sources,catalogs["pt-BR"],catalogs["en-US"],devGuard);
+    const refresh=process.argv.includes("--refresh");
+    const generated=reconcile(rows,sources,catalogs["pt-BR"],catalogs["en-US"],devGuard,
+      {preserveReviewedEvidence:!refresh});
     validateEvidence(generated,sources,catalogs["pt-BR"],catalogs["en-US"]);
     const fields=[...new Set([...header,...EXTRA_FIELDS])];
     const first=csvSerialize(generated,fields);
-    const second=csvSerialize(reconcile(rows,sources,catalogs["pt-BR"],catalogs["en-US"],devGuard),fields);
+    const second=csvSerialize(reconcile(rows,sources,catalogs["pt-BR"],catalogs["en-US"],devGuard,
+      {preserveReviewedEvidence:!refresh}),fields);
     if(first!==second)throw Error("Non-deterministic reconciliation");
     const count=Object.fromEntries([...new Set(generated.map(r=>r.status))].sort()
       .map(status=>[status,generated.filter(r=>r.status===status).length]));
@@ -227,8 +260,15 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     console.log("[Aven 25.9A snapshot diff] "+JSON.stringify({count:changed.length,examples:changed.slice(0,70)}));
     if(process.argv.includes("--write"))writeFileSync(CSV,first);
     else if(process.argv.includes("--check")) {
-      const existing=parseCsv(readFileSync(CSV,"utf8")).rows;
-      validateEvidence(existing,sources,catalogs["pt-BR"],catalogs["en-US"]);
+      if(first!==csvSerialize(rows,fields))throw Error("Approved CSV changed or non-deterministic; rerun audit and review evidence");
+    }
+    if(process.argv.includes("--candidates") && !refresh) {
+      const fresh=reconcile(rows,sources,catalogs["pt-BR"],catalogs["en-US"],devGuard,
+        {preserveReviewedEvidence:false});
+      const suggestions=fresh.flatMap((x,i)=>x.status!==rows[i].status ?
+        [{id:x.id,approved:rows[i].status,candidate:x.status}]:[]);
+      console.log("[Aven 25.9A unaudited candidates] "+JSON.stringify({
+        count:suggestions.length,examples:suggestions.slice(0,80)}));
     }
   } catch(error){console.error("[Aven 25.9A] "+String(error));process.exitCode=1;}
 }
