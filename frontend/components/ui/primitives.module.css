@@ -564,3 +564,148 @@
     transition-property: none;
   }
 }
+
+/* Task 26.1: Aven single-select control, sharing the Billing account popover language. */
+.selectShell {
+  inline-size: 100%;
+  position: relative;
+}
+
+.selectTrigger {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: inherit;
+  color: inherit;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  gap: var(--control-gap);
+  inline-size: 100%;
+  block-size: 100%;
+  justify-content: space-between;
+  line-height: var(--type-body-md-line-height);
+  min-inline-size: 0;
+  padding: 0;
+  text-align: start;
+}
+
+.selectTrigger:focus-visible {
+  outline: none;
+}
+
+.selectTrigger:disabled,
+.selectShell[data-disabled="true"] .selectTrigger {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.selectShell[data-open="true"] {
+  border-color: var(--border-focus);
+}
+
+.selectShell[data-open="true"] .selectChevron {
+  transform: rotate(180deg);
+}
+
+.selectValue {
+  min-inline-size: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.selectPlaceholder,
+.selectChevron {
+  color: var(--text-muted);
+}
+
+.selectChevron {
+  flex: none;
+  transition: transform var(--motion-duration-fast) var(--motion-ease-standard);
+}
+
+.selectNative {
+  block-size: 1px;
+  clip-path: inset(50%);
+  inline-size: 1px;
+  opacity: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+}
+
+.selectPopover {
+  background: var(--popover-background);
+  border: 1px solid var(--popover-border);
+  border-radius: var(--popover-radius);
+  box-shadow: var(--popover-shadow);
+  color: var(--text-primary);
+  display: grid;
+  gap: var(--space-1);
+  inline-size: max-content;
+  max-block-size: min(calc(var(--control-height-comfortable) * 8), calc(100dvh - var(--space-4)));
+  max-inline-size: calc(100vw - var(--space-4));
+  min-inline-size: min(var(--popover-min-inline-size), calc(100vw - var(--space-4)));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: var(--space-2);
+  position: fixed;
+  scrollbar-gutter: stable;
+  z-index: var(--z-index-dropdown);
+}
+
+.selectPopover[data-positioned="false"] {
+  visibility: hidden;
+}
+
+.selectOption {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-control);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  font-family: var(--type-body-md-family);
+  font-size: var(--type-body-md-size);
+  font-weight: var(--type-body-md-weight);
+  gap: var(--space-2);
+  inline-size: 100%;
+  line-height: var(--type-body-md-line-height);
+  min-block-size: var(--control-height-compact);
+  min-inline-size: 0;
+  padding: var(--space-2) var(--space-3);
+  text-align: start;
+}
+
+.selectOption:hover:not(:disabled),
+.selectOption[data-active="true"]:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.selectOption[aria-selected="true"] {
+  background: var(--surface-selected);
+}
+
+.selectOption:disabled {
+  color: var(--text-disabled);
+  cursor: not-allowed;
+}
+
+.selectOptionLabel {
+  flex: 1 1 auto;
+  min-inline-size: 0;
+  overflow-wrap: anywhere;
+}
+
+.selectCheck {
+  color: var(--action-primary);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .selectChevron { transition: none; }
+}
