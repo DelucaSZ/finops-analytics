@@ -22,25 +22,35 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   withinViewport(await menu.boundingBox(),viewport.width,viewport.height);
   const group=menu.getByRole('group');
   const list=group;
-  const visibleCount=await group.getByRole('checkbox').count();
+  const visibleCount=await group.locator('input[type="checkbox"]').count();
   assert.ok(visibleCount>=15,'large AWS account list missing: '+JSON.stringify({
     accessible:visibleCount,domCount:await group.locator('input[type="checkbox"]').count(),
     menuText:(await menu.innerText()).slice(0,500),groupHTML:(await group.evaluate(el=>el.outerHTML)).slice(0,1500),
     menuHTML:(await menu.evaluate(el=>el.outerHTML)).slice(0,1800),
     cloudAccountRequests:requests.filter(r=>r.path.includes('cloud-accounts'))
   }));
+  const optionSemantics=await group.evaluate(el=>({
+    groupLabel:el.getAttribute('aria-label'),
+    inputs:[...el.querySelectorAll('label input[type="checkbox"]')].map(input=>({
+      checked:input.getAttribute('aria-checked'),
+      label:input.closest('label')?.textContent?.trim()
+    }))
+  }));
+  assert.ok(optionSemantics.groupLabel && optionSemantics.inputs.length>=15 &&
+    optionSemantics.inputs.every(x=>x.label && x.checked!==null),
+    'AWS option accessibility labels or checked semantics missing');
   const scroll=await list.evaluate(el=>({scroll:el.scrollHeight,client:el.clientHeight,
     overflow:getComputedStyle(el).overflowY}));
   assert.ok(scroll.scroll>scroll.client+25 && scroll.overflow==='auto',
     'account list must scroll internally: '+JSON.stringify(scroll));
   const search=menu.getByRole('textbox').first();
   await search.fill('not-a-real-aws-account');
-  assert.equal(await group.getByRole('checkbox').count(),0,'search did not filter accounts');
+  assert.equal(await group.locator('input[type="checkbox"]').count(),0,'search did not filter accounts');
   await search.fill('QA Additional AWS 16');
-  assert.equal(await group.getByRole('checkbox').count(),1,'search did not find long account');
+  assert.equal(await group.locator('input[type="checkbox"]').count(),1,'search did not find long account');
   await search.fill('');
-  assert.ok(await group.getByRole('checkbox').count()>=15);
-  const original=await group.getByRole('checkbox').first().isChecked();
+  assert.ok(await group.locator('input[type="checkbox"]').count()>=15);
+  const original=await group.locator('input[type="checkbox"]').first().isChecked();
   assert.equal(original,true,'original AWS account selection lost');
 
   // Real checkbox clear / select-all actions must update selection and API params.
@@ -48,7 +58,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   assert.equal(await clear.isDisabled(),false,'clear action unexpectedly disabled');
   await clear.click();
   await wait(page,()=>!new URL(location.href).searchParams.has('accounts'));
-  assert.equal(await group.getByRole('checkbox').first().isChecked(),false,
+  assert.equal(await group.locator('input[type="checkbox"]').first().isChecked(),false,
     'clear action did not deselect AWS account');
   await menu.locator('label').first().click(); // select all available AWS accounts
   await wait(page,()=>new URL(location.href).searchParams.get('accounts')?.split(',').length===15);
@@ -61,8 +71,8 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
       r.payload?.account_ids?.length===15 &&
       r.payload.account_ids.includes(1) && r.payload.account_ids.includes(16)),
     'multi-account selection not reflected in Billing API payload');
-  assert.equal(await group.getByRole('checkbox').count(),15);
-  assert.ok(await group.getByRole('checkbox').evaluateAll(elements=>elements.every(e=>e.checked)),
+  assert.equal(await group.locator('input[type="checkbox"]').count(),15);
+  assert.ok(await group.locator('input[type="checkbox"]').evaluateAll(elements=>elements.every(e=>e.checked)),
     'select-all did not check every AWS account');
   await page.screenshot({path:out+'/phase26-expanded-multiselect-'+locale+'-'+viewport.name+'.png',
     animations:'disabled'});
