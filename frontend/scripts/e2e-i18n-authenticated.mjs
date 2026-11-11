@@ -210,6 +210,7 @@ async function runFunctional(){
     });
     await scenario(locale,'/flow',async(page,requests)=>{
       await page.locator('h3').first().waitFor({timeout});
+      const previousSummaryRequests=requests.filter(r=>r.path.startsWith('/finops/flow/summary')).length;
       const first=page.locator('select').first();
       const trigger=page.locator('[data-aven-select] [role="combobox"]').first();
       await trigger.focus();
@@ -230,13 +231,24 @@ async function runFunctional(){
       await page.getByRole('option',{name:label,exact:true}).click();
       assert.equal(await first.inputValue(),'previous_month',
         'Aven dropdown failed to retain the native filter value');
-      assert.ok(requests.some(r=>r.path.startsWith('/finops/flow/summary')&&r.status===200));
+      // The first render still contains the old period; wait for the new API cycle
+      // before checking the finalized UI rather than matching a stale value.
+      for(let attempt=0;attempt<30;attempt++){
+        if(requests.filter(r=>r.path.startsWith('/finops/flow/summary')).length>previousSummaryRequests)break;
+        await page.waitForTimeout(100);
+      }
+      const summaryRequests=requests.filter(r=>r.path.startsWith('/finops/flow/summary'));
+      assert.ok(summaryRequests.length>previousSummaryRequests,
+        'custom dropdown did not request updated Flow summary');
+      assert.ok(summaryRequests.at(-1).status===200,
+        'custom dropdown Flow refresh failed');
+      await page.waitForTimeout(450);
       const expected=new Intl.NumberFormat(locale,{
         minimumFractionDigits:2,maximumFractionDigits:2
       }).format(Number(FIXTURE_FINANCIAL.estimatedSavings));
-      await page.waitForFunction(value=>document.body.innerText.includes(value),expected,{timeout});
       assert.ok((await page.locator('body').innerText()).includes(expected),
-        'flow savings disappeared from UI after refresh');
+        'flow savings disappeared after selection; latest requests: '+
+        JSON.stringify(summaryRequests.slice(-2)));
     });
     await scenario(locale,'/opportunities',async(page,requests)=>{
       await page.getByText('QA opportunity').first().waitFor({timeout});
