@@ -17,6 +17,7 @@ interface TabsContextValue {
   value: string;
   setValue(value: string): void;
   baseId: string;
+  hasPanels: boolean;
 }
 
 const TabsContext = createContext<TabsContextValue | null>(null);
@@ -31,13 +32,15 @@ export interface TabsProps extends HTMLAttributes<HTMLDivElement> {
   value?: string;
   defaultValue: string;
   onValueChange?: (value: string) => void;
+  /** False for segmented navigation controls that have no tabpanels. */
+  hasPanels?: boolean;
 }
 
-export function Tabs({ value, defaultValue, onValueChange, className, children, ...props }: TabsProps) {
+export function Tabs({ value, defaultValue, onValueChange, hasPanels = true, className, children, ...props }: TabsProps) {
   const [activeValue, setValue] = useControllableState({ value, defaultValue, onChange: onValueChange });
   const baseId = useId();
   return (
-    <TabsContext.Provider value={{ value: activeValue, setValue, baseId }}>
+    <TabsContext.Provider value={{ value: activeValue, setValue, baseId, hasPanels }}>
       <div className={cx(styles.tabsRoot, className)} {...props}>{children}</div>
     </TabsContext.Provider>
   );
@@ -75,7 +78,7 @@ export interface TabsTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement
 }
 
 export function TabsTrigger({ value, className, children, type = "button", ...props }: TabsTriggerProps) {
-  const { value: activeValue, setValue, baseId } = useTabs();
+  const { value: activeValue, setValue, baseId, hasPanels } = useTabs();
   const selected = activeValue === value;
   return (
     <button
@@ -85,7 +88,7 @@ export function TabsTrigger({ value, className, children, type = "button", ...pr
       role="tab"
       className={cx(styles.tabTrigger, className)}
       aria-selected={selected}
-      aria-controls={`${baseId}-panel-${value}`}
+      aria-controls={hasPanels && selected ? `${baseId}-panel-${value}` : undefined}
       tabIndex={selected ? 0 : -1}
       onClick={(event) => {
         props.onClick?.(event);
