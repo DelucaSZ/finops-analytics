@@ -13,6 +13,14 @@ function withinViewport(rect,width,height) {
     rect.y+rect.height<=height+2,'dropdown clipped outside viewport: '+JSON.stringify(rect));
 }
 
+function assertOpaqueSurface(cssColor,component) {
+  const match=cssColor.match(/^rgba?\(([^)]+)\)$/);
+  assert.ok(match,'unexpected computed '+component+' background: '+cssColor);
+  const channels=match[1].split(/[,\s/]+/).filter(Boolean);
+  const alpha=channels.length===4?Number(channels[3]):1;
+  assert.equal(alpha,1,component+' must be opaque to prevent background text bleeding');
+}
+
 async function verifyMultiSelect(page,requests,viewport,locale,out) {
   const trigger=page.locator('main button[aria-haspopup="menu"]').first();
   await trigger.click();
@@ -20,6 +28,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   await menu.waitFor({state:'visible'});
   await wait(page,()=>document.querySelector('[role="menu"][data-positioned="true"]')!==null);
   withinViewport(await menu.boundingBox(),viewport.width,viewport.height);
+  assertOpaqueSurface(await menu.evaluate(el=>getComputedStyle(el).backgroundColor),'AWS multiselect');
   const group=menu.getByRole('group');
   const list=group;
   // Options arrive after the authenticated Billing bootstrap: never inspect a transient empty list.
@@ -98,6 +107,7 @@ async function verifySingleSelect(page,requests,viewport) {
   await list.waitFor({state:'visible'});
   await wait(page,()=>document.querySelector('[role="listbox"][data-positioned="true"]')!==null);
   withinViewport(await list.boundingBox(),viewport.width,viewport.height);
+  assertOpaqueSurface(await list.evaluate(el=>getComputedStyle(el).backgroundColor),'single select');
   const selected=list.locator('[role="option"][aria-selected="true"]');
   assert.equal(await selected.count(),1,'selected option is not exposed by ARIA');
   const label=(await native.locator('option[value="UNBLENDED_COST"]').textContent())?.trim();
