@@ -51,7 +51,8 @@ async function checkAvatar(page) {
 }
 
 async function checkSingleSelect(page,width,height) {
-  const triggers=page.locator('main [data-aven-select] [role="combobox"]:not([disabled])');
+  // Inactive tabs may keep controls mounted but hidden: only interactive visible popups can be audited.
+  const triggers=page.locator('main [data-aven-select] [role="combobox"]:not([disabled]):visible');
   const count=await triggers.count();
   if(!count)return 0;
   const trigger=triggers.first();
@@ -61,7 +62,6 @@ async function checkSingleSelect(page,width,height) {
   assert.equal(await trigger.getAttribute('aria-expanded'),'true','ArrowDown did not open Aven select');
   const list=page.getByRole('listbox').first();
   await list.waitFor({state:'visible'});
-  await list.locator('[data-positioned="true"]').count(); // no-op for old browsers
   await page.waitForFunction(()=>document.querySelector('[role="listbox"][data-positioned="true"]')!==null);
   measuredBounds(await list.boundingBox(),width,height);
   const visual=await list.evaluate(el=>{
