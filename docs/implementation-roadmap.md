@@ -5116,3 +5116,40 @@ Ficam fora da 23.19:
 - Opportunities/Findings;
 - export pipeline novo;
 - redesign global, reservado para a Task 23.20.
+
+
+## Fase 27 — Aven Cloud Cost Calculator
+
+### Task 27.1 — Foundation & Pricing Audit
+
+**Status:** implementada em branch dedicada; validação CI e PR determinam o aceite final.  
+**Data de referência:** 11/11/2026.
+
+Foi estabelecida a fundação independente da calculadora, sem antecipar interface ou
+motor temporal: contratos Pydantic para AWS EC2, AWS RDS, OCI Compute VM e OCI
+DB System; adapter somente de leitura para o catálogo persistente; resoluções
+OCI Compute a partir dos SKUs existentes; regras financeiras AWS em Decimal
+(desconto por componente elegível, FX manual e imposto de 13% padrão); estados
+de precificação que nunca preenchem preços ausentes com zero.
+
+**Auditoria:** a migration 0024 insere nove SKUs OCI em BRL (E3/E4/E5, Windows,
+Block Volume). EC2/RDS AWS não possuem catálogo público completo no código;
+coletores usam valores estimados em configuração e Cost Explorer fornece
+consumo observado. Não foram identificados SKUs aprovados de DB System.
+A Oracle informou aposentadoria de OCPU/VM.Standard.x86 para novos Base
+Database Systems em 31/07/2026; mapear ECPU e BYOL/License Included antes
+de habilitar essa opção de precificação.
+
+**Arquivos principais:** `backend/app/schemas/calculator.py`,
+`backend/app/services/calculator_foundation.py`,
+`backend/app/tests/test_calculator_foundation.py` e
+`docs/calculator/27.1-foundation.md`.
+
+**Próximas dependências:** Task 27.2 motor financeiro e temporal; 27.3/27.4
+fontes e resolução de tarifas AWS por região/configuração; 27.5 OCI Compute;
+27.6 DB System e respectivos SKUs validados; 27.7 API e UI Aven PT-BR/EN-US.
+A Task 27.1 não adiciona rotas, migrations, configurações de cloud ou
+alterações em Billing, Opportunities e RDS Reservations.
+
+Detalhes, contratos e critérios de segurança:
+[Auditoria e contratos da Task 27.1](calculator/27.1-foundation.md).
