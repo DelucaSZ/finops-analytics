@@ -121,3 +121,24 @@ test("repeated reconciliation is deterministic and never rewrites technical inpu
   assert.equal(inputs[0].status,"needs_review");
   assert.equal(indexSource(s,"frontend/app/demo/page.tsx").translations[0].key,"common.save");
 });
+
+test("historical JSX-scanner false positives are technical, even when baseline said yes",()=>{
+  const examples=["(): SectionState",'0 ? "up" : variation.percent',"0 && total",
+    "sa-east-1, us-east-1","sa-saopaulo-1, us-ashburn-1","aa:bb:cc:...",
+    "UI","API","MFA","api","occurred_at","CollectionRun",
+    "extends Omit","= SelectorCommonProps","= 1 && value",": costError ?",
+    ": runIds.length === 0 ?","0 && absolute"];
+  for(let i=0;i<examples.length;i++) {
+    const [r]=sample("export function Page(){return <section />} ",[
+      historic({id:"I25-1-"+String(i+1).padStart(5,"0"),original_text:examples[i],category:"jsx_text"})
+    ]);
+    assert.equal(r.status,"non_translatable",examples[i]);
+  }
+});
+test("real visible user-facing labels remain gaps, not technical exclusions",()=>{
+  for(const text of ["AWS Account ID","External ID","Correlation ID",
+    "Anterior","Próxima","Perfil","Executar coleta","Fingerprint"]) {
+    const [r]=sample("export function Page(){return <p>"+text+"</p>}",[historic({original_text:text})]);
+    assert.equal(r.status,"missing_translation",text);
+  }
+});
