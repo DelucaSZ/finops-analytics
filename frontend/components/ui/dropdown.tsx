@@ -219,7 +219,7 @@ export function DropdownMenuContent({ className, children, onKeyDown, "aria-labe
     >
       {children}
     </div>,
-    document.body,
+    triggerRef.current?.closest("dialog[open]") ?? document.body,
   );
 }
 
