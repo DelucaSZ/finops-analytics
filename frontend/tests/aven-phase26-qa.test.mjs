@@ -50,6 +50,7 @@ test('QA explicitly checks Aven dropdown behavior, geometry and functional Billi
     'account_ids','measuredBounds','page.screenshot']){
     assert.ok(qa.includes(evidence),'missing QA assertion: '+evidence);
   }
+  assert.match(qa,/:not\(\[disabled\]\):visible/,'hidden tab controls must not be clicked');
   assert.match(qa,/await checkSingleSelect\(/);
   assert.match(qa,/await checkBilling\(/);
   assert.match(qa,/assert\.deepEqual\(errors,\[\]/);
