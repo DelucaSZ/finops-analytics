@@ -5153,3 +5153,33 @@ alterações em Billing, Opportunities e RDS Reservations.
 
 Detalhes, contratos e critérios de segurança:
 [Auditoria e contratos da Task 27.1](calculator/27.1-foundation.md).
+
+
+### Task 27.2 — Calculator Engine & Temporal Pricing
+
+**Status:** implementada em `feat/task-27.2-calculator-engine`, PR/CI pendentes de validação.
+
+Implementado o motor financeiro e temporal no backend com políticas de cobrança
+explícitas por componente (`_HOUR`, `_MINUTE`, `_SECOND`, `_MONTH`),
+cálculo por horário UTC, duração fracionada, quantidade de recursos,
+mensalização independente por SKU, preços de snapshot com proveniência,
+Decimal/ROUND_HALF_UP, desconto elegível AWS e conversão manual opcional
+com imposto padrão 13%. OCI permanece BRL final sem ajuste adicional.
+
+Novas estruturas: `backend/app/services/calculator_engine.py`,
+`backend/app/api/routes/calculator.py`,
+`backend/app/tests/test_calculator_engine.py`, extensões compatíveis dos
+contratos em `backend/app/schemas/calculator.py` e registro em
+`backend/app/main.py`. A API `POST /api/v1/calculator/estimate` exige sessão
+autenticada e CSRF. Sem adaptadores de preços homologados nesta task, retorna
+`unsupported_configuration` e totais nulos; não existem tarifas fictícias
+como comportamento de produção.
+
+**Dependências:** 27.3 EC2 AWS, 27.4 RDS AWS, 27.5 OCI Compute, 27.6
+OCI DB System. A Task 27.7 fica responsável pela interface Aven e QA E2E,
+reutilizando o endpoint agora existente.
+
+**Documento técnico:** [Task 27.2 — Engine & Temporal Pricing](calculator/27.2-engine.md).
+
+**Restrições:** nenhuma migration, alteração no catálogo ou escrita em nuvens,
+Billing, Inventory, Opportunities e Reservations.
