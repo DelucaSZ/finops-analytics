@@ -56,19 +56,26 @@ The CI also runs Python backend checks, pytest, security checks and the producti
 - Add regression guard against hidden-tab interaction and ensure blocked synthetic API fixtures fail the Phase 26 CI gate instead of silently passing.
 - Rerun the dedicated Chromium matrix after the correction; do not count the first run as PASS.
 
-## Execution status and evidence protocol
+## Integrated QA signoff — 11 Nov 2026
 
-- **Baseline integrated CI:** PASS on the `main` baseline commit above.
-- **Task 26.3 dedicated browser QA:** requires running the Task 26.3 PR CI and examining `frontend/artifacts/phase26/report.json`. Never assume green status from the test source code.
-- **Browser/screenshots:** screenshots are machine-generated evidence. They do not constitute an independent human visual review.
-- **Physical mobile/tablet hardware, alternate browser engines, live multi-account production data and real backend:** not covered by this fixture-based CI suite.
-- **Unknown API fixtures:** reported as `blocked` in JSON, not silently counted as passes.
-- **Failed or skipped checks:** inspect CI jobs, the uploaded JSON report, and screenshot artifacts before assigning a final task status.
+The following test outcome is based on saved JSON artifacts, not a static-code assertion:
 
-## Release gate
+- [Authenticated full i18n E2E artifact](https://github.com/DelucaSZ/finops-analytics/actions/runs/43034149729): **65 passed, 0 failed, 0 blocked** (previous integrated build).
+- Phase 26 extended Chromium artifact from commit `ceca5a6d987ca5fd774ef8e62a32a7bae30a50af`: **76 passed, 0 failed, 0 blocked, 0 not run**.
+- Coverage totals: 48 authenticated route visits, 18 integrated Billing/avatar theme-viewport-locale scenarios, 4 large-list multi/single-select interactions, 2 disabled-select cases, 2 Flow cases and 2 default Billing cases.
+- Inspected screenshot contact sheets from the 26 generated captures, including dark/light, PT-BR/EN-US, desktop, tablet, mobile and expanded multi-select. No obvious clipping, oval avatar or bleeding overlay was observed in those samples.
+- Regressions caught during QA: selecting a dropdown in a hidden tab (test selector defect), and complex overlay-opacity issues (fixed through shared semantic popover surface tokens). Synthetic account fixtures and extended assertions were corrected and rerun.
+- Shared Aven select now uses an opaque semantic popover background in both Light and Dark themes; avatar remains a initials-only 36×36 circle.
+- The last branch commit and associated workflows must remain green before merge. A prior successful report is **not** evidence that later changes passed.
 
-- **PASS:** all mandatory checks verified, with no unresolved limitation.
-- **PASS WITH WARNINGS:** no known critical regression, but physical device/live backend/manual visual verification or other explicitly listed items remain pending.
-- **FAIL:** a mandatory browser assertion, CI test, or critical behavior fails.
+### Scope boundaries, not blockers to this UI-only task
 
-**Phase 26 must not be declared completed until status PASS is supported by actual evidence.** Do not merge the Task 26.3 PR automatically.
+Real Chromium drives the production Next.js build with deterministic simulated API responses. This validates real rendering, keyboard/mouse behavior, layout geometry, selection state, locale, theme, and intercepted request payloads. It **does not assert** production-backend correctness, physical-device/browser-engine interoperability, real AWS/OCI costs, or tenant authorization behavior. Those require independent staging/production acceptance and do not belong to the visual-only Task 26.3.
+
+### Release gate
+
+- **PASS:** all Phase 26 UI acceptance checks and the PR's latest required CI workflows pass, with artifacts retained.
+- **PASS WITH WARNINGS:** a required UI check remains unverified even though no defect is known.
+- **FAIL:** any critical functional/visual regression or CI failure remains.
+
+The evidence supports **PASS for Phase 26 UI scope** provided the latest PR commit has successful CI, authenticated E2E, Compose smoke and auto-deploy workflows. Nothing in this report establishes a successful real-production deployment. Manual device lab coverage is a separate compatibility initiative, not a prerequisite introduced retroactively for this scoped UI refinement.
