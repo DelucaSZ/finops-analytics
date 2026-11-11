@@ -22,6 +22,7 @@ html[data-theme="dark"] {
   --surface-secondary: var(--surface-panel);
   --surface-tertiary: var(--surface-section);
   --surface-elevated: color-mix(in srgb, var(--aven-color-neutral-800) 94%, transparent);
+  --surface-popover-opaque: var(--aven-color-neutral-800);
   --surface-overlay: rgba(17, 24, 39, 0.96);
   --surface-hover: color-mix(in srgb, var(--aven-color-neutral-700) 72%, transparent);
   --surface-selected: color-mix(in srgb, var(--aven-color-indigo-deep) 90%, transparent);
