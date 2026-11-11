@@ -213,6 +213,11 @@ class CalculatorEstimateResponse(BaseModel):
 
     @model_validator(mode="after")
     def validate_financial_consistency(self) -> CalculatorEstimateResponse:
+        if self.service != self.resource_configuration.service:
+            raise ValueError("service does not match resource configuration")
+        allowed = {"aws": {"ec2", "rds"}, "oci": {"compute", "db_system"}}
+        if self.service not in allowed[self.provider]:
+            raise ValueError("service is not available for the selected provider")
         if self.pricing_currency != ("USD" if self.provider == "aws" else "BRL"):
             raise ValueError("provider pricing currency mismatch")
         if self.provider == "oci" and (
@@ -225,6 +230,14 @@ class CalculatorEstimateResponse(BaseModel):
             or self.final_currency != "BRL"
         ):
             raise ValueError("OCI catalog prices are final BRL values; no financial adjustments")
+        if self.provider == "oci":
+            for original, net, final in (
+                (self.monthly_original_cost, self.monthly_net_cost, self.monthly_final_cost),
+                (self.period_original_cost, self.period_net_cost, self.period_final_cost),
+            ):
+                populated = [value for value in (original, net, final) if value is not None]
+                if len(set(populated)) > 1:
+                    raise ValueError("OCI commercial BRL totals cannot include extra adjustments")
         if self.provider == "aws":
             expected = "BRL" if self.conversion_enabled else "USD"
             if self.final_currency != expected:
@@ -239,4 +252,8 @@ class CalculatorEstimateResponse(BaseModel):
             or self.missing_pricing_components
         ):
             raise ValueError("priced estimate requires both final totals and no missing components")
+        if self.pricing_status != "priced" and (
+            self.monthly_final_cost is not None or self.period_final_cost is not None
+        ):
+            raise ValueError("non-priced estimates must not advertise final cost totals")
         return self
