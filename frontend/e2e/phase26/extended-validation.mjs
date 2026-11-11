@@ -151,13 +151,14 @@ async function verifyDisabled(page) {
 }
 
 async function runCase(deps,{locale,viewport,mode}) {
+  const suiteTheme=mode==='disabled'||locale==='en-US'?'dark':'light';
   const {ctx,requests}=await deps.createContext(locale,{
-    viewport,theme:mode==='disabled'?'dark':'light',
+    viewport,theme:suiteTheme,
     manyAccounts:mode==='multi-and-single',emptyBillingProfiles:mode==='disabled'
   });
   const page=await ctx.newPage(),errors=[];
   deps.watch(page,errors);
-  const record={scenario:'extended-'+mode,route:URL,locale,theme:mode==='disabled'?'dark':'light',
+  const record={scenario:'extended-'+mode,route:URL,locale,theme:suiteTheme,
     viewport:viewport.name,status:'not_run',pageErrors:errors};
   deps.report.cases.push(record);
   try {
