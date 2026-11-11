@@ -80,6 +80,15 @@ jobs:
         run: npm install --no-save --package-lock=false playwright-core@1.57.0
       - name: Browser i18n smoke (isolated fixture, no real mutations)
         run: npm run smoke:i18n:browser
+      - name: Authenticated routes i18n smoke (24 routes, two locales)
+        run: npm run smoke:i18n:authenticated
+      - name: Upload authenticated route QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: i18n-authenticated-route-qa
+          path: frontend/artifacts/i18n-authenticated/
+          if-no-files-found: warn
       - name: Upload browser QA screenshots
         if: always()
         uses: actions/upload-artifact@v4
