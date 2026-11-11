@@ -69,12 +69,12 @@ test("ApplicationShell exposes the shared canvas and removes the full-width topb
   assert.doesNotMatch(ruleBlock(styles, ".topbar"), /border-block-end/);
 });
 
-test("card hierarchy uses semantic surfaces while overlays retain elevation roles", () => {
+test("card hierarchy preserves semantic surfaces and opaque popovers without changing dialog elevation", () => {
   const components = readToken("components.css");
 
   assert.equal(declaration(components, "--card-background"), "var(--surface-card)");
   assert.equal(declaration(components, "--card-border"), "var(--border-subtle)");
   assert.equal(declaration(components, "--card-shadow"), "var(--elevation-1-shadow)");
-  assert.equal(declaration(components, "--popover-background"), "var(--elevation-2-surface)");
+  assert.equal(declaration(components, "--popover-background"), "var(--surface-popover-opaque)");
   assert.equal(declaration(components, "--dialog-background"), "var(--elevation-3-surface)");
 });
