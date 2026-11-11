@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import {useLocale, useTranslations} from "next-intl";
 import {
@@ -877,12 +878,12 @@ export default function AccountsPage() {
           </label>
           <label className="select-field">
             {t("cloud")}
-            <select value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label={t("cloud")}>
+            <NativeSelect value={cloudFilter} onChange={(e) => setCloudFilter(e.target.value)} aria-label={t("cloud")}>
               <option value="all">{t("all")}</option>
               {availableProviders.map((provider) => (
                 <option key={provider.provider} value={provider.provider}>{provider.label}</option>
               ))}
-            </select>
+            </NativeSelect>
           </label>
         </div>
 
