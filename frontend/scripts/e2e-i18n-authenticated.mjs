@@ -224,6 +224,28 @@ async function visualAndAccessibility(){
       report.cases.push(record);
       try{
         await visit(page,route,'en-US',record);
+        // Keyboard operability and accessible roles of the Language Selector.
+        await selector(page).focus();
+        await page.keyboard.press('Enter');
+        const radios=page.getByRole('menuitemradio');
+        await radios.first().waitFor({state:'visible',timeout});
+        assert.equal(await radios.count(),2,'locale options must expose two radio roles');
+        assert.equal(await radios.filter({hasText:/English/}).first().getAttribute('aria-checked'),'true');
+        await page.keyboard.press('Escape');
+        // Runtime WCAG checks complement, but do not replace, assistive-technology review.
+        const axePath='node_modules/axe-core/axe.min.js';
+        assert.ok(existsSync(axePath),'axe-core is required for full accessibility QA');
+        await page.addScriptTag({path:axePath});
+        const issues=await page.evaluate(async()=>{
+          const result=await window.axe.run(document,{
+            runOnly:{type:'tag',values:['wcag2a','wcag2aa','wcag21aa']}
+          });
+          return result.violations.map(v=>({id:v.id,impact:v.impact,
+            nodes:v.nodes.length,description:v.help}));
+        });
+        record.axeViolations=issues;
+        assert.deepEqual(issues.filter(v=>v.impact==='critical'||v.impact==='serious'),[],
+          'critical or serious accessibility violations');
         for(const size of [{width:768,height:1024},{width:390,height:844}]){
           await page.setViewportSize(size);
           await page.screenshot({path:OUT+'/'+toSlug(route)+'-en-US-'+size.width+'.png',
