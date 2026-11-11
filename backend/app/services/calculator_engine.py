@@ -6,10 +6,10 @@ module never selects cloud SKUs, performs account actions or invents price rows.
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from decimal import ROUND_CEILING, ROUND_HALF_UP, Decimal
-from typing import Sequence
 
 from app.schemas.calculator import (
     AwsFinancialTerms,
@@ -115,7 +115,9 @@ def _component_usage(
     component: CalculatorMeteredComponent, *, quantity: int, seconds: Decimal | None
 ) -> tuple[Decimal, Decimal]:
     _finite(component.units_per_resource, "units_per_resource", allow_zero=False)
-    month_hours = _finite(component.reference_month_hours, "reference_month_hours", allow_zero=False)
+    month_hours = _finite(
+        component.reference_month_hours, "reference_month_hours", allow_zero=False
+    )
     if month_hours > Decimal(8784):
         raise ValueError("invalid_reference_month_hours")
     unit = _billing_unit(component.lookup.identity.unit)
@@ -135,7 +137,9 @@ def _component_usage(
         if increment is None or not 1 <= increment <= 2678400:
             raise ValueError("time_metering_policy_required")
         unit_seconds = SECONDS_PER_UNIT[unit]
-        monthly = component.units_per_resource * quantity * month_hours * Decimal(3600) / unit_seconds
+        monthly = (
+            component.units_per_resource * quantity * month_hours * Decimal(3600) / unit_seconds
+        )
         if seconds is None:
             period = monthly
         else:
