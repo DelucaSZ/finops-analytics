@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import {formatLocaleDateTime} from "@/i18n/formatters.mjs";
 import { CollectionComparisonActions } from "@/components/collection-comparison-actions";
-import { Button, Input, Select } from "@/components/ui";
+import { Button, Input, Select, NativeSelect } from "@/components/ui";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { CheckCircle2, CircleAlert, Clock3, RefreshCw } from "lucide-react";
@@ -459,7 +459,7 @@ export function CollectionWorkspace({
             <h2>{data ? t("count", {count: data.total}) : t("history")}</h2>
             <label>
               {t("sortBy")}{" "}
-              <select
+              <NativeSelect
                 aria-label={t("sortBy")}
                 value={state.sort}
                 onChange={(event) => change({ sort: event.target.value })}
@@ -468,18 +468,18 @@ export function CollectionWorkspace({
                 <option value="opportunities_found">
                   {t("opportunitiesFound")}
                 </option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               {t("direction")}{" "}
-              <select
+              <NativeSelect
                 aria-label={t("direction")}
                 value={state.order}
                 onChange={(event) => change({ order: event.target.value })}
               >
                 <option value="desc">{t("descending")}</option>
                 <option value="asc">{t("ascending")}</option>
-              </select>
+              </NativeSelect>
             </label>
           </div>
           <div
@@ -574,7 +574,7 @@ export function CollectionWorkspace({
           <div className="collection-toolbar collection-pagination">
             <label>
               {t("perPage")}{" "}
-              <select
+              <NativeSelect
                 aria-label={t("perPage")}
                 value={state.page_size}
                 onChange={(event) =>
@@ -584,7 +584,7 @@ export function CollectionWorkspace({
                 {[25, 50, 100].map((size) => (
                   <option key={size}>{size}</option>
                 ))}
-              </select>
+              </NativeSelect>
             </label>
             <span>
               {t("pagination", {page: state.page, total: data?.total_pages || 1})}
