@@ -31,7 +31,7 @@ jobs:
       - run: npm test
       - run: npm run build
       - name: Install existing browser driver
-        run: npm install --no-save --package-lock=false playwright-core@1.57.0
+        run: npm install --no-save --package-lock=false playwright-core@1.57.0 axe-core@4.10.3
       - name: Authenticated full E2E, locale switch, functional and visual QA
         run: npm run test:i18n:authenticated
       - name: Upload Chromium results, failures, screenshots
