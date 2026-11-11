@@ -1,4 +1,6 @@
 "use client";
+
+import { NativeSelect } from "@/components/ui";
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
@@ -394,7 +396,7 @@ export default function UsersPage() {
                     </label>
                     <label>
                       Perfil
-                      <select
+                      <NativeSelect
                         value={role}
                         onChange={(e) => setRole(e.target.value)}
                       >
@@ -403,7 +405,7 @@ export default function UsersPage() {
                             {label}
                           </option>
                         ))}
-                      </select>
+                      </NativeSelect>
                     </label>
                   </div>
                   {action === "edit" && (
@@ -496,7 +498,7 @@ export default function UsersPage() {
         </label>
         <label>
           {t("statusLabel")}
-          <select
+          <NativeSelect
             value={state}
             onChange={(e) => {
               setState(e.target.value);
@@ -509,7 +511,7 @@ export default function UsersPage() {
             <option value="active">{t("status.activePlural")}</option>
             <option value="pending">{t("status.pending")}</option>
             <option value="inactive">{t("status.inactivePlural")}</option>
-          </select>
+          </NativeSelect>
         </label>
         <button className="button" disabled={busy}>
           {t("search")}
