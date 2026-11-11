@@ -21,7 +21,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   await wait(page,()=>document.querySelector('[role="menu"][data-positioned="true"]')!==null);
   withinViewport(await menu.boundingBox(),viewport.width,viewport.height);
   const group=menu.getByRole('group');
-  const list=group.locator('..');
+  const list=group;
   assert.ok(await group.getByRole('checkbox').count()>=15,'large AWS account list missing');
   const scroll=await list.evaluate(el=>({scroll:el.scrollHeight,client:el.clientHeight,
     overflow:getComputedStyle(el).overflowY}));
@@ -30,7 +30,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   const search=menu.getByRole('textbox').first();
   await search.fill('not-a-real-aws-account');
   assert.equal(await group.getByRole('checkbox').count(),0,'search did not filter accounts');
-  await search.fill('QA Additional AWS 15');
+  await search.fill('QA Additional AWS 16');
   assert.equal(await group.getByRole('checkbox').count(),1,'search did not find long account');
   await search.fill('');
   assert.ok(await group.getByRole('checkbox').count()>=15);
@@ -53,7 +53,7 @@ async function verifyMultiSelect(page,requests,viewport,locale,out) {
   }
   assert.ok(requests.some(r=>r.path.startsWith('/billing/aws/summary') &&
       r.payload?.account_ids?.length===15 &&
-      r.payload.account_ids.includes(1) && r.payload.account_ids.includes(17)),
+      r.payload.account_ids.includes(1) && r.payload.account_ids.includes(16)),
     'multi-account selection not reflected in Billing API payload');
   assert.equal(await group.getByRole('checkbox').count(),15);
   assert.ok(await group.getByRole('checkbox').evaluateAll(elements=>elements.every(e=>e.checked)),
