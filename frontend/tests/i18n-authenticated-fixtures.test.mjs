@@ -39,3 +39,27 @@ test('unknown contracts fail closed, and administrative mutations cannot escape 
   assert.equal(apiFixture('/users','POST',{email:'someone@example.test'}).status,403);
   assert.equal(apiFixture('/auth/logout','POST').status,403);
 });
+
+test('Dashboard fixture exposes arrays required by the executive overview',()=>{
+  const dashboard=apiFixture('/dashboard/summary').body;
+  for(const key of ['by_service','by_rule','by_provider','by_account','top_opportunities'])
+    assert.ok(Array.isArray(dashboard[key]),key+' must be an array');
+  assert.equal(dashboard.scope.has_current_data,true);
+  assert.equal(dashboard.financial.totals[0].amount,FIXTURE_FINANCIAL.estimatedSavings);
+});
+test('legacy Collection API arrays coexist with paginated Collection Workspace API',()=>{
+  const findings=apiFixture('/collections?limit=100&offset=0').body;
+  const scans=apiFixture('/collections?limit=200').body;
+  const page=apiFixture('/collections?page=1&page_size=25').body;
+  assert.ok(Array.isArray(findings));
+  assert.ok(Array.isArray(scans));
+  assert.ok(Array.isArray(page.items));
+  assert.equal(page.items[0].id,findings[0].id);
+});
+test('authenticated Settings fixtures have known success contracts',()=>{
+  assert.equal(apiFixture('/tls').body.mode,'http');
+  assert.equal(apiFixture('/auth/mfa/status').body.enabled,false);
+  assert.equal(apiFixture('/pricing/oci').body.total,0);
+  assert.equal(apiFixture('/settings/opportunity-policy').body.cycle_mode,'CALENDAR_MONTH');
+  assert.ok(Array.isArray(apiFixture('/usage/cloudwatch/summary?group_by=region').body.items));
+});
