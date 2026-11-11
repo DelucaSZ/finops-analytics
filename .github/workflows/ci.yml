@@ -60,6 +60,7 @@ jobs:
       - run: npm run lint:brand
       - run: npm run lint:i18n
       - run: npm run lint:i18n:references
+      - run: npm run audit:i18n:baseline
       - name: Check newly introduced user-facing hardcoded text
         if: github.event_name == 'pull_request'
         env:
