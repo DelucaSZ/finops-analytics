@@ -26,11 +26,14 @@ class CalculatorPeriod(BaseModel):
         if self.mode in {"hours", "days", "weeks"}:
             if self.amount is None or self.start_at is not None or self.end_at is not None:
                 raise ValueError("duration periods require amount and no date range")
-            seconds = self.amount * {
-                "hours": Decimal(3600),
-                "days": Decimal(86400),
-                "weeks": Decimal(604800),
-            }[self.mode]
+            seconds = (
+                self.amount
+                * {
+                    "hours": Decimal(3600),
+                    "days": Decimal(86400),
+                    "weeks": Decimal(604800),
+                }[self.mode]
+            )
             if seconds > Decimal(5 * 366 * 86400):
                 raise ValueError("duration exceeds five-year simulation limit")
         elif self.mode == "custom":
@@ -293,9 +296,12 @@ class CalculatorEstimateResponse(BaseModel):
         if self.pricing_status != "priced" and any(
             value is not None
             for value in (
-                self.monthly_original_cost, self.period_original_cost,
-                self.monthly_net_cost, self.period_net_cost,
-                self.monthly_final_cost, self.period_final_cost,
+                self.monthly_original_cost,
+                self.period_original_cost,
+                self.monthly_net_cost,
+                self.period_net_cost,
+                self.monthly_final_cost,
+                self.period_final_cost,
             )
         ):
             raise ValueError("non-priced estimates must not advertise definitive cost totals")
