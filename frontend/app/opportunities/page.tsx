@@ -866,7 +866,7 @@ function OpportunitiesContent() {
             ))}
           </div>
         ) : (
-          <Table aria-label={isHistory ? t("table.historyTitle") : t("title")}>
+          <Table aria-label={isHistory ? t("table.historyTitle") : t("title")} data-opportunities-view={isHistory ? "history" : "current"}>
             <TableHeader>
               <TableRow staticRow>
                 {!isHistory ? <TableHead>{t("table.selection")}</TableHead> : null}
