@@ -210,16 +210,45 @@ async function runFunctional(){
     });
     await scenario(locale,'/flow',async(page,requests)=>{
       await page.locator('h3').first().waitFor({timeout});
+      const previousSummaryRequests=requests.filter(r=>r.path.startsWith('/finops/flow/summary')).length;
       const first=page.locator('select').first();
-      await first.selectOption('previous_month');
-      assert.equal(await first.inputValue(),'previous_month');
-      assert.ok(requests.some(r=>r.path.startsWith('/finops/flow/summary')&&r.status===200));
+      const trigger=page.locator('[data-aven-select] [role="combobox"]').first();
+      await trigger.focus();
+      await trigger.press('ArrowDown');
+      assert.equal(await trigger.getAttribute('aria-expanded'),'true',
+        'Aven dropdown did not open from keyboard');
+      const list=page.getByRole('listbox');
+      await list.waitFor({state:'visible',timeout});
+      const bounds=await list.boundingBox();
+      assert.ok(bounds&&bounds.x>=0&&bounds.y>=0&&bounds.x+bounds.width<=1441,
+        'Aven dropdown escaped the viewport');
+      await trigger.press('Escape');
+      assert.equal(await trigger.getAttribute('aria-expanded'),'false',
+        'Aven dropdown did not close with Escape');
+      await trigger.click();
+      const label=(await first.locator('option[value="previous_month"]').textContent())?.trim();
+      assert.ok(label,'period option label is empty');
+      await page.getByRole('option',{name:label,exact:true}).click();
+      assert.equal(await first.inputValue(),'previous_month',
+        'Aven dropdown failed to retain the native filter value');
+      // The first render still contains the old period; wait for the new API cycle
+      // before checking the finalized UI rather than matching a stale value.
+      for(let attempt=0;attempt<30;attempt++){
+        if(requests.filter(r=>r.path.startsWith('/finops/flow/summary')).length>previousSummaryRequests)break;
+        await page.waitForTimeout(100);
+      }
+      const summaryRequests=requests.filter(r=>r.path.startsWith('/finops/flow/summary'));
+      assert.ok(summaryRequests.length>previousSummaryRequests,
+        'custom dropdown did not request updated Flow summary');
+      assert.ok(summaryRequests.at(-1).status===200,
+        'custom dropdown Flow refresh failed');
+      await page.waitForTimeout(450);
       const expected=new Intl.NumberFormat(locale,{
         minimumFractionDigits:2,maximumFractionDigits:2
       }).format(Number(FIXTURE_FINANCIAL.estimatedSavings));
-      await page.waitForFunction(value=>document.body.innerText.includes(value),expected,{timeout});
       assert.ok((await page.locator('body').innerText()).includes(expected),
-        'flow savings disappeared from UI after refresh');
+        'flow savings disappeared after selection; latest requests: '+
+        JSON.stringify(summaryRequests.slice(-2)));
     });
     await scenario(locale,'/opportunities',async(page,requests)=>{
       await page.getByText('QA opportunity').first().waitFor({timeout});

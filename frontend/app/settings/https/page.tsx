@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import { FormEvent, useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { IdentityProof } from "@/components/identity-proof";
@@ -352,7 +353,7 @@ export default function HttpsSettingsPage() {
           <div className="settings-form-grid">
             <label>
               {t("mode")}
-              <select
+              <NativeSelect
                 value={mode}
                 onChange={(event) => {
                   setMode(event.target.value as "automatic" | "custom");
@@ -363,7 +364,7 @@ export default function HttpsSettingsPage() {
                   {t("automaticRecommended")}
                 </option>
                 <option value="custom">{t("customCertificate")}</option>
-              </select>
+              </NativeSelect>
             </label>
             <label>
               {t("publicDomain")}

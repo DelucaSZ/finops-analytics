@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import Link from "next/link";
 import {useLocale, useTranslations} from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -531,44 +532,44 @@ export default function AvenUsageCostsPage() {
         <div className={styles.filtersGrid}>
           <label className={styles.field}>
             <span>{t("period")}</span>
-            <select value={preset} onChange={(event) => setPreset(event.target.value)}>
+            <NativeSelect value={preset} onChange={(event) => setPreset(event.target.value)}>
               {USAGE_COST_PERIOD_PRESETS.map((item) => <option value={item.value} key={item.value}>{({today:t("presetToday"),"last-7-days":t("preset7"),"this-month":t("presetMonth"),"previous-month":t("presetPrevious"),"last-3-months":t("preset3"),custom:t("presetCustom")} as Record<string,string>)[item.value] ?? item.label}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className={styles.field}>
             <span>{t("awsAccount")}</span>
-            <select value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+            <NativeSelect value={accountId} onChange={(event) => setAccountId(event.target.value)}>
               <option value="">{t("allAuthorized")}</option>
               {awsAccounts.map((account) => <option value={account.id} key={account.id}>{accountLabel(account)}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className={styles.field}>
             <span>{t("operation")}</span>
-            <select value={operation} onChange={(event) => setOperation(event.target.value)}>
+            <NativeSelect value={operation} onChange={(event) => setOperation(event.target.value)}>
               <option value="">{t("allFeminine")}</option>
               {options.operations.map((value) => <option value={value} key={value}>{value}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className={styles.field}>
             <span>{t("region")}</span>
-            <select value={region} onChange={(event) => setRegion(event.target.value)}>
+            <NativeSelect value={region} onChange={(event) => setRegion(event.target.value)}>
               <option value="">{t("allFeminine")}</option>
               {options.regions.map((value) => <option value={value} key={value}>{value}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className={styles.field}>
             <span>{t("collector")}</span>
-            <select value={collector} onChange={(event) => setCollector(event.target.value)}>
+            <NativeSelect value={collector} onChange={(event) => setCollector(event.target.value)}>
               <option value="">{t("allMasculine")}</option>
               {options.collectors.map((value) => <option value={value} key={value}>{friendlyUsageLabel(value, "collector", locale)}</option>)}
-            </select>
+            </NativeSelect>
           </label>
           <label className={styles.field}>
             <span>{t("analyzer")}</span>
-            <select value={analyzer} onChange={(event) => setAnalyzer(event.target.value)}>
+            <NativeSelect value={analyzer} onChange={(event) => setAnalyzer(event.target.value)}>
               <option value="">{t("allMasculine")}</option>
               {options.analyzers.map((item) => <option value={item.value} key={item.value}>{friendlyUsageLabel(item.value === SHARED_ANALYZER ? null : item.value, "analyzer", locale)}</option>)}
-            </select>
+            </NativeSelect>
           </label>
         </div>
         {preset === "custom" && (

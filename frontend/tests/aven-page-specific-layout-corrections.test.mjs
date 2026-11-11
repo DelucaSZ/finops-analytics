@@ -28,7 +28,7 @@ test("Collections keeps filter behavior while using official form controls", () 
     assert.ok(source.includes(`label={t("${key}")}`), `missing localized filter label: ${key}`);
   }
 
-  assert.match(source, /import \{ Button, Input, Select \} from "@\/components\/ui"/);
+  assert.match(source, /import \{ Button, Input, Select, NativeSelect \} from "@\/components\/ui"/);
   assert.match(source, /event\.preventDefault\(\)/);
   assert.match(source, /new Date\(draft\.date_from\) >= new Date\(draft\.date_to\)/);
   assert.match(source, /change\(\{ \.\.\.draft, page: 1 \}\)/);

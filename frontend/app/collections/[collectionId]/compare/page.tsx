@@ -1,5 +1,6 @@
 "use client";
 
+import { NativeSelect } from "@/components/ui";
 import Link from "next/link";
 import { useLocale, useTranslations } from "next-intl";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
@@ -293,7 +294,7 @@ function CollectionComparisonContent() {
         </div>
         <label className={styles.baselinePicker}>
           {t("compareWith")}
-          <select
+          <NativeSelect
             value={selectedBaseline?.id || ""}
             disabled={!options.length}
             onChange={(event) =>
@@ -308,7 +309,7 @@ function CollectionComparisonContent() {
                 {!option.detailed_observations_available ? t("expiredDetail") : ""}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </label>
       </section>
 

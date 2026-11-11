@@ -674,3 +674,18 @@
     min-inline-size: 0;
   }
 }
+
+
+/* Native filters wrapped by the shared Aven dropdown must not receive a second shell. */
+.content :global(.select-field:has([data-aven-select])) {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  outline: none;
+  padding: 0;
+}
+
+.content :global(.select-field:has([data-aven-select]) [data-aven-select]) {
+  flex: 1 1 var(--filter-field-default-inline-size);
+  min-inline-size: min(100%, var(--filter-field-min-inline-size));
+}
