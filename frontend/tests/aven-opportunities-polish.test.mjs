@@ -72,6 +72,25 @@ test("Opportunity tables share the same column contract across header, rows and 
   assert.match(opportunitiesStyles, /@media \(max-width:\s*64rem\)[\s\S]*min-inline-size:\s*58rem/);
 });
 
+test("Opportunities retains fixed column geometry for both PT-BR and EN-US, including history", () => {
+  const page = source("app/opportunities/page.tsx");
+  const styles = source("app/opportunities/opportunities.module.css");
+
+  // Accessibility labels must be translated without participating in CSS matching.
+  assert.match(page, /<Table aria-label=\{isHistory \? t\("table\.historyTitle"\) : t\("title"\)\} data-opportunities-view=\{isHistory \? "history" : "current"\}/);
+  assert.doesNotMatch(styles, /table\[aria-label=/);
+
+  for (const view of ["current", "history"]) {
+    const selector = `table[data-opportunities-view="${view}"]`;
+    assert.ok(styles.includes(selector), `missing stable ${view} selector`);
+    assert.match(styles, new RegExp(`table\\[data-opportunities-view="${view}"\\][\\s\\S]*?table-layout:\\s*fixed`));
+    assert.match(styles, new RegExp(`@media \\(max-width:\\s*64rem\\)[\\s\\S]*?table\\[data-opportunities-view="${view}"\\][\\s\\S]*?min-inline-size:\\s*58rem`));
+  }
+  assert.match(styles, /td:nth-child\\(2\\) > button/);
+  assert.match(styles, /text-overflow:\\s*ellipsis/);
+  assert.match(styles, /-webkit-line-clamp:\\s*2/);
+});
+
 test("Opportunities uses a semantic wide Drawer without changing the default Drawer size", () => {
   const drawer = source("components/ui/drawer.tsx");
   const overlays = source("components/ui/overlays.module.css");
