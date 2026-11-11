@@ -90,6 +90,11 @@ function technicalReason(row) {
   if(["locale_constant","locale_format"].includes(row.category))return "locale/formatter expression, not standalone interface copy";
   if(/^(?:xMidYMid meet|ocid1\.|arn:|[A-Z_][A-Z_0-9./-]+$)/.test(text))return "technical code or SVG property";
   if(/^(?:rotate\(|translate\(|scale\(|0 0 \$\{)/.test(text))return "SVG geometry expression";
+  if(/^(?:UI|API|MFA|occurred_at|CollectionRun|api)$/.test(text))return "stable technical enum, acronym, schema field or API symbol";
+  if(/^[a-z]{2}-[a-z0-9-]+-[0-9](?:,\s*[a-z]{2}-[a-z0-9-]+-[0-9])*$/.test(text))return "cloud region identifiers (examples, not copy)";
+  if(/^aa:bb:cc:\.\.\.$/i.test(text))return "technical fingerprint/MAC example";
+  if(/^(?:\(\):\s*\w+|extends\s+Omit|=\s*SelectorCommonProps|=\s*1\s*&&\s*value|0\s*&&\s*\w+|0\s*\?\s*["']|:\s*\w+\s*\?|:\s*\w+\.length\s*===\s*0\s*\?)/.test(text))
+    return "TypeScript expression fragment misclassified as JSX text by historical inventory";
   return null;
 }
 /** Every historical ID gets an evidence trail; catalog-only strings remain needs_review. */
@@ -125,7 +130,7 @@ export function reconcile(records,sources,ptCatalog,enCatalog,devGuard) {
       else result("needs_review","external_origin_unverified","low",
         file+": prior backend expression not found: "+value,
         "Trace current API error handling before excluding this historical record.");
-    } else if(r.historical_translation_required==="no"&&technicalReason(r)) {
+    } else if(technicalReason(r)) {
       result("non_translatable","technical_expression","medium",
         file+": "+technicalReason(r)+"; category "+r.category);
     } else {
@@ -208,6 +213,11 @@ if(process.argv[1]&&path.resolve(process.argv[1])===fileURLToPath(import.meta.ur
     const count=Object.fromEntries([...new Set(generated.map(r=>r.status))].sort()
       .map(status=>[status,generated.filter(r=>r.status===status).length]));
     console.log("[Aven 25.9A] "+JSON.stringify({ids:generated.length,statuses:count,sourceFiles:sources.size}));
+    const changed=generated.flatMap((entry,i)=>entry.status!==rows[i].status || (
+      entry.status==="translated"&&entry.translation_key!==rows[i].translation_key)
+      ? [{id:entry.id,from:rows[i].status,to:entry.status,old_key:rows[i].translation_key,new_key:entry.translation_key}]
+      : []);
+    console.log("[Aven 25.9A snapshot diff] "+JSON.stringify({count:changed.length,examples:changed.slice(0,70)}));
     if(process.argv.includes("--write"))writeFileSync(CSV,first);
     else if(process.argv.includes("--check")) {
       const existing=parseCsv(readFileSync(CSV,"utf8")).rows;
