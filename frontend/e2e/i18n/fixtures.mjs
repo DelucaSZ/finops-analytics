@@ -221,6 +221,9 @@ export function apiFixture(path,method='GET',body=null) {
   }};
   if (pathname==='/collections/qa-collection/opportunities')
     return {status:200,body:{...page([finding]),page_size:25}};
+  if (pathname==='/dashboard/operational-insights')return {status:200,body:{
+    collection_failures:{count:0,items:[],truncated:false}
+  }};
   if (pathname==='/dashboard/summary')return {status:200,body:{
     scope:{provider:null,account_id:null,valid_scope_count:1,has_current_data:true},
     opportunities:{open:1,treated:0,rejected:0,new_since_previous:1},
