@@ -10,6 +10,7 @@ import {chromium} from 'playwright-core';
 import {apiFixture,FIXTURE_FINANCIAL} from '../e2e/i18n/fixtures.mjs';
 import {PROTECTED_ROUTES,PUBLIC_ROUTES,TECHNICAL_ROUTES,INVENTORIED_COUNT} from '../e2e/i18n/routes.mjs';
 import {runPhase26} from '../e2e/phase26/validation.mjs';
+import {runPhase26Extensions} from '../e2e/phase26/extended-validation.mjs';
 
 // Real Chromium + production Next build. Only API responses are simulated.
 // Usage: node scripts/e2e-i18n-authenticated.mjs --smoke | --full
@@ -47,7 +48,7 @@ function fail(record,error){
   record.status='failed';record.error=String(error?.stack||error);
   report.failures.push({route:record.route,locale:record.locale,scenario:record.scenario,error:String(error)});
 }
-async function createContext(locale,{viewport={width:1440,height:900},colorScheme='light',theme=null,longIdentity=false}={}){
+async function createContext(locale,{viewport={width:1440,height:900},colorScheme='light',theme=null,longIdentity=false,manyAccounts=false,emptyBillingProfiles=false}={}){
   const ctx=await browser.newContext({viewport,ignoreHTTPSErrors:true,
     timezoneId:'America/Sao_Paulo',reducedMotion:'reduce',colorScheme});
   if(theme)await ctx.addInitScript(preference=>{localStorage.setItem('deepops.theme',preference)},theme);
@@ -57,6 +58,14 @@ async function createContext(locale,{viewport={width:1440,height:900},colorSchem
     const req=route.request(),url=new URL(req.url()),path=url.pathname.replace(/^\/api\/v1/,'')+url.search;
     let body=null;try{body=req.postDataJSON()}catch{}
     const fixture=apiFixture(path,req.method(),body);
+    if(emptyBillingProfiles && path==='/billing/aws/profiles' && req.method()==='GET' && fixture.status===200)fixture.body=[];
+    if(manyAccounts && path==='/cloud-accounts' && req.method()==='GET' && fixture.status===200){
+      const original=fixture.body.find(account=>account.provider==='aws');
+      fixture.body=[...fixture.body,...Array.from({length:14},(_,index)=>({
+        ...original,id:index+3,provider:'aws',native_account_id:String(100000000003+index),
+        name:'QA Additional AWS '+String(index+3).padStart(2,'0')
+      }))];
+    }
     if(longIdentity&&path==='/auth/me'&&req.method()==='GET'&&fixture.status===200){
       fixture.body={...fixture.body,name:'QA Account With An Exceptionally Long Display Name For Topbar Validation',
         full_name:'QA Account With An Exceptionally Long Display Name For Topbar Validation',
@@ -340,7 +349,9 @@ try{
   }
   assert.ok(ready,'production Next server did not start');
   if(phase26){
-    await runPhase26({browser,createContext,visit,watch,report,fail,out:OUT,timeout});
+    const deps={browser,createContext,visit,watch,report,fail,out:OUT,timeout};
+    await runPhase26(deps);
+    await runPhase26Extensions(deps);
   }else{
     await routeSuite('pt-BR');await routeSuite('en-US');
     if(full){await runFunctional();await visualAndAccessibility()}
