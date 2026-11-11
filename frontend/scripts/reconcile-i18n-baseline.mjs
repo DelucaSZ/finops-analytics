@@ -187,6 +187,13 @@ export function validateEvidence(rows,sources,ptCatalog,enCatalog) {
   const pt=flatten(ptCatalog),en=flatten(enCatalog);
   const indexed=new Map([...sources].map(([f,s])=>[f,indexSource(s,f)]));
   for(const r of rows) {
+    if(r.status==="missing_translation") {
+      const candidates=indexed.get(r.current_file)?.candidates||[];
+      if(!candidates.some(c=>normalize(c.text)===normalize(r.original_text)))
+        throw Error("No AST-visible literal for missing_translation: "+r.id);
+    }
+    if(r.status==="non_translatable"&&r.match_strategy==="verified_technical_token"&&!technicalReason(r))
+      throw Error("Unjustified technical token exclusion "+r.id);
     if(r.status!=="translated")continue;
     if(!r.translation_key)throw Error("Translated row lacks key "+r.id);
     if(!pt.has(r.translation_key)||!en.has(r.translation_key))throw Error("Catalog mismatch "+r.id);
