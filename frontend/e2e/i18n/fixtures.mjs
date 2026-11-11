@@ -91,6 +91,43 @@ const rdsCoverage = {
   coverage_status:'PARTIAL',coverage_scope:'REGION',calculation_method:'NORMALIZED_UNITS',
   allocations:[],explanation:{},inventory_updated_at:FIXTURE_TIME
 };
+const tlsFixture={
+  configured:false,mode:'http',domain:null,healthy:false,
+  local_tls:{healthy:false,trusted:null,trust_error:null,certificate:null,message:'Not configured'},
+  dns:{a:[],aaaa:[]},
+  endpoint_validation:{status:'DNS_NOT_FOUND',endpoints:[],message:'Not configured'},
+  certificate:null,chain:null,trust:null,applied_at:null,last_validated_at:null,
+  message:'Not configured'
+};
+const opportunityPolicy={
+  id:'qa-policy',cycle_mode:'CALENDAR_MONTH',cycle_length_days:30,
+  cycle_timezone:'America/Sao_Paulo',cycle_anchor_date:null,
+  automatic_cycle_close_enabled:false,
+  treated_archive_enabled:false,treated_archive_days:90,
+  rejected_archive_enabled:false,rejected_archive_days:90,
+  resolved_external_archive_enabled:false,resolved_external_archive_days:90,
+  open_archive_enabled:false,open_archive_days:365,
+  observation_retention_days:180,enabled:true,version:1,
+  updated_at:FIXTURE_TIME,updated_by:null,current_cycle:null,
+  next_cycle_start:null,maintenance:{last_retention_run_at:null,
+    last_cycle_close_check_at:null,last_observation_cleanup_at:null}
+};
+const historyCycle={
+  id:'qa-cycle',label:'October QA',period_start:'2026-10-01',
+  period_end:'2026-10-31',status:'OPEN',timezone:'America/Sao_Paulo',
+  created_at:FIXTURE_TIME,closed_at:null,closed_by:null,close_reason:null,
+  snapshot_count:0,totals:{total:0,by_status:{},by_severity:{},
+    potential_savings:[{currency:'USD',amount:'123.45'}],
+    current_cost:[{currency:'USD',amount:'1234.56'}],providers:0,accounts:0},
+  coverage:{total:0,success:0,failed:0,running:0}
+};
+const emptyUsageCost={
+  group_by:null,granularity:null,items:[],totals:[],priced_events:0,
+  unpriced_events:0,unpriced_usage:[],is_complete:true,
+  request_count_is_exact:true,inexact_request_events:0,failed_events:0,
+  free_tier_applied:false,pricing_sources:[],pricing_verified_at:null,
+  estimation_basis:'observed'
+};
 export const FIXTURE_FINANCIAL = Object.freeze({
   billingAmount:'1234.56',estimatedSavings:'123.45',
   rdsRequiredNu:8,rdsCoveredNu:4,rdsCoveragePercent:50,technicalId:LONG_OCID
@@ -99,13 +136,16 @@ export function apiFixture(path,method='GET',body=null) {
   const pathname = new URL(path,'https://qa.local').pathname;
   const request = body && typeof body==='object'?body:{};
   if (pathname==='/auth/me' && method==='GET')
-    return {status:200,body:{id:1,full_name:'Aven QA',email:'qa@example.test',role:'admin'}};
+    return {status:200,body:{id:1,name:'Aven QA',full_name:'Aven QA',email:'qa@example.test',role:'admin',is_active:true,password_set:true,mfa_enabled:false,mfa_reset_required:false}};
   if (pathname==='/auth/csrf' && method==='GET')
     return {status:200,body:{csrf_token:'qa-only-token'}};
   if (method!=='GET' && !['/billing/aws/summary','/billing/aws/timeseries','/billing/aws/breakdown'].includes(pathname))
     return {status:403,body:{}}; // No administrative/financial mutations are authorized.
   if (pathname==='/cloud-accounts')return {status:200,body:accounts};
-  if (pathname==='/cloud-accounts/capabilities')return {status:200,body:[]};
+  if (pathname==='/cloud-accounts/capabilities')return {status:200,body:
+    ['aws','oci'].map(provider=>({provider,label:provider.toUpperCase(),
+      registration:true,editing:true,connection_test:true,manual_collection:true,
+      scheduling:true,finops_policies:true}))};
   if (pathname==='/accounts')return {status:200,body:[]};
   if (pathname==='/scans')return {status:200,body:[]};
   if (pathname==='/billing/aws/profiles')return {status:200,body:[profile]};
@@ -185,6 +225,32 @@ export function apiFixture(path,method='GET',body=null) {
   if (pathname==='/rds/reservations-dashboard/reservations')return {status:200,body:page([])};
   if (pathname==='/rds/reservations-dashboard/opportunities')return {status:200,body:page([])};
   if (pathname==='/users')return {status:200,body:[]};
+  if (pathname==='/tls')return {status:200,body:tlsFixture};
+  if (pathname==='/settings/opportunity-policy')return {status:200,body:opportunityPolicy};
+  if (pathname==='/pricing/oci/meta')return {status:200,body:{
+    provider:'oci',currency:'BRL',services:['Compute'],units:['OCPU_HOUR'],
+    sources:['MANUAL','IMPORTED_OCI_CALCULATOR']
+  }};
+  if (pathname==='/pricing/oci')return {status:200,body:{items:[],total:0,limit:25,offset:0}};
+  if (pathname==='/auth/mfa/status')return {status:200,body:{
+    enabled:false,enrollment_required:false,recovery_codes_remaining:0
+  }};
+  if (pathname==='/usage/cloudwatch/summary')return {status:200,body:{
+    group_by:new URL(path,'https://qa.local').searchParams.get('group_by')||'operation',
+    items:[]
+  }};
+  if (/^\/deepops-costs\/cloudwatch\/(summary|timeseries|breakdown)$/.test(pathname))
+    return {status:200,body:{...emptyUsageCost,
+      group_by:new URL(path,'https://qa.local').searchParams.get('group_by'),
+      granularity:new URL(path,'https://qa.local').searchParams.get('granularity')
+    }};
+  if (pathname==='/opportunity-history/cycles/current')return {status:200,body:historyCycle};
+  if (pathname==='/opportunity-history/cycles')return {status:200,body:{
+    items:[historyCycle],total:1
+  }};
+  if (pathname==='/opportunity-history/snapshots')return {status:200,body:{
+    ...page([]),page_size:50
+  }};
   if (pathname==='/auth/sessions')return {status:200,body:[]};
   if (pathname==='/audit')return {status:200,body:{items:[],total:0}};
   if (pathname==='/audit/users')return {status:200,body:[]};
