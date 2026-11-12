@@ -36,10 +36,16 @@ RATES = {
 
 def row(service, sku, unit, amount, *, currency="BRL", effective_from=None):
     return PricingCatalogItem(
-        provider="oci", service=service, sku=sku, unit=unit,
-        description="Test-only catalog value", price=Decimal(amount),
-        currency=currency, effective_from=effective_from or AT - timedelta(days=1),
-        enabled=True, source="TEST_ONLY",
+        provider="oci",
+        service=service,
+        sku=sku,
+        unit=unit,
+        description="Test-only catalog value",
+        price=Decimal(amount),
+        currency=currency,
+        effective_from=effective_from or AT - timedelta(days=1),
+        enabled=True,
+        source="TEST_ONLY",
     )
 
 
@@ -51,8 +57,7 @@ def db():
     Base.metadata.create_all(engine)
     with Session(engine) as session:
         session.add_all(
-            row(service, sku, unit, amount)
-            for (service, sku, unit), amount in RATES.items()
+            row(service, sku, unit, amount) for (service, sku, unit), amount in RATES.items()
         )
         session.commit()
         yield session
@@ -60,21 +65,35 @@ def db():
 
 
 def request(service="compute", *, configuration=None, period=None, quantity=1, **extra):
-    cfg = {
-        "service": "compute", "shape": "VM.Standard.E4.Flex",
-        "ocpus": 4, "memory_gb": 32, "operating_system": "linux",
-        "boot_volume": {"size_gb": 100, "vpus_per_gb": 10},
-    } if service == "compute" else {
-        "service": "db_system", "deployment_model": "base_database",
-        "shape": "VM.BaseDB.x86", "edition": "enterprise",
-        "license_model": "license_included", "cpu_unit": "ECPU",
-        "cpu_count": 4, "storage_gb": 500,
-    }
+    cfg = (
+        {
+            "service": "compute",
+            "shape": "VM.Standard.E4.Flex",
+            "ocpus": 4,
+            "memory_gb": 32,
+            "operating_system": "linux",
+            "boot_volume": {"size_gb": 100, "vpus_per_gb": 10},
+        }
+        if service == "compute"
+        else {
+            "service": "db_system",
+            "deployment_model": "base_database",
+            "shape": "VM.BaseDB.x86",
+            "edition": "enterprise",
+            "license_model": "license_included",
+            "cpu_unit": "ECPU",
+            "cpu_count": 4,
+            "storage_gb": 500,
+        }
+    )
     cfg.update(configuration or {})
     data = {
-        "provider": "oci", "region": "sa-saopaulo-1",
-        "resource_configuration": cfg, "period": period or {"mode": "monthly"},
-        "quantity": quantity, "pricing_reference_date": AT,
+        "provider": "oci",
+        "region": "sa-saopaulo-1",
+        "resource_configuration": cfg,
+        "period": period or {"mode": "monthly"},
+        "quantity": quantity,
+        "pricing_reference_date": AT,
     }
     data.update(extra)
     return CalculatorEstimateRequest.model_validate(data)
@@ -84,20 +103,39 @@ def quote(db, **kwargs):
     return estimate_oci_calculator(request(**kwargs), db)
 
 
-def binding(*, component, sku, unit, license_model="license_included",
-            includes_license=False, region="sa-saopaulo-1"):
+def binding(
+    *,
+    component,
+    sku,
+    unit,
+    license_model="license_included",
+    includes_license=False,
+    region="sa-saopaulo-1",
+):
     return OciDbCalculatorBinding(
-        region=region, deployment_model="base_database", shape="VM.BaseDB.x86",
-        edition="enterprise", license_model=license_model, cpu_unit="ECPU",
-        component=component, sku=sku, unit=unit,
-        includes_license=includes_license, source_reference="TEST_ONLY_VERIFIED_MAPPING",
+        region=region,
+        deployment_model="base_database",
+        shape="VM.BaseDB.x86",
+        edition="enterprise",
+        license_model=license_model,
+        cpu_unit="ECPU",
+        component=component,
+        sku=sku,
+        unit=unit,
+        includes_license=includes_license,
+        source_reference="TEST_ONLY_VERIFIED_MAPPING",
         enabled=True,
     )
 
 
-@pytest.mark.parametrize("shape", [
-    "VM.Standard.E3.Flex", "VM.Standard.E4.Flex", "VM.Standard.E5.Flex",
-])
+@pytest.mark.parametrize(
+    "shape",
+    [
+        "VM.Standard.E3.Flex",
+        "VM.Standard.E4.Flex",
+        "VM.Standard.E5.Flex",
+    ],
+)
 def test_compute_allowlisted_shapes_have_catalog_provenance(db, shape):
     value = quote(db, configuration={"shape": shape})
     assert value.pricing_status == "priced"
@@ -110,7 +148,9 @@ def test_compute_allowlisted_shapes_have_catalog_provenance(db, shape):
 
 def test_vm_monthly_744_and_three_week_cost_with_two_resources_and_volumes(db):
     value = quote(
-        db, quantity=2, period={"mode": "weeks", "amount": "3"},
+        db,
+        quantity=2,
+        period={"mode": "weeks", "amount": "3"},
         configuration={
             "block_volumes": [{"size_gb": 500, "vpus_per_gb": 10}],
         },
@@ -120,9 +160,12 @@ def test_vm_monthly_744_and_three_week_cost_with_two_resources_and_volumes(db):
     assert value.period_final_cost == Decimal("482.48")
     assert value.period_duration_hours == 504
     assert [p.sku for p in value.pricing_components] == [
-        "VM.Standard.E4.Flex.OCPU", "VM.Standard.E4.Flex.Memory",
-        "BLOCK_VOLUME_GB_MONTH", "BLOCK_VOLUME_VPU_GB_MONTH",
-        "BLOCK_VOLUME_GB_MONTH", "BLOCK_VOLUME_VPU_GB_MONTH",
+        "VM.Standard.E4.Flex.OCPU",
+        "VM.Standard.E4.Flex.Memory",
+        "BLOCK_VOLUME_GB_MONTH",
+        "BLOCK_VOLUME_VPU_GB_MONTH",
+        "BLOCK_VOLUME_GB_MONTH",
+        "BLOCK_VOLUME_VPU_GB_MONTH",
     ]
     assert value.pricing_components[0].monthly_units == 4 * 744 * 2
     assert value.pricing_components[-1].monthly_units == 500 * 10 * 2
@@ -173,31 +216,43 @@ def test_missing_windows_or_storage_catalog_sku_is_partial(db):
     assert "windows_license" in result.missing_pricing_components
 
 
-@pytest.mark.parametrize(("configuration", "status"), [
-    ({"shape": "VM.Standard.E6.Flex"}, "unsupported_configuration"),
-    ({"ocpus": 65}, "invalid_combination"),
-    ({"ocpus": 1, "memory_gb": 65}, "invalid_combination"),
-    ({"memory_gb": 1}, "invalid_combination"),
-    ({"boot_volume": {"size_gb": 100, "vpus_per_gb": 11}}, "invalid_combination"),
-    ({"boot_volume": {"size_gb": 100, "vpus_per_gb": 10, "count": 2}}, "invalid_combination"),
-    ({"shape": None}, "missing_configuration"),
-])
+@pytest.mark.parametrize(
+    ("configuration", "status"),
+    [
+        ({"shape": "VM.Standard.E6.Flex"}, "unsupported_configuration"),
+        ({"ocpus": 65}, "invalid_combination"),
+        ({"ocpus": 1, "memory_gb": 65}, "invalid_combination"),
+        ({"memory_gb": 1}, "invalid_combination"),
+        ({"boot_volume": {"size_gb": 100, "vpus_per_gb": 11}}, "invalid_combination"),
+        ({"boot_volume": {"size_gb": 100, "vpus_per_gb": 10, "count": 2}}, "invalid_combination"),
+        ({"shape": None}, "missing_configuration"),
+    ],
+)
 def test_invalid_shapes_sizes_performance_and_boot_count_never_price(db, configuration, status):
     result = quote(db, configuration=configuration)
     assert result.pricing_status == status
     assert result.monthly_final_cost is None
 
 
-@pytest.mark.parametrize(("period", "hours"), [
-    ({"mode": "hours", "amount": "1"}, Decimal("1")),
-    ({"mode": "days", "amount": "1"}, Decimal("24")),
-    ({"mode": "weeks", "amount": "1"}, Decimal("168")),
-    ({"mode": "weeks", "amount": "3"}, Decimal("504")),
-    ({"mode": "days", "amount": "15"}, Decimal("360")),
-    ({"mode": "hours", "amount": "1.25"}, Decimal("1.25")),
-    ({"mode": "custom", "start_at": "2026-11-01T01:30:00-04:00",
-     "end_at": "2026-11-01T01:30:00-05:00"}, Decimal("1")),
-])
+@pytest.mark.parametrize(
+    ("period", "hours"),
+    [
+        ({"mode": "hours", "amount": "1"}, Decimal("1")),
+        ({"mode": "days", "amount": "1"}, Decimal("24")),
+        ({"mode": "weeks", "amount": "1"}, Decimal("168")),
+        ({"mode": "weeks", "amount": "3"}, Decimal("504")),
+        ({"mode": "days", "amount": "15"}, Decimal("360")),
+        ({"mode": "hours", "amount": "1.25"}, Decimal("1.25")),
+        (
+            {
+                "mode": "custom",
+                "start_at": "2026-11-01T01:30:00-04:00",
+                "end_at": "2026-11-01T01:30:00-05:00",
+            },
+            Decimal("1"),
+        ),
+    ],
+)
 def test_oci_temporal_contract_is_centralized(db, period, hours):
     result = quote(db, period=period)
     assert result.pricing_status == "priced"
@@ -211,8 +266,9 @@ def test_request_financial_separation_and_storage_validation():
     with pytest.raises(ValidationError):
         request(configuration={"boot_volume": {"size_gb": -5, "vpus_per_gb": 0}})
     with pytest.raises(ValidationError):
-        request(configuration={"boot_volume": {"size_gb": 100, "vpus_per_gb": 0},
-                               "boot_volume_gb": 100})
+        request(
+            configuration={"boot_volume": {"size_gb": 100, "vpus_per_gb": 0}, "boot_volume_gb": 100}
+        )
     with pytest.raises(ValidationError):
         request(configuration={"block_volumes": [{"size_gb": 1} for _ in range(21)]})
 
@@ -231,12 +287,14 @@ def test_db_missing_bindings_has_no_fictitious_skus_or_final_price(db):
 
 
 def test_db_missing_license_yields_known_subtotal_not_final_total(db):
-    db.add_all([
-        row("db_system", "TEST_ONLY_DB_CAPACITY", "ECPU_HOUR", "0.2"),
-        row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
-        binding(component="capacity", sku="TEST_ONLY_DB_CAPACITY", unit="ECPU_HOUR"),
-        binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
-    ])
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_DB_CAPACITY", "ECPU_HOUR", "0.2"),
+            row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
+            binding(component="capacity", sku="TEST_ONLY_DB_CAPACITY", unit="ECPU_HOUR"),
+            binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
+        ]
+    )
     db.commit()
     result = quote(db, service="db_system")
     assert result.pricing_status == "partially_priced"
@@ -246,34 +304,44 @@ def test_db_missing_license_yields_known_subtotal_not_final_total(db):
 
 
 def test_db_full_components_and_fifteen_day_proration(db):
-    db.add_all([
-        row("db_system", "TEST_ONLY_DB_CAPACITY", "ECPU_HOUR", "0.2"),
-        row("db_system", "TEST_ONLY_DB_LICENSE", "ECPU_HOUR", "0.1"),
-        row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
-        binding(component="capacity", sku="TEST_ONLY_DB_CAPACITY", unit="ECPU_HOUR"),
-        binding(component="license", sku="TEST_ONLY_DB_LICENSE", unit="ECPU_HOUR"),
-        binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
-    ])
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_DB_CAPACITY", "ECPU_HOUR", "0.2"),
+            row("db_system", "TEST_ONLY_DB_LICENSE", "ECPU_HOUR", "0.1"),
+            row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
+            binding(component="capacity", sku="TEST_ONLY_DB_CAPACITY", unit="ECPU_HOUR"),
+            binding(component="license", sku="TEST_ONLY_DB_LICENSE", unit="ECPU_HOUR"),
+            binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
+        ]
+    )
     db.commit()
     result = quote(db, service="db_system", period={"mode": "days", "amount": 15})
     assert result.pricing_status == "priced"
     assert result.monthly_final_cost == Decimal("917.80")
     assert result.period_final_cost == Decimal("444.10")
     assert {p.sku for p in result.pricing_components} == {
-        "TEST_ONLY_DB_CAPACITY", "TEST_ONLY_DB_LICENSE", "TEST_ONLY_DB_STORAGE",
+        "TEST_ONLY_DB_CAPACITY",
+        "TEST_ONLY_DB_LICENSE",
+        "TEST_ONLY_DB_STORAGE",
     }
     metadata = oci_calculator_options(db, service="db_system", region="sa-saopaulo-1")
     assert metadata["items"][0]["complete_price_available"] is True
 
 
 def test_db_license_included_in_capacity_does_not_double_bill(db):
-    db.add_all([
-        row("db_system", "TEST_ONLY_DB_BUNDLED", "ECPU_HOUR", "0.3"),
-        row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
-        binding(component="capacity", sku="TEST_ONLY_DB_BUNDLED",
-                unit="ECPU_HOUR", includes_license=True),
-        binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
-    ])
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_DB_BUNDLED", "ECPU_HOUR", "0.3"),
+            row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
+            binding(
+                component="capacity",
+                sku="TEST_ONLY_DB_BUNDLED",
+                unit="ECPU_HOUR",
+                includes_license=True,
+            ),
+            binding(component="storage", sku="TEST_ONLY_DB_STORAGE", unit="GB_MONTH"),
+        ]
+    )
     db.commit()
     result = quote(db, service="db_system")
     assert result.pricing_status == "priced"
@@ -283,14 +351,24 @@ def test_db_license_included_in_capacity_does_not_double_bill(db):
 
 
 def test_db_byol_requires_distinct_verified_binding_not_free_license(db):
-    db.add_all([
-        row("db_system", "TEST_ONLY_DB_BYOL", "ECPU_HOUR", "0.05"),
-        row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
-        binding(component="capacity", sku="TEST_ONLY_DB_BYOL",
-                unit="ECPU_HOUR", license_model="byol"),
-        binding(component="storage", sku="TEST_ONLY_DB_STORAGE",
-                unit="GB_MONTH", license_model="byol"),
-    ])
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_DB_BYOL", "ECPU_HOUR", "0.05"),
+            row("db_system", "TEST_ONLY_DB_STORAGE", "GB_MONTH", "0.05"),
+            binding(
+                component="capacity",
+                sku="TEST_ONLY_DB_BYOL",
+                unit="ECPU_HOUR",
+                license_model="byol",
+            ),
+            binding(
+                component="storage",
+                sku="TEST_ONLY_DB_STORAGE",
+                unit="GB_MONTH",
+                license_model="byol",
+            ),
+        ]
+    )
     db.commit()
     result = quote(db, service="db_system", configuration={"license_model": "byol"})
     assert result.pricing_status == "priced"
@@ -299,13 +377,16 @@ def test_db_byol_requires_distinct_verified_binding_not_free_license(db):
     assert all(p.sku != "TEST_ONLY_DB_LICENSE" for p in result.pricing_components)
 
 
-@pytest.mark.parametrize(("configuration", "status"), [
-    ({"cpu_unit": "OCPU"}, "unsupported_configuration"),
-    ({"shape": "VM.Standard.E4.Flex"}, "unsupported_configuration"),
-    ({"cpu_count": 3}, "invalid_combination"),
-    ({"cpu_count": 6}, "invalid_combination"),
-    ({"edition": None}, "missing_configuration"),
-])
+@pytest.mark.parametrize(
+    ("configuration", "status"),
+    [
+        ({"cpu_unit": "OCPU"}, "unsupported_configuration"),
+        ({"shape": "VM.Standard.E4.Flex"}, "unsupported_configuration"),
+        ({"cpu_count": 3}, "invalid_combination"),
+        ({"cpu_count": 6}, "invalid_combination"),
+        ({"edition": None}, "missing_configuration"),
+    ],
+)
 def test_db_rejects_legacy_ocpu_invalid_ecpu_and_missing_product(db, configuration, status):
     result = quote(db, service="db_system", configuration=configuration)
     assert result.pricing_status == status
@@ -313,14 +394,21 @@ def test_db_rejects_legacy_ocpu_invalid_ecpu_and_missing_product(db, configurati
 
 
 def test_db_region_and_catalog_effectiveness_must_match(db):
-    db.add_all([
-        row("db_system", "TEST_ONLY_FUTURE", "ECPU_HOUR", "0.2",
-            effective_from=AT + timedelta(days=1)),
-        binding(component="capacity", sku="TEST_ONLY_FUTURE", unit="ECPU_HOUR"),
-    ])
+    db.add_all(
+        [
+            row(
+                "db_system",
+                "TEST_ONLY_FUTURE",
+                "ECPU_HOUR",
+                "0.2",
+                effective_from=AT + timedelta(days=1),
+            ),
+            binding(component="capacity", sku="TEST_ONLY_FUTURE", unit="ECPU_HOUR"),
+        ]
+    )
     db.commit()
     value = quote(db, service="db_system")
-    assert value.pricing_status == "sku_missing" or value.pricing_status == "partially_priced"
+    assert value.pricing_status == "price_not_effective"
     assert value.monthly_final_cost is None
     assert value.pricing_components[0].pricing_status == "price_not_effective"
 
@@ -330,11 +418,11 @@ def test_oci_authenticated_http_and_dropdown_contract(auth_env):
     payload = request().model_dump(mode="json")
     assert client.post("/api/v1/calculator/estimate", json=payload).status_code == 401
     with Session(engine) as db:
-        db.add_all(row(service, sku, unit, amount)
-                   for (service, sku, unit), amount in RATES.items())
+        db.add_all(
+            row(service, sku, unit, amount) for (service, sku, unit), amount in RATES.items()
+        )
         db.commit()
-    response = client.post("/api/v1/calculator/estimate",
-                           json=payload, headers=headers(tokens))
+    response = client.post("/api/v1/calculator/estimate", json=payload, headers=headers(tokens))
     assert response.status_code == 200, response.text
     assert response.json()["pricing_status"] == "priced"
     assert response.json()["final_currency"] == "BRL"
@@ -345,7 +433,10 @@ def test_oci_authenticated_http_and_dropdown_contract(auth_env):
     assert options.status_code == 200
     assert len(options.json()["items"]) == 3
     assert all(item["pricing_status"] == "priced" for item in options.json()["items"])
-    assert client.get(
-        "/api/v1/calculator/oci/options?service=db_system&region=sa-saopaulo-1",
-        headers=headers(tokens),
-    ).json()["setup_required"] is True
+    assert (
+        client.get(
+            "/api/v1/calculator/oci/options?service=db_system&region=sa-saopaulo-1",
+            headers=headers(tokens),
+        ).json()["setup_required"]
+        is True
+    )
