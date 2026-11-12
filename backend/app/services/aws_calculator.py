@@ -16,7 +16,6 @@ from app.schemas.calculator import (
 from app.services.aws_calculator_pricing import AwsPublicPriceResolver, missing_aws_lookup
 from app.services.calculator_engine import (
     CalculatorMeteredComponent,
-    duration_seconds,
     estimate_calculator_cost,
 )
 
