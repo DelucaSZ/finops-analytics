@@ -11,9 +11,9 @@ test("Aven font loading is independent of Google Fonts during Docker build", asy
   const packageJson = JSON.parse(await load("package.json"));
   const lock = JSON.parse(await load("package-lock.json"));
 
-  assert.doesNotMatch(layout, /next\\/font\\/google/);
-  assert.match(layout, /@fontsource-variable\\/inter\\/wght\\.css/);
-  assert.match(layout, /@fontsource-variable\\/sora\\/wght\\.css/);
+  assert.ok(!layout.includes("next/font/google"));
+  assert.ok(layout.includes("@fontsource-variable/inter/wght.css"));
+  assert.ok(layout.includes("@fontsource-variable/sora/wght.css"));
   assert.match(primitives, /--aven-font-inter: "Inter Variable"/);
   assert.match(primitives, /--aven-font-sora: "Sora Variable"/);
 
