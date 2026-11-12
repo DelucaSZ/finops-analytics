@@ -37,8 +37,14 @@ def upgrade() -> None:
         sa.CheckConstraint("cpu_unit = 'ECPU'", name="ck_oci_db_binding_ecpu"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
-            "region", "deployment_model", "shape", "edition", "license_model",
-            "cpu_unit", "component", name="uq_oci_db_calculator_binding",
+            "region",
+            "deployment_model",
+            "shape",
+            "edition",
+            "license_model",
+            "cpu_unit",
+            "component",
+            name="uq_oci_db_calculator_binding",
         ),
     )
     op.create_index(
