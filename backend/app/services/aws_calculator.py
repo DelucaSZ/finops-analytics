@@ -102,7 +102,7 @@ def _ec2(request, at, resolver):
         "INSTANCE_HOUR", "Hrs",
     )
     components.append(_component("compute", lookup, 1, month=AWS_INSTANCE_REFERENCE_HOURS,
-                                 minimum=60))
+                                 minimum=60, eligible=os_name == "Linux"))
     # The Windows OS charge is already included in the Compute Instance SKU.
     if cfg.root_volume_gb is None or cfg.root_volume_gb == 0:
         warnings.append("ebs_storage_not_configured")
