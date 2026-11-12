@@ -52,7 +52,14 @@ def _products(service_code: str, filters: tuple[tuple[str, str], ...], bucket: i
         args = {
             "ServiceCode": service_code,
             "FormatVersion": "aws_v1",
-            "Filters": [{"Type": "TERM_MATCH", "Field": k, "Value": v} for k, v in filters],
+            "Filters": [
+                {
+                    "Type": "CONTAINS" if k.startswith("contains:") else "TERM_MATCH",
+                    "Field": k.removeprefix("contains:"),
+                    "Value": v,
+                }
+                for k, v in filters
+            ],
             "MaxResults": _MAX_RESULTS,
         }
         if next_token:
