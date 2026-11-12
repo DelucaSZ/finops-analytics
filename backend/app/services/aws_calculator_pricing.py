@@ -8,10 +8,10 @@ from __future__ import annotations
 import json
 import logging
 import time
+from collections.abc import Callable
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
-from collections.abc import Callable
 
 import boto3
 from botocore.config import Config
