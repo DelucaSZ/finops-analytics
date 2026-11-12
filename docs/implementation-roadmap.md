@@ -4,6 +4,20 @@
 
 Este documento registra o estado real das etapas estruturais do Aven para que futuras implementações não dependam do histórico de conversa.
 
+## Fase 27 — Calculadora de Custos (Task 27.4: OCI)
+
+**Status:** implementada em branch `feat/task-27.4-oci-vm-db-system-calculator`; testes/CI e merge pendentes.
+
+- OCI VM: adaptador E3/E4/E5, OCPU, RAM, Windows, Boot/Block Volume, BRL final e motor temporal central.
+- OCI DB System: adaptador Base Database Service `VM.BaseDB.x86` em ECPU, License Included/BYOL, capacidade e storage; SKUs comerciais DB continuam pendentes.
+- Preços exclusivos de `pricing_catalog_items`; nova tabela `oci_db_calculator_bindings` armazena somente associação verificada de produto e SKU, sem valores duplicados.
+- Status parcial com subtotais conhecidos e totais finais indisponíveis quando a configuração, licença, storage ou SKU obrigatório estiver ausente.
+- API `/api/v1/calculator/estimate` reutilizada; metadados de dropdown em `/api/v1/calculator/oci/options`; sem UI nesta task.
+- Documentação técnica: [27.4 OCI adapters](calculator/27.4-oci-adapters.md).
+
+**Dependência da Task 27.5:** construir a interface Aven a partir dos contratos da API e disponibilizar os SKUs DB System somente após validação comercial e associação de suas modalidades.
+
+---
 ## Etapa 1 — CollectionRun
 
 **Status:** concluída, validada e publicada na `main` em 24/09/2026.
