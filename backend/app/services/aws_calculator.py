@@ -121,7 +121,14 @@ def _ec2(request, at, resolver):
     def ebs_price(key, family, unit, aws_unit):
         return _quote(
             resolver, request, at, key, family,
-            {"volumeApiName": cfg.ebs_volume_type},
+            {
+                "volumeApiName": cfg.ebs_volume_type,
+                "contains:usagetype": {
+                    "ebs_storage": f"EBS:VolumeUsage.{cfg.ebs_volume_type}",
+                    "ebs_iops": "EBS:VolumeP-IOPS.gp3",
+                    "ebs_throughput": "EBS:VolumeP-Throughput.gp3",
+                }[key],
+            },
             lambda a: a.get("volumeApiName") == cfg.ebs_volume_type
             and a.get("usagetype", "").endswith(
                 {
@@ -240,7 +247,8 @@ def _rds(request, at, resolver):
     )
     storage = _quote(
         resolver, request, at, "storage", "Database Storage",
-        {},  # RDS storage SKUs may be engine-neutral; select by exact usage.
+        {"contains:usagetype": f"RDS:{suffix}"},
+        # RDS storage SKUs can be engine-neutral; constrain by exact usage.
         lambda a: (
             a.get("usagetype", "").endswith(f"RDS:{suffix}")
             and a.get("databaseEngine") in (None, engine, "Any")
