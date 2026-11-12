@@ -24,7 +24,7 @@ function initialFields(): TextForm {
     region: "", search: "", instance: "", os: "", engine: "postgres", deployment: "",
     volumeType: "gp3", capacity: "100", iops: "3000", throughput: "125",
     shape: "", ocpus: "1", memory: "8", bootSize: "100", bootVpu: "10",
-    dbChoice: "", cpuCount: "4", dbStorage: "500",
+    dbChoice: "", dbEdition: "standard", dbLicense: "license_included", cpuCount: "4", dbStorage: "500",
     discount: "0", fx: "", tax: "13", quantity: "1", amount: "1",
     startAt: "", endAt: "",
   };
@@ -252,12 +252,20 @@ export default function CalculatorPage() {
         block_volumes: volumes.map((v) => ({ size_gb: decimalValue(v.size_gb), vpus_per_gb: v.vpus_per_gb, count: v.count })),
       };
     } else if (provider === "oci" && service === "db_system") {
-      if (!dbOption || dbOption.shape !== ociDb?.new_provisioning_shape || dbOption.cpu_unit !== "ECPU") return null;
+      // Even without verified SKU bindings, the backend accepts a Base Database
+      // configuration and returns missing-price status rather than a fabricated total.
+      if (!ociDb || (!dbOption && !ociDb.setup_required)) return null;
+      const selectedEdition = dbOption?.edition ?? form.dbEdition;
+      const selectedLicense = dbOption?.license_model ?? form.dbLicense;
+      const shape = dbOption?.shape ?? ociDb.new_provisioning_shape;
+      if (shape !== ociDb.new_provisioning_shape || (dbOption && dbOption.cpu_unit !== "ECPU")
+        || !["standard", "enterprise", "enterprise_high_performance"].includes(selectedEdition)
+        || !["license_included", "byol"].includes(selectedLicense)) return null;
       const cpu = Number(form.cpuCount);
       if (!Number.isInteger(cpu) || cpu < 4 || cpu > 256 || cpu % 4 !== 0 || !positiveNumber(form.dbStorage)) return null;
       config = {
-        service: "db_system", deployment_model: dbOption.deployment_model,
-        shape: dbOption.shape, edition: dbOption.edition, license_model: dbOption.license_model,
+        service: "db_system", deployment_model: "base_database",
+        shape, edition: selectedEdition, license_model: selectedLicense,
         cpu_unit: "ECPU", cpu_count: form.cpuCount, storage_gb: decimalValue(form.dbStorage),
       };
     } else return null;
@@ -426,18 +434,33 @@ export default function CalculatorPage() {
               {provider === "oci" && service === "db_system" && (
                 <>
                   {ociDb?.setup_required && <Alert variant="warning" title={t("dbSetupTitle")} description={t("dbSetupDescription")} />}
-                  {choice(t("dbConfiguration"), form.dbChoice,
-                    dbOptions.map((item, i) => ({
-                      value: String(i),
-                      label: [item.shape, tx("editions." + item.edition), tx("licenses." + item.license_model)].join(" · ")
-                        + (item.complete_price_available ? "" : " · " + t("incomplete")),
-                    })), (v) => update("dbChoice", v), !dbOptions.length)}
-                  {dbOption && <div className={styles.definition}>
-                    <span>{t("shape")}</span><strong>{dbOption.shape}</strong>
-                    <span>{t("deployment")}</span><strong>{t("dbDeployment")}</strong>
-                    <span>{t("edition")}</span><strong>{tx("editions." + dbOption.edition)}</strong>
-                    <span>{t("license")}</span><strong>{tx("licenses." + dbOption.license_model)}</strong>
-                  </div>}
+                  {ociDb?.setup_required ? <>
+                    <div className={styles.definition}>
+                      <span>{t("shape")}</span><strong>{ociDb.new_provisioning_shape}</strong>
+                      <span>{t("deployment")}</span><strong>{t("dbDeployment")}</strong>
+                    </div>
+                    <div className={styles.fieldGrid}>
+                      {choice(t("edition"), form.dbEdition,
+                        ["standard", "enterprise", "enterprise_high_performance"].map((v) => ({ value: v, label: tx("editions." + v) })),
+                        (v) => update("dbEdition", v))}
+                      {choice(t("license"), form.dbLicense,
+                        ["license_included", "byol"].map((v) => ({ value: v, label: tx("licenses." + v) })),
+                        (v) => update("dbLicense", v))}
+                    </div>
+                  </> : <>
+                    {choice(t("dbConfiguration"), form.dbChoice,
+                      dbOptions.map((item, i) => ({
+                        value: String(i),
+                        label: [item.shape, tx("editions." + item.edition), tx("licenses." + item.license_model)].join(" · ")
+                          + (item.complete_price_available ? "" : " · " + t("incomplete")),
+                      })), (v) => update("dbChoice", v), !dbOptions.length)}
+                    {dbOption && <div className={styles.definition}>
+                      <span>{t("shape")}</span><strong>{dbOption.shape}</strong>
+                      <span>{t("deployment")}</span><strong>{t("dbDeployment")}</strong>
+                      <span>{t("edition")}</span><strong>{tx("editions." + dbOption.edition)}</strong>
+                      <span>{t("license")}</span><strong>{tx("licenses." + dbOption.license_model)}</strong>
+                    </div>}
+                  </>}
                   <div className={styles.fieldGrid}>
                     {numberField(t("ecpus"), "cpuCount", "4", "256", "4")}
                     {numberField(t("dbStorage"), "dbStorage", "0.01")}
