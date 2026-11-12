@@ -1,7 +1,7 @@
-// Inventory reconciled with docs/i18n/25.9-test-matrix.md (33 page.tsx routes).
+// Inventory reconciled with docs/i18n/25.9-test-matrix.md (34 page.tsx routes).
 // A navigation result must never be inferred from an authentication redirect.
 export const PROTECTED_ROUTES = [
-  '/', '/billing', '/inventory', '/flow', '/opportunities',
+  '/', '/billing', '/calculator', '/inventory', '/flow', '/opportunities',
   '/opportunities/history-cycles', '/opportunities/collection/qa-collection',
   '/rds/reservations', '/collections', '/collections/qa-collection',
   '/collections/qa-collection/compare', '/scans',
@@ -14,7 +14,7 @@ export const PUBLIC_ROUTES = [
   '/login', '/forgot-password', '/reset-password', '/accept-invitation', '/mfa-setup'
 ];
 export const TECHNICAL_ROUTES = ['/settings', '/security', '/finops/ledger', '/dev/ui'];
-export const INVENTORIED_COUNT = 33;
+export const INVENTORIED_COUNT = 34;
 if (new Set([...PROTECTED_ROUTES,...PUBLIC_ROUTES,...TECHNICAL_ROUTES]).size !== INVENTORIED_COUNT) {
   throw new Error('i18n route inventory has duplicates or missing entries');
 }
