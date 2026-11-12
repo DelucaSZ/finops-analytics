@@ -367,9 +367,7 @@ def test_live_pricing_service_failure_returns_null_not_zero():
         ("100", "18.00"),
     ],
 )
-def test_gp3_iops_and_throughput_are_not_eligible_for_compute_discount(
-    discount, expected_net
-):
+def test_gp3_iops_and_throughput_are_not_eligible_for_compute_discount(discount, expected_net):
     """Prevent contractual compute discount from leaking into EBS performance."""
     cfg = {
         "service": "ec2",
