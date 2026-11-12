@@ -52,7 +52,11 @@ def _missing(request, at, key, unit, warning, *, month=AWS_INSTANCE_REFERENCE_HO
         missing_aws_lookup(
             request.resource_configuration.service,
             request.region, key, unit, at,
-            "missing_configuration" if warning.startswith("required_") else "unsupported_configuration",
+            (
+                "missing_configuration"
+                if warning.startswith("required_")
+                else "unsupported_configuration"
+            ),
             warning,
         ),
         1, month=month,
