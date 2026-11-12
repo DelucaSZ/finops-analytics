@@ -45,7 +45,7 @@ function statusVariant(status: CalculatorEstimate["pricing_status"]) {
 export default function CalculatorPage() {
   const t = useTranslations("calculator");
   const locale = useLocale();
-  const tx = (key: string) => t(key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()) as Parameters<typeof t>[0]);
+  const tx = (key: string) => t(key.replace(/[-_]([a-z])/g, (_, letter: string) => letter.toUpperCase()) as Parameters<typeof t>[0]);
   const [provider, setProvider] = useState<Provider>("aws");
   const [service, setService] = useState<Service>("ec2");
   const [form, setForm] = useState<TextForm>(initialFields);
