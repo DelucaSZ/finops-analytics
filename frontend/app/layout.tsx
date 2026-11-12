@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import { getLocale, getMessages } from "next-intl/server";
 import { LocaleProvider } from "@/components/locale-provider";
-import { Inter, Sora } from "next/font/google";
+import "@fontsource-variable/inter/wght.css";
+import "@fontsource-variable/sora/wght.css";
 import { AppShell } from "@/components/app-shell";
 import { AvenAmbientBackground } from "@/components/aven/ambient-background";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -18,20 +19,6 @@ import "./ui-system.css";
 import "./legacy-theme-compat.css";
 import "./surface-hierarchy.css";
 import "./layout-system.css";
-
-const inter = Inter({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--aven-font-inter",
-});
-
-const sora = Sora({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  display: "swap",
-  variable: "--aven-font-sora",
-});
 
 export const metadata: Metadata = {
   applicationName: PRODUCT_NAME,
@@ -65,7 +52,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${sora.variable}`}
       suppressHydrationWarning
     >
       <head>
