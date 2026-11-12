@@ -355,3 +355,71 @@ def test_live_pricing_service_failure_returns_null_not_zero():
     assert out.pricing_status == "pricing_configuration_error"
     assert out.monthly_final_cost is None
     assert "aws_pricing_api_unavailable" in out.warnings
+
+
+@pytest.mark.parametrize(
+    ("discount", "expected_net"),
+    [
+        ("0", "748.00"),
+        ("10", "675.00"),
+        ("15.5", "634.85"),
+        ("50", "383.00"),
+        ("100", "18.00"),
+    ],
+)
+def test_gp3_iops_and_throughput_are_not_eligible_for_compute_discount(
+    discount, expected_net
+):
+    """Prevent contractual compute discount from leaking into EBS performance."""
+    cfg = {
+        "service": "ec2",
+        "instance_type": "t3.medium",
+        "operating_system": "linux",
+        "root_volume_gb": "100",
+        "ebs_iops": 4000,
+        "ebs_throughput_mbps": 200,
+    }
+    result = estimate_aws_calculator(
+        request(configuration=cfg, aws_financial={"discount_percent": discount}),
+        resolver=resolver(),
+    )
+    assert result.pricing_status == "priced"
+    assert result.monthly_original_cost == Decimal("748.00")
+    assert result.monthly_final_cost == Decimal(expected_net)
+    assert [part.discount_eligible for part in result.pricing_components] == [
+        True,
+        False,
+        False,
+        False,
+    ]
+    assert result.monthly_discount_amount == (
+        Decimal("730.00") * Decimal(discount) / Decimal("100")
+    ).quantize(Decimal("0.01"))
+
+
+def test_gp3_compute_only_discount_before_fx_and_tax():
+    cfg = {
+        "service": "ec2",
+        "instance_type": "t3.medium",
+        "operating_system": "linux",
+        "root_volume_gb": "100",
+        "ebs_iops": 4000,
+        "ebs_throughput_mbps": 200,
+    }
+    result = estimate_aws_calculator(
+        request(
+            configuration=cfg,
+            aws_financial={
+                "discount_percent": "10",
+                "conversion_enabled": True,
+                "usd_brl_rate": "5",
+                "tax_percent": "13",
+            },
+        ),
+        resolver=resolver(),
+    )
+    assert result.monthly_net_cost == Decimal("675.00")
+    assert result.monthly_converted_cost == Decimal("3375.00")
+    assert result.monthly_tax_amount == Decimal("438.75")
+    assert result.monthly_final_cost == Decimal("3813.75")
+    assert result.final_currency == "BRL"
