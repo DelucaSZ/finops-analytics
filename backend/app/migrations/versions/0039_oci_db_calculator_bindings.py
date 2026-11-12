@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("component", sa.String(length=24), nullable=False),
         sa.Column("sku", sa.String(length=160), nullable=False),
         sa.Column("unit", sa.String(length=32), nullable=False),
-        sa.Column("includes_license", sa.Boolean(), server_default=sa.text("0"), nullable=False),
+        sa.Column("includes_license", sa.Boolean(), server_default=sa.false(), nullable=False),
         sa.Column("source_reference", sa.String(length=255), nullable=False),
         sa.Column("enabled", sa.Boolean(), server_default=sa.true(), nullable=False),
         sa.CheckConstraint(
