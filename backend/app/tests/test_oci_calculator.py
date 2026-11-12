@@ -436,11 +436,8 @@ def test_oci_authenticated_http_and_dropdown_contract(auth_env):
     client, engine, tokens, _ = auth_env
     payload = request().model_dump(mode="json")
     assert client.post("/api/v1/calculator/estimate", json=payload).status_code == 401
-    with Session(engine) as db:
-        db.add_all(
-            row(service, sku, unit, amount) for (service, sku, unit), amount in RATES.items()
-        )
-        db.commit()
+    # auth_env runs the approved catalog seed migration; do not insert overlapping
+    # versions of the same SKU, which would rightfully raise ambiguity.
     response = client.post("/api/v1/calculator/estimate", json=payload, headers=headers(tokens))
     assert response.status_code == 200, response.text
     assert response.json()["pricing_status"] == "priced"
