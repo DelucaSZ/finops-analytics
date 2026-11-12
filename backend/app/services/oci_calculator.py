@@ -424,8 +424,7 @@ def oci_calculator_options(
             and (
                 group["license_model"] != "byol"
                 or (
-                    "license" not in parts
-                    and not parts.get("capacity", {}).get("includes_license")
+                    "license" not in parts and not parts.get("capacity", {}).get("includes_license")
                 )
             )
             and not (
