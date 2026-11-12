@@ -51,6 +51,7 @@ from app.models.opportunity_retention_run import (
 )
 from app.models.opportunity_status_history import OpportunityStatusHistory
 from app.models.policy import Policy
+from app.models.oci_db_calculator import OciDbCalculatorBinding
 from app.models.pricing import PricingCatalogItem
 from app.models.pricing_audit import (
     PricingAuditAction,
@@ -118,6 +119,7 @@ __all__ = [
     "OpportunityRetentionRunStatus",
     "OpportunityStatusHistory",
     "Policy",
+    "OciDbCalculatorBinding",
     "PricingCatalogItem",
     "PricingAuditAction",
     "PricingAuditActorType",
