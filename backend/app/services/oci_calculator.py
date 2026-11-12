@@ -104,33 +104,30 @@ def _volume_components(
 ) -> tuple[list[CalculatorMeteredComponent], list[str]]:
     """Use distinct block storage and performance dimensions; VPU=0 incurs no VPU fee."""
 
-    if volume.vpus_per_gb is None:
-        return [], [prefix + "_vpu_configuration"]
-    if volume.vpus_per_gb % Decimal(10) != 0:
-        return [], [prefix + "_unsupported_vpu_tier"]
-
-    identities = [
+    capacity = catalog.resolve(
         PricingIdentity(
             "oci", OCI_SERVICE_BLOCK_VOLUME, OCI_BLOCK_STORAGE_SKU, OCI_UNIT_GB_MONTH
-        )
-    ]
+        ),
+        at=at,
+    )
+    units = volume.size_gb * Decimal(volume.count)
+    components = [_meter(prefix + "_capacity", capacity, units)]
+    if volume.vpus_per_gb is None:
+        return components, [prefix + "_vpu_configuration"]
+    if volume.vpus_per_gb % Decimal(10) != 0:
+        return components, [prefix + "_unsupported_vpu_tier"]
     if volume.vpus_per_gb > 0:
-        identities.append(
+        performance = catalog.resolve(
             PricingIdentity(
                 "oci", OCI_SERVICE_BLOCK_VOLUME, OCI_BLOCK_VPU_SKU, OCI_UNIT_VPU_GB_MONTH
-            )
+            ),
+            at=at,
         )
-    lookups = catalog.resolve_many(tuple(identities), at=at)
-    volume_count = Decimal(volume.count)
-    components = [
-        _meter(prefix + "_capacity", lookups[0], volume.size_gb * volume_count)
-    ]
-    if volume.vpus_per_gb > 0:
         components.append(
             _meter(
                 prefix + "_performance",
-                lookups[1],
-                volume.size_gb * volume.vpus_per_gb * volume_count,
+                performance,
+                units * volume.vpus_per_gb,
             )
         )
     return components, []
