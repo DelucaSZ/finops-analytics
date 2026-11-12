@@ -174,6 +174,45 @@ async function invalidCase(deps,locale) {
   }catch(error){fail(record,error)}
   finally{await page.close();await ctx.close()}
 }
+async function localeSwitchCase(deps,locale) {
+  const {createContext,visit,report,fail,out}=deps;
+  const other=locale==="pt-BR"?"en-US":"pt-BR";
+  const {ctx,requests}=await createContext(locale,{viewport:{width:1440,height:900},theme:"dark",colorScheme:"dark"});
+  const page=await ctx.newPage();
+  const record={route:BASE_ROUTE,locale,scenario:"locale-change-with-preserved-quote",status:"not_run"};
+  report.cases.push(record);
+  try {
+    await visit(page,BASE_ROUTE,locale,record);
+    await chooseRegion(page,"aws");
+    await page.locator('main input[type="text"]').first().fill("t3");
+    await page.locator('main option[value="t3.medium"]').first().waitFor({state:"attached"});
+    await selectValue(page,"t3.medium");
+    await selectValue(page,"linux");
+    await page.getByLabel(locale==="pt-BR"?"Desconto (%)":"Discount (%)").fill("10");
+    await page.getByRole("switch",{name:locale==="pt-BR"?"Converter para BRL":"Convert to BRL"}).click();
+    await page.getByLabel(locale==="pt-BR"?"Dólar (USD/BRL)":"USD/BRL exchange rate").fill("5,0");
+    await page.getByRole("button",{name:locale==="pt-BR"?"Calcular custo":"Calculate cost"}).click();
+    await page.waitForFunction(()=>document.querySelector("main")?.innerText.includes("508"));
+    await page.getByRole("button",{name:/^(Idioma|Language):/}).click();
+    await page.getByRole("menuitemradio",{name:other==="en-US"?/English/:/Português/}).click();
+    await page.waitForFunction(expected=>document.documentElement.lang===expected,other);
+    assert.equal(await page.locator("html").getAttribute("data-theme-preference"),"dark");
+    assert.equal(await page.locator('main select[data-aven-native-select]').filter({
+      has:page.locator('option[value="t3.medium"]'),
+    }).first().inputValue(),"t3.medium","instance selection lost across locale change");
+    assert.equal(await page.getByLabel(other==="pt-BR"?"Desconto (%)":"Discount (%)").inputValue(),"10");
+    assert.equal(await page.getByLabel(other==="pt-BR"?"Dólar (USD/BRL)":"USD/BRL exchange rate").inputValue(),"5,0");
+    assert.equal(await page.getByRole("switch",{name:other==="pt-BR"?"Converter para BRL":"Convert to BRL"}).getAttribute("aria-checked"),"true");
+    const text=await page.locator("main").innerText();
+    assert.match(text,/R\\$\\s*508[.,]50/,"locale change altered currency or lost quoted total");
+    assert.equal(requests.filter(r=>r.method==="POST"&&r.path==="/calculator/estimate").length,1,
+      "locale switch unexpectedly recalculated quote");
+    await page.screenshot({path:out+"/calculator-locale-switch-"+locale+"-to-"+other+".png",
+      animations:"disabled",fullPage:true});
+    record.status="passed";
+  }catch(error){fail(record,error)}
+  finally{await page.close();await ctx.close()}
+}
 export async function runPhase27(deps) {
   for(const locale of LOCALES){
     for(const viewport of SIZES) {
@@ -192,5 +231,6 @@ export async function runPhase27(deps) {
     await priceCase(deps,{locale,provider:"oci",service:"compute",scenario:"oci-compute"});
     await priceCase(deps,{locale,provider:"oci",service:"db_system",scenario:"oci-db-partial"});
     await invalidCase(deps,locale);
+    await localeSwitchCase(deps,locale);
   }
 }
