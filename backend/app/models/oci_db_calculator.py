@@ -28,15 +28,19 @@ class OciDbCalculatorBinding(Base):
             name="ck_oci_db_binding_ecpu",
         ),
         UniqueConstraint(
-            "region", "deployment_model", "shape", "edition", "license_model",
-            "cpu_unit", "component", name="uq_oci_db_calculator_binding",
+            "region",
+            "deployment_model",
+            "shape",
+            "edition",
+            "license_model",
+            "cpu_unit",
+            "component",
+            name="uq_oci_db_calculator_binding",
         ),
         Index("ix_oci_db_calculator_bindings_region", "region", "enabled"),
     )
 
-    id: Mapped[str] = mapped_column(
-        String(36), primary_key=True, default=lambda: str(uuid.uuid4())
-    )
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     region: Mapped[str] = mapped_column(String(80), nullable=False)
     deployment_model: Mapped[str] = mapped_column(String(32), nullable=False)
     shape: Mapped[str] = mapped_column(String(80), nullable=False)
