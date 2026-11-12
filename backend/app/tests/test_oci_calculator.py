@@ -377,6 +377,25 @@ def test_db_byol_requires_distinct_verified_binding_not_free_license(db):
     assert all(p.sku != "TEST_ONLY_DB_LICENSE" for p in result.pricing_components)
 
 
+def test_byol_rejects_license_included_capacity(db):
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_BUNDLED_BYOL", "ECPU_HOUR", "0.3"),
+            binding(
+                component="capacity",
+                sku="TEST_ONLY_BUNDLED_BYOL",
+                unit="ECPU_HOUR",
+                license_model="byol",
+                includes_license=True,
+            ),
+        ]
+    )
+    db.commit()
+    result = quote(db, service="db_system", configuration={"license_model": "byol"})
+    assert result.pricing_status == "invalid_combination"
+    assert result.monthly_final_cost is None
+
+
 @pytest.mark.parametrize(
     ("configuration", "status"),
     [
