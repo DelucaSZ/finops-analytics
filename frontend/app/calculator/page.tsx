@@ -81,10 +81,18 @@ export default function CalculatorPage() {
     invalidate();
     setProvider(nextProvider);
     setService(nextService);
-    setForm(initialFields());
+    // Quantity and time selection remain valid across providers/services.
+    // A region only carries over between services of the same provider.
+    setForm({
+      ...initialFields(),
+      quantity: form.quantity, amount: form.amount, startAt: form.startAt, endAt: form.endAt,
+      region: nextProvider === provider ? form.region : "",
+      ...(nextProvider === "aws" && provider === "aws"
+        ? { discount: form.discount, fx: form.fx, tax: form.tax }
+        : {}),
+    });
     setVolumes([]);
-    setConvert(false);
-    setPeriodMode("monthly");
+    setConvert(nextProvider === "aws" && provider === "aws" ? convert : false);
     setAwsOptions(null);
     setOciCompute(null);
     setOciDb(null);
