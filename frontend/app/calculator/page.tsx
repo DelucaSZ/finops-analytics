@@ -610,7 +610,7 @@ export default function CalculatorPage() {
                     </>}
                   </>}
                 </div>
-                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")}>
+                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" className={styles.missingAlert} title={t("missingPrices")}>
                   <ul className={styles.missingList}>
                      {estimate.missing_pricing_components.map((id, index) => <li key={id + index}
                        className={styles.identifier} title={id}>
