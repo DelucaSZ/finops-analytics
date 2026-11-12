@@ -36,7 +36,7 @@ Este arquivo resume o estado atual. O histórico detalhado de implementações e
 
 ## Calculadora Cloud — Fase 27
 
-Rota `/calculator`, API autenticada `/api/v1/calculator/estimate`, motor financeiro `Decimal` e resolução de preços por adaptadores. A Task 27.7 corrige desconto de throughput gp3 EBS, metadados OCI e contratos das fixtures E2E. A validação específica depende de PR/CI e homologação operacional; **não** considerar estas alterações na `main` até o merge. Preços externos ainda precisam ser comprovados na role AWS Pricing e no catálogo comercial OCI DB System (licenças, edição e modalidade). Quando faltar um componente, o total final é nulo e apenas subtotais conhecidos são exibidos.
+Rota `/calculator`, API autenticada `/api/v1/calculator/estimate`, motor financeiro `Decimal` e resolução de preços por adaptadores. A Task 27.7 corrige desconto de throughput gp3 EBS, metadados OCI e contratos das fixtures E2E. A validação automatizada específica foi aprovada no [CI 43273433160](https://github.com/DelucaSZ/finops-analytics/actions/runs/43273433160): 1.196 testes backend, 603 testes frontend, 48 cenários de navegador Fase 27, 78 Fase 26 e 50 smoke autenticados. **Fase 27 tecnicamente concluída com limitações externas**, não homologada comercialmente em produção; **não** considerar essas alterações integradas à `main` até aprovação e merge do PR #188. Preços externos ainda precisam ser comprovados na role AWS Pricing e no catálogo comercial OCI DB System (licenças, edição e modalidade). Quando faltar um componente, o total final é nulo e apenas subtotais conhecidos são exibidos.
 
 Relatório técnico: [Task 27.7](docs/calculator/27.7-final-qa.md).
 
