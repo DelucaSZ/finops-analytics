@@ -181,7 +181,8 @@ export function decimalValue(value: string) {
 }
 export function nonNegativePercent(value: string, max: number) {
   const normalized = decimalValue(value);
-  const parts = normalized.split(".");
-  return /^(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)
-    && parts[1]?.length !== 0 ? Number(normalized) >= 0 && Number(normalized) <= max : /^\d+$/.test(normalized) && Number(normalized) >= 0 && Number(normalized) <= max;
+  if (!/^(?:\d+(?:\.\d+)?|\.\d+)$/.test(normalized)) return false;
+  if ((normalized.split(".")[1]?.length ?? 0) > 6) return false;
+  const percent = Number(normalized);
+  return Number.isFinite(percent) && percent >= 0 && percent <= max;
 }
