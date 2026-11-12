@@ -451,8 +451,10 @@ def oci_calculator_options(
             and (component == "capacity" or not part["includes_license"])
             for component, part in parts.items()
         )
-        group["complete_price_available"] = compatible and valid_bindings and all(
-            k in parts and parts[k]["status"] == "priced" for k in necessary
+        group["complete_price_available"] = (
+            compatible
+            and valid_bindings
+            and all(k in parts and parts[k]["status"] == "priced" for k in necessary)
         )
         items.append(group)
     return {
