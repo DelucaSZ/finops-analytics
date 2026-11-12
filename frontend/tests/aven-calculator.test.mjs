@@ -47,7 +47,9 @@ test("OCI uses backend metadata, no AWS adjustments, and incomplete DB prices ca
   assert.match(page, /fetchOciOptions/);
   assert.match(page, /ociCompute\?\.operating_systems/);
   assert.match(page, /ociCompute\.vpu_tiers/);
-  assert.match(page, /dbOption\.shape !== ociDb\?\.new_provisioning_shape/);
+  assert.match(page, /shape !== ociDb\.new_provisioning_shape/);
+  assert.match(page, /ociDb\.setup_required/);
+  assert.match(page, /config = \{/);
   assert.match(page, /if \(provider === "aws"\) \{/);
   assert.match(page, /ociDb\?\.setup_required/);
   assert.match(page, /!estimate\.pricing_components\.length/);
