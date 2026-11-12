@@ -141,7 +141,7 @@ export function apiFixture(path,method='GET',body=null) {
     return {status:200,body:{csrf_token:'qa-only-token'}};
   if (method!=='GET' && !['/billing/aws/summary','/billing/aws/timeseries','/billing/aws/breakdown'].includes(pathname))
     return {status:403,body:{}}; // No administrative/financial mutations are authorized.
-  if (pathname==='/cloud-accounts')return {status:200,body:accounts};
+  // The calculator region metadata is a read-only test fixture; no synthetic price quotes.\n  if (pathname==='/calculator/aws/regions')return {status:200,body:{items:['sa-east-1'],source:'AWS_PUBLIC_PRICE_LIST'}};\n  if (pathname==='/cloud-accounts')return {status:200,body:accounts};
   if (pathname==='/cloud-accounts/capabilities')return {status:200,body:
     ['aws','oci'].map(provider=>({provider,label:provider.toUpperCase(),
       registration:true,editing:true,connection_test:true,manual_collection:true,
