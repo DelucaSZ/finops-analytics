@@ -12,10 +12,24 @@ const BASE_ROUTE = "/calculator";
 const clean = value => value.replace(/[^a-zA-Z0-9_-]/g,"_");
 
 async function selectValue(page,value) {
+  // Exercise the visible Aven dropdown, not its accessibility-hidden native adapter.
+  // Programmatic selectOption() can update a DOM select without triggering the
+  // component's controlled React state in exactly the way the user interaction does.
   const field=page.locator("main select[data-aven-native-select]")
     .filter({has:page.locator('option[value="'+value+'"]')}).first();
-  await field.waitFor({state:"attached"});
-  await field.selectOption(value);
+  await field.waitFor({state:"attached",timeout:12000});
+  const label=(await field.locator('option[value="'+value+'"]').first().textContent())?.trim();
+  assert.ok(label,"missing option label for "+value);
+  const trigger=field.locator("..").getByRole("combobox");
+  await trigger.scrollIntoViewIfNeeded();
+  await trigger.click();
+  const list=page.getByRole("listbox").last();
+  await list.getByRole("option",{name:label,exact:true}).click();
+  await page.waitForFunction(
+    expected=>[...document.querySelectorAll('main select[data-aven-native-select]')]
+      .some(select=>[...select.options].some(option=>option.value===expected)&&select.value===expected),
+    value,{timeout:12000},
+  );
   assert.equal(await field.inputValue(),value);
 }
 async function chooseRegion(page,provider) {
@@ -23,7 +37,9 @@ async function chooseRegion(page,provider) {
     await page.locator('main option[value="sa-east-1"]').first().waitFor({state:"attached"});
     await selectValue(page,"sa-east-1");
   } else {
-    await page.locator('main input[type="text"]').first().fill("sa-saopaulo-1");
+    const region=page.locator('main input[maxlength="80"]').first();
+    await region.waitFor({state:"visible",timeout:12000});
+    await region.fill("sa-saopaulo-1");
   }
 }
 async function checkDropdown(page,width,height) {
@@ -48,7 +64,6 @@ async function checkLayout(page,viewport,locale,theme) {
   assert.equal(overflow,false,"global horizontal overflow at "+viewport.width+"px");
   assert.equal(await page.locator("main select:not([data-aven-native-select])").count(),0,
     "native unstyled select found");
-  const results=page.getByRole("status").filter({has:page.locator('[aria-atomic="true"]')});
   // The calculator has its own live status announcement; other shell statuses may coexist.
   assert.ok(await page.locator('main [role="status"][aria-live="polite"]').count()>0,
     "calculator estimate status is not announced");
