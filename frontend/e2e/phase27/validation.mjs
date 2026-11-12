@@ -248,7 +248,10 @@ async function localeSwitchCase(deps,locale) {
     assert.equal(await page.getByLabel(other==="pt-BR"?"Dólar (USD/BRL)":"USD/BRL exchange rate").inputValue(),"5,0");
     assert.equal(await page.getByRole("switch",{name:other==="pt-BR"?"Converter para BRL":"Convert to BRL"}).getAttribute("aria-checked"),"true");
     const text=await page.locator("main").innerText();
-    assert.match(text,/R\\$\\s*508[.,]50/,"locale change altered currency or lost quoted total");
+    const expectedCurrency=new Intl.NumberFormat(other,{style:"currency",currency:"BRL"}).format(508.50);
+    assert.ok(text.includes(expectedCurrency),
+      "locale change altered currency or lost quoted total: expected "+JSON.stringify(expectedCurrency)+
+      ", quote excerpt="+JSON.stringify(text.slice(-800)));
     assert.equal(requests.filter(r=>r.method==="POST"&&r.path==="/calculator/estimate").length,1,
       "locale switch unexpectedly recalculated quote");
     await page.screenshot({path:out+"/calculator-locale-switch-"+locale+"-to-"+other+".png",
