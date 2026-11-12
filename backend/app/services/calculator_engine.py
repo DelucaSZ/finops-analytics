@@ -126,10 +126,18 @@ def _component_usage(
     if component.minimum_billable_seconds < 0 or component.minimum_billable_seconds > 2678400:
         raise ValueError("invalid_minimum_charge")
     if unit == "MONTH":
-        if component.increment_seconds is not None or component.minimum_billable_seconds:
+        if component.increment_seconds is not None:
             raise ValueError("monthly_units_do_not_use_second_rounding")
         monthly = component.units_per_resource * quantity
-        period = monthly if seconds is None else monthly * seconds / (month_hours * Decimal(3600))
+        # AWS provisioned storage prices are denominated in GB-month even when
+        # invoice usage is metered by second with a per-volume minimum.
+        billable = (
+            max(
+                Decimal(component.minimum_billable_seconds),
+                seconds.to_integral_value(rounding=ROUND_CEILING),
+            ) if seconds is not None and component.minimum_billable_seconds else seconds
+        )
+        period = monthly if seconds is None else monthly * billable / (month_hours * Decimal(3600))
     else:
         increment = component.increment_seconds
         if increment is None or not 1 <= increment <= 2678400:
