@@ -113,8 +113,17 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     if(service==="rds" || service==="db_system")await selectValue(page,service);
     if(provider==="aws"){
       await page.locator('main input[type="text"]').first().fill(service==="rds"?"db.t3":"t3");
-      await page.locator('main option[value="'+(service==="rds"?"db.t3.medium":"t3.medium")+'"]').first()
-        .waitFor({state:"attached"});
+      try {
+        await page.locator('main option[value="'+(service==="rds"?"db.t3.medium":"t3.medium")+'"]').first()
+          .waitFor({state:"attached",timeout:10000});
+      } catch (error) {
+        const values=await page.locator('main input').evaluateAll(els=>els.map(x=>({
+          value:x.value,placeholder:x.placeholder,html:x.outerHTML.slice(0,220),
+        })));
+        throw new Error("AWS option missing; inputs="+JSON.stringify(values)+
+          "; requests="+JSON.stringify(requests.filter(r=>r.path.includes("calculator")).slice(-12))+
+          "; cause="+String(error));
+      }
       await selectValue(page,service==="rds"?"db.t3.medium":"t3.medium");
       await selectValue(page,service==="rds"?"single-az":"linux");
       if(convert){
@@ -158,8 +167,17 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     }
     assert.ok(await page.locator('main [title^="ocid1."]').count()>0,
       "full-length technical SKU tooltip unavailable");
-    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+3),false,
-      "priced result has global horizontal overflow");
+    const overflow=await page.evaluate(()=>({
+      viewport:innerWidth,scroll:document.documentElement.scrollWidth,
+      elements:[...document.querySelectorAll("main *")].map(el=>{
+        const rect=el.getBoundingClientRect();
+        return {tag:el.tagName,className:String(el.className).slice(0,70),
+          text:el.textContent?.slice(0,55),left:Math.round(rect.left),
+          right:Math.round(rect.right),width:Math.round(rect.width)};
+      }).filter(x=>x.right>innerWidth+3).sort((a,b)=>b.right-a.right).slice(0,12),
+    }));
+    assert.equal(overflow.scroll>overflow.viewport+3,false,
+      "priced result has global horizontal overflow: "+JSON.stringify(overflow));
     assert.deepEqual(errors,[],"calculator browser runtime errors");
     assert.deepEqual(requests.filter(r=>r.unsupported).map(r=>r.path),[],
       "missing isolated calculator fixture");
@@ -200,7 +218,15 @@ async function localeSwitchCase(deps,locale) {
     await visit(page,BASE_ROUTE,locale,record);
     await chooseRegion(page,"aws");
     await page.locator('main input[type="text"]').first().fill("t3");
-    await page.locator('main option[value="t3.medium"]').first().waitFor({state:"attached"});
+    try {
+      await page.locator('main option[value="t3.medium"]').first().waitFor({state:"attached",timeout:10000});
+    } catch(error) {
+      throw new Error("AWS options on locale-switch missing; inputs="+JSON.stringify(
+        await page.locator("main input").evaluateAll(els=>els.map(el=>({
+          value:el.value,placeholder:el.placeholder,
+        }))))+"; requests="+JSON.stringify(requests.filter(r=>r.path.includes("calculator")).slice(-12))+
+          "; cause="+String(error));
+    }
     await selectValue(page,"t3.medium");
     await selectValue(page,"linux");
     await page.getByLabel(locale==="pt-BR"?"Desconto (%)":"Discount (%)").fill("10");
