@@ -44,6 +44,7 @@ function statusVariant(status: CalculatorEstimate["pricing_status"]) {
 export default function CalculatorPage() {
   const t = useTranslations("calculator");
   const locale = useLocale();
+  const tx = (key: string) => t(key as Parameters<typeof t>[0]);
   const [provider, setProvider] = useState<Provider>("aws");
   const [service, setService] = useState<Service>("ec2");
   const [form, setForm] = useState<TextForm>(initialFields);
@@ -305,7 +306,7 @@ export default function CalculatorPage() {
   }
 
   const showWaiting = !estimate && !calculating && !estimateError;
-  const displayStatus = estimate ? t("status." + estimate.pricing_status) : null;
+  const displayStatus = estimate ? tx("status." + estimate.pricing_status) : null;
 
   return (
     <PageContainer width="full" className={styles.page}>
@@ -319,7 +320,7 @@ export default function CalculatorPage() {
                 {choice(t("provider"), provider, [
                   { value: "aws", label: t("aws") }, { value: "oci", label: t("oci") },
                 ], (v) => reset(v as Provider, v === "aws" ? "ec2" : "compute"))}
-                {choice(t("service"), service, services[provider].map((v) => ({ value: v, label: t("services." + v) })),
+                {choice(t("service"), service, services[provider].map((v) => ({ value: v, label: tx("services." + v) })),
                   (v) => reset(provider, v as Service))}
               </div>
               {provider === "aws"
@@ -327,7 +328,7 @@ export default function CalculatorPage() {
                     changeRegion, metadataStatus === "loading" && awsRegions.length === 0, t("awsRegionsHint"))
                 : <Input label={t("region")} value={form.region} onChange={(event) => changeRegion(event.target.value)}
                     placeholder={t("ociRegionPlaceholder")} helperText={t("ociRegionHint")} maxLength={80} />}
-              {metadataStatus === "error" && <Alert variant="warning" title={t("metadataError")} description={t("errors." + metadataError)} />}
+              {metadataStatus === "error" && <Alert variant="warning" title={t("metadataError")} description={tx("errors." + metadataError)} />}
               {provider === "aws" && !awsRegions.length && metadataStatus === "loading" && <p className={styles.hint}>{t("loadingOptions")}</p>}
             </CardContent>
           </Card>
@@ -337,7 +338,7 @@ export default function CalculatorPage() {
             <CardContent className={styles.formBody}>
               {provider === "aws" && (
                 <>
-                  {service === "rds" && choice(t("engine"), form.engine, engineOptions.map((v) => ({ value: v, label: t("engines." + v) })),
+                  {service === "rds" && choice(t("engine"), form.engine, engineOptions.map((v) => ({ value: v, label: tx("engines." + v) })),
                     (v) => { invalidate(); setForm((old) => ({ ...old, engine: v, instance: "", deployment: "" })); setAwsOptions(null); })}
                   <Input label={t("searchClass")} value={form.search} onChange={(e) => {
                     invalidate(); setForm((old) => ({ ...old, search: e.target.value, instance: "", os: "", deployment: "" })); setAwsOptions(null);
@@ -350,9 +351,9 @@ export default function CalculatorPage() {
                     (v) => { invalidate(); setForm((old) => ({ ...old, instance: v, os: "", deployment: "" })); },
                     !awsOptions?.items.length)}
                   {service === "ec2" ? choice(t("operatingSystem"), form.os,
-                    ec2OsOptions.map((v) => ({ value: v, label: t("systems." + v) })), (v) => update("os", v), !form.instance)
+                    ec2OsOptions.map((v) => ({ value: v, label: tx("systems." + v) })), (v) => update("os", v), !form.instance)
                   : choice(t("deployment"), form.deployment,
-                    deploymentOptions.map((v) => ({ value: v, label: t("deployments." + v) })),
+                    deploymentOptions.map((v) => ({ value: v, label: tx("deployments." + v) })),
                     (v) => update("deployment", v), !form.instance)}
                   <div className={styles.rule} />
                   <h3 className={styles.sectionTitle}>{t("storage")}</h3>
@@ -378,7 +379,7 @@ export default function CalculatorPage() {
                     {numberField(t("memory"), "memory", "1", String(selectedShape?.max_memory_gb ?? 1024), "1")}
                   </div>
                   {choice(t("operatingSystem"), form.os,
-                    (ociCompute?.operating_systems ?? []).map((v) => ({ value: v, label: t("systems." + v) })),
+                    (ociCompute?.operating_systems ?? []).map((v) => ({ value: v, label: tx("systems." + v) })),
                     (v) => update("os", v), !ociCompute)}
                   <div className={styles.rule} />
                   <h3 className={styles.sectionTitle}>{t("bootVolume")}</h3>
@@ -420,14 +421,14 @@ export default function CalculatorPage() {
                   {choice(t("dbConfiguration"), form.dbChoice,
                     dbOptions.map((item, i) => ({
                       value: String(i),
-                      label: [item.shape, t("editions." + item.edition), t("licenses." + item.license_model)].join(" · ")
+                      label: [item.shape, tx("editions." + item.edition), tx("licenses." + item.license_model)].join(" · ")
                         + (item.complete_price_available ? "" : " · " + t("incomplete")),
                     })), (v) => update("dbChoice", v), !dbOptions.length)}
                   {dbOption && <div className={styles.definition}>
                     <span>{t("shape")}</span><strong>{dbOption.shape}</strong>
                     <span>{t("deployment")}</span><strong>{t("dbDeployment")}</strong>
-                    <span>{t("edition")}</span><strong>{t("editions." + dbOption.edition)}</strong>
-                    <span>{t("license")}</span><strong>{t("licenses." + dbOption.license_model)}</strong>
+                    <span>{t("edition")}</span><strong>{tx("editions." + dbOption.edition)}</strong>
+                    <span>{t("license")}</span><strong>{tx("licenses." + dbOption.license_model)}</strong>
                   </div>}
                   <div className={styles.fieldGrid}>
                     {numberField(t("ecpus"), "cpuCount", "4", "256", "4")}
@@ -445,7 +446,7 @@ export default function CalculatorPage() {
             <CardContent className={styles.formBody}>
               {numberField(t("quantity"), "quantity", "1", "100000", "1")}
               {choice(t("period"), periodMode, (["monthly", "hours", "days", "weeks", "custom"] as PeriodMode[]).map((v) =>
-                ({ value: v, label: t("periods." + v) })), (v) => { invalidate(); setPeriodMode(v as PeriodMode); })}
+                ({ value: v, label: tx("periods." + v) })), (v) => { invalidate(); setPeriodMode(v as PeriodMode); })}
               {["hours", "days", "weeks"].includes(periodMode) && numberField(t("duration"), "amount", "0.000001")}
               {periodMode === "custom" && <div className={styles.fieldGrid}>
                 <Input label={t("start")} type="datetime-local" value={form.startAt} onChange={(e) => update("startAt", e.target.value)} />
@@ -532,7 +533,7 @@ export default function CalculatorPage() {
                 } />}
                 {estimate.warnings.length > 0 && <div className={styles.warnings}>
                   {estimate.warnings.map((warning, i) => <p key={warning + i} className={styles.hint}>
-                    {t.has("warnings." + warning) ? t("warnings." + warning) : t("genericWarning")}
+                    {(t.has as (key: string) => boolean)("warnings." + warning) ? tx("warnings." + warning) : t("genericWarning")}
                   </p>)}
                 </div>}
               </>}
@@ -561,7 +562,7 @@ export default function CalculatorPage() {
                     <td>{currency(component.monthly_original_cost, component.currency)}</td>
                     <td>{currency(component.period_original_cost, component.currency)}</td>
                     <td><Badge variant={component.pricing_status === "priced" ? "success" : "warning"}>
-                      {component.pricing_status ? t("status." + component.pricing_status) : t("unavailable")}
+                      {component.pricing_status ? tx("status." + component.pricing_status) : t("unavailable")}
                     </Badge></td>
                   </tr>
                 ))}</tbody>
