@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { useLocale, useTranslations } from "next-intl";
 import { Calculator, Plus, Trash2 } from "lucide-react";
 import { CurrencyDisplay, PageContainer, PageHeader } from "@/components/aven";
+import { formatLocaleDate, formatLocaleDateTime, formatLocaleNumber, formatLocalePercentage } from "@/i18n/formatters.mjs";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, Switch } from "@/components/ui";
 import {
   compactIdentifier, decimalValue, estimateCalculator, fetchAwsOptions, fetchAwsRegions, fetchOciOptions,
@@ -107,6 +108,8 @@ export default function CalculatorPage() {
     setAwsOptions(null);
     setOciCompute(null);
     setOciDb(null);
+    setMetadataStatus("initial");
+    setMetadataError("");
   }
 
   // AWS regions must come from Pricing API; the browser never embeds a fictitious region catalog.
@@ -507,7 +510,10 @@ export default function CalculatorPage() {
           </div>
         </form>
 
-        <div className={styles.results} aria-live="polite">
+        <div className={styles.results}>
+          <div className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
+            {calculating ? t("calculating") : estimate ? displayStatus : estimateError ? t("errors.title") : ""}
+          </div>
           <Card>
             <CardHeader><div className={styles.headingRow}>
               <CardTitle>{t("summary")}</CardTitle>
@@ -540,27 +546,37 @@ export default function CalculatorPage() {
                 </div>}
                 <div className={styles.rule} />
                 <div className={styles.definition}>
-                  <span>{t("currency")}</span><strong>{estimate.final_currency}</strong>
+                  <span>{estimate.pricing_status === "priced" ? t("currency") : t("catalogCurrency")}</span>
+                   <strong>{estimate.pricing_status === "priced" ? estimate.final_currency : estimate.pricing_currency}</strong>
                   <span>{t("statusLabel")}</span><strong>{displayStatus}</strong>
                   {estimate.pricing_reference_date && <>
-                    <span>{t("reference")}</span><strong>{new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(estimate.pricing_reference_date))}</strong>
+                    <span>{t("reference")}</span><strong>{formatLocaleDateTime(estimate.pricing_reference_date, locale)}</strong>
                   </>}
                   {estimate.pricing_status === "priced" && estimate.provider === "aws" && <>
-                    <span>{t("originalMonthly")}</span><strong>{currency(estimate.monthly_original_cost, "USD")}</strong>
+                    {estimate.discount_percent != null && <>
+                       <span>{t("discountRate")}</span><strong>{formatLocalePercentage(estimate.discount_percent, locale)}</strong>
+                     </>}
+                     <span>{t("originalMonthly")}</span><strong>{currency(estimate.monthly_original_cost, "USD")}</strong>
                     <span>{t("originalPeriod")}</span><strong>{currency(estimate.period_original_cost, "USD")}</strong>
                     <span>{t("discountMonthly")}</span><strong>{currency(estimate.monthly_discount_amount, "USD")}</strong>
                     <span>{t("discountPeriod")}</span><strong>{currency(estimate.period_discount_amount, "USD")}</strong>
                     <span>{t("netMonthly")}</span><strong>{currency(estimate.monthly_net_cost, "USD")}</strong>
                     <span>{t("netPeriod")}</span><strong>{currency(estimate.period_net_cost, "USD")}</strong>
                     {estimate.conversion_enabled && <>
-                      <span>{t("fx")}</span><strong>{estimate.usd_brl_rate ?? "—"}</strong>
+                      <span>{t("fxUsed")}</span><strong>{formatLocaleNumber(estimate.usd_brl_rate, locale, { maximumFractionDigits: 8 })}</strong>
+                       {estimate.tax_percent != null && <>
+                         <span>{t("taxRate")}</span><strong>{formatLocalePercentage(estimate.tax_percent, locale)}</strong>
+                       </>}
                       <span>{t("taxMonthly")}</span><strong>{currency(estimate.monthly_tax_amount, "BRL")}</strong>
                       <span>{t("taxPeriod")}</span><strong>{currency(estimate.period_tax_amount, "BRL")}</strong>
                     </>}
                   </>}
                 </div>
                 {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")} description={
-                  <span className={styles.codeWrap}>{estimate.missing_pricing_components.map((v) => compactIdentifier(v, 80)).join(", ")}</span>
+                  <ul className={styles.missingList}>
+                     {estimate.missing_pricing_components.map((id, index) => <li key={id + index}
+                       className={styles.identifier} title={id} aria-label={id}>{compactIdentifier(id, 80)}</li>)}
+                   </ul>
                 } />}
                 {estimate.warnings.length > 0 && <div className={styles.warnings}>
                   {estimate.warnings.map((warning, i) => <p key={warning + i} className={styles.hint}>
@@ -588,8 +604,8 @@ export default function CalculatorPage() {
                     <td><span className={styles.identifier} title={component.sku}>{compactIdentifier(component.sku)}</span></td>
                     <td>{component.unit}</td>
                     <td><CurrencyDisplay value={component.unit_price} currency={component.currency} minimumFractionDigits={2} maximumFractionDigits={12} /></td>
-                    <td>{component.monthly_units ?? "—"}</td>
-                    <td>{component.period_units ?? "—"}</td>
+                    <td title={component.monthly_units ?? undefined}>{formatLocaleNumber(component.monthly_units, locale, { maximumFractionDigits: 12 })}</td>
+                    <td title={component.period_units ?? undefined}>{formatLocaleNumber(component.period_units, locale, { maximumFractionDigits: 12 })}</td>
                     <td>{currency(component.monthly_original_cost, component.currency)}</td>
                     <td>{currency(component.period_original_cost, component.currency)}</td>
                     <td><Badge variant={component.pricing_status === "priced" ? "success" : "warning"}>
@@ -604,7 +620,7 @@ export default function CalculatorPage() {
           {estimate.pricing_components.some((item) => item.source) && <details className={styles.provenance}>
             <summary>{t("provenance")}</summary>
             {estimate.pricing_components.map((item, index) => <p key={index} className={styles.codeWrap}>
-              {item.sku}: {item.source ?? "—"} · {item.effective_from ?? "—"} · {item.effective_until ?? "—"}
+              {item.sku}: {item.source ?? "—"} · {formatLocaleDate(item.effective_from, locale)} · {formatLocaleDate(item.effective_until, locale)}
             </p>)}
           </details>}
         </CardContent>
