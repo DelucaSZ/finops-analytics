@@ -111,6 +111,9 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
       await page.locator('main option[value="VM.Standard.E5.Flex"]').first().waitFor({state:"attached"});
       await selectValue(page,"VM.Standard.E5.Flex");
       await selectValue(page,"linux");
+    } else if(service==="db_system") {
+      await page.getByText(locale==="pt-BR"?"Preços de DB System pendentes":"DB System prices pending")
+        .waitFor({state:"visible"});
     }
     await page.getByRole("button",{name:locale==="pt-BR"?"Calcular custo":"Calculate cost"}).click();
     const expected=provider==="aws"
