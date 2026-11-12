@@ -25,6 +25,7 @@ const expectedRoutes = [
   "/",
   "/accept-invitation",
   "/billing",
+  "/calculator",
   "/collections",
   "/collections/[collectionId]",
   "/collections/[collectionId]/compare",

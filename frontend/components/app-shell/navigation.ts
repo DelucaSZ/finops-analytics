@@ -1,6 +1,7 @@
 import type messages from "@/i18n/messages/pt-BR.json";
 import {
   Activity,
+  Calculator,
   Boxes,
   Database,
   LayoutDashboard,
@@ -31,6 +32,7 @@ export const navigation = [
   { href: "/inventory", labelKey: "inventory", icon: Boxes },
   { href: "/flow", labelKey: "flow", icon: WalletCards },
   { href: "/billing", labelKey: "billing", icon: ReceiptText },
+  { href: "/calculator", labelKey: "calculator", icon: Calculator },
   { href: "/rds/reservations", labelKey: "reservations", icon: Database },
   { href: "/collections", labelKey: "collections", icon: Activity },
   { href: "/settings", labelKey: "settings", icon: Settings2 },

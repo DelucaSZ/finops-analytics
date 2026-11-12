@@ -4,6 +4,21 @@
 
 Este documento registra o estado real das etapas estruturais do Aven para que futuras implementações não dependam do histórico de conversa.
 
+## Fase 27 — Calculadora de Custos (Task 27.5: UI e navegação)
+
+**Status:** implementada em branch `feat/task-27.5-calculator-ui-navigation`; PR/CI e QA de navegador autenticado sujeitos à validação.
+
+- Nova rota autenticada `/calculator` e entrada da Sidebar `Calculadora / Calculator`, usando AppShell e Design System Aven.
+- Formulários AWS EC2/RDS e OCI Compute VM/DB System dirigidos por metadados reais; sem catálogos ou tarifas fictícias no navegador.
+- Desconto AWS, câmbio USD/BRL manual e imposto 13% default apenas via engine financeiro; OCI BRL final sem reajustes.
+- Períodos mensal, horas, dias, semanas e intervalo com timezone, quantidade e resultado mensal/do período.
+- Estados sem preço: subtotal conhecido sem total definitivo, componentes faltantes, erros e invalidação de consultas antigas.
+- Traduções PT-BR/EN-US, tokens Light/Dark/System e layout adaptativo com tabela internamente rolável.
+- Documentação: [27.5 UI e navegação](calculator/27.5-ui-navigation.md).
+- Próximas: Task 27.6 auditoria de UI/i18n e Task 27.7 QA integrado. Comercial OCI DB continua dependente de SKUs e bindings verificados.
+
+---
+
 ## Fase 27 — Calculadora de Custos (Task 27.4: OCI)
 
 **Status:** implementada em branch `feat/task-27.4-oci-vm-db-system-calculator`; testes/CI e merge pendentes.
