@@ -6,7 +6,7 @@ All monetary amounts are Decimals. Missing prices must remain nullable, never ze
 
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import UTC, datetime
 from decimal import Decimal
 from typing import Annotated, Literal
 
@@ -26,13 +26,28 @@ class CalculatorPeriod(BaseModel):
         if self.mode in {"hours", "days", "weeks"}:
             if self.amount is None or self.start_at is not None or self.end_at is not None:
                 raise ValueError("duration periods require amount and no date range")
+            seconds = (
+                self.amount
+                * {
+                    "hours": Decimal(3600),
+                    "days": Decimal(86400),
+                    "weeks": Decimal(604800),
+                }[self.mode]
+            )
+            if seconds > Decimal(5 * 366 * 86400):
+                raise ValueError("duration exceeds five-year simulation limit")
         elif self.mode == "custom":
             if self.amount is not None or self.start_at is None or self.end_at is None:
                 raise ValueError("custom period requires start_at and end_at only")
             if self.start_at.utcoffset() is None or self.end_at.utcoffset() is None:
                 raise ValueError("custom period datetimes must be timezone-aware")
-            if self.end_at <= self.start_at:
+            elapsed = self.end_at.astimezone(UTC) - self.start_at.astimezone(UTC)
+            if elapsed.total_seconds() <= 0:
                 raise ValueError("end_at must be after start_at")
+            if elapsed.days > 5 * 366 or (
+                elapsed.days == 5 * 366 and (elapsed.seconds or elapsed.microseconds)
+            ):
+                raise ValueError("date range exceeds five-year simulation limit")
         elif self.amount is not None or self.start_at is not None or self.end_at is not None:
             raise ValueError("monthly period cannot specify a duration or date range")
         return self
@@ -96,10 +111,16 @@ class AwsFinancialTerms(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    discount_percent: Decimal = Field(default=Decimal("0"), ge=0, le=100, allow_inf_nan=False)
+    discount_percent: Decimal = Field(
+        default=Decimal("0"), ge=0, le=100, decimal_places=6, allow_inf_nan=False
+    )
     conversion_enabled: bool = False
-    usd_brl_rate: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    tax_percent: Decimal = Field(default=Decimal("13"), ge=0, allow_inf_nan=False)
+    usd_brl_rate: Decimal | None = Field(
+        default=None, gt=0, le=Decimal("1000000"), decimal_places=8, allow_inf_nan=False
+    )
+    tax_percent: Decimal = Field(
+        default=Decimal("13"), ge=0, le=1000, decimal_places=6, allow_inf_nan=False
+    )
 
     @model_validator(mode="after")
     def validate_conversion(self) -> AwsFinancialTerms:
@@ -166,6 +187,11 @@ class CalculatorPricingComponent(BaseModel):
     service: str
     sku: str
     unit: str
+    description: str | None = None
+    pricing_status: CalculatorPricingStatus | None = None
+    reference_month_hours: Decimal | None = None
+    billing_increment_seconds: int | None = None
+    minimum_billable_seconds: int = 0
     pricing_item_id: str | None = None
     unit_price: Decimal | None = None
     monthly_units: Decimal | None = None
@@ -190,6 +216,9 @@ class CalculatorEstimateResponse(BaseModel):
     resource_configuration: ResourceConfiguration
     quantity: int = Field(ge=1)
     period: CalculatorPeriod
+    period_duration_hours: Decimal | None = None
+    monthly_known_subtotal: Decimal | None = None
+    period_known_subtotal: Decimal | None = None
     pricing_components: list[CalculatorPricingComponent] = Field(default_factory=list)
     pricing_source: str | None = None
     pricing_reference_date: datetime | None = None
@@ -198,12 +227,18 @@ class CalculatorEstimateResponse(BaseModel):
     period_original_cost: Decimal | None = None
     discount_percent: Decimal | None = None
     discount_amount: Decimal | None = None
+    monthly_discount_amount: Decimal | None = None
+    period_discount_amount: Decimal | None = None
     monthly_net_cost: Decimal | None = None
     period_net_cost: Decimal | None = None
     conversion_enabled: bool = False
     usd_brl_rate: Decimal | None = None
     tax_percent: Decimal | None = None
     tax_amount: Decimal | None = None
+    monthly_converted_cost: Decimal | None = None
+    period_converted_cost: Decimal | None = None
+    monthly_tax_amount: Decimal | None = None
+    period_tax_amount: Decimal | None = None
     monthly_final_cost: Decimal | None = None
     period_final_cost: Decimal | None = None
     final_currency: Literal["USD", "BRL"]
@@ -225,6 +260,12 @@ class CalculatorEstimateResponse(BaseModel):
             or self.discount_amount is not None
             or self.discount_percent is not None
             or self.tax_amount is not None
+            or self.monthly_discount_amount is not None
+            or self.period_discount_amount is not None
+            or self.monthly_converted_cost is not None
+            or self.period_converted_cost is not None
+            or self.monthly_tax_amount is not None
+            or self.period_tax_amount is not None
             or self.tax_percent is not None
             or self.usd_brl_rate is not None
             or self.final_currency != "BRL"
@@ -252,8 +293,16 @@ class CalculatorEstimateResponse(BaseModel):
             or self.missing_pricing_components
         ):
             raise ValueError("priced estimate requires both final totals and no missing components")
-        if self.pricing_status != "priced" and (
-            self.monthly_final_cost is not None or self.period_final_cost is not None
+        if self.pricing_status != "priced" and any(
+            value is not None
+            for value in (
+                self.monthly_original_cost,
+                self.period_original_cost,
+                self.monthly_net_cost,
+                self.period_net_cost,
+                self.monthly_final_cost,
+                self.period_final_cost,
+            )
         ):
-            raise ValueError("non-priced estimates must not advertise final cost totals")
+            raise ValueError("non-priced estimates must not advertise definitive cost totals")
         return self
