@@ -61,7 +61,7 @@ test("periods retain timezone offsets and validation, financial options keep saf
   assert.match(page, /discount: "0"/);
   assert.match(page, /tax: "13"/);
   assert.match(page, /fx: ""/);
-  assert.match(page, /setConvert\(false\)/);
+  assert.match(page, /setConvert\(nextProvider === "aws"/);
   assert.match(page, /request\.aws_financial =/);
   assert.match(page, /nonNegativePercent\(form\.discount, 100\)/);
 });
