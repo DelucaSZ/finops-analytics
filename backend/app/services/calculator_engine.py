@@ -135,7 +135,9 @@ def _component_usage(
             max(
                 Decimal(component.minimum_billable_seconds),
                 seconds.to_integral_value(rounding=ROUND_CEILING),
-            ) if seconds is not None and component.minimum_billable_seconds else seconds
+            )
+            if seconds is not None and component.minimum_billable_seconds
+            else seconds
         )
         period = monthly if seconds is None else monthly * billable / (month_hours * Decimal(3600))
     else:
