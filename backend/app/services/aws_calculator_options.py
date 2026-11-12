@@ -3,6 +3,7 @@
 Every returned class/OS/deployment has a matching current On-Demand product in
 the selected region. Searches are deliberately paginated at the HTTP boundary.
 """
+
 from __future__ import annotations
 
 from datetime import UTC, datetime
@@ -33,8 +34,7 @@ def _regions_hour(bucket: int) -> tuple[str, ...]:
         except Exception as exc:
             raise AwsPriceUnavailable("aws_pricing_regions_unavailable") from exc
         values.update(
-            item["Value"] for item in response.get("AttributeValues", ())
-            if item.get("Value")
+            item["Value"] for item in response.get("AttributeValues", ()) if item.get("Value")
         )
         token = response.get("NextToken")
         if not token:
@@ -68,8 +68,14 @@ def aws_options(
     else:
         name = _ENGINES.get((engine or "").lower())
         if not name:
-            return {"items": [], "total": 0, "limit": limit, "offset": offset,
-                    "status": "unsupported_engine", "supported_engines": list(_ENGINES)}
+            return {
+                "items": [],
+                "total": 0,
+                "limit": limit,
+                "offset": offset,
+                "status": "unsupported_engine",
+                "supported_engines": list(_ENGINES),
+            }
         filters["databaseEngine"] = name
         code = "AmazonRDS"
     rows = pricing.products(code, filters)
@@ -105,18 +111,25 @@ def aws_options(
             ):
                 continue
             choices.add(
-                (attrs["instanceType"],
-                 "single_az" if attrs["deploymentOption"] == "Single-AZ" else "multi_az")
+                (
+                    attrs["instanceType"],
+                    "single_az" if attrs["deploymentOption"] == "Single-AZ" else "multi_az",
+                )
             )
     ordered = sorted(choices)
     return {
-        "service": service, "region": region, "source": "AWS_PUBLIC_PRICE_LIST",
+        "service": service,
+        "region": region,
+        "source": "AWS_PUBLIC_PRICE_LIST",
         "items": [
             {"instance_type": instance, "operating_system": variant}
             if service == "ec2"
             else {"instance_class": instance, "deployment": variant}
-            for instance, variant in ordered[offset:offset + limit]
+            for instance, variant in ordered[offset : offset + limit]
         ],
-        "total": len(ordered), "limit": limit, "offset": offset, "status": "ok",
+        "total": len(ordered),
+        "limit": limit,
+        "offset": offset,
+        "status": "ok",
         "supported_engines": list(_ENGINES) if service == "rds" else [],
     }
