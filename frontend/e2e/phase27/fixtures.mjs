@@ -83,7 +83,7 @@ export function calculatorFixture(path, method = "GET", body = null) {
   if (method === "GET" && pathname === "/calculator/aws/options")
     return {status:200,body:{
       items:request.searchParams.get("service")==="rds"
-        ?[{instance_class:"db.t3.medium",deployment:"single-az"}]
+        ?[{instance_class:"db.t3.medium",deployment:"single_az"}]
         :[{instance_type:"t3.medium",operating_system:"linux"}],
       total:1,status:"priced",supported_engines:["postgres","mysql","mariadb"],source:"TEST_FIXTURE",
     }};
@@ -91,7 +91,7 @@ export function calculatorFixture(path, method = "GET", body = null) {
     if (request.searchParams.get("service")==="db_system")
       return {status:200,body:{
         service:"db_system",region:request.searchParams.get("region"),items:[],
-        setup_required:true,new_provisioning_shape:"VM.Standard.E5.Flex",capacity_unit:"ECPU",
+        setup_required:true,new_provisioning_shape:"VM.BaseDB.x86",capacity_unit:"ECPU",
       }};
     return {status:200,body:{
       service:"compute",region:request.searchParams.get("region"),operating_systems:["linux","windows"],

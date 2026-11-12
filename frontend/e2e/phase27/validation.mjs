@@ -127,7 +127,7 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
           "; cause="+String(error));
       }
       await selectValue(page,service==="rds"?"db.t3.medium":"t3.medium");
-      await selectValue(page,service==="rds"?"single-az":"linux");
+      await selectValue(page,service==="rds"?"single_az":"linux");
       if(convert){
         await page.getByLabel(locale==="pt-BR"?"Desconto (%)":"Discount (%)").fill("10");
         await page.getByRole("switch",{name:locale==="pt-BR"?"Converter para BRL":"Convert to BRL"}).click();
@@ -149,6 +149,12 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     assert.equal(estimate.length,1,"calculator did not send exactly one estimate request");
     assert.equal(estimate[0].payload.provider,provider);
     assert.equal(estimate[0].payload.resource_configuration.service,service);
+    // Guard against fixture values that differ from the actual backend contracts.
+    if(service==="rds") assert.equal(estimate[0].payload.resource_configuration.deployment,"single_az");
+    if(service==="db_system") {
+      assert.equal(estimate[0].payload.resource_configuration.shape,"VM.BaseDB.x86");
+      assert.equal(estimate[0].payload.resource_configuration.cpu_unit,"ECPU");
+    }
     assert.equal(estimate[0].payload.aws_financial===undefined,provider==="oci",
       "OCI must never send AWS financial adjustments");
     if(convert){

@@ -361,3 +361,108 @@ def test_api_is_authenticated_and_never_quotes_unverified_prices(auth_env):
         ).status_code
         == 422
     )
+
+
+@pytest.mark.parametrize(
+    ("period", "expected_hours"),
+    [
+        ({"mode": "hours", "amount": "24"}, "24"),
+        ({"mode": "days", "amount": "15"}, "360"),
+        ({"mode": "days", "amount": "30"}, "720"),
+        ({"mode": "days", "amount": "31"}, "744"),
+        ({"mode": "weeks", "amount": "3"}, "504"),
+        (
+            {
+                "mode": "custom",
+                "start_at": "2026-12-31T23:30:00-03:00",
+                "end_at": "2027-01-01T03:00:00+00:00",
+            },
+            "0.5",
+        ),
+    ],
+)
+def test_final_qa_temporal_reference_cases(period, expected_hours):
+    assert duration_seconds(req(period=period)) / 3600 == Decimal(expected_hours)
+
+
+def test_final_qa_reference_100_usd_discount_fx_and_tax_is_exact():
+    result = estimate_calculator_cost(
+        req(
+            aws_financial={
+                "discount_percent": "10",
+                "conversion_enabled": True,
+                "usd_brl_rate": "5",
+            }
+        ),
+        [component(rate="100", month="1", eligible=True)],
+    )
+    assert result.monthly_original_cost == Decimal("100.00")
+    assert result.monthly_discount_amount == Decimal("10.00")
+    assert result.monthly_net_cost == Decimal("90.00")
+    assert result.monthly_converted_cost == Decimal("450.00")
+    assert result.monthly_tax_amount == Decimal("58.50")
+    assert result.monthly_final_cost == Decimal("508.50")
+    assert result.final_currency == "BRL"
+
+
+@pytest.mark.parametrize(
+    ("discount", "expected_net"),
+    [
+        ("0", "200.00"),
+        ("5", "190.00"),
+        ("10", "180.00"),
+        ("15.5", "169.00"),
+        ("50", "100.00"),
+        ("100", "0.00"),
+    ],
+)
+def test_final_qa_discount_boundary_matrix(discount, expected_net):
+    result = estimate_calculator_cost(
+        req(aws_financial={"discount_percent": discount}),
+        [component(rate="200", month="1", eligible=True)],
+    )
+    assert result.monthly_original_cost == Decimal("200.00")
+    assert result.monthly_final_cost == Decimal(expected_net)
+    assert result.monthly_net_cost == Decimal(expected_net)
+    assert result.monthly_tax_amount is None
+    assert result.monthly_converted_cost is None
+    assert result.final_currency == "USD"
+
+
+@pytest.mark.parametrize(
+    ("tax", "expected_final"),
+    [
+        ("0", "450.00"),
+        ("7.5", "483.75"),
+        ("13", "508.50"),
+        ("25", "562.50"),
+    ],
+)
+def test_final_qa_custom_tax_rates_apply_once(tax, expected_final):
+    result = estimate_calculator_cost(
+        req(
+            aws_financial={
+                "discount_percent": "10",
+                "conversion_enabled": True,
+                "usd_brl_rate": "5",
+                "tax_percent": tax,
+            }
+        ),
+        [component(rate="100", month="1", eligible=True)],
+    )
+    assert result.monthly_converted_cost == Decimal("450.00")
+    assert result.monthly_final_cost == Decimal(expected_final)
+
+
+def test_final_qa_rounded_only_after_quantity_and_components():
+    result = estimate_calculator_cost(
+        req(quantity=5),
+        [
+            component(rate="0.0015", month="1", key="a"),
+            component(rate="0.0015", month="1", key="b"),
+        ],
+    )
+    assert result.monthly_final_cost == Decimal("0.02")
+    assert result.monthly_original_cost == Decimal("0.02")
+    assert result.pricing_components[0].monthly_original_cost == Decimal("0.01")
+    assert result.pricing_components[1].monthly_original_cost == Decimal("0.01")

@@ -240,6 +240,7 @@ def _ec2(request, at, resolver):
                 Decimal(throughput - 125) * cfg.ebs_volume_count,
                 month=AWS_STORAGE_REFERENCE_HOURS,
                 minimum=60,
+                eligible=False,  # EBS provisioned throughput is not discount-eligible.
             )
         )
     return components, warnings

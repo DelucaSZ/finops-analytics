@@ -1,6 +1,6 @@
 # Aven — Estado atual do projeto
 
-**Referência:** 04/11/2026.  
+**Referência:** 12/11/2026.  
 **Produto:** Aven — *Clarity. Flow. Control.*  
 **Repositório:** `DelucaSZ/finops-analytics`.
 
@@ -22,6 +22,7 @@ Este arquivo resume o estado atual. O histórico detalhado de implementações e
 | Inventory | Persistência de recursos AWS/OCI, observações, consulta server-side, filtros e paginação |
 | Flow | Acompanhamento de movimentações e ledger FinOps |
 | Billing | Custos AWS via Cost Explorer, perfis, agrupamentos, períodos e distinção realizado/estimado/forecast |
+| Cloud Cost Calculator | Simulações read-only AWS EC2/RDS e OCI Compute/DB System; desconto e FX/imposto AWS, OCI BRL final, subtotais parciais, PT-BR/EN-US |
 | RDS Reservations | Inventário, cobertura, utilização, vencimentos, oportunidades e pipeline de atualização |
 | Coletas | Fila, worker, agendamento, investigação de execução e comparação |
 | Configurações | Aparência, contas, políticas, segurança, usuários, auditoria, HTTPS, preços OCI, perfis Billing e retenção |
@@ -32,6 +33,12 @@ Este arquivo resume o estado atual. O histórico detalhado de implementações e
 - **OCI:** API Signing Key armazenada criptografada, escopo explícito por região/compartment, coleta manual ou agendada quando habilitada.
 - **RDS:** pipeline `inventory → coverage → opportunities`; falhas são classificadas por estágio e disponibilidade de dados.
 - **Custos:** Billing AWS, estimativas de oportunidade e telemetria/custo operacional CloudWatch são domínios diferentes.
+
+## Calculadora Cloud — Fase 27
+
+Rota `/calculator`, API autenticada `/api/v1/calculator/estimate`, motor financeiro `Decimal` e resolução de preços por adaptadores. A Task 27.7 corrige desconto de throughput gp3 EBS, metadados OCI e contratos das fixtures E2E. A validação automatizada específica foi aprovada no [CI 43273433160](https://github.com/DelucaSZ/finops-analytics/actions/runs/43273433160): 1.196 testes backend, 603 testes frontend, 48 cenários de navegador Fase 27, 78 Fase 26 e 50 smoke autenticados. **Fase 27 tecnicamente concluída com limitações externas**, não homologada comercialmente em produção; **não** considerar essas alterações integradas à `main` até aprovação e merge do PR #188. Preços externos ainda precisam ser comprovados na role AWS Pricing e no catálogo comercial OCI DB System (licenças, edição e modalidade). Quando faltar um componente, o total final é nulo e apenas subtotais conhecidos são exibidos.
+
+Relatório técnico: [Task 27.7](docs/calculator/27.7-final-qa.md).
 
 ## Compatibilidade e decisões de manutenção
 

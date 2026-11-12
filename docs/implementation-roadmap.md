@@ -5238,3 +5238,11 @@ A página continua usando seletores oficiais Aven (Fase 26), tokens semânticos 
 **Referência técnica e evidências:** [Task 27.6 — Localization & Design System](calculator/27.6-localization-design-system.md). Os resultados efetivos dos checks devem ser conciliados com o PR antes do aceite.
 
 **Próxima dependência — Task 27.7:** validação integrada financeira e funcional com API/catálogos reais, disponibilidade dos SKUs de licença OCI DB System, autenticação operacional, casos temporais, arredondamentos e inexistência de regressões.
+
+### Task 27.7 — Aven Cloud Cost Calculator Final QA
+
+**Branch:** `feat/task-27.7-calculator-final-qa`, derivada do merge da 27.6 em `main` (`e8c01150072e80087e3edc530a039d9617e80272`). **Sem merge automático.**
+
+Auditoria do motor Decimal, períodos, catálogo, quatro serviços, desconto AWS, câmbio/imposto, OCI BRL final, E2E isolado, UI PT-BR/EN-US e regressões. Corrigidos a elegibilidade indevida do throughput EBS gp3 ao desconto, o reporte incompleto de estados de preços OCI e a validação de bindings do OCI DB System. Fixtures do navegador foram reconciliadas com as opções reais RDS `single_az` e DB `VM.BaseDB.x86`, e testes de contratos foram acrescentados.
+
+**Aceite técnico:** execução [CI 43273433160](https://github.com/DelucaSZ/finops-analytics/actions/runs/43273433160) aprovada integralmente: backend 1.196 testes, frontend 603 testes, browser 48 (Fase 27), 78 (Fase 26) e 50 (smoke autenticado), sem falhas. Fase 27 concluída tecnicamente com limitações externas documentadas; a homologação live AWS Pricing e os SKUs/licenças OCI DB System permanecem pendentes. Não interpretar testes de navegador com fixtures como certificação comercial ou teste de preços live. [Relatório 27.7](calculator/27.7-final-qa.md).
