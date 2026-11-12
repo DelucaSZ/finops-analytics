@@ -149,6 +149,12 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     assert.equal(estimate.length,1,"calculator did not send exactly one estimate request");
     assert.equal(estimate[0].payload.provider,provider);
     assert.equal(estimate[0].payload.resource_configuration.service,service);
+    // Guard against fixture values that differ from the actual backend contracts.
+    if(service==="rds") assert.equal(estimate[0].payload.resource_configuration.deployment,"single_az");
+    if(service==="db_system") {
+      assert.equal(estimate[0].payload.resource_configuration.shape,"VM.BaseDB.x86");
+      assert.equal(estimate[0].payload.resource_configuration.cpu_unit,"ECPU");
+    }
     assert.equal(estimate[0].payload.aws_financial===undefined,provider==="oci",
       "OCI must never send AWS financial adjustments");
     if(convert){
