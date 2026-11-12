@@ -136,7 +136,7 @@ def _ec2(request, at, resolver):
     components.append(_component(
         "ebs_storage", ebs_price("ebs_storage", "Storage", "GB_MONTH", "GB-Mo"),
         cfg.root_volume_gb * cfg.ebs_volume_count,
-        month=AWS_STORAGE_REFERENCE_HOURS, minimum=60,
+        month=AWS_STORAGE_REFERENCE_HOURS, minimum=60, eligible=False,
     ))
     iops = cfg.ebs_iops if cfg.ebs_iops is not None else 3000
     throughput = cfg.ebs_throughput_mbps if cfg.ebs_throughput_mbps is not None else 125
@@ -144,7 +144,7 @@ def _ec2(request, at, resolver):
         components.append(_component(
             "ebs_iops", ebs_price("ebs_iops", "System Operation", "IOPS_MONTH", "IOPS-Mo"),
             Decimal(iops - 3000) * cfg.ebs_volume_count,
-            month=AWS_STORAGE_REFERENCE_HOURS, minimum=60,
+            month=AWS_STORAGE_REFERENCE_HOURS, minimum=60, eligible=False,
         ))
     if cfg.ebs_volume_type == "gp3" and throughput > 125:
         components.append(_component(
@@ -249,7 +249,7 @@ def _rds(request, at, resolver):
         "GB_MONTH", "GB-Mo",
     )
     components.append(_component("storage", storage, cfg.allocated_storage_gb,
-                                 month=AWS_STORAGE_REFERENCE_HOURS, minimum=600))
+                                 month=AWS_STORAGE_REFERENCE_HOURS, minimum=600, eligible=False))
     return components, warnings
 
 
