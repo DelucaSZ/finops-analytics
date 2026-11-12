@@ -155,7 +155,7 @@ export default function CalculatorPage() {
   }, [provider, service, region, search, form.engine]);
 
   useEffect(() => {
-    if (provider !== "oci" || !region || (service !== "compute" && service !== "db_system")) return;
+    if (provider !== "oci" || region.length < 5 || (service !== "compute" && service !== "db_system")) return;
     const controller = new AbortController();
     setMetadataStatus("loading");
     setMetadataError("");
