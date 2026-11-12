@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, Index, String, UniqueConstraint, true
+from sqlalchemy import Boolean, CheckConstraint, Index, String, UniqueConstraint, false, true
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -52,7 +52,7 @@ class OciDbCalculatorBinding(Base):
     unit: Mapped[str] = mapped_column(String(32), nullable=False)
     # Only relevant to capacity; true means the selected rate includes license.
     includes_license: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="0"
+        Boolean, nullable=False, default=False, server_default=false()
     )
     source_reference: Mapped[str] = mapped_column(String(255), nullable=False)
     enabled: Mapped[bool] = mapped_column(
