@@ -1,4 +1,5 @@
 """Authenticated, read-only cloud cost estimates, with verified AWS SKU adapters."""
+
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -40,8 +41,12 @@ def options(
 ) -> dict:
     try:
         return aws_options(
-            service=service, region=region, search=search, engine=engine,
-            limit=limit, offset=offset,
+            service=service,
+            region=region,
+            search=search,
+            engine=engine,
+            limit=limit,
+            offset=offset,
         )
     except AwsPriceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
