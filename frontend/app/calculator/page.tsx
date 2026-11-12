@@ -452,12 +452,14 @@ export default function CalculatorPage() {
                           onClick={() => { invalidate(); setVolumes((old) => old.filter((_, i) => i !== index)); }}>{t("remove")}</Button>
                       </div>
                       <div className={styles.fieldGrid}>
-                        <Input label={t("capacity")} type="number" min="0.01" step="any" value={volume.size_gb}
+                        <Input label={t("capacity")} type="text" inputMode="decimal" value={volume.size_gb}
+                           error={validationAttempted && !positiveNumber(volume.size_gb) ? t("errors.positiveNumber") : undefined}
                           onChange={(e) => changeVolume(index, "size_gb", e.target.value)} />
                         {choice(t("vpu"), volume.vpus_per_gb,
                           (ociCompute?.vpu_tiers ?? []).map((v) => ({ value: String(v), label: String(v) })),
                           (v) => changeVolume(index, "vpus_per_gb", v), !ociCompute)}
-                        <Input label={t("volumeCount")} type="number" min="1" max="100" step="1" value={volume.count}
+                        <Input label={t("volumeCount")} type="number" inputMode="numeric" min="1" max="100" step="1" value={volume.count}
+                           error={validationAttempted && (!Number.isInteger(volume.count) || volume.count < 1 || volume.count > 100) ? t("errors.volumeCountRange") : undefined}
                           onChange={(e) => changeVolume(index, "count", e.target.value)} />
                       </div>
                     </div>
@@ -514,8 +516,13 @@ export default function CalculatorPage() {
                 ({ value: v, label: tx("periods." + v) })), (v) => { invalidate(); setPeriodMode(v as PeriodMode); })}
               {["hours", "days", "weeks"].includes(periodMode) && numberField(t("duration"), "amount", "0.000001")}
               {periodMode === "custom" && <div className={styles.fieldGrid}>
-                <Input label={t("start")} type="datetime-local" value={form.startAt} onChange={(e) => update("startAt", e.target.value)} />
+                <Input label={t("start")} type="datetime-local" value={form.startAt}
+                  error={validationAttempted && (!form.startAt || !Number.isFinite(new Date(form.startAt).getTime())) ? t("errors.invalidDates") : undefined}
+                  onChange={(e) => update("startAt", e.target.value)} />
                 <Input label={t("end")} type="datetime-local" min={form.startAt} value={form.endAt}
+                  error={validationAttempted && (!form.endAt || !form.startAt || !Number.isFinite(new Date(form.endAt).getTime())
+                    || new Date(form.endAt).getTime() <= new Date(form.startAt).getTime()
+                    || new Date(form.endAt).getTime() - new Date(form.startAt).getTime() > 5 * 366 * 86400000) ? t("errors.invalidDates") : undefined}
                   onChange={(e) => update("endAt", e.target.value)} />
               </div>}
             </CardContent>
