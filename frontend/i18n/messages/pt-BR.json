@@ -2915,7 +2915,7 @@
     "volumeCount": "Quantidade de volumes",
     "ociRegionDisclaimer": "Preços OCI em BRL são finais; disponibilidade por região e quotas exigem verificação independente.",
     "dbSetupTitle": "Preços de DB System pendentes",
-    "dbSetupDescription": "Nenhuma configuração homologada foi cadastrada para esta região. É necessário registrar os vínculos de SKUs antes de simular.",
+    "dbSetupDescription": "Esta região ainda não possui vínculos de SKUs homologados. Você pode simular uma configuração suportada para identificar preços ausentes, mas não obter um total definitivo.",
     "dbConfiguration": "Configuração homologada",
     "editions": {
       "standard": "Standard Edition",
@@ -2931,7 +2931,7 @@
     "license": "Licença",
     "ecpus": "ECPUs (múltiplos de 4)",
     "dbStorage": "Armazenamento do banco (GB)",
-    "dbSkuDisclaimer": "Somente configurações vinculadas a SKUs homologados são selecionáveis. Valores incompletos não são totais.",
+    "dbSkuDisclaimer": "Edição e licença sem vínculo de preço são cenários técnicos de diagnóstico: o backend sinalizará os componentes ausentes, sem estimativa final. Total somente com SKUs homologados.",
     "incomplete": "Preço incompleto",
     "usage": "Quantidade e período",
     "quantity": "Quantidade de recursos",
