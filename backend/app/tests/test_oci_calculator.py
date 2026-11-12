@@ -459,17 +459,19 @@ def test_oci_authenticated_http_and_dropdown_contract(auth_env):
 
 
 def test_compute_options_expose_catalog_currency_configuration_error(db):
-    price = db.query(PricingCatalogItem).filter(
-        PricingCatalogItem.service == "compute",
-        PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
-    ).one()
+    price = (
+        db.query(PricingCatalogItem)
+        .filter(
+            PricingCatalogItem.service == "compute",
+            PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
+        )
+        .one()
+    )
     price.currency = "USD"
     db.commit()
 
     options = oci_calculator_options(db, service="compute", region="sa-saopaulo-1")
-    shape = next(
-        item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex"
-    )
+    shape = next(item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex")
     assert shape["pricing_status"] == "pricing_configuration_error"
     result = quote(db, configuration={"shape": "VM.Standard.E5.Flex"})
     assert result.pricing_status == "partially_priced"
@@ -477,17 +479,19 @@ def test_compute_options_expose_catalog_currency_configuration_error(db):
 
 
 def test_compute_options_expose_catalog_price_not_effective(db):
-    price = db.query(PricingCatalogItem).filter(
-        PricingCatalogItem.service == "compute",
-        PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
-    ).one()
+    price = (
+        db.query(PricingCatalogItem)
+        .filter(
+            PricingCatalogItem.service == "compute",
+            PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
+        )
+        .one()
+    )
     price.enabled = False
     db.commit()
 
     options = oci_calculator_options(db, service="compute", region="sa-saopaulo-1")
-    shape = next(
-        item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex"
-    )
+    shape = next(item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex")
     assert shape["pricing_status"] == "price_not_effective"
 
 
