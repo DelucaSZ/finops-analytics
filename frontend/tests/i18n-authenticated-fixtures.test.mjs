@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {PROTECTED_ROUTES,PUBLIC_ROUTES,TECHNICAL_ROUTES,INVENTORIED_COUNT} from '../e2e/i18n/routes.mjs';
 import {apiFixture,FIXTURE_FINANCIAL} from '../e2e/i18n/fixtures.mjs';
 
-test('reconciles 33 unique page routes, 24 protected, five public and four technical',()=>{
-  assert.equal(INVENTORIED_COUNT,33);
-  assert.equal(PROTECTED_ROUTES.length,24);
+test('reconciles 34 unique page routes, 25 protected, five public and four technical',()=>{
+  assert.equal(INVENTORIED_COUNT,34);
+  assert.equal(PROTECTED_ROUTES.length,25);
   assert.equal(PUBLIC_ROUTES.length,5);
   assert.equal(TECHNICAL_ROUTES.length,4);
-  assert.equal(new Set([...PROTECTED_ROUTES,...PUBLIC_ROUTES,...TECHNICAL_ROUTES]).size,33);
+  assert.equal(new Set([...PROTECTED_ROUTES,...PUBLIC_ROUTES,...TECHNICAL_ROUTES]).size,34);
 });
 test('synthetic auth fixture represents admin without bypassing production auth',()=>{
   const response=apiFixture('/auth/me');
