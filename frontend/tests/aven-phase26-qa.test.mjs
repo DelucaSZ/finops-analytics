@@ -28,10 +28,10 @@ test('Task 26.3 has a runnable real Chromium suite with recorded artifacts',()=>
   assert.match(ci,/aven-phase26-visual-qa/);
 });
 
-test('QA browser matrix explicitly covers the 24 protected routes in both languages',()=>{
-  assert.equal(PROTECTED_ROUTES.length,24);
+test('QA browser matrix explicitly covers the 25 protected routes in both languages',()=>{
+  assert.equal(PROTECTED_ROUTES.length,25);
   assert.deepEqual([...new Set(PROTECTED_ROUTES)].sort(),[...PROTECTED_ROUTES].sort());
-  for(const route of ['/', '/billing', '/inventory', '/flow', '/opportunities',
+  for(const route of ['/', '/billing', '/calculator', '/inventory', '/flow', '/opportunities',
     '/rds/reservations', '/settings/accounts', '/settings/usage-costs',
     '/settings/pricing/oci','/collections','/settings/users']){
     assert.ok(PROTECTED_ROUTES.includes(route),route+' absent from QA inventory');
