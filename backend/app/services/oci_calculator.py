@@ -32,9 +32,9 @@ from app.services.oci_pricing import (
     OCI_BLOCK_VPU_SKU,
     OCI_MONTHLY_HOURS,
     OCI_SERVICE_BLOCK_VOLUME,
+    OCI_SHAPE_PRICE_FAMILY,
     OCI_UNIT_GB_MONTH,
     OCI_UNIT_VPU_GB_MONTH,
-    OCI_SHAPE_PRICE_FAMILY,
 )
 from app.services.pricing_catalog import PricingIdentity
 
@@ -145,7 +145,9 @@ def _compute(
             request, at, "required_shape_ocpus_memory", "missing_configuration"
         )
     if cfg.shape not in OCI_SHAPE_PRICE_FAMILY:
-        return _invalid(request, at, "oci_shape_not_in_pricing_allowlist", "unsupported_configuration")
+        return _invalid(
+            request, at, "oci_shape_not_in_pricing_allowlist", "unsupported_configuration"
+        )
     max_ocpus, max_ram = STANDARD_SHAPE_LIMITS[cfg.shape]
     if (
         cfg.ocpus != cfg.ocpus.to_integral_value()
@@ -201,7 +203,9 @@ def _compute(
         missing.extend(absent)
 
     if any("unsupported_vpu_tier" in key for key in missing):
-        return _invalid(request, at, "oci_vpu_must_be_0_to_120_in_steps_of_10", "invalid_combination")
+        return _invalid(
+            request, at, "oci_vpu_must_be_0_to_120_in_steps_of_10", "invalid_combination"
+        )
     return _finish(request, at, components, missing=missing, warnings=warnings)
 
 
@@ -272,9 +276,18 @@ def _db_system(
             "pricing_configuration_error",
         )
     if cfg.license_model == "byol" and licensing:
-        return _invalid(request, at, "byol_must_not_bill_extra_software_license", "invalid_combination")
-    if cfg.license_model == "license_included" and capacity and capacity.includes_license and licensing:
-        return _invalid(request, at, "database_license_would_be_double_billed", "invalid_combination")
+        return _invalid(
+            request, at, "byol_must_not_bill_extra_software_license", "invalid_combination"
+        )
+    if (
+        cfg.license_model == "license_included"
+        and capacity
+        and capacity.includes_license
+        and licensing
+    ):
+        return _invalid(
+            request, at, "database_license_would_be_double_billed", "invalid_combination"
+        )
 
     components: list[CalculatorMeteredComponent] = []
     missing: list[str] = []
@@ -347,7 +360,9 @@ def oci_calculator_options(
                     "max_ocpus": ocpu_limit,
                     "max_memory_gb": memory_limit,
                     "max_memory_per_ocpu_gb": 64,
-                    "pricing_status": "priced" if all(row.available for row in pricing) else "sku_missing",
+                    "pricing_status": (
+                        "priced" if all(row.available for row in pricing) else "sku_missing"
+                    ),
                     "region_availability_verified": False,
                 }
             )
