@@ -3,23 +3,27 @@
 from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy.orm import Session
 
 from app.core.security import require_user
+from app.db.session import get_db
 from app.schemas.calculator import CalculatorEstimateRequest, CalculatorEstimateResponse
 from app.services.aws_calculator import estimate_aws_calculator
 from app.services.aws_calculator_options import available_regions, aws_options
 from app.services.aws_calculator_pricing import AwsPriceUnavailable
-from app.services.calculator_engine import estimate_calculator_cost
+from app.services.oci_calculator import estimate_oci_calculator, oci_calculator_options
 
 router = APIRouter(prefix="/calculator", tags=["calculator"], dependencies=[Depends(require_user)])
 
 
 @router.post("/estimate", response_model=CalculatorEstimateResponse)
-def estimate(request: CalculatorEstimateRequest) -> CalculatorEstimateResponse:
+def estimate(
+    request: CalculatorEstimateRequest,
+    db: Session = Depends(get_db),
+) -> CalculatorEstimateResponse:
     if request.provider == "aws":
         return estimate_aws_calculator(request)
-    # OCI production adapters will be implemented in follow-up tasks.
-    return estimate_calculator_cost(request, ())
+    return estimate_oci_calculator(request, db)
 
 
 @router.get("/aws/regions")
@@ -50,3 +54,12 @@ def options(
         )
     except AwsPriceUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
+@router.get("/oci/options")
+def oci_options(
+    service: Literal["compute", "db_system"],
+    region: str = Query(min_length=5, max_length=80),
+    db: Session = Depends(get_db),
+) -> dict:
+    return oci_calculator_options(db, service=service, region=region)

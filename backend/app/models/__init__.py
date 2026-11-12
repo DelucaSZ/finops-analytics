@@ -25,6 +25,7 @@ from app.models.finops_ledger import (
 )
 from app.models.inventory import InventoryResource, InventoryResourceObservation
 from app.models.mfa import MfaChallenge, MfaCredential, RecoveryCode, SecurityEvent
+from app.models.oci_db_calculator import OciDbCalculatorBinding
 from app.models.opportunity_archive_history import (
     OpportunityArchiveAction,
     OpportunityArchiveHistory,
@@ -118,6 +119,7 @@ __all__ = [
     "OpportunityRetentionRunStatus",
     "OpportunityStatusHistory",
     "Policy",
+    "OciDbCalculatorBinding",
     "PricingCatalogItem",
     "PricingAuditAction",
     "PricingAuditActorType",
