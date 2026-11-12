@@ -456,3 +456,73 @@ def test_oci_authenticated_http_and_dropdown_contract(auth_env):
         ).json()["setup_required"]
         is True
     )
+
+
+def test_compute_options_expose_catalog_currency_configuration_error(db):
+    price = db.query(PricingCatalogItem).filter(
+        PricingCatalogItem.service == "compute",
+        PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
+    ).one()
+    price.currency = "USD"
+    db.commit()
+
+    options = oci_calculator_options(db, service="compute", region="sa-saopaulo-1")
+    shape = next(
+        item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex"
+    )
+    assert shape["pricing_status"] == "pricing_configuration_error"
+    result = quote(db, configuration={"shape": "VM.Standard.E5.Flex"})
+    assert result.pricing_status == "partially_priced"
+    assert result.monthly_final_cost is None
+
+
+def test_compute_options_expose_catalog_price_not_effective(db):
+    price = db.query(PricingCatalogItem).filter(
+        PricingCatalogItem.service == "compute",
+        PricingCatalogItem.sku == "VM.Standard.E5.Flex.OCPU",
+    ).one()
+    price.enabled = False
+    db.commit()
+
+    options = oci_calculator_options(db, service="compute", region="sa-saopaulo-1")
+    shape = next(
+        item for item in options["items"] if item["shape"] == "VM.Standard.E5.Flex"
+    )
+    assert shape["pricing_status"] == "price_not_effective"
+
+
+@pytest.mark.parametrize("defect", ["wrong_storage_unit", "license_flag", "missing_evidence"])
+def test_db_options_never_mark_malformed_bindings_as_fully_priced(db, defect):
+    """Options and quote must agree on binding validity, not just price availability."""
+    storage_unit = "ECPU_HOUR" if defect == "wrong_storage_unit" else "GB_MONTH"
+    capacity = binding(
+        component="capacity",
+        sku="TEST_ONLY_DB_BUNDLED",
+        unit="ECPU_HOUR",
+        includes_license=True,
+    )
+    storage = binding(
+        component="storage",
+        sku="TEST_ONLY_DB_STORAGE",
+        unit=storage_unit,
+        includes_license=defect == "license_flag",
+    )
+    if defect == "missing_evidence":
+        storage.source_reference = "   "
+    db.add_all(
+        [
+            row("db_system", "TEST_ONLY_DB_BUNDLED", "ECPU_HOUR", "0.3"),
+            row("db_system", "TEST_ONLY_DB_STORAGE", storage_unit, "0.05"),
+            capacity,
+            storage,
+        ]
+    )
+    db.commit()
+
+    options = oci_calculator_options(db, service="db_system", region="sa-saopaulo-1")
+    assert len(options["items"]) == 1
+    assert options["items"][0]["complete_price_available"] is False
+    result = quote(db, service="db_system")
+    assert result.pricing_status == "pricing_configuration_error"
+    assert result.monthly_final_cost is None
+    assert result.period_final_cost is None
