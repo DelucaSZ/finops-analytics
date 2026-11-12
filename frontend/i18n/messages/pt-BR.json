@@ -2863,7 +2863,7 @@
       "ec2": "EC2",
       "rds": "RDS",
       "compute": "Compute VM",
-      "db_system": "DB System"
+      "dbSystem": "DB System"
     },
     "region": "Região",
     "ociRegionPlaceholder": "Ex.: sa-saopaulo-1",
@@ -2899,8 +2899,8 @@
     },
     "deployment": "Implantação",
     "deployments": {
-      "single_az": "Single-AZ",
-      "multi_az": "Multi-AZ"
+      "singleAz": "Single-AZ",
+      "multiAz": "Multi-AZ"
     },
     "volumeType": "Tipo de volume",
     "capacity": "Capacidade (GB)",
@@ -2920,10 +2920,10 @@
     "editions": {
       "standard": "Standard Edition",
       "enterprise": "Enterprise Edition",
-      "enterprise_high_performance": "Enterprise High Performance"
+      "enterpriseHighPerformance": "Enterprise High Performance"
     },
     "licenses": {
-      "license_included": "Licença incluída",
+      "licenseIncluded": "Licença incluída",
       "byol": "BYOL"
     },
     "dbDeployment": "Base Database Service",
@@ -2991,13 +2991,13 @@
     "metadataError": "Não foi possível carregar o catálogo",
     "status": {
       "priced": "Precificação completa",
-      "partially_priced": "Precificação parcial",
-      "sku_missing": "SKU ausente",
-      "unsupported_configuration": "Configuração não suportada",
-      "price_not_effective": "Preço fora da vigência",
-      "missing_configuration": "Configuração incompleta",
-      "invalid_combination": "Combinação inválida",
-      "pricing_configuration_error": "Erro de configuração do catálogo"
+      "partiallyPriced": "Precificação parcial",
+      "skuMissing": "SKU ausente",
+      "unsupportedConfiguration": "Configuração não suportada",
+      "priceNotEffective": "Preço fora da vigência",
+      "missingConfiguration": "Configuração incompleta",
+      "invalidCombination": "Combinação inválida",
+      "pricingConfigurationError": "Erro de configuração do catálogo"
     },
     "errors": {
       "regions": "Não foi possível consultar as regiões AWS. Verifique a conexão e as permissões Pricing API do backend.",
@@ -3007,17 +3007,17 @@
       "request": "A API não conseguiu produzir a estimativa. Verifique a conexão, sessão e os parâmetros."
     },
     "warnings": {
-      "price_snapshot_applied_to_entire_period": "O preço da data de referência foi aplicado a todo o período.",
-      "aws_price_list_current_snapshot_not_historical": "O catálogo AWS atual não garante preços históricos.",
-      "oci_base_database_quote_requires_verified_product_bindings": "DB System exige mapeamento comercial homologado.",
-      "byol_requires_owned_eligible_oracle_licenses": "BYOL requer licenças Oracle elegíveis do cliente.",
-      "oci_region_availability_not_verified": "Disponibilidade regional OCI não homologada.",
-      "boot_volume_not_configured": "Boot Volume não configurado.",
-      "unknown_operating_system_may_require_license": "O sistema operacional pode exigir licença adicional.",
-      "ec2_storage_not_configured": "O armazenamento EC2 não foi incluído.",
-      "rds_storage_not_configured": "O armazenamento RDS não foi incluído.",
-      "aws_ec2_storage_not_configured": "O armazenamento EC2 não foi incluído.",
-      "aws_rds_storage_not_configured": "O armazenamento RDS não foi incluído."
+      "priceSnapshotAppliedToEntirePeriod": "O preço da data de referência foi aplicado a todo o período.",
+      "awsPriceListCurrentSnapshotNotHistorical": "O catálogo AWS atual não garante preços históricos.",
+      "ociBaseDatabaseQuoteRequiresVerifiedProductBindings": "DB System exige mapeamento comercial homologado.",
+      "byolRequiresOwnedEligibleOracleLicenses": "BYOL requer licenças Oracle elegíveis do cliente.",
+      "ociRegionAvailabilityNotVerified": "Disponibilidade regional OCI não homologada.",
+      "bootVolumeNotConfigured": "Boot Volume não configurado.",
+      "unknownOperatingSystemMayRequireLicense": "O sistema operacional pode exigir licença adicional.",
+      "ec2StorageNotConfigured": "O armazenamento EC2 não foi incluído.",
+      "rdsStorageNotConfigured": "O armazenamento RDS não foi incluído.",
+      "awsEc2StorageNotConfigured": "O armazenamento EC2 não foi incluído.",
+      "awsRdsStorageNotConfigured": "O armazenamento RDS não foi incluído."
     }
   }
 }
