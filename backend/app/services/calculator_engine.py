@@ -175,6 +175,9 @@ def estimate_calculator_cost(
     components: Sequence[CalculatorMeteredComponent],
     *,
     reference_at: datetime | None = None,
+    additional_missing_components: Sequence[str] = (),
+    missing_status: CalculatorPricingStatus = "missing_configuration",
+    extra_warnings: Sequence[str] = (),
 ) -> CalculatorEstimateResponse:
     """Sum raw Decimal costs before rounding; retain nullable final totals if incomplete.
 
@@ -193,6 +196,11 @@ def estimate_calculator_cost(
     warnings: list[str] = []
     if seconds is not None:
         warnings.append("price_snapshot_applied_to_entire_period")
+    warnings.extend(extra_warnings)
+    if len(set(additional_missing_components)) != len(additional_missing_components):
+        raise ValueError("duplicate_missing_component_key")
+    if missing_status in {"priced", "partially_priced"}:
+        raise ValueError("invalid_missing_component_status")
 
     line_items: list[CalculatorPricingComponent] = []
     missing: list[str] = []
@@ -260,7 +268,13 @@ def estimate_calculator_cost(
         )
 
     priced_count = len(components) - len(missing)
-    if not components:
+    for key in additional_missing_components:
+        if not key or key in seen:
+            raise ValueError("duplicate_or_empty_component_key")
+        seen.add(key)
+        missing.append(key)
+        failures.append(missing_status)
+    if not components and not additional_missing_components:
         status: CalculatorPricingStatus = "unsupported_configuration"
         warnings.append("service_adapter_not_available")
     elif missing and priced_count:
