@@ -62,6 +62,7 @@ export default function CalculatorPage() {
   const [estimateError, setEstimateError] = useState("");
   const [calculating, setCalculating] = useState(false);
   const [edited, setEdited] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
   const requestNumber = useRef(0);
 
@@ -99,6 +100,7 @@ export default function CalculatorPage() {
     setOciDb(null);
     setMetadataStatus("initial");
     setMetadataError("");
+    setValidationAttempted(false);
   }
   function changeRegion(next: string) {
     invalidate();
@@ -288,6 +290,7 @@ export default function CalculatorPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     invalidate();
+    setValidationAttempted(true);
     const payload = buildRequest();
     if (!payload) {
       setEstimateError("validation");
@@ -319,9 +322,37 @@ export default function CalculatorPage() {
     return <Select label={label} value={value} placeholder={t("choose")} options={options}
       disabled={disabled} onChange={(e) => change(e.target.value)} helperText={help} />;
   }
+  function fieldError(key: string): string | undefined {
+    if (!validationAttempted) return undefined;
+    const value = form[key] ?? "";
+    if (key === "discount" && !nonNegativePercent(value, 100)) return t("errors.discountRange");
+    if (key === "tax" && convert && !nonNegativePercent(value, 1000)) return t("errors.taxRange");
+    if (key === "fx" && convert) {
+      if (!positiveNumber(value, 1000000)) return t("errors.fxPositive");
+      if ((decimalValue(value).split(".")[1]?.length ?? 0) > 8) return t("errors.fxPrecision");
+    }
+    if (["capacity", "bootSize", "dbStorage"].includes(key) && !positiveNumber(value)) return t("errors.positiveNumber");
+    if (key === "quantity" && (!Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > 100000)) return t("errors.quantityRange");
+    if (key === "amount") {
+      const multiplier = periodMode === "weeks" ? 168 : periodMode === "days" ? 24 : 1;
+      if (!positiveNumber(value) || Number(decimalValue(value)) * multiplier > 5 * 366 * 24) return t("errors.durationRange");
+    }
+    if (key === "iops" && (!Number.isInteger(Number(value)) || Number(value) < 3000 || Number(value) > 80000)) return t("errors.iopsRange");
+    if (key === "throughput" && (!Number.isInteger(Number(value)) || Number(value) < 125 || Number(value) > 2000)) return t("errors.throughputRange");
+    if (key === "cpuCount" && (!Number.isInteger(Number(value)) || Number(value) < 4 || Number(value) > 256 || Number(value) % 4 !== 0)) return t("errors.ecpuRange");
+    if (key === "ocpus" && selectedShape && (!Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > selectedShape.max_ocpus)) return t("errors.ocpuRange");
+    if (key === "memory" && selectedShape) {
+      const cpu = Number(form.ocpus), memory = Number(value);
+      if (!Number.isInteger(memory) || memory < cpu || memory > Math.min(selectedShape.max_memory_gb, cpu * selectedShape.max_memory_per_ocpu_gb)) return t("errors.memoryRange");
+    }
+    return undefined;
+  }
   function numberField(label: string, key: string, minimum = "0", maximum?: string, step = "any"): ReactNode {
-    return <Input label={label} type="number" inputMode="decimal" min={minimum} max={maximum} step={step}
-      value={form[key] ?? ""} onChange={(event) => update(key, event.target.value)} />;
+    // Locale-specific comma or dot can be entered; only request inputs are normalized.
+    const decimal = ["capacity", "bootSize", "dbStorage", "amount", "discount", "tax", "fx"].includes(key);
+    return <Input label={label} type={decimal ? "text" : "number"} inputMode={decimal ? "decimal" : "numeric"}
+      min={decimal ? undefined : minimum} max={decimal ? undefined : maximum} step={decimal ? undefined : step}
+      error={fieldError(key)} value={form[key] ?? ""} onChange={(event) => update(key, event.target.value)} />;
   }
 
   const showWaiting = !estimate && !calculating && !estimateError;
@@ -331,7 +362,7 @@ export default function CalculatorPage() {
     <PageContainer width="full" className={styles.page}>
       <PageHeader title={t("title")} description={t("description")} />
       <div className={styles.columns}>
-        <form onSubmit={submit} className={styles.form}>
+        <form onSubmit={submit} noValidate className={styles.form}>
           <Card>
             <CardHeader><CardTitle>{t("configuration")}</CardTitle></CardHeader>
             <CardContent className={styles.formBody}>
