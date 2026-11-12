@@ -5226,3 +5226,15 @@ Sem criação de instâncias, alteração de CloudFormation, alteração de Bill
 **Documento técnico:** [Task 27.3 — AWS EC2/RDS adapters](calculator/27.3-aws-adapters.md).
 
 **Próximas tarefas:** 27.4 OCI / complementos AWS conforme plano revisado; 27.5+ interface e demais adaptadores conforme roadmap vigente.
+
+### Task 27.6 — Aven Cloud Cost Calculator Localization & Design System Integration
+
+**Status:** alterações implementadas em `feat/task-27.6-calculator-localization-design-system`; validação via PR/CI e QA Chromium com fixtures isoladas. **Não realizar merge automático na `main`.**
+
+A interface de `/calculator` preserva os contratos financeiros da Task 27.5 e recebe refinamentos PT-BR/EN-US, formatação `Intl` de valores/percentuais/câmbio/datas, inputs decimais com suporte a vírgula ou ponto, erros de formulário associados aos controles, anúncio acessível de estados, distinção entre moeda do catálogo e total final, IDs de componentes pendentes acessíveis e melhor composição mobile.
+
+A página continua usando seletores oficiais Aven (Fase 26), tokens semânticos e Theme Engine Light/Dark/System (Fase 24). O CI incorpora testes estáticos de localização e matriz real de navegador para as 8 larguras especificadas, 2 idiomas, 3 temas, Sidebar e cenários AWS EC2/RDS, OCI Compute/DB System com mocks determinísticos **sem representar preço real de nuvem**.
+
+**Referência técnica e evidências:** [Task 27.6 — Localization & Design System](calculator/27.6-localization-design-system.md). Os resultados efetivos dos checks devem ser conciliados com o PR antes do aceite.
+
+**Próxima dependência — Task 27.7:** validação integrada financeira e funcional com API/catálogos reais, disponibilidade dos SKUs de licença OCI DB System, autenticação operacional, casos temporais, arredondamentos e inexistência de regressões.
