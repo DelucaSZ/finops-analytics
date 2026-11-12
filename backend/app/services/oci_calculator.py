@@ -275,6 +275,10 @@ def _db_system(
             "unverified_db_catalog_binding_or_incorrect_billing_unit",
             "pricing_configuration_error",
         )
+    if cfg.license_model == "byol" and capacity and capacity.includes_license:
+        return _invalid(
+            request, at, "byol_capacity_must_exclude_database_license", "invalid_combination"
+        )
     if cfg.license_model == "byol" and licensing:
         return _invalid(
             request, at, "byol_must_not_bill_extra_software_license", "invalid_combination"
@@ -417,7 +421,13 @@ def oci_calculator_options(
         compatible = (
             group["shape"] == DB_SHAPE
             and group["cpu_unit"] == "ECPU"
-            and (group["license_model"] != "byol" or "license" not in parts)
+            and (
+                group["license_model"] != "byol"
+                or (
+                    "license" not in parts
+                    and not parts.get("capacity", {}).get("includes_license")
+                )
+            )
             and not (
                 group["license_model"] == "license_included"
                 and parts.get("capacity", {}).get("includes_license")
