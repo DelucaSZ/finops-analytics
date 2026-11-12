@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type FormEvent, type ReactNode } 
 import { useLocale, useTranslations } from "next-intl";
 import { Calculator, Plus, Trash2 } from "lucide-react";
 import { CurrencyDisplay, PageContainer, PageHeader } from "@/components/aven";
+import { formatLocaleDate, formatLocaleDateTime, formatLocaleNumber, formatLocalePercentage } from "@/i18n/formatters.mjs";
 import { Alert, Badge, Button, Card, CardContent, CardHeader, CardTitle, EmptyState, Input, Select, Switch } from "@/components/ui";
 import {
   compactIdentifier, decimalValue, estimateCalculator, fetchAwsOptions, fetchAwsRegions, fetchOciOptions,
@@ -44,7 +45,7 @@ function statusVariant(status: CalculatorEstimate["pricing_status"]) {
 export default function CalculatorPage() {
   const t = useTranslations("calculator");
   const locale = useLocale();
-  const tx = (key: string) => t(key.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase()) as Parameters<typeof t>[0]);
+  const tx = (key: string) => t(key.replace(/[-_]([a-z])/g, (_, letter: string) => letter.toUpperCase()) as Parameters<typeof t>[0]);
   const [provider, setProvider] = useState<Provider>("aws");
   const [service, setService] = useState<Service>("ec2");
   const [form, setForm] = useState<TextForm>(initialFields);
@@ -61,6 +62,7 @@ export default function CalculatorPage() {
   const [estimateError, setEstimateError] = useState("");
   const [calculating, setCalculating] = useState(false);
   const [edited, setEdited] = useState(false);
+  const [validationAttempted, setValidationAttempted] = useState(false);
   const requestRef = useRef<AbortController | null>(null);
   const requestNumber = useRef(0);
 
@@ -98,6 +100,7 @@ export default function CalculatorPage() {
     setOciDb(null);
     setMetadataStatus("initial");
     setMetadataError("");
+    setValidationAttempted(false);
   }
   function changeRegion(next: string) {
     invalidate();
@@ -107,6 +110,8 @@ export default function CalculatorPage() {
     setAwsOptions(null);
     setOciCompute(null);
     setOciDb(null);
+    setMetadataStatus("initial");
+    setMetadataError("");
   }
 
   // AWS regions must come from Pricing API; the browser never embeds a fictitious region catalog.
@@ -285,6 +290,7 @@ export default function CalculatorPage() {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     invalidate();
+    setValidationAttempted(true);
     const payload = buildRequest();
     if (!payload) {
       setEstimateError("validation");
@@ -316,9 +322,37 @@ export default function CalculatorPage() {
     return <Select label={label} value={value} placeholder={t("choose")} options={options}
       disabled={disabled} onChange={(e) => change(e.target.value)} helperText={help} />;
   }
+  function fieldError(key: string): string | undefined {
+    if (!validationAttempted) return undefined;
+    const value = form[key] ?? "";
+    if (key === "discount" && !nonNegativePercent(value, 100)) return t("errors.discountRange");
+    if (key === "tax" && convert && !nonNegativePercent(value, 1000)) return t("errors.taxRange");
+    if (key === "fx" && convert) {
+      if (!positiveNumber(value, 1000000)) return t("errors.fxPositive");
+      if ((decimalValue(value).split(".")[1]?.length ?? 0) > 8) return t("errors.fxPrecision");
+    }
+    if (["capacity", "bootSize", "dbStorage"].includes(key) && !positiveNumber(value)) return t("errors.positiveNumber");
+    if (key === "quantity" && (!Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > 100000)) return t("errors.quantityRange");
+    if (key === "amount") {
+      const multiplier = periodMode === "weeks" ? 168 : periodMode === "days" ? 24 : 1;
+      if (!positiveNumber(value) || Number(decimalValue(value)) * multiplier > 5 * 366 * 24) return t("errors.durationRange");
+    }
+    if (key === "iops" && (!Number.isInteger(Number(value)) || Number(value) < 3000 || Number(value) > 80000)) return t("errors.iopsRange");
+    if (key === "throughput" && (!Number.isInteger(Number(value)) || Number(value) < 125 || Number(value) > 2000)) return t("errors.throughputRange");
+    if (key === "cpuCount" && (!Number.isInteger(Number(value)) || Number(value) < 4 || Number(value) > 256 || Number(value) % 4 !== 0)) return t("errors.ecpuRange");
+    if (key === "ocpus" && selectedShape && (!Number.isInteger(Number(value)) || Number(value) < 1 || Number(value) > selectedShape.max_ocpus)) return t("errors.ocpuRange");
+    if (key === "memory" && selectedShape) {
+      const cpu = Number(form.ocpus), memory = Number(value);
+      if (!Number.isInteger(memory) || memory < cpu || memory > Math.min(selectedShape.max_memory_gb, cpu * selectedShape.max_memory_per_ocpu_gb)) return t("errors.memoryRange");
+    }
+    return undefined;
+  }
   function numberField(label: string, key: string, minimum = "0", maximum?: string, step = "any"): ReactNode {
-    return <Input label={label} type="number" inputMode="decimal" min={minimum} max={maximum} step={step}
-      value={form[key] ?? ""} onChange={(event) => update(key, event.target.value)} />;
+    // Locale-specific comma or dot can be entered; only request inputs are normalized.
+    const decimal = ["capacity", "bootSize", "dbStorage", "amount", "discount", "tax", "fx"].includes(key);
+    return <Input label={label} type={decimal ? "text" : "number"} inputMode={decimal ? "decimal" : "numeric"}
+      min={decimal ? undefined : minimum} max={decimal ? undefined : maximum} step={decimal ? undefined : step}
+      error={fieldError(key)} value={form[key] ?? ""} onChange={(event) => update(key, event.target.value)} />;
   }
 
   const showWaiting = !estimate && !calculating && !estimateError;
@@ -328,7 +362,7 @@ export default function CalculatorPage() {
     <PageContainer width="full" className={styles.page}>
       <PageHeader title={t("title")} description={t("description")} />
       <div className={styles.columns}>
-        <form onSubmit={submit} className={styles.form}>
+        <form onSubmit={submit} noValidate className={styles.form}>
           <Card>
             <CardHeader><CardTitle>{t("configuration")}</CardTitle></CardHeader>
             <CardContent className={styles.formBody}>
@@ -418,12 +452,14 @@ export default function CalculatorPage() {
                           onClick={() => { invalidate(); setVolumes((old) => old.filter((_, i) => i !== index)); }}>{t("remove")}</Button>
                       </div>
                       <div className={styles.fieldGrid}>
-                        <Input label={t("capacity")} type="number" min="0.01" step="any" value={volume.size_gb}
+                        <Input label={t("capacity")} type="text" inputMode="decimal" value={volume.size_gb}
+                           error={validationAttempted && !positiveNumber(volume.size_gb) ? t("errors.positiveNumber") : undefined}
                           onChange={(e) => changeVolume(index, "size_gb", e.target.value)} />
                         {choice(t("vpu"), volume.vpus_per_gb,
                           (ociCompute?.vpu_tiers ?? []).map((v) => ({ value: String(v), label: String(v) })),
                           (v) => changeVolume(index, "vpus_per_gb", v), !ociCompute)}
-                        <Input label={t("volumeCount")} type="number" min="1" max="100" step="1" value={volume.count}
+                        <Input label={t("volumeCount")} type="number" inputMode="numeric" min="1" max="100" step="1" value={volume.count}
+                           error={validationAttempted && (!Number.isInteger(volume.count) || volume.count < 1 || volume.count > 100) ? t("errors.volumeCountRange") : undefined}
                           onChange={(e) => changeVolume(index, "count", e.target.value)} />
                       </div>
                     </div>
@@ -480,8 +516,13 @@ export default function CalculatorPage() {
                 ({ value: v, label: tx("periods." + v) })), (v) => { invalidate(); setPeriodMode(v as PeriodMode); })}
               {["hours", "days", "weeks"].includes(periodMode) && numberField(t("duration"), "amount", "0.000001")}
               {periodMode === "custom" && <div className={styles.fieldGrid}>
-                <Input label={t("start")} type="datetime-local" value={form.startAt} onChange={(e) => update("startAt", e.target.value)} />
+                <Input label={t("start")} type="datetime-local" value={form.startAt}
+                  error={validationAttempted && (!form.startAt || !Number.isFinite(new Date(form.startAt).getTime())) ? t("errors.invalidDates") : undefined}
+                  onChange={(e) => update("startAt", e.target.value)} />
                 <Input label={t("end")} type="datetime-local" min={form.startAt} value={form.endAt}
+                  error={validationAttempted && (!form.endAt || !form.startAt || !Number.isFinite(new Date(form.endAt).getTime())
+                    || new Date(form.endAt).getTime() <= new Date(form.startAt).getTime()
+                    || new Date(form.endAt).getTime() - new Date(form.startAt).getTime() > 5 * 366 * 86400000) ? t("errors.invalidDates") : undefined}
                   onChange={(e) => update("endAt", e.target.value)} />
               </div>}
             </CardContent>
@@ -507,7 +548,10 @@ export default function CalculatorPage() {
           </div>
         </form>
 
-        <div className={styles.results} aria-live="polite">
+        <div className={styles.results}>
+          <div className={styles.srOnly} role="status" aria-live="polite" aria-atomic="true">
+            {calculating ? t("calculating") : estimate ? displayStatus : estimateError ? t("errors.title") : ""}
+          </div>
           <Card>
             <CardHeader><div className={styles.headingRow}>
               <CardTitle>{t("summary")}</CardTitle>
@@ -540,28 +584,41 @@ export default function CalculatorPage() {
                 </div>}
                 <div className={styles.rule} />
                 <div className={styles.definition}>
-                  <span>{t("currency")}</span><strong>{estimate.final_currency}</strong>
+                  <span>{estimate.pricing_status === "priced" ? t("currency") : t("catalogCurrency")}</span>
+                   <strong>{estimate.pricing_status === "priced" ? estimate.final_currency : estimate.pricing_currency}</strong>
                   <span>{t("statusLabel")}</span><strong>{displayStatus}</strong>
                   {estimate.pricing_reference_date && <>
-                    <span>{t("reference")}</span><strong>{new Intl.DateTimeFormat(locale, { dateStyle: "short", timeStyle: "short" }).format(new Date(estimate.pricing_reference_date))}</strong>
+                    <span>{t("reference")}</span><strong>{formatLocaleDateTime(estimate.pricing_reference_date, locale)}</strong>
                   </>}
                   {estimate.pricing_status === "priced" && estimate.provider === "aws" && <>
-                    <span>{t("originalMonthly")}</span><strong>{currency(estimate.monthly_original_cost, "USD")}</strong>
+                    {estimate.discount_percent != null && <>
+                       <span>{t("discountRate")}</span><strong>{formatLocalePercentage(estimate.discount_percent, locale)}</strong>
+                     </>}
+                     <span>{t("originalMonthly")}</span><strong>{currency(estimate.monthly_original_cost, "USD")}</strong>
                     <span>{t("originalPeriod")}</span><strong>{currency(estimate.period_original_cost, "USD")}</strong>
                     <span>{t("discountMonthly")}</span><strong>{currency(estimate.monthly_discount_amount, "USD")}</strong>
                     <span>{t("discountPeriod")}</span><strong>{currency(estimate.period_discount_amount, "USD")}</strong>
                     <span>{t("netMonthly")}</span><strong>{currency(estimate.monthly_net_cost, "USD")}</strong>
                     <span>{t("netPeriod")}</span><strong>{currency(estimate.period_net_cost, "USD")}</strong>
                     {estimate.conversion_enabled && <>
-                      <span>{t("fx")}</span><strong>{estimate.usd_brl_rate ?? "—"}</strong>
+                      <span>{t("fxUsed")}</span><strong>{formatLocaleNumber(estimate.usd_brl_rate, locale, { maximumFractionDigits: 8 })}</strong>
+                       {estimate.tax_percent != null && <>
+                         <span>{t("taxRate")}</span><strong>{formatLocalePercentage(estimate.tax_percent, locale)}</strong>
+                       </>}
                       <span>{t("taxMonthly")}</span><strong>{currency(estimate.monthly_tax_amount, "BRL")}</strong>
                       <span>{t("taxPeriod")}</span><strong>{currency(estimate.period_tax_amount, "BRL")}</strong>
                     </>}
                   </>}
                 </div>
-                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")} description={
-                  <span className={styles.codeWrap}>{estimate.missing_pricing_components.map((v) => compactIdentifier(v, 80)).join(", ")}</span>
-                } />}
+                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" className={styles.missingAlert} title={t("missingPrices")}>
+                  <ul className={styles.missingList}>
+                     {estimate.missing_pricing_components.map((id, index) => <li key={id + index}
+                       className={styles.identifier} title={id}>
+                       <span aria-hidden="true">{compactIdentifier(id, 80)}</span>
+                       <span className={styles.srOnly}>{id}</span>
+                     </li>)}
+                   </ul>
+                </Alert>}
                 {estimate.warnings.length > 0 && <div className={styles.warnings}>
                   {estimate.warnings.map((warning, i) => <p key={warning + i} className={styles.hint}>
                     {(t.has as (key: string) => boolean)("warnings." + warning) ? tx("warnings." + warning) : t("genericWarning")}
@@ -585,11 +642,14 @@ export default function CalculatorPage() {
                 <tbody>{estimate.pricing_components.map((component: PriceComponent, index) => (
                   <tr key={component.sku + index}>
                     <td>{component.description ?? component.service}</td>
-                    <td><span className={styles.identifier} title={component.sku}>{compactIdentifier(component.sku)}</span></td>
+                    <td><span className={styles.identifier} title={component.sku}>
+                       <span aria-hidden="true">{compactIdentifier(component.sku)}</span>
+                       <span className={styles.srOnly}>{component.sku}</span>
+                     </span></td>
                     <td>{component.unit}</td>
                     <td><CurrencyDisplay value={component.unit_price} currency={component.currency} minimumFractionDigits={2} maximumFractionDigits={12} /></td>
-                    <td>{component.monthly_units ?? "—"}</td>
-                    <td>{component.period_units ?? "—"}</td>
+                    <td title={component.monthly_units ?? undefined}>{formatLocaleNumber(component.monthly_units, locale, { maximumFractionDigits: 12 })}</td>
+                    <td title={component.period_units ?? undefined}>{formatLocaleNumber(component.period_units, locale, { maximumFractionDigits: 12 })}</td>
                     <td>{currency(component.monthly_original_cost, component.currency)}</td>
                     <td>{currency(component.period_original_cost, component.currency)}</td>
                     <td><Badge variant={component.pricing_status === "priced" ? "success" : "warning"}>
@@ -604,7 +664,7 @@ export default function CalculatorPage() {
           {estimate.pricing_components.some((item) => item.source) && <details className={styles.provenance}>
             <summary>{t("provenance")}</summary>
             {estimate.pricing_components.map((item, index) => <p key={index} className={styles.codeWrap}>
-              {item.sku}: {item.source ?? "—"} · {item.effective_from ?? "—"} · {item.effective_until ?? "—"}
+              {item.sku}: {item.source ?? "—"} · {formatLocaleDate(item.effective_from, locale)} · {formatLocaleDate(item.effective_until, locale)}
             </p>)}
           </details>}
         </CardContent>

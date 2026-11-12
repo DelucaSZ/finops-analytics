@@ -3004,7 +3004,21 @@
       "options": "Unable to load catalog options. Try again.",
       "validation": "Review the fields and choose a supported price combination. Dates, quantities and adjustments must meet their limits.",
       "title": "Estimate unavailable",
-      "request": "The API could not produce an estimate. Verify connectivity, session and inputs."
+      "request": "The API could not produce an estimate. Verify connectivity, session and inputs.",
+      "discountRange": "Enter a discount between 0% and 100%, with at most 6 decimal places.",
+      "taxRange": "Enter a tax rate between 0% and 1,000%, with at most 6 decimal places.",
+      "fxPositive": "Enter a USD/BRL rate greater than zero and no more than 1,000,000.",
+      "fxPrecision": "The exchange rate accepts at most 8 decimal places.",
+      "positiveNumber": "Enter a number greater than zero; use a comma or a period for decimals.",
+      "quantityRange": "Enter a whole-number quantity between 1 and 100,000.",
+      "durationRange": "Enter a positive duration of up to five years.",
+      "iopsRange": "Enter whole-number IOPS between 3,000 and 80,000.",
+      "throughputRange": "Enter whole-number throughput between 125 and 2,000 MiB/s.",
+      "ecpuRange": "Enter 4 to 256 ECPUs in multiples of 4.",
+      "ocpuRange": "Enter whole-number OCPUs within the shape limits.",
+      "memoryRange": "Enter whole-number RAM between the OCPU count and the shape's allowed maximum.",
+      "volumeCountRange": "Enter a whole-number volume count between 1 and 100.",
+      "invalidDates": "Enter valid dates with an end after the start and a maximum range of five years."
     },
     "warnings": {
       "priceSnapshotAppliedToEntirePeriod": "The reference-date catalog snapshot is applied to the entire period.",
@@ -3018,6 +3032,10 @@
       "rdsStorageNotConfigured": "RDS storage is not included.",
       "awsEc2StorageNotConfigured": "EC2 storage is not included.",
       "awsRdsStorageNotConfigured": "RDS storage is not included."
-    }
+    },
+    "catalogCurrency": "Catalog currency",
+    "discountRate": "Applied discount",
+    "fxUsed": "Exchange rate used (USD/BRL)",
+    "taxRate": "Applied tax"
   }
 }

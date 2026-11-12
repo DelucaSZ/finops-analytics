@@ -11,14 +11,17 @@ import {apiFixture,FIXTURE_FINANCIAL} from '../e2e/i18n/fixtures.mjs';
 import {PROTECTED_ROUTES,PUBLIC_ROUTES,TECHNICAL_ROUTES,INVENTORIED_COUNT} from '../e2e/i18n/routes.mjs';
 import {runPhase26} from '../e2e/phase26/validation.mjs';
 import {runPhase26Extensions} from '../e2e/phase26/extended-validation.mjs';
+import {calculatorFixture} from '../e2e/phase27/fixtures.mjs';
+import {runPhase27} from '../e2e/phase27/validation.mjs';
 
 // Real Chromium + production Next build. Only API responses are simulated.
 // Usage: node scripts/e2e-i18n-authenticated.mjs --smoke | --full
 const full = process.argv.includes('--full');
 const phase26 = process.argv.includes('--phase26');
+const phase27 = process.argv.includes('--phase27');
 const PORT = Number(process.env.AVEN_E2E_PORT||3239);
 const TLS_PORT=PORT+1,BASE='https://localhost:'+TLS_PORT,UPSTREAM='http://127.0.0.1:'+PORT;
-const OUT=phase26?'artifacts/phase26':'artifacts/i18n-authenticated', START=Date.now();
+const OUT=phase26?'artifacts/phase26':phase27?'artifacts/phase27':'artifacts/i18n-authenticated', START=Date.now();
 const browserBin=process.env.CHROME_BIN||['/usr/bin/google-chrome','/usr/bin/google-chrome-stable','/usr/bin/chromium'].find(existsSync);
 if(!browserBin)throw new Error('Chromium not installed; do not report this as a passed browser QA');
 mkdirSync(OUT,{recursive:true});
@@ -36,7 +39,9 @@ const proxy=httpsServer({key:readFileSync(key),cert:readFileSync(cert)},(request
   request.pipe(upstream);
 });
 let server, browser;
-const report={task:phase26?'26.3':'25.9B',mode:phase26?'phase26':full?'full':'smoke',backend:'simulated',commit:process.env.GITHUB_SHA||'local',
+const report={task:phase27?'27.6':phase26?'26.3':'25.9B',
+  mode:phase27?'phase27':phase26?'phase26':full?'full':'smoke',backend:'simulated',
+  commit:process.env.GITHUB_SHA||'local',
   inventory:{total:INVENTORIED_COUNT,protected:PROTECTED_ROUTES.length,public:PUBLIC_ROUTES.length,
     technical:TECHNICAL_ROUTES.length},
   cases:[],failures:[],limitations:[],started:new Date().toISOString()};
@@ -57,7 +62,8 @@ async function createContext(locale,{viewport={width:1440,height:900},colorSchem
   await ctx.route('**/api/v1/**',async route=>{
     const req=route.request(),url=new URL(req.url()),path=url.pathname.replace(/^\/api\/v1/,'')+url.search;
     let body=null;try{body=req.postDataJSON()}catch{}
-    const fixture=apiFixture(path,req.method(),body);
+    const fixture=(phase27 ? calculatorFixture(path,req.method(),body) : null)
+      ?? apiFixture(path,req.method(),body);
     if(emptyBillingProfiles && path==='/billing/aws/profiles' && req.method()==='GET' && fixture.status===200)fixture.body=[];
     if(manyAccounts && path==='/cloud-accounts' && req.method()==='GET' && fixture.status===200){
       const original=fixture.body.find(account=>account.provider==='aws');
@@ -348,10 +354,12 @@ try{
     await delay(1000);
   }
   assert.ok(ready,'production Next server did not start');
-  if(phase26){
+  if(phase26 || phase27){
     const deps={browser,createContext,visit,watch,report,fail,out:OUT,timeout};
-    await runPhase26(deps);
-    await runPhase26Extensions(deps);
+    if(phase26){
+      await runPhase26(deps);
+      await runPhase26Extensions(deps);
+    }else await runPhase27(deps);
   }else{
     await routeSuite('pt-BR');await routeSuite('en-US');
     if(full){await runFunctional();await visualAndAccessibility()}
@@ -375,4 +383,4 @@ try{
   console.log('Aven authenticated browser QA: '+JSON.stringify({mode:report.mode,
     cases:report.counts,failures:report.failures.length,report:OUT+'/report.json'}));
 }
-if(report.failures.length || (phase26 && report.counts.blocked))process.exitCode=1;
+if(report.failures.length || ((phase26 || phase27) && report.counts.blocked))process.exitCode=1;
