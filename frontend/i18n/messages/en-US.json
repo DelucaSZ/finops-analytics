@@ -2915,7 +2915,7 @@
     "volumeCount": "Volume count",
     "ociRegionDisclaimer": "OCI BRL catalog prices are final; regional availability and quotas require independent verification.",
     "dbSetupTitle": "DB System prices pending",
-    "dbSetupDescription": "No verified configurations are registered for this region. SKU mappings must be created before quoting.",
+    "dbSetupDescription": "No verified SKU bindings are registered for this region. You can simulate a supported configuration to identify missing prices, but no definitive total is available.",
     "dbConfiguration": "Verified configuration",
     "editions": {
       "standard": "Standard Edition",
@@ -2931,7 +2931,7 @@
     "license": "License",
     "ecpus": "ECPUs (multiples of 4)",
     "dbStorage": "Database storage (GB)",
-    "dbSkuDisclaimer": "Only configurations mapped to verified SKUs can be selected. Incomplete figures are not totals.",
+    "dbSkuDisclaimer": "Edition and license options without price mappings are diagnostic scenarios: the backend reports missing components without a final estimate. A full total requires verified SKUs.",
     "incomplete": "Incomplete price",
     "usage": "Quantity and period",
     "quantity": "Resource count",
