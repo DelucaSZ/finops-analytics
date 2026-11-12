@@ -610,7 +610,7 @@ export default function CalculatorPage() {
                     </>}
                   </>}
                 </div>
-                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")} description={
+                {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")}>
                   <ul className={styles.missingList}>
                      {estimate.missing_pricing_components.map((id, index) => <li key={id + index}
                        className={styles.identifier} title={id}>
@@ -618,7 +618,7 @@ export default function CalculatorPage() {
                        <span className={styles.srOnly}>{id}</span>
                      </li>)}
                    </ul>
-                } />}
+                </Alert>}
                 {estimate.warnings.length > 0 && <div className={styles.warnings}>
                   {estimate.warnings.map((warning, i) => <p key={warning + i} className={styles.hint}>
                     {(t.has as (key: string) => boolean)("warnings." + warning) ? tx("warnings." + warning) : t("genericWarning")}
