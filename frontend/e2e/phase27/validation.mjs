@@ -127,7 +127,7 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
           "; cause="+String(error));
       }
       await selectValue(page,service==="rds"?"db.t3.medium":"t3.medium");
-      await selectValue(page,service==="rds"?"single-az":"linux");
+      await selectValue(page,service==="rds"?"single_az":"linux");
       if(convert){
         await page.getByLabel(locale==="pt-BR"?"Desconto (%)":"Discount (%)").fill("10");
         await page.getByRole("switch",{name:locale==="pt-BR"?"Converter para BRL":"Convert to BRL"}).click();
