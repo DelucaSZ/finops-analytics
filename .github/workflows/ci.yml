@@ -84,6 +84,15 @@ jobs:
         run: npm run smoke:i18n:authenticated
       - name: Phase 26 Aven visual and functional regression matrix (Chromium)
         run: npm run test:aven:phase26
+      - name: Phase 27 Calculator visual and functional browser QA (Chromium)
+        run: npm run test:aven:phase27
+      - name: Upload Phase 27 calculator browser QA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: aven-phase27-calculator-qa
+          path: frontend/artifacts/phase27/
+          if-no-files-found: warn
       - name: Upload Phase 26 browser QA evidence
         if: always()
         uses: actions/upload-artifact@v4
