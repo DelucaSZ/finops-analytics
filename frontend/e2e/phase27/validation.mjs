@@ -112,7 +112,9 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     await chooseRegion(page,provider);
     if(service==="rds" || service==="db_system")await selectValue(page,service);
     if(provider==="aws"){
-      await page.locator('main input[type="text"]').first().fill(service==="rds"?"db.t3":"t3");
+      await page.getByRole("textbox",{name:locale==="pt-BR"?
+        "Pesquisar tipo ou classe de instância":"Search instance type or class"})
+        .fill(service==="rds"?"db.t3":"t3");
       try {
         await page.locator('main option[value="'+(service==="rds"?"db.t3.medium":"t3.medium")+'"]').first()
           .waitFor({state:"attached",timeout:10000});
@@ -217,7 +219,8 @@ async function localeSwitchCase(deps,locale) {
   try {
     await visit(page,BASE_ROUTE,locale,record);
     await chooseRegion(page,"aws");
-    await page.locator('main input[type="text"]').first().fill("t3");
+    await page.getByRole("textbox",{name:locale==="pt-BR"?
+      "Pesquisar tipo ou classe de instância":"Search instance type or class"}).fill("t3");
     try {
       await page.locator('main option[value="t3.medium"]').first().waitFor({state:"attached",timeout:10000});
     } catch(error) {
