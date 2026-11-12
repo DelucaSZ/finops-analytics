@@ -83,6 +83,16 @@ class AwsRdsConfiguration(BaseModel):
     license_model: str | None = None
 
 
+class OciVolumeConfiguration(BaseModel):
+    """An explicitly provisioned OCI block/boot volume; no implicit performance tier."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    size_gb: Decimal = Field(gt=0, allow_inf_nan=False)
+    vpus_per_gb: Decimal | None = Field(default=None, ge=0, le=120, allow_inf_nan=False)
+    count: int = Field(default=1, ge=1, le=100)
+
+
 class OciComputeConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -91,20 +101,34 @@ class OciComputeConfiguration(BaseModel):
     ocpus: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
     memory_gb: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
     operating_system: Literal["linux", "windows", "unknown"] = "unknown"
+    boot_volume: OciVolumeConfiguration | None = None
+    block_volumes: list[OciVolumeConfiguration] = Field(default_factory=list, max_length=20)
+    # Backward-compatible 27.1 fields. Never charge them twice with boot_volume.
     boot_volume_gb: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
-    vpus_per_gb: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
+    vpus_per_gb: Decimal | None = Field(default=None, ge=0, le=120, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_storage_style(self) -> OciComputeConfiguration:
+        if self.boot_volume is not None and (
+            self.boot_volume_gb is not None or self.vpus_per_gb is not None
+        ):
+            raise ValueError("choose boot_volume or legacy boot_volume_gb/vpus_per_gb")
+        if self.vpus_per_gb is not None and self.boot_volume_gb is None:
+            raise ValueError("legacy vpus_per_gb requires boot_volume_gb")
+        return self
 
 
 class OciDbSystemConfiguration(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     service: Literal["db_system"] = "db_system"
+    deployment_model: Literal["base_database"] = "base_database"
     shape: str | None = None
-    edition: str | None = None
+    edition: Literal["standard", "enterprise"] | None = None
     license_model: Literal["license_included", "byol"] | None = None
     cpu_unit: Literal["ECPU", "OCPU"] | None = None
     cpu_count: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
-    storage_gb: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
+    storage_gb: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
 
 
 ResourceConfiguration = Annotated[
