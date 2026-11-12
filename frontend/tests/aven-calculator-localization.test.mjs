@@ -55,12 +55,14 @@ test("decimal inputs remain locale-flexible while field messages are associated 
   assert.match(page, /error=\{fieldError\(key\)\}/);
   assert.match(page, /noValidate/);
   assert.match(page, /role="status" aria-live="polite" aria-atomic="true"/);
-  assert.match(page, /aria-label=\{id\}/);
+  assert.match(page, /aria-hidden="true">\{compactIdentifier\(id, 80\)\}/);
+  assert.match(page, /<span className=\{styles.srOnly\}>\{id\}<\/span>/);
 });
 
 test("responsive component breakdown preserves full identifiers and theme tokens", () => {
   assert.match(page, /title=\{component\.sku\}/);
-  assert.match(page, /title=\{id\} aria-label=\{id\}/);
+  assert.match(page, /title=\{id\}/);
+  assert.match(page, /<span className=\{styles.srOnly\}>\{component.sku\}<\/span>/);
   assert.match(css, /\.missingList \{/);
   assert.match(css, /\.srOnly \{/);
   assert.match(css, /\.definition \{ grid-template-columns: minmax\(0, 1fr\); \}/);
