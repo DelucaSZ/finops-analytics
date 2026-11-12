@@ -564,7 +564,7 @@ export default function CalculatorPage() {
                     <td>{component.description ?? component.service}</td>
                     <td><span className={styles.identifier} title={component.sku}>{compactIdentifier(component.sku)}</span></td>
                     <td>{component.unit}</td>
-                    <td>{currency(component.unit_price, component.currency)}</td>
+                    <td><CurrencyDisplay value={component.unit_price} currency={component.currency} minimumFractionDigits={2} maximumFractionDigits={12} /></td>
                     <td>{component.monthly_units ?? "—"}</td>
                     <td>{component.period_units ?? "—"}</td>
                     <td>{currency(component.monthly_original_cost, component.currency)}</td>
