@@ -5183,3 +5183,17 @@ reutilizando o endpoint agora existente.
 
 **Restrições:** nenhuma migration, alteração no catálogo ou escrita em nuvens,
 Billing, Inventory, Opportunities e Reservations.
+
+### Task 27.3 — Aven AWS EC2 & RDS Cost Calculator Integration
+
+**Status:** implementada na branch \`feat/task-27.3-aws-ec2-rds-calculator\`; integração live AWS deve ser validada no ambiente com permissões \`pricing:GetProducts\` e \`pricing:GetAttributeValues\` antes de declarar cobertura operacional plena.
+
+O endpoint central \`POST /api/v1/calculator/estimate\` passou a despachar EC2 e RDS por adaptadores read-only da AWS Price List Query API. Cobertura inicial: EC2 Linux/Windows Shared On-Demand, EBS gp2/gp3 e gp3 performance; RDS PostgreSQL/MySQL/MariaDB Single-AZ e Multi-AZ DB instance, armazenamento gp2/gp3 com performance de baseline. Preços indisponíveis, ambíguos ou componentes não suportados produzem estimativa incompleta, nunca total fictício. O cálculo mensal, temporal, desconto elegível, conversão USD/BRL e imposto reutilizam o motor 27.2. APIs auxiliares autenticadas listam regiões e filtram tipos/classes regionais.
+
+Sem criação de instâncias, alteração de CloudFormation, alteração de Billing/Reservations, novos registros financeiros, endpoints paralelos ou interface.
+
+**Restrições deliberadas:** SQL Server e Oracle RDS (licenças/edições), Aurora, RDS Custom, clusters Multi-AZ, desempenho adicional RDS, preços contratuais automáticos e custos de transferência/backup não estão cotados. A permissão de Pricing é necessária somente na role central do backend, não nas contas integradas.
+
+**Documento técnico:** [Task 27.3 — AWS EC2/RDS adapters](calculator/27.3-aws-adapters.md).
+
+**Próximas tarefas:** 27.4 OCI / complementos AWS conforme plano revisado; 27.5+ interface e demais adaptadores conforme roadmap vigente.
