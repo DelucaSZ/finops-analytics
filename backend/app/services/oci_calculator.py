@@ -105,9 +105,7 @@ def _volume_components(
     """Use distinct block storage and performance dimensions; VPU=0 incurs no VPU fee."""
 
     capacity = catalog.resolve(
-        PricingIdentity(
-            "oci", OCI_SERVICE_BLOCK_VOLUME, OCI_BLOCK_STORAGE_SKU, OCI_UNIT_GB_MONTH
-        ),
+        PricingIdentity("oci", OCI_SERVICE_BLOCK_VOLUME, OCI_BLOCK_STORAGE_SKU, OCI_UNIT_GB_MONTH),
         at=at,
     )
     units = volume.size_gb * Decimal(volume.count)
@@ -141,9 +139,7 @@ def _compute(
     cfg = request.resource_configuration
     assert isinstance(cfg, OciComputeConfiguration)
     if not cfg.shape or cfg.ocpus is None or cfg.memory_gb is None:
-        return _invalid(
-            request, at, "required_shape_ocpus_memory", "missing_configuration"
-        )
+        return _invalid(request, at, "required_shape_ocpus_memory", "missing_configuration")
     if cfg.shape not in OCI_SHAPE_PRICE_FAMILY:
         return _invalid(
             request, at, "oci_shape_not_in_pricing_allowlist", "unsupported_configuration"
@@ -180,9 +176,7 @@ def _compute(
         if boot.count != 1:
             return _invalid(request, at, "one_boot_volume_per_vm", "invalid_combination")
     elif cfg.boot_volume_gb is not None and cfg.boot_volume_gb > 0:
-        boot = OciVolumeConfiguration(
-            size_gb=cfg.boot_volume_gb, vpus_per_gb=cfg.vpus_per_gb
-        )
+        boot = OciVolumeConfiguration(size_gb=cfg.boot_volume_gb, vpus_per_gb=cfg.vpus_per_gb)
     else:
         boot = None
 
@@ -196,9 +190,7 @@ def _compute(
 
     for index, volume in enumerate(cfg.block_volumes):
         prefix = f"block_volume_{index + 1}"
-        lines, absent = _volume_components(
-            catalog, at=at, volume=volume, prefix=prefix
-        )
+        lines, absent = _volume_components(catalog, at=at, volume=volume, prefix=prefix)
         components.extend(lines)
         missing.extend(absent)
 
@@ -241,14 +233,18 @@ def _db_system(
         or cfg.storage_gb is None
     ):
         return _invalid(
-            request, at, "required_db_shape_edition_license_capacity_storage",
+            request,
+            at,
+            "required_db_shape_edition_license_capacity_storage",
             "missing_configuration",
         )
     # New provisioning is restricted to the currently documented ECPU x86 BaseDB
     # configuration. Legacy OCPU variants are not silently converted to ECPU.
     if cfg.cpu_unit != "ECPU" or cfg.shape != DB_SHAPE:
         return _invalid(
-            request, at, "legacy_ocpu_or_db_shape_not_available_for_new_provisioning",
+            request,
+            at,
+            "legacy_ocpu_or_db_shape_not_available_for_new_provisioning",
             "unsupported_configuration",
         )
     if (
@@ -258,7 +254,9 @@ def _db_system(
         or cfg.cpu_count % 4 != 0
     ):
         return _invalid(
-            request, at, "base_database_requires_4_to_256_ecpu_in_steps_of_4",
+            request,
+            at,
+            "base_database_requires_4_to_256_ecpu_in_steps_of_4",
             "invalid_combination",
         )
 
@@ -272,7 +270,9 @@ def _db_system(
         or (storage and (storage.unit != "GB_MONTH" or not storage.source_reference.strip()))
     ):
         return _invalid(
-            request, at, "unverified_db_catalog_binding_or_incorrect_billing_unit",
+            request,
+            at,
+            "unverified_db_catalog_binding_or_incorrect_billing_unit",
             "pricing_configuration_error",
         )
     if cfg.license_model == "byol" and licensing:
@@ -319,9 +319,7 @@ def _db_system(
         lookup = catalog.resolve(
             PricingIdentity("oci", "db_system", storage.sku, storage.unit), at=at
         )
-        components.append(
-            _meter("db_system_storage", lookup, cfg.storage_gb, minimum=60)
-        )
+        components.append(_meter("db_system_storage", lookup, cfg.storage_gb, minimum=60))
 
     return _finish(
         request, at, components, missing=missing, missing_status="sku_missing", warnings=warnings
@@ -367,8 +365,11 @@ def oci_calculator_options(
                 }
             )
         return {
-            "service": service, "region": region, "currency": "BRL",
-            "monthly_hours": str(OCI_MONTHLY_HOURS), "items": items,
+            "service": service,
+            "region": region,
+            "currency": "BRL",
+            "monthly_hours": str(OCI_MONTHLY_HOURS),
+            "items": items,
             "operating_systems": ["linux", "windows"],
             "vpu_tiers": list(range(0, 121, 10)),
         }
@@ -399,7 +400,9 @@ def oci_calculator_options(
             PricingIdentity("oci", "db_system", row.sku, row.unit), at=reference
         )
         group["components"][row.component] = {
-            "sku": row.sku, "unit": row.unit, "status": lookup.status,
+            "sku": row.sku,
+            "unit": row.unit,
+            "status": lookup.status,
             "includes_license": row.includes_license,
             "source_reference": row.source_reference,
         }
@@ -407,17 +410,14 @@ def oci_calculator_options(
     for group in groups.values():
         parts = group["components"]
         necessary = {"capacity", "storage"}
-        if group["license_model"] == "license_included" and not parts.get(
-            "capacity", {}
-        ).get("includes_license"):
+        if group["license_model"] == "license_included" and not parts.get("capacity", {}).get(
+            "includes_license"
+        ):
             necessary.add("license")
         compatible = (
             group["shape"] == DB_SHAPE
             and group["cpu_unit"] == "ECPU"
-            and (
-                group["license_model"] != "byol"
-                or "license" not in parts
-            )
+            and (group["license_model"] != "byol" or "license" not in parts)
             and not (
                 group["license_model"] == "license_included"
                 and parts.get("capacity", {}).get("includes_license")
@@ -429,8 +429,11 @@ def oci_calculator_options(
         )
         items.append(group)
     return {
-        "service": service, "region": region, "currency": "BRL",
-        "monthly_hours": str(OCI_MONTHLY_HOURS), "items": items,
+        "service": service,
+        "region": region,
+        "currency": "BRL",
+        "monthly_hours": str(OCI_MONTHLY_HOURS),
+        "items": items,
         "setup_required": not bool(items),
         "new_provisioning_shape": DB_SHAPE,
         "capacity_unit": "ECPU",
