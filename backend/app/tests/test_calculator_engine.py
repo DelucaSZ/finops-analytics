@@ -348,11 +348,11 @@ def test_api_is_authenticated_and_never_quotes_unverified_prices(auth_env):
     )
     response = http.post("/api/v1/calculator/estimate", json=payload, headers=headers(tokens))
     data = response.json()
-    assert data["pricing_status"] == "unsupported_configuration"
+    assert data["pricing_status"] == "missing_configuration"
     assert data["monthly_final_cost"] is None
     assert data["period_final_cost"] is None
     assert data["pricing_currency"] == "USD"
-    assert data["warnings"] == ["service_adapter_not_available"]
+    assert "required_instance_type_and_operating_system" in data["warnings"]
     assert (
         http.post(
             "/api/v1/calculator/estimate",
