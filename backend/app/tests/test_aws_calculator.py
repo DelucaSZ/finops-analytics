@@ -97,7 +97,9 @@ def request(service="ec2", configuration=None, **updates):
               "storage_type": "gp3", "allocated_storage_gb": "100"}
     )
     data = {
-        "provider": "aws", "region": "sa-east-1", "resource_configuration": configuration or initial,
+        "provider": "aws",
+        "region": "sa-east-1",
+        "resource_configuration": configuration or initial,
         "quantity": 1, "period": {"mode": "monthly"}, "pricing_reference_date": AT,
     }
     data.update(updates)
@@ -192,9 +194,13 @@ def test_aws_short_duration_billing_minima_per_component():
     rds = estimate_aws_calculator(request("rds", period=short), resolver=resolver())
     assert ec2.pricing_status == "priced"
     assert ec2.pricing_components[0].period_units == Decimal(1) / Decimal(60)
-    assert ec2.pricing_components[1].period_units == Decimal(100) * Decimal(60) / Decimal(720 * 3600)
+    assert ec2.pricing_components[1].period_units == (
+        Decimal(100) * Decimal(60) / Decimal(720 * 3600)
+    )
     assert rds.pricing_components[0].period_units == Decimal(1) / Decimal(6)
-    assert rds.pricing_components[1].period_units == Decimal(100) * Decimal(600) / Decimal(720 * 3600)
+    assert rds.pricing_components[1].period_units == (
+        Decimal(100) * Decimal(600) / Decimal(720 * 3600)
+    )
 
 
 def test_ambiguous_rates_and_missing_storage_do_not_yield_total():
