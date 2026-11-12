@@ -128,9 +128,11 @@
   --radius-pill: 999px;
   --radius-full: 9999px;
 
-  /* Typography. next/font supplies the first family in each stack at runtime. */
-  --font-family-ui: var(--aven-font-inter, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --font-family-display: var(--aven-font-sora, "Sora"), var(--aven-font-inter, "Inter"), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  /* Fontsource fonts are bundled locally; no external font fetch at build or runtime. */
+  --aven-font-inter: "Inter Variable";
+  --aven-font-sora: "Sora Variable";
+  --font-family-ui: var(--aven-font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-family-display: var(--aven-font-sora), var(--aven-font-inter), system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --font-family-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
 
   --font-weight-regular: 400;
