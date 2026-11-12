@@ -11,7 +11,7 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal, InvalidOperation
 from functools import lru_cache
-from typing import Callable
+from collections.abc import Callable
 
 import boto3
 from botocore.config import Config
