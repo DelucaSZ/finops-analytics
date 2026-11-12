@@ -85,11 +85,11 @@
 }
 .metric strong {
   color: var(--text-primary);
-  font-family: var(--type-title-md-family);
-  font-size: var(--type-title-md-size);
-  font-weight: var(--type-title-md-weight);
+  font-family: var(--type-kpi-md-family);
+  font-size: var(--type-kpi-md-size);
+  font-weight: var(--type-kpi-md-weight);
   font-variant-numeric: tabular-nums;
-  line-height: var(--type-title-md-line-height);
+  line-height: var(--type-kpi-md-line-height);
   overflow-wrap: anywhere;
 }
 .definition {
