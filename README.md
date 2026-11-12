@@ -6,7 +6,7 @@ Aven é uma plataforma **FinOps multi-cloud, self-hosted**, voltada à visibilid
 
 O sistema centraliza inventário, coletas, evidências, custos, reservas e decisões operacionais em uma única experiência web. Aven **não aplica remediações automaticamente**: não encerra, redimensiona nem exclui recursos nas contas cloud. Alterações de configuração e decisões sobre oportunidades são persistidas no próprio sistema, conforme as permissões dos usuários.
 
-> **Estado do projeto:** este documento descreve as capacidades presentes no repositório em 04/11/2026. Recursos e cobertura variam por provedor, permissões IAM e dados disponíveis. Não confunda economia potencial com economia realizada nem ausência de dados com custo zero.
+> **Estado do projeto:** este documento descreve as capacidades presentes no repositório em 12/11/2026. Recursos e cobertura variam por provedor, permissões IAM e dados disponíveis. Não confunda economia potencial com economia realizada nem ausência de dados com custo zero.
 
 ## Sumário
 
@@ -65,6 +65,18 @@ O catálogo AWS inclui detectores de volumes EBS sem uso, Elastic IPs ociosos, s
 - Distinção entre dados **realizados, estimados e forecast**, inclusive períodos parcialmente estimados.
 - Consulta condicionada à seleção de contas: nenhuma conta selecionada não é interpretada como todas.
 - Respeito à moeda retornada pelo provedor e à integridade de períodos incompletos.
+
+### Calculadora Cloud (`/calculator`)
+
+- Simulação de custos **AWS EC2 e RDS** e **OCI Compute VM e Base Database Service (DB System)**, sem provisionamento de recursos nem registro de custos realizados.
+- AWS EC2 Linux/Windows Shared On-Demand com EBS gp2/gp3, IOPS e throughput gp3; AWS RDS PostgreSQL/MySQL/MariaDB em Single-AZ ou Multi-AZ DB instance com storage gp2/gp3 suportado.
+- OCI Compute Flex E3/E4/E5 com OCPU, RAM, licenciamento Windows, Boot/Block Volumes e VPU; OCI DB System em VM.BaseDB.x86/ECPU mediante vínculos de preço homologados.
+- Quantidade e períodos mensais, horas, dias, semanas e intervalos de datas/horas; resumo e detalhamento de componentes com proveniência, moeda e vigência.
+- Desconto percentual **somente em componentes elegíveis AWS**, conversão manual opcional USD/BRL e imposto configurável (13% padrão ao converter). OCI usa **preços finais em BRL**, sem ajustes.
+- SKUs indisponíveis geram **estado parcial ou não precificado**, com total definitivo nulo. O licenciamento OCI DB System ainda depende de SKUs/bindings comerciais aprovados e não recebe tarifa fictícia.
+- Interface autenticada em PT-BR/EN-US, temas Light/Dark/System, componentes Aven e layout responsivo.
+
+Os preços AWS exigem acesso da role central do backend ao AWS Price List Query API; disponibilidade regional, desconto contratual real e valores OCI de produção devem ser verificados. Detalhes: [auditoria final da Fase 27](docs/calculator/27.7-final-qa.md).
 
 ### Reservas Amazon RDS (`/rds/reservations`)
 
@@ -262,6 +274,8 @@ npm run lint
 npm run typecheck
 npm test
 npm run build
+# E2E Chromium isolado da calculadora, depois do build e da instalação do driver
+npm run test:aven:phase27
 ~~~
 
 A interface oferece `pt-BR` (padrão) e `en-US`, com seletor na Topbar e preferência em cookie `aven.locale`. A camada `next-intl` usa catálogos ICU em ambos idiomas; a alteração de idioma não converte moedas nem altera consultas. Novos textos de interface devem ser localizados e ter proteção de regressão no PR. O relatório 25.9 distingue auditoria estática de verificações reais no navegador, que ainda podem estar pendentes.
@@ -281,6 +295,7 @@ O CI contém verificações adicionais de segurança, migrações e smoke tests.
 | Oportunidades | [Lifecycle](docs/opportunity-lifecycle.md), [Políticas](docs/opportunity-management-policy.md), [Retenção](docs/opportunity-operational-archiving.md) |
 | Dashboard e coletas | [Dashboard](docs/dashboard.md), [Investigação por coleta](docs/collection-investigation.md) |
 | Governança | [Auditoria](docs/audit-events.md), [Usuários](docs/users-and-permissions.md), [Settings](docs/settings.md) |
+| Calculadora Cloud | [QA e limites da Fase 27](docs/calculator/27.7-final-qa.md), [AWS adapters](docs/calculator/27.3-aws-adapters.md), [OCI adapters](docs/calculator/27.4-oci-adapters.md) |
 | Qualidade visual | [Regressão visual](frontend/docs/visual-regression.md) |
 | Internacionalização | [Guia pt-BR/en-US](docs/i18n/25.9-translation-guidelines.md), [relatório QA](docs/i18n/25.9-final-qa-report.md), [matriz](docs/i18n/25.9-test-matrix.md), [limitações](docs/i18n/25.9-known-limitations.md) |
 
