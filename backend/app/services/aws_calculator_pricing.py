@@ -3,6 +3,7 @@
 No Cost Explorer estimates, credential material, pricing mutation, or account-specific
 billing. AWS Pricing API endpoint location is NOT the requested resource region.
 """
+
 from __future__ import annotations
 
 import json
@@ -67,8 +68,11 @@ def _products(service_code: str, filters: tuple[tuple[str, str], ...], bucket: i
         try:
             result = client.get_products(**args)
         except Exception as exc:
-            logger.warning("aws_calculator_pricing_unavailable service=%s reason=%s",
-                           service_code, type(exc).__name__)
+            logger.warning(
+                "aws_calculator_pricing_unavailable service=%s reason=%s",
+                service_code,
+                type(exc).__name__,
+            )
             raise AwsPriceUnavailable("aws_pricing_api_unavailable") from exc
         items.extend(json.loads(row) for row in result.get("PriceList", ()))
         next_token = result.get("NextToken")
@@ -114,9 +118,7 @@ class AwsPublicPriceResolver:
         self._fetcher = fetcher or _products
 
     def products(self, service_code: str, filters: dict[str, str]) -> tuple[dict, ...]:
-        return self._fetcher(
-            service_code, tuple(sorted(filters.items())), int(time.time() // 3600)
-        )
+        return self._fetcher(service_code, tuple(sorted(filters.items())), int(time.time() // 3600))
 
     def resolve(
         self,
@@ -132,8 +134,10 @@ class AwsPublicPriceResolver:
         key: str,
     ) -> CalculatorPriceLookup:
         identity = PricingIdentity("aws", service, f"UNAVAILABLE:{region}:{key}", unit)
+
         def missing(status, warning):
             return CalculatorPriceLookup(identity, status, None, at, warning)
+
         if at.utcoffset() is None:
             raise ValueError("pricing reference must have timezone")
         at = at.astimezone(UTC)
@@ -183,10 +187,18 @@ class AwsPublicPriceResolver:
 
 
 def missing_aws_lookup(
-    service: str, region: str, key: str, unit: str, at: datetime,
-    status: str = "unsupported_configuration", warning: str | None = None,
+    service: str,
+    region: str,
+    key: str,
+    unit: str,
+    at: datetime,
+    status: str = "unsupported_configuration",
+    warning: str | None = None,
 ) -> CalculatorPriceLookup:
     return CalculatorPriceLookup(
         PricingIdentity("aws", service, f"UNAVAILABLE:{region}:{key}", unit),
-        status, None, at, warning or status,
+        status,
+        None,
+        at,
+        warning or status,
     )
