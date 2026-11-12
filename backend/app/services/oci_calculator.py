@@ -268,6 +268,8 @@ def _db_system(
         (capacity and (capacity.unit != "ECPU_HOUR" or not capacity.source_reference.strip()))
         or (licensing and (licensing.unit != "ECPU_HOUR" or not licensing.source_reference.strip()))
         or (storage and (storage.unit != "GB_MONTH" or not storage.source_reference.strip()))
+        or (licensing and licensing.includes_license)
+        or (storage and storage.includes_license)
     ):
         return _invalid(
             request,
@@ -362,8 +364,17 @@ def oci_calculator_options(
                     "max_ocpus": ocpu_limit,
                     "max_memory_gb": memory_limit,
                     "max_memory_per_ocpu_gb": 64,
-                    "pricing_status": (
-                        "priced" if all(row.available for row in pricing) else "sku_missing"
+                    "pricing_status": next(
+                        (
+                            status
+                            for status in (
+                                "pricing_configuration_error",
+                                "price_not_effective",
+                                "sku_missing",
+                            )
+                            if any(row.status == status for row in pricing)
+                        ),
+                        "priced" if all(row.available for row in pricing) else "sku_missing",
                     ),
                     "region_availability_verified": False,
                 }
@@ -433,7 +444,14 @@ def oci_calculator_options(
                 and "license" in parts
             )
         )
-        group["complete_price_available"] = compatible and all(
+        units = {"capacity": "ECPU_HOUR", "license": "ECPU_HOUR", "storage": "GB_MONTH"}
+        valid_bindings = all(
+            part["unit"] == units[component]
+            and bool(part["source_reference"].strip())
+            and (component == "capacity" or not part["includes_license"])
+            for component, part in parts.items()
+        )
+        group["complete_price_available"] = compatible and valid_bindings and all(
             k in parts and parts[k]["status"] == "priced" for k in necessary
         )
         items.append(group)
