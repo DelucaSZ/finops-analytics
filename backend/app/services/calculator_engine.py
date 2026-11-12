@@ -62,14 +62,16 @@ class CalculatorMeteredComponent:
     discount_eligible: bool = False
 
 
-def _finite(value: Decimal, label: str, *, allow_zero: bool = True) -> Decimal:
+def _finite(
+    value: Decimal, label: str, *, allow_zero: bool = True, validate_input_scale: bool = False
+) -> Decimal:
     if (
         not isinstance(value, Decimal)
         or not value.is_finite()
         or value < 0
         or (not allow_zero and value == 0)
         or value > MAX_FINANCIAL_VALUE
-        or value.as_tuple().exponent < -18
+        or (validate_input_scale and value.as_tuple().exponent < -18)
     ):
         raise ValueError(f"invalid_{label}")
     return value
@@ -116,9 +118,17 @@ def _billing_unit(unit: str) -> str:
 def _component_usage(
     component: CalculatorMeteredComponent, *, quantity: int, seconds: Decimal | None
 ) -> tuple[Decimal, Decimal]:
-    _finite(component.units_per_resource, "units_per_resource", allow_zero=False)
+    _finite(
+        component.units_per_resource,
+        "units_per_resource",
+        allow_zero=False,
+        validate_input_scale=True,
+    )
     month_hours = _finite(
-        component.reference_month_hours, "reference_month_hours", allow_zero=False
+        component.reference_month_hours,
+        "reference_month_hours",
+        allow_zero=False,
+        validate_input_scale=True,
     )
     if month_hours > Decimal(8784):
         raise ValueError("invalid_reference_month_hours")
@@ -126,10 +136,20 @@ def _component_usage(
     if component.minimum_billable_seconds < 0 or component.minimum_billable_seconds > 2678400:
         raise ValueError("invalid_minimum_charge")
     if unit == "MONTH":
-        if component.increment_seconds is not None or component.minimum_billable_seconds:
+        if component.increment_seconds is not None:
             raise ValueError("monthly_units_do_not_use_second_rounding")
         monthly = component.units_per_resource * quantity
-        period = monthly if seconds is None else monthly * seconds / (month_hours * Decimal(3600))
+        # AWS provisioned storage prices are denominated in GB-month even when
+        # invoice usage is metered by second with a per-volume minimum.
+        billable = (
+            max(
+                Decimal(component.minimum_billable_seconds),
+                seconds.to_integral_value(rounding=ROUND_CEILING),
+            )
+            if seconds is not None and component.minimum_billable_seconds
+            else seconds
+        )
+        period = monthly if seconds is None else monthly * billable / (month_hours * Decimal(3600))
     else:
         increment = component.increment_seconds
         if increment is None or not 1 <= increment <= 2678400:

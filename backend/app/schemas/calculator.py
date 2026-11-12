@@ -62,6 +62,10 @@ class AwsEc2Configuration(BaseModel):
     tenancy: str | None = None
     purchase_option: str | None = None
     root_volume_gb: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
+    ebs_volume_type: Literal["gp2", "gp3"] = "gp3"
+    ebs_volume_count: int = Field(default=1, ge=1, le=100)
+    ebs_iops: int | None = Field(default=None, ge=3000, le=80000)
+    ebs_throughput_mbps: int | None = Field(default=None, ge=125, le=2000)
 
 
 class AwsRdsConfiguration(BaseModel):
@@ -74,6 +78,9 @@ class AwsRdsConfiguration(BaseModel):
     storage_type: str | None = None
     allocated_storage_gb: Decimal | None = Field(default=None, ge=0, allow_inf_nan=False)
     provisioned_iops: int | None = Field(default=None, ge=0)
+    provisioned_throughput_mbps: int | None = Field(default=None, ge=0)
+    database_edition: str | None = None
+    license_model: str | None = None
 
 
 class OciComputeConfiguration(BaseModel):
