@@ -2863,7 +2863,7 @@
       "ec2": "EC2",
       "rds": "RDS",
       "compute": "Compute VM",
-      "db_system": "DB System"
+      "dbSystem": "DB System"
     },
     "region": "Region",
     "ociRegionPlaceholder": "e.g. sa-saopaulo-1",
@@ -2899,8 +2899,8 @@
     },
     "deployment": "Deployment",
     "deployments": {
-      "single_az": "Single-AZ",
-      "multi_az": "Multi-AZ"
+      "singleAz": "Single-AZ",
+      "multiAz": "Multi-AZ"
     },
     "volumeType": "Volume type",
     "capacity": "Capacity (GB)",
@@ -2920,10 +2920,10 @@
     "editions": {
       "standard": "Standard Edition",
       "enterprise": "Enterprise Edition",
-      "enterprise_high_performance": "Enterprise High Performance"
+      "enterpriseHighPerformance": "Enterprise High Performance"
     },
     "licenses": {
-      "license_included": "License Included",
+      "licenseIncluded": "License Included",
       "byol": "BYOL"
     },
     "dbDeployment": "Base Database Service",
@@ -2991,13 +2991,13 @@
     "metadataError": "Could not load catalog",
     "status": {
       "priced": "Fully priced",
-      "partially_priced": "Partially priced",
-      "sku_missing": "SKU missing",
-      "unsupported_configuration": "Unsupported configuration",
-      "price_not_effective": "Price not effective",
-      "missing_configuration": "Incomplete configuration",
-      "invalid_combination": "Invalid combination",
-      "pricing_configuration_error": "Catalog configuration error"
+      "partiallyPriced": "Partially priced",
+      "skuMissing": "SKU missing",
+      "unsupportedConfiguration": "Unsupported configuration",
+      "priceNotEffective": "Price not effective",
+      "missingConfiguration": "Incomplete configuration",
+      "invalidCombination": "Invalid combination",
+      "pricingConfigurationError": "Catalog configuration error"
     },
     "errors": {
       "regions": "Unable to load AWS regions. Verify the backend's Pricing API connectivity and permissions.",
@@ -3007,17 +3007,17 @@
       "request": "The API could not produce an estimate. Verify connectivity, session and inputs."
     },
     "warnings": {
-      "price_snapshot_applied_to_entire_period": "The reference-date catalog snapshot is applied to the entire period.",
-      "aws_price_list_current_snapshot_not_historical": "The current AWS catalog cannot guarantee historic prices.",
-      "oci_base_database_quote_requires_verified_product_bindings": "DB System requires verified commercial SKU mappings.",
-      "byol_requires_owned_eligible_oracle_licenses": "BYOL requires eligible customer-owned Oracle licenses.",
-      "oci_region_availability_not_verified": "OCI regional availability has not been certified.",
-      "boot_volume_not_configured": "Boot volume is not configured.",
-      "unknown_operating_system_may_require_license": "The operating system may need extra licensing.",
-      "ec2_storage_not_configured": "EC2 storage is not included.",
-      "rds_storage_not_configured": "RDS storage is not included.",
-      "aws_ec2_storage_not_configured": "EC2 storage is not included.",
-      "aws_rds_storage_not_configured": "RDS storage is not included."
+      "priceSnapshotAppliedToEntirePeriod": "The reference-date catalog snapshot is applied to the entire period.",
+      "awsPriceListCurrentSnapshotNotHistorical": "The current AWS catalog cannot guarantee historic prices.",
+      "ociBaseDatabaseQuoteRequiresVerifiedProductBindings": "DB System requires verified commercial SKU mappings.",
+      "byolRequiresOwnedEligibleOracleLicenses": "BYOL requires eligible customer-owned Oracle licenses.",
+      "ociRegionAvailabilityNotVerified": "OCI regional availability has not been certified.",
+      "bootVolumeNotConfigured": "Boot volume is not configured.",
+      "unknownOperatingSystemMayRequireLicense": "The operating system may need extra licensing.",
+      "ec2StorageNotConfigured": "EC2 storage is not included.",
+      "rdsStorageNotConfigured": "RDS storage is not included.",
+      "awsEc2StorageNotConfigured": "EC2 storage is not included.",
+      "awsRdsStorageNotConfigured": "RDS storage is not included."
     }
   }
 }
