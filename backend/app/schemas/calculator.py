@@ -124,7 +124,7 @@ class OciDbSystemConfiguration(BaseModel):
     service: Literal["db_system"] = "db_system"
     deployment_model: Literal["base_database"] = "base_database"
     shape: str | None = None
-    edition: Literal["standard", "enterprise"] | None = None
+    edition: Literal["standard", "enterprise", "enterprise_high_performance"] | None = None
     license_model: Literal["license_included", "byol"] | None = None
     cpu_unit: Literal["ECPU", "OCPU"] | None = None
     cpu_count: Decimal | None = Field(default=None, gt=0, allow_inf_nan=False)
