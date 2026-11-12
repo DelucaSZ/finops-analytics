@@ -613,7 +613,10 @@ export default function CalculatorPage() {
                 {estimate.missing_pricing_components.length > 0 && <Alert variant="warning" title={t("missingPrices")} description={
                   <ul className={styles.missingList}>
                      {estimate.missing_pricing_components.map((id, index) => <li key={id + index}
-                       className={styles.identifier} title={id} aria-label={id}>{compactIdentifier(id, 80)}</li>)}
+                       className={styles.identifier} title={id}>
+                       <span aria-hidden="true">{compactIdentifier(id, 80)}</span>
+                       <span className={styles.srOnly}>{id}</span>
+                     </li>)}
                    </ul>
                 } />}
                 {estimate.warnings.length > 0 && <div className={styles.warnings}>
@@ -639,7 +642,10 @@ export default function CalculatorPage() {
                 <tbody>{estimate.pricing_components.map((component: PriceComponent, index) => (
                   <tr key={component.sku + index}>
                     <td>{component.description ?? component.service}</td>
-                    <td><span className={styles.identifier} title={component.sku}>{compactIdentifier(component.sku)}</span></td>
+                    <td><span className={styles.identifier} title={component.sku}>
+                       <span aria-hidden="true">{compactIdentifier(component.sku)}</span>
+                       <span className={styles.srOnly}>{component.sku}</span>
+                     </span></td>
                     <td>{component.unit}</td>
                     <td><CurrencyDisplay value={component.unit_price} currency={component.currency} minimumFractionDigits={2} maximumFractionDigits={12} /></td>
                     <td title={component.monthly_units ?? undefined}>{formatLocaleNumber(component.monthly_units, locale, { maximumFractionDigits: 12 })}</td>
