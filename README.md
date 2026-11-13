@@ -6,7 +6,7 @@ Aven é uma plataforma **FinOps multi-cloud, self-hosted**, voltada à visibilid
 
 O sistema centraliza inventário, coletas, evidências, custos, reservas e decisões operacionais em uma única experiência web. Aven **não aplica remediações automaticamente**: não encerra, redimensiona nem exclui recursos nas contas cloud. Alterações de configuração e decisões sobre oportunidades são persistidas no próprio sistema, conforme as permissões dos usuários.
 
-> **Estado do projeto:** este documento descreve as capacidades presentes no repositório em 12/11/2026. Recursos e cobertura variam por provedor, permissões IAM e dados disponíveis. Não confunda economia potencial com economia realizada nem ausência de dados com custo zero.
+> **Estado do projeto:** este documento descreve as capacidades presentes no repositório em 13/11/2026. Recursos e cobertura variam por provedor, permissões IAM e dados disponíveis. Não confunda economia potencial com economia realizada nem ausência de dados com custo zero.
 
 ## Sumário
 
@@ -300,6 +300,12 @@ O CI contém verificações adicionais de segurança, migrações e smoke tests.
 | Internacionalização | [Guia pt-BR/en-US](docs/i18n/25.9-translation-guidelines.md), [relatório QA](docs/i18n/25.9-final-qa-report.md), [matriz](docs/i18n/25.9-test-matrix.md), [limitações](docs/i18n/25.9-known-limitations.md) |
 
 Os documentos de tarefas numeradas registram decisões históricas. Para o comportamento **atual**, prefira código, APIs, testes e guias operacionais mantidos.
+
+### AWS Pricing regional — backend de importação (Task 28.3)
+
+A fundação persistente da Fase 28 suporta preço oficial AWS On-Demand por serviço e região em USD. A Task 28.3 adiciona **importação administrativa controlada**, com descoberta via AWS Pricing Bulk API, arquivo JSON incremental, normalização, auditoria de SKU/Rate Code, validação de cobertura, proteção de histórico e `dry-run`. Ainda **não há execução agendada, tela Pricing AWS, migração dos consumidores ou carga real de produção**; Calculadora e Políticas permanecem no comportamento anterior até tasks dedicadas.
+
+Comando seguro de validação: `cd backend && python -m app.commands.aws_pricing_import --service AmazonEC2 --region sa-east-1 --dry-run`. A aplicação exige `AVEN_AWS_PRICING_IMPORT_ENABLED=1` para `--apply`, além do contexto administrativo e IAM do backend. Ver [guia do importador 28.3](docs/pricing/aws/28.3-official-import-engine.md) e [fundação 28.2](docs/pricing/aws/28.2-database-foundation.md).
 
 ## Limitações e interpretação dos dados
 

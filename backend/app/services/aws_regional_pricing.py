@@ -160,7 +160,11 @@ def _attributes(service: str, attributes: Mapping[str, str]) -> dict[str, str]:
         if key not in _FINANCIAL_FIELDS:
             raise AwsPricingValidationError(f"unsupported AWS financial attribute: {key}")
         result[key] = _required(value, key, 256)
-    if not _REQUIRED.get(service, frozenset()).issubset(result):
+    required = _REQUIRED.get(service, frozenset())
+    # RDS storage/performance SKUs have no instanceType; they are not DB instance SKUs.
+    if service == "rds" and result.get("productFamily") != "Database Instance":
+        required = frozenset({"usagetype"})
+    if not required.issubset(result):
         raise AwsPricingValidationError(f"incomplete AWS {service} financial attributes")
     return dict(sorted(result.items()))
 

@@ -5246,3 +5246,12 @@ A página continua usando seletores oficiais Aven (Fase 26), tokens semânticos 
 Auditoria do motor Decimal, períodos, catálogo, quatro serviços, desconto AWS, câmbio/imposto, OCI BRL final, E2E isolado, UI PT-BR/EN-US e regressões. Corrigidos a elegibilidade indevida do throughput EBS gp3 ao desconto, o reporte incompleto de estados de preços OCI e a validação de bindings do OCI DB System. Fixtures do navegador foram reconciliadas com as opções reais RDS `single_az` e DB `VM.BaseDB.x86`, e testes de contratos foram acrescentados.
 
 **Aceite técnico:** execução [CI 43273433160](https://github.com/DelucaSZ/finops-analytics/actions/runs/43273433160) aprovada integralmente: backend 1.196 testes, frontend 603 testes, browser 48 (Fase 27), 78 (Fase 26) e 50 (smoke autenticado), sem falhas. Fase 27 concluída tecnicamente com limitações externas documentadas; a homologação live AWS Pricing e os SKUs/licenças OCI DB System permanecem pendentes. Não interpretar testes de navegador com fixtures como certificação comercial ou teste de preços live. [Relatório 27.7](calculator/27.7-final-qa.md).
+
+
+### Task 28.3 — AWS Official Pricing Import Engine (backend)
+
+**Branch:** `feat/task-28.3-aws-official-pricing-import`, base `main` com a fundação 28.2; PR #192. **Sem merge automático.**
+
+Implementada ingestão controlada de arquivos JSON da AWS Price List Bulk API, com descoberta de ServiceCode e RegionCode, validação HTTPS de origem oficial, download incremental com SHA-256 e limites de recursos, parsing `ijson`, staging SQLite temporário, normalização On-Demand USD, preservação de SKU/Rate Code/atributos/vigência e publicação regional no catálogo PostgreSQL da 28.2. Inclui testes com preços sintéticos, verificação de cobertura, registro de execução, última versão válida e comando administrativo dry-run/apply. A publicação padrão é bloqueada quando a cobertura financeira é incompleta.
+
+**Exclusões:** nenhuma carga de produção/live comprovada; sem agendamento, interface AWS Pricing, alteração da Calculadora/Políticas, FX, descontos ou deploy. A Task 28.4 depende do importador e deverá validar cobertura e confiabilidade sobre arquivos públicos reais antes de habilitar sincronização recorrente. [Documento técnico 28.3](pricing/aws/28.3-official-import-engine.md).
