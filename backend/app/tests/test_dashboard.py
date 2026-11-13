@@ -334,8 +334,8 @@ def test_partial_aws_pricing_is_not_totaled_as_known_dashboard_savings(dashboard
         observation = (
             db.query(OpportunityObservation)
             .filter_by(
-            opportunity_id="opp-003",
-            collection_run_id="run-b1",
+                opportunity_id="opp-003",
+                collection_run_id="run-b1",
             )
             .one()
         )
@@ -368,8 +368,8 @@ def test_missing_and_partial_prices_never_appear_as_zero_known_total(dashboard):
         unpriced = (
             db.query(OpportunityObservation)
             .filter_by(
-            opportunity_id="opp-000",
-            collection_run_id="run-a2",
+                opportunity_id="opp-000",
+                collection_run_id="run-a2",
             )
             .one()
         )
@@ -378,8 +378,8 @@ def test_missing_and_partial_prices_never_appear_as_zero_known_total(dashboard):
         partial = (
             db.query(OpportunityObservation)
             .filter_by(
-            opportunity_id="opp-003",
-            collection_run_id="run-b1",
+                opportunity_id="opp-003",
+                collection_run_id="run-b1",
             )
             .one()
         )
