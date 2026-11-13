@@ -75,12 +75,28 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
+      - name: Build frontend (retry only known transient next/font loader failure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if npm run build 2>&1 | tee /tmp/aven-ci-build.log; then
+              exit 0
+            fi
+            if ! grep -q "Cannot read properties of null (reading '1')" /tmp/aven-ci-build.log; then
+              exit 1
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Known transient upstream next/font response; retry $attempt/3"
+            sleep $((attempt * 4))
+          done
       - name: Install browser QA driver
         run: npm install --no-save --package-lock=false playwright-core@1.57.0
       - name: Browser i18n smoke (isolated fixture, no real mutations)
         run: npm run smoke:i18n:browser
-      - name: Authenticated routes i18n smoke (24 routes, two locales)
+      - name: Authenticated routes i18n smoke (26 protected routes, two locales)
         run: npm run smoke:i18n:authenticated
       - name: Phase 27 Calculator visual and functional browser QA (Chromium)
         run: npm run test:aven:phase27
