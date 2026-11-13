@@ -5,19 +5,56 @@ The fixtures are synthetic, and never represent audited official AWS tariff valu
 
 from __future__ import annotations
 
+import os
+import uuid
 from decimal import Decimal
 from unittest.mock import patch
 
+import pytest
+from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
+
+import app.models  # noqa: F401
+from app.db.base import Base
 from app.services.aws_policy_pricing import AwsPolicyPricingAdapter
 from app.services.collector_types import CollectedFinding
 from app.tests.test_aws_calculator_regional import (
     AT,
     compute,
-    db,
     ebs,
     publish,
     rds,
 )
+
+
+@pytest.fixture(params=["sqlite", "postgresql"])
+def db(request):
+    if request.param == "postgresql":
+        uri = os.getenv("TEST_POSTGRES_URL")
+        if not uri:
+            pytest.skip("TEST_POSTGRES_URL is required for PostgreSQL integration")
+        root = create_engine(uri)
+        schema = "test_policy_28_" + uuid.uuid4().hex
+        with root.begin() as conn:
+            conn.execute(text(f'CREATE SCHEMA "{schema}"'))
+        root.dispose()
+        engine = create_engine(uri, connect_args={"options": f"-csearch_path={schema}"})
+    else:
+        engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False}, poolclass=StaticPool
+        )
+    Base.metadata.create_all(engine)
+    try:
+        with Session(engine) as session:
+            yield session
+    finally:
+        engine.dispose()
+        if request.param == "postgresql":
+            root = create_engine(uri)
+            with root.begin() as conn:
+                conn.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+            root.dispose()
 
 
 def finding(key, region="sa-east-1", **details):
