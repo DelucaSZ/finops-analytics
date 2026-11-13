@@ -317,10 +317,7 @@ class FakeBulkClient:
                     "CurrencyCode": "USD",
                     "RegionCode": "sa-east-1",
                     "FileFormats": ["json"],
-                    "PriceListArn": (
-                        "arn:aws:pricing:::price-list/aws/AmazonVPC/"
-                        "USD/20261113/sa-east-1"
-                    ),
+                    "PriceListArn": "arn:aws:pricing:::price-list/aws/AmazonVPC/USD/x/sa-east-1",
                 }
             ],
         }
@@ -440,9 +437,14 @@ def test_postgresql_official_format_import_uses_0040_migration(tmp_path):
             assert published.status == "published"
             again = _import(session, fixture)
             assert again.status == "already_published"
-            assert session.scalar(select(func.count()).select_from(PricingCatalogItem).where(
-                PricingCatalogItem.provider == "aws"
-            )) == 1
+            assert (
+                session.scalar(
+                    select(func.count())
+                    .select_from(PricingCatalogItem)
+                    .where(PricingCatalogItem.provider == "aws")
+                )
+                == 1
+            )
             assert session.scalar(select(func.count()).select_from(AwsPricingRateDetail)) == 1
     finally:
         engine.dispose()
