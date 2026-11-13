@@ -73,6 +73,7 @@ class OpportunityEvidence(BaseModel):
     notes: list[str] = Field(default_factory=list)
     contributors: list[EvidenceContributor] = Field(default_factory=list)
     evaluated_at: str | None = None
+    pricing: dict[str, Any] | None = None
 
 
 class OpportunityListItem(BaseModel):
@@ -91,8 +92,8 @@ class OpportunityListItem(BaseModel):
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
     title: str
     description: str
-    current_monthly_cost: Decimal
-    estimated_monthly_savings: Decimal
+    current_monthly_cost: Decimal | None
+    estimated_monthly_savings: Decimal | None
     currency: str
     confidence: str
     severity: str
@@ -119,8 +120,8 @@ class ObservationRead(BaseModel):
     collection_run_id: str
     observed_at: datetime
     severity: str
-    current_monthly_cost: Decimal
-    estimated_monthly_savings: Decimal
+    current_monthly_cost: Decimal | None
+    estimated_monthly_savings: Decimal | None
     currency: str
     confidence: str
     provider_metadata: dict[str, Any] = Field(default_factory=dict)
