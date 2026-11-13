@@ -215,9 +215,7 @@ class AwsPricingSyncRequest(Base):
     """
 
     __tablename__ = "aws_pricing_sync_requests"
-    __table_args__ = (
-        Index("ix_aws_sync_request_status", "status", "requested_at"),
-    )
+    __table_args__ = (Index("ix_aws_sync_request_status", "status", "requested_at"),)
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     service_code: Mapped[str] = mapped_column(String(80), nullable=False)
