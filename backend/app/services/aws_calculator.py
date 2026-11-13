@@ -432,5 +432,11 @@ def estimate_aws_calculator(
         components, extra = _rds(request, at, provider)
     result = estimate_calculator_cost(request, components, reference_at=at)
     return result.model_copy(
-        update={"warnings": list(dict.fromkeys([*result.warnings, *extra, *getattr(provider, "warnings", []), *_EXCLUSIONS]))}
+        update={
+            "warnings": list(
+                dict.fromkeys(
+                    [*result.warnings, *extra, *getattr(provider, "warnings", []), *_EXCLUSIONS]
+                )
+            )
+        }
     )
