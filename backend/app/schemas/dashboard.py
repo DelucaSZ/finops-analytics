@@ -46,11 +46,19 @@ class DashboardMoneyTotal(BaseModel):
     amount: Decimal
 
 
+class DashboardFinancialCoverage(BaseModel):
+    known: int = 0
+    partial: int = 0
+    unknown: int = 0
+    complete: bool = True
+
+
 class DashboardFinancial(BaseModel):
     metric: str
     label: str
     period: str
     totals: list[DashboardMoneyTotal] = Field(default_factory=list)
+    coverage: DashboardFinancialCoverage | None = None
 
 
 class DashboardProviderDistribution(BaseModel):
@@ -96,7 +104,7 @@ class DashboardTopOpportunity(BaseModel):
     account_name: str | None = None
     collection_run_id: str
     severity: str
-    estimated_monthly_savings: Decimal
+    estimated_monthly_savings: Decimal | None
     currency: str
 
 
