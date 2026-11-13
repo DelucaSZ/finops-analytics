@@ -345,6 +345,19 @@ def test_same_price_later_official_effective_date_is_not_a_new_financial_version
         assert db.scalar(select(func.count(PricingCatalogItem.id))) == 1
 
 
+def test_forced_validation_can_reimport_identical_reference(sessions, monkeypatch):
+    monkeypatch.setenv("AVEN_AWS_PRICING_IMPORT_ENABLED", "1")
+    with sessions.begin() as db:
+        account(db, "111111111111", ["sa-east-1"])
+    calls = []
+    orchestrator = sync(sessions, calls, {"sa-east-1": "arn-v1"})
+    assert orchestrator.run_unit("AmazonVPC", "sa-east-1")["status"] == "published"
+    assert orchestrator.run_unit("AmazonVPC", "sa-east-1", force=True)["status"] == "published"
+    assert len(calls) == 2
+    with sessions() as db:
+        assert db.scalar(select(func.count(AwsPricingImportBatch.id))) == 1
+
+
 @pytest.mark.skipif(not os.environ.get("TEST_POSTGRES_URL"), reason="requires isolated PostgreSQL")
 def test_pg_advisory_locks_are_cross_session(monkeypatch):
     from sqlalchemy import create_engine
