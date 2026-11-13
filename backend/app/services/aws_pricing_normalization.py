@@ -232,9 +232,12 @@ def normalize_rate(
         raise AwsPricingValidationError("rate exceeds NUMERIC(20,8) range")
     unit = _token(dimension.get("unit"))
     usage = product.attributes.get("usagetype", "")
-    if product.service == "rds" and unit.lower() in {"hrs", "hours"}:
-        if not product.attributes.get("instanceType"):
-            raise AwsPricingValidationError("non-instance RDS hourly offering")
+    if (
+        product.service == "rds"
+        and unit.lower() in {"hrs", "hours"}
+        and not product.attributes.get("instanceType")
+    ):
+        raise AwsPricingValidationError("non-instance RDS hourly offering")
     mapped = _unit(unit, product.service, usage)
     if not mapped:
         raise AwsPricingValidationError("unsupported billing unit " + unit[:40])
