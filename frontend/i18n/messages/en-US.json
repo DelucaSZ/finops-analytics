@@ -1116,7 +1116,10 @@
         "datapoints": "samples",
         "associations": "associations",
         "tags": "tags"
-      }
+      },
+      "regionalPricing": "AWS regional pricing",
+      "regionalPricingStatus": "Financial pricing status",
+      "regionalPricingProvenance": "Rate components and provenance"
     },
     "archive": {
       "titleOne": "Archive opportunity",
@@ -1770,7 +1773,9 @@
         "minimumGrowthPercent": "Minimum growth (%)",
         "minimumDeltaUsd": "Minimum increase (USD)",
         "minimumCurrentSpendUsd": "Minimum current spend (USD)"
-      }
+      },
+      "regionalPricingSource": "Pricing source: Pricing AWS — regional rates.",
+      "viewRegionalPricing": "View Pricing AWS"
     },
     "billingProfiles": {
       "title": "Billing Profiles",
@@ -3011,12 +3016,12 @@
     "loadingOptions": "Loading catalog options…",
     "noOptions": "No matching combinations found. Try another search.",
     "limitedResults": "Only the first 100 matches are shown. Refine your search.",
-      "loadMore": "Load more instances",
-      "noAwsRegions": "No AWS regions are configured. Ask an administrator to configure or synchronize the catalog.",
-      "regionSyncRequired": "AWS Pricing for this region has not been synchronized. Contact an administrator.",
-      "regionCatalogPartial": "This region's AWS Pricing is partial, stale, or recently failed to sync. Previously published rates may remain valid.",
-      "unpricedOptionsHint": "Some configurations have no effective rate. The estimate will identify missing components.",
-      "syncedAt": "Synchronized at",
+    "loadMore": "Load more instances",
+    "noAwsRegions": "No AWS regions are configured. Ask an administrator to configure or synchronize the catalog.",
+    "regionSyncRequired": "AWS Pricing for this region has not been synchronized. Contact an administrator.",
+    "regionCatalogPartial": "This region's AWS Pricing is partial, stale, or recently failed to sync. Previously published rates may remain valid.",
+    "unpricedOptionsHint": "Some configurations have no effective rate. The estimate will identify missing components.",
+    "syncedAt": "Synchronized at",
     "instanceType": "Instance type",
     "instanceClass": "Instance class",
     "operatingSystem": "Operating system",
