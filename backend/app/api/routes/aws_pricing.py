@@ -42,7 +42,9 @@ router = APIRouter(
     dependencies=[Depends(require_admin)],
 )
 _REGION = re.compile(r"^[a-z]{2}(?:-[a-z0-9]+)+-\d+$")
-RateStatus = Literal["active", "all", "unsupported", "quarantined", "withdrawn", "expired", "future"]
+RateStatus = Literal[
+    "active", "all", "unsupported", "quarantined", "withdrawn", "expired", "future"
+]
 
 
 class SyncSubmission(BaseModel):
