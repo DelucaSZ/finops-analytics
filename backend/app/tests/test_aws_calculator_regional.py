@@ -22,7 +22,10 @@ from app.db.base import Base
 from app.schemas.calculator import CalculatorEstimateRequest
 from app.services.aws_calculator import estimate_aws_calculator
 from app.services.aws_calculator_options import available_regions, aws_options
-from app.services.aws_regional_pricing import AwsRegionalPricingRepository, AwsRegionalPricingResolver
+from app.services.aws_regional_pricing import (
+    AwsRegionalPricingRepository,
+    AwsRegionalPricingResolver,
+)
 
 AT = datetime(2026, 11, 12, 12, tzinfo=UTC)
 
@@ -113,7 +116,10 @@ def compute(db, *, region="sa-east-1", os_name="Linux", amount="1", sku=None, ef
     )
 
 
-def ebs(db, *, family="Storage", usage="VolumeUsage.gp3", sku="EBS-GP3", amount="0.1", unit="GB_MONTH", aws_unit="GB-Mo"):
+def ebs(
+    db, *, family="Storage", usage="VolumeUsage.gp3", sku="EBS-GP3",
+    amount="0.1", unit="GB_MONTH", aws_unit="GB-Mo",
+):
     attrs = {
         "volumeApiName": "gp3", "usagetype": "SAE1-EBS:" + usage, "productFamily": family,
     }
@@ -170,7 +176,10 @@ def test_locally_published_price_equals_regional_resolver_and_catalog(db):
     item = compute(db)
     ebs(db)
     db.commit()
-    with patch("app.services.aws_calculator_pricing._client", side_effect=AssertionError("no AWS Pricing API")):
+    with patch(
+        "app.services.aws_calculator_pricing._client",
+        side_effect=AssertionError("no AWS Pricing API"),
+    ):
         output = estimate(db)
         choices = aws_options(
             db, service="ec2", region="sa-east-1", search="t3",
@@ -303,11 +312,23 @@ def test_regions_and_options_are_local_paginated_and_engine_specific(db):
     rds(db, engine="PostgreSQL")
     rds(db, engine="MySQL")
     db.commit()
-    with patch("app.services.aws_calculator_pricing._client", side_effect=AssertionError("no AWS calls")):
+    with patch(
+        "app.services.aws_calculator_pricing._client",
+        side_effect=AssertionError("no AWS calls"),
+    ):
         regions = available_regions(db)
-        a = aws_options(db, service="ec2", region="sa-east-1", search="t3", engine=None, limit=1, offset=0)
-        b = aws_options(db, service="ec2", region="sa-east-1", search="t3", engine=None, limit=1, offset=1)
-        pg = aws_options(db, service="rds", region="sa-east-1", search="t3", engine="postgres", limit=10, offset=0)
+        a = aws_options(
+            db, service="ec2", region="sa-east-1", search="t3",
+            engine=None, limit=1, offset=0,
+        )
+        b = aws_options(
+            db, service="ec2", region="sa-east-1", search="t3",
+            engine=None, limit=1, offset=1,
+        )
+        pg = aws_options(
+            db, service="rds", region="sa-east-1", search="t3",
+            engine="postgres", limit=10, offset=0,
+        )
     assert regions["source"] == "AWS_REGIONAL_CATALOG"
     assert "sa-east-1" in regions["items"]
     assert a["total"] == b["total"] == 2
