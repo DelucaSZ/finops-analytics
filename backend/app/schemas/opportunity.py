@@ -94,6 +94,7 @@ class OpportunityListItem(BaseModel):
     description: str
     current_monthly_cost: Decimal | None
     estimated_monthly_savings: Decimal | None
+    pricing_status: str | None = None
     currency: str
     confidence: str
     severity: str
