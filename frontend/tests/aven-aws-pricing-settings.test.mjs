@@ -25,7 +25,7 @@ test("rates preserve small USD decimals and never format missing as zero", () =>
   assert.equal(formatAwsPrice("", "pt-BR"), "—");
   assert.equal(formatAwsPrice("NaN"), "—");
   assert.equal(formatAwsPrice("0.123456789"), "—");
-  assert.match(formatAwsPrice("9007199254740993.12345678", "en-US"), /9,007,199,254,740,993\\.12345678/);
+  assert.ok(formatAwsPrice("9007199254740993.12345678", "en-US").includes("9,007,199,254,740,993.12345678"));
 });
 
 test("AWS pricing translations and page behavior cover both locales", async () => {
