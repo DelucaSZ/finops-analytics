@@ -424,7 +424,7 @@ class AwsPolicyPricingAdapter:
             return None
 
     def _price_one(self, finding: CollectedFinding, config: dict[str, Any]) -> bool:
-        details = finding.evidence.get("details", {})
+        # Collectors emit flat evidence; synthetic/normalized inputs can be nested.\n        details = finding.evidence.get("details") or finding.evidence
         region = finding.region or ""
         components: list[dict[str, Any]] = []
         missing: list[str] = []
