@@ -290,6 +290,7 @@
       "openBacklogHelp": "Current unarchived OPEN backlog",
       "monthlySavings": "Potential monthly savings",
       "currenciesSeparate": "Currencies remain separate; no exchange rate is inferred",
+      "incompleteCoverage": "Incomplete financial coverage: {known} known, {partial} partial and {unknown} unknown. The total includes only complete estimates.",
       "validScopeHelp": "Accounts with a valid collection available for the current summary",
       "monthSuffix": "/month"
     },
