@@ -52,12 +52,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     if args.apply and os.environ.get("AVEN_AWS_PRICING_IMPORT_ENABLED") != "1":
-        parser.error("apply requires AVEN_AWS_PRICING_IMPORT_ENABLED=1 in administrative environment")
+        parser.error(
+            "apply requires AVEN_AWS_PRICING_IMPORT_ENABLED=1 in administrative environment"
+        )
     if args.apply and args.fixture and (
         not args.allow_fixture_apply
         or os.environ.get("AVEN_ALLOW_OFFLINE_PRICE_FIXTURES") != "1"
     ):
-        parser.error("test fixture publication requires explicit fixture flags and environment opt-in")
+        parser.error(
+            "test fixture publication requires explicit fixture flags and environment opt-in"
+        )
     if args.offline_dry_run and not args.dry_run:
         parser.error("--offline-dry-run requires --dry-run")
     if args.allow_partial and not args.apply:
