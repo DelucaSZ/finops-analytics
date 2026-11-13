@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { Check, Copy, History, RefreshCw, Search, X } from "lucide-react";
+import { Copy, History, RefreshCw, Search, X } from "lucide-react";
 import { NativeSelect } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
 import { api, ApiError } from "@/lib/api";
@@ -583,4 +583,3 @@ export default function AwsPricingPage() {
   );
 }
 
-export { formatPrice };
