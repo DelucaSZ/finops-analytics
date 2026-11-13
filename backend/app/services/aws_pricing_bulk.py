@@ -160,9 +160,7 @@ def discover_price_list(
             raise AwsBulkImportError("official list pagination limit exceeded")
         matches = list(dict.fromkeys(matches))
         if len(matches) != 1:
-            raise AwsBulkImportError(
-                "no unique regional USD JSON price list: " + str(len(matches))
-            )
+            raise AwsBulkImportError("no unique regional USD JSON price list: " + str(len(matches)))
         response = api.get_price_list_file_url(PriceListArn=matches[0], FileFormat="json")
         url = response.get("Url", "")
         validate_official_url(url, service_code)
@@ -170,8 +168,12 @@ def discover_price_list(
     except AwsBulkImportError:
         raise
     except Exception as exc:
-        logger.warning("aws_bulk_discovery_failed service=%s region=%s reason=%s",
-                       service_code, region, type(exc).__name__)
+        logger.warning(
+            "aws_bulk_discovery_failed service=%s region=%s reason=%s",
+            service_code,
+            region,
+            type(exc).__name__,
+        )
         raise AwsBulkImportError("official AWS Bulk Pricing discovery failed") from exc
 
 
