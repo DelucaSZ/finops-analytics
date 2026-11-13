@@ -19,8 +19,6 @@ class RuleDefinition:
     config: dict[str, Any]
 
 
-EBS_PRICES = {"gp2": 0.10, "gp3": 0.08, "io1": 0.125, "io2": 0.125, "st1": 0.045, "sc1": 0.015}
-
 RULES: dict[str, RuleDefinition] = {
     "ebs_unattached": RuleDefinition(
         key="ebs_unattached",
@@ -31,7 +29,6 @@ RULES: dict[str, RuleDefinition] = {
         config={
             "minimum_age_days": 7,
             "minimum_monthly_savings_usd": 1,
-            "monthly_price_per_gb": EBS_PRICES,
             "excluded_tag_keys": ["nuvemiq:ignore", "do-not-delete"],
         },
     ),
@@ -42,7 +39,6 @@ RULES: dict[str, RuleDefinition] = {
         implemented=True,
         enabled=True,
         config={
-            "monthly_cost_usd": 3.65,
             "minimum_monthly_savings_usd": 1,
             "excluded_tag_keys": ["nuvemiq:ignore"],
         },
@@ -57,7 +53,6 @@ RULES: dict[str, RuleDefinition] = {
             "retention_days": 90,
             "preserve_last_per_volume": 3,
             "preserve_ami_snapshots": True,
-            "monthly_price_per_gb": 0.05,
             "minimum_monthly_savings_usd": 1,
             "excluded_tag_keys": ["nuvemiq:ignore", "retention:keep"],
         },
@@ -72,7 +67,6 @@ RULES: dict[str, RuleDefinition] = {
             "minimum_stopped_days": 7,
             "include_unknown_stop_time": True,
             "minimum_monthly_savings_usd": 1,
-            "monthly_price_per_gb": EBS_PRICES,
             "excluded_tag_keys": ["nuvemiq:ignore"],
         },
     ),
@@ -90,7 +84,6 @@ RULES: dict[str, RuleDefinition] = {
             "environment_tag_keys": ["Environment", "Ambiente"],
             "nonproduction_values": ["dev", "development", "hml", "homolog", "test", "qa"],
             "excluded_tag_keys": ["nuvemiq:ignore"],
-            "estimated_hourly_cost_by_instance_type": {},
         },
     ),
     "load_balancer_no_traffic": RuleDefinition(
@@ -106,7 +99,6 @@ RULES: dict[str, RuleDefinition] = {
             "minimum_age_days": 7,
             "maximum_requests": 0,
             "maximum_processed_bytes": 0,
-            "estimated_base_monthly_cost_usd": 16.43,
             "excluded_tag_keys": ["nuvemiq:ignore"],
         },
     ),
@@ -122,7 +114,6 @@ RULES: dict[str, RuleDefinition] = {
             "maximum_connections": 1,
             "environment_tag_keys": ["Environment", "Ambiente"],
             "nonproduction_values": ["dev", "development", "hml", "homolog", "test", "qa"],
-            "estimated_monthly_cost_by_instance_class": {},
             "excluded_tag_keys": ["nuvemiq:ignore"],
         },
     ),
@@ -155,6 +146,24 @@ RULES: dict[str, RuleDefinition] = {
 }
 
 
+# Retained DB JSON and historical audit events are not rewritten. Financial keys
+# from older global/account overrides never participate in new policy evaluation.
+LEGACY_PRICING_KEYS: dict[str, frozenset[str]] = {
+    "ebs_unattached": frozenset({"monthly_price_per_gb"}),
+    "ec2_stopped_with_ebs": frozenset({"monthly_price_per_gb"}),
+    "eip_unassociated": frozenset({"monthly_cost_usd"}),
+    "snapshot_retention": frozenset({"monthly_price_per_gb"}),
+    "ec2_nonprod_outside_hours": frozenset({"estimated_hourly_cost_by_instance_type"}),
+    "load_balancer_no_traffic": frozenset({"estimated_base_monthly_cost_usd"}),
+    "rds_nonprod_idle": frozenset({"estimated_monthly_cost_by_instance_class"}),
+}
+
+
+def strip_legacy_pricing(rule_key: str, config: dict[str, Any]) -> dict[str, Any]:
+    ignored = LEGACY_PRICING_KEYS.get(rule_key, frozenset())
+    return {key: deepcopy(value) for key, value in config.items() if key not in ignored}
+
+
 def deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
     result = deepcopy(base)
     for key, value in override.items():
@@ -185,15 +194,15 @@ def get_effective_policy(db: Session, rule_key: str, account_id: int | None = No
     global_policy = get_policy_row(db, rule_key, "global")
     if global_policy:
         enabled = global_policy.enabled if global_policy.enabled is not None else enabled
-        config = deep_merge(config, global_policy.config or {})
+        config = deep_merge(config, strip_legacy_pricing(rule_key, global_policy.config or {}))
 
     account_policy = None
     if account_id is not None:
         account_policy = get_policy_row(db, rule_key, "account", account_id)
         if account_policy:
             enabled = account_policy.enabled if account_policy.enabled is not None else enabled
-            config = deep_merge(config, account_policy.config or {})
-            override_fields = sorted((account_policy.config or {}).keys())
+            config = deep_merge(config, strip_legacy_pricing(rule_key, account_policy.config or {}))
+            override_fields = sorted(strip_legacy_pricing(rule_key, account_policy.config or {}).keys())
             if account_policy.enabled is not None:
                 override_fields.insert(0, "enabled")
 
@@ -232,12 +241,12 @@ def upsert_policy(
             account_id=account_id,
             rule_key=rule_key,
             enabled=enabled,
-            config=config,
+            config=strip_legacy_pricing(rule_key, config),
         )
         db.add(policy)
     else:
         policy.enabled = enabled
-        policy.config = config
+        policy.config = strip_legacy_pricing(rule_key, config)
     # The caller owns the transaction so an AuditEvent can be persisted atomically.
     db.flush()
     db.refresh(policy)
