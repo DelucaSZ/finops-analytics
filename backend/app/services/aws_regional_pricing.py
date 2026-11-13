@@ -3,6 +3,7 @@
 The importer (28.3) must call these methods inside a caller-owned transaction.
 Validation is fail-closed; no money, region, or missing rate is ever inferred.
 """
+
 from __future__ import annotations
 
 import hashlib
@@ -28,32 +29,70 @@ from app.models.pricing import PricingCatalogItem
 from app.models.pricing_audit import PricingAuditEvent
 
 AwsPriceStatus = Literal[
-    "priced", "sku_missing", "price_not_effective",
-    "pricing_configuration_error", "sync_required",
+    "priced",
+    "sku_missing",
+    "price_not_effective",
+    "pricing_configuration_error",
+    "sync_required",
 ]
 
 _REGION = re.compile(r"^[a-z]{2}(?:-[a-z0-9]+)+-\d+$")
 _FIELD = re.compile(r"^[A-Za-z][A-Za-z0-9_]{0,79}$")
 # Extensible validation registry. The importer must explicitly map AWS attributes
 # that influence financial identity; unknown keys do not silently become selectors.
-_FINANCIAL_FIELDS = frozenset({
-    "instanceType", "operatingSystem", "tenancy", "capacitystatus",
-    "preInstalledSw", "operation", "purchaseOption", "productFamily",
-    "databaseEngine", "databaseEdition", "deploymentOption",
-    "deploymentModel", "licenseModel", "storageType", "volumeApiName",
-    "usagetype", "usageType", "volumeType", "iops", "throughput",
-    "capacity", "snapshotType", "locationType", "group", "groupDescription",
-    "loadBalancerType", "servicecode", "fromLocation", "toLocation",
-    "transferType", "physicalProcessor", "processorArchitecture",
-})
+_FINANCIAL_FIELDS = frozenset(
+    {
+        "instanceType",
+        "operatingSystem",
+        "tenancy",
+        "capacitystatus",
+        "preInstalledSw",
+        "operation",
+        "purchaseOption",
+        "productFamily",
+        "databaseEngine",
+        "databaseEdition",
+        "deploymentOption",
+        "deploymentModel",
+        "licenseModel",
+        "storageType",
+        "volumeApiName",
+        "usagetype",
+        "usageType",
+        "volumeType",
+        "iops",
+        "throughput",
+        "capacity",
+        "snapshotType",
+        "locationType",
+        "group",
+        "groupDescription",
+        "loadBalancerType",
+        "servicecode",
+        "fromLocation",
+        "toLocation",
+        "transferType",
+        "physicalProcessor",
+        "processorArchitecture",
+    }
+)
 _REQUIRED = {
     "ec2": frozenset({"instanceType", "operatingSystem", "tenancy", "operation"}),
     "rds": frozenset({"instanceType", "databaseEngine", "deploymentOption"}),
     "ebs": frozenset({"usagetype"}),
 }
-_ALLOWED_SERVICES = frozenset({
-    "ec2", "rds", "ebs", "snapshot", "ipv4", "alb", "nlb", "clb",
-})
+_ALLOWED_SERVICES = frozenset(
+    {
+        "ec2",
+        "rds",
+        "ebs",
+        "snapshot",
+        "ipv4",
+        "alb",
+        "nlb",
+        "clb",
+    }
+)
 
 
 class AwsPricingValidationError(ValueError):
@@ -174,8 +213,14 @@ class AwsRegionalPricingRepository:
             )
 
     def get_or_create_batch(
-        self, *, service_code: str, region_code: str, source_version: str,
-        checksum: str, source_type: str, source_uri: str | None = None,
+        self,
+        *,
+        service_code: str,
+        region_code: str,
+        source_version: str,
+        checksum: str,
+        source_type: str,
+        source_uri: str | None = None,
     ) -> AwsPricingImportBatch:
         code = _required(service_code, "service_code", 80)
         region = _region(region_code)
@@ -183,27 +228,42 @@ class AwsRegionalPricingRepository:
         digest = _required(checksum, "checksum", 128)
         source = _required(source_type, "source_type", 64)
         self._lock(f"batch:{code}:{region}:{version}:{digest}")
-        batch = self.db.scalar(select(AwsPricingImportBatch).where(
-            AwsPricingImportBatch.service_code == code,
-            AwsPricingImportBatch.region_code == region,
-            AwsPricingImportBatch.source_version == version,
-            AwsPricingImportBatch.checksum == digest,
-        ))
+        batch = self.db.scalar(
+            select(AwsPricingImportBatch).where(
+                AwsPricingImportBatch.service_code == code,
+                AwsPricingImportBatch.region_code == region,
+                AwsPricingImportBatch.source_version == version,
+                AwsPricingImportBatch.checksum == digest,
+            )
+        )
         if batch:
             return batch
         batch = AwsPricingImportBatch(
-            service_code=code, region_code=region, source_version=version,
-            checksum=digest, source_type=source, source_uri=source_uri,
-            status="running", started_at=utcnow(),
-            products_seen=0, rates_seen=0, rates_rejected=0,
+            service_code=code,
+            region_code=region,
+            source_version=version,
+            checksum=digest,
+            source_type=source,
+            source_uri=source_uri,
+            status="running",
+            started_at=utcnow(),
+            products_seen=0,
+            rates_seen=0,
+            rates_rejected=0,
         )
         self.db.add(batch)
         self.db.flush()
         return batch
 
     def put_product(
-        self, *, service: str, service_code: str, region_code: str,
-        product_sku: str, product_family: str, description: str,
+        self,
+        *,
+        service: str,
+        service_code: str,
+        region_code: str,
+        product_sku: str,
+        product_family: str,
+        description: str,
         financial_attributes: Mapping[str, str],
         product_attributes: Mapping[str, str] | None = None,
     ) -> AwsPricingProduct:
@@ -221,11 +281,13 @@ class AwsRegionalPricingRepository:
             raise AwsPricingValidationError("product_attributes must contain string pairs")
         digest = _fingerprint(identity)
         self._lock(f"product:{code}:{region}:{sku}")
-        existing = self.db.scalar(select(AwsPricingProduct).where(
-            AwsPricingProduct.service_code == code,
-            AwsPricingProduct.region_code == region,
-            AwsPricingProduct.product_sku == sku,
-        ))
+        existing = self.db.scalar(
+            select(AwsPricingProduct).where(
+                AwsPricingProduct.service_code == code,
+                AwsPricingProduct.region_code == region,
+                AwsPricingProduct.product_sku == sku,
+            )
+        )
         if existing:
             if (
                 existing.service != normalized_service
@@ -236,22 +298,39 @@ class AwsRegionalPricingRepository:
                 raise AwsPricingConflictError("product identity changed for the same AWS SKU")
             return existing
         product = AwsPricingProduct(
-            service=normalized_service, service_code=code, region_code=region,
-            product_sku=sku, product_family=family, description=desc,
-            product_attributes=raw, financial_attributes=identity,
-            attribute_hash=digest, status="active",
+            service=normalized_service,
+            service_code=code,
+            region_code=region,
+            product_sku=sku,
+            product_family=family,
+            description=desc,
+            product_attributes=raw,
+            financial_attributes=identity,
+            attribute_hash=digest,
+            status="active",
         )
         self.db.add(product)
         self.db.flush()
         return product
 
     def put_rate(
-        self, *, product: AwsPricingProduct, rate_code: str, term_code: str,
-        billing_unit: str, aws_unit: str, amount: Decimal,
-        effective_from: datetime, source: str, source_effective_at: datetime,
-        purchase_option: str = "on_demand", begin_range: str = "0",
-        end_range: str = "Inf", rate_description: str = "",
-        pricing_status: str = "active", import_batch: AwsPricingImportBatch | None = None,
+        self,
+        *,
+        product: AwsPricingProduct,
+        rate_code: str,
+        term_code: str,
+        billing_unit: str,
+        aws_unit: str,
+        amount: Decimal,
+        effective_from: datetime,
+        source: str,
+        source_effective_at: datetime,
+        purchase_option: str = "on_demand",
+        begin_range: str = "0",
+        end_range: str = "Inf",
+        rate_description: str = "",
+        pricing_status: str = "active",
+        import_batch: AwsPricingImportBatch | None = None,
     ) -> PricingCatalogItem:
         code = _required(rate_code, "rate_code", 180)
         term = _required(term_code, "term_code", 180)
@@ -282,41 +361,55 @@ class AwsRegionalPricingRepository:
         if len(sku) > 160:
             raise AwsPricingValidationError("AWS composite SKU exceeds shared catalog limit")
         is_active = pricing_status == "active"
-        digest = _fingerprint({
-            "amount": format(price, "f"), "code": code, "term": term,
-            "unit": unit, "aws_unit": aws_billing_unit, "option": option,
-            "range": f"{begin}:{end}", "source": source_name,
-        })
+        digest = _fingerprint(
+            {
+                "amount": format(price, "f"),
+                "code": code,
+                "term": term,
+                "unit": unit,
+                "aws_unit": aws_billing_unit,
+                "option": option,
+                "range": f"{begin}:{end}",
+                "source": source_name,
+            }
+        )
         key = f"{product.service}:{product.region_code}:{sku}:{unit}"
         self._lock(key)
-        rows = list(self.db.scalars(
-            select(PricingCatalogItem).where(
-                PricingCatalogItem.provider == "aws",
-                PricingCatalogItem.service == product.service,
-                PricingCatalogItem.region_code == product.region_code,
-                PricingCatalogItem.sku == sku,
-                PricingCatalogItem.unit == unit,
-            ).order_by(PricingCatalogItem.effective_from.desc())
-            .with_for_update()
-        ))
+        rows = list(
+            self.db.scalars(
+                select(PricingCatalogItem)
+                .where(
+                    PricingCatalogItem.provider == "aws",
+                    PricingCatalogItem.service == product.service,
+                    PricingCatalogItem.region_code == product.region_code,
+                    PricingCatalogItem.sku == sku,
+                    PricingCatalogItem.unit == unit,
+                )
+                .order_by(PricingCatalogItem.effective_from.desc())
+                .with_for_update()
+            )
+        )
         for item in rows:
             if _stored_date(item.effective_from) != start:
                 continue
-            detail = self.db.scalar(select(AwsPricingRateDetail).where(
-                AwsPricingRateDetail.pricing_item_id == item.id
-            ))
+            detail = self.db.scalar(
+                select(AwsPricingRateDetail).where(AwsPricingRateDetail.pricing_item_id == item.id)
+            )
             if (
                 detail is not None
                 and detail.product_id == product.id
                 and detail.source_hash == digest
-                and item.price == price and item.currency == "USD"
+                and item.price == price
+                and item.currency == "USD"
                 and detail.pricing_status == pricing_status
                 and item.enabled == is_active
             ):
                 return item
             raise AwsPricingConflictError("same rate identity and start has conflicting data")
         if rows and start <= _stored_date(rows[0].effective_from):
-            raise AwsPricingConflictError("backdated publication requires an explicit reconciliation")
+            raise AwsPricingConflictError(
+                "backdated publication requires an explicit reconciliation"
+            )
         if rows and rows[0].enabled:
             previous = rows[0]
             if previous.effective_until is not None and start >= _date(
@@ -329,21 +422,35 @@ class AwsRegionalPricingRepository:
                 self.db.flush()
                 self._audit(previous, "VALIDITY_CHANGED", before, _snapshot(previous))
         item = PricingCatalogItem(
-            provider="aws", service=product.service, region_code=product.region_code,
-            sku=sku, description=(rate_description.strip() or product.description)[:255],
-            unit=unit, price=price, currency="USD", effective_from=start,
-            effective_until=None, enabled=is_active, source=source_name,
+            provider="aws",
+            service=product.service,
+            region_code=product.region_code,
+            sku=sku,
+            description=(rate_description.strip() or product.description)[:255],
+            unit=unit,
+            price=price,
+            currency="USD",
+            effective_from=start,
+            effective_until=None,
+            enabled=is_active,
+            source=source_name,
         )
         self.db.add(item)
         self.db.flush()
         detail = AwsPricingRateDetail(
-            pricing_item_id=item.id, product_id=product.id,
-            rate_code=code, term_code=term, purchase_option=option,
-            billing_unit_aws=aws_billing_unit, begin_range=begin, end_range=end,
+            pricing_item_id=item.id,
+            product_id=product.id,
+            rate_code=code,
+            term_code=term,
+            purchase_option=option,
+            billing_unit_aws=aws_billing_unit,
+            begin_range=begin,
+            end_range=end,
             rate_description=rate_description.strip() or product.description,
             pricing_status=pricing_status,
             import_batch_id=import_batch.id if import_batch else None,
-            source_effective_at=source_at, synced_at=utcnow(),
+            source_effective_at=source_at,
+            synced_at=utcnow(),
             source_hash=digest,
         )
         self.db.add(detail)
@@ -352,66 +459,106 @@ class AwsRegionalPricingRepository:
         return item
 
     def _audit(
-        self, item: PricingCatalogItem, action: str,
-        before: dict | None, after: dict | None,
+        self,
+        item: PricingCatalogItem,
+        action: str,
+        before: dict | None,
+        after: dict | None,
         batch: AwsPricingImportBatch | None = None,
     ) -> None:
-        self.db.add(PricingAuditEvent(
-            pricing_item_id=item.id, provider="aws", service=item.service,
-            region_code=item.region_code, sku=item.sku, unit=item.unit,
-            import_batch_id=batch.id if batch else None,
-            action=action, actor_type="SYSTEM",
-            reason="AWS regional catalog version publication",
-            before_data=before, after_data=after,
-        ))
+        self.db.add(
+            PricingAuditEvent(
+                pricing_item_id=item.id,
+                provider="aws",
+                service=item.service,
+                region_code=item.region_code,
+                sku=item.sku,
+                unit=item.unit,
+                import_batch_id=batch.id if batch else None,
+                action=action,
+                actor_type="SYSTEM",
+                reason="AWS regional catalog version publication",
+                before_data=before,
+                after_data=after,
+            )
+        )
 
     def list_products(
-        self, *, service: str, region_code: str,
-        limit: int = 100, offset: int = 0,
+        self,
+        *,
+        service: str,
+        region_code: str,
+        limit: int = 100,
+        offset: int = 0,
     ) -> list[AwsPricingProduct]:
         region = _region(region_code)
         if not (1 <= limit <= 1000 and offset >= 0):
             raise AwsPricingValidationError("invalid pagination")
-        return list(self.db.scalars(
-            select(AwsPricingProduct).where(
-                AwsPricingProduct.service == service,
-                AwsPricingProduct.region_code == region,
-            ).order_by(AwsPricingProduct.product_sku, AwsPricingProduct.id)
-            .offset(offset).limit(limit)
-        ))
+        return list(
+            self.db.scalars(
+                select(AwsPricingProduct)
+                .where(
+                    AwsPricingProduct.service == service,
+                    AwsPricingProduct.region_code == region,
+                )
+                .order_by(AwsPricingProduct.product_sku, AwsPricingProduct.id)
+                .offset(offset)
+                .limit(limit)
+            )
+        )
 
     def rate_history(
-        self, *, service: str, region_code: str, product_sku: str,
-        rate_code: str, billing_unit: str,
+        self,
+        *,
+        service: str,
+        region_code: str,
+        product_sku: str,
+        rate_code: str,
+        billing_unit: str,
     ) -> list[PricingCatalogItem]:
         region = _region(region_code)
-        return list(self.db.scalars(
-            select(PricingCatalogItem).join(
-                AwsPricingRateDetail,
-                AwsPricingRateDetail.pricing_item_id == PricingCatalogItem.id,
-            ).join(
-                AwsPricingProduct,
-                AwsPricingRateDetail.product_id == AwsPricingProduct.id,
-            ).where(
-                PricingCatalogItem.provider == "aws",
-                PricingCatalogItem.service == service,
-                PricingCatalogItem.region_code == region,
-                AwsPricingProduct.product_sku == product_sku,
-                AwsPricingRateDetail.rate_code == rate_code,
-                PricingCatalogItem.unit == billing_unit,
-            ).order_by(PricingCatalogItem.effective_from.desc())
-        ))
+        return list(
+            self.db.scalars(
+                select(PricingCatalogItem)
+                .join(
+                    AwsPricingRateDetail,
+                    AwsPricingRateDetail.pricing_item_id == PricingCatalogItem.id,
+                )
+                .join(
+                    AwsPricingProduct,
+                    AwsPricingRateDetail.product_id == AwsPricingProduct.id,
+                )
+                .where(
+                    PricingCatalogItem.provider == "aws",
+                    PricingCatalogItem.service == service,
+                    PricingCatalogItem.region_code == region,
+                    AwsPricingProduct.product_sku == product_sku,
+                    AwsPricingRateDetail.rate_code == rate_code,
+                    PricingCatalogItem.unit == billing_unit,
+                )
+                .order_by(PricingCatalogItem.effective_from.desc())
+            )
+        )
 
     def get_sync_state(
-        self, *, service_code: str, region_code: str,
+        self,
+        *,
+        service_code: str,
+        region_code: str,
     ) -> AwsPricingSyncState | None:
-        return self.db.scalar(select(AwsPricingSyncState).where(
-            AwsPricingSyncState.service_code == service_code,
-            AwsPricingSyncState.region_code == _region(region_code),
-        ))
+        return self.db.scalar(
+            select(AwsPricingSyncState).where(
+                AwsPricingSyncState.service_code == service_code,
+                AwsPricingSyncState.region_code == _region(region_code),
+            )
+        )
 
     def set_sync_state(
-        self, *, service_code: str, region_code: str, status: str,
+        self,
+        *,
+        service_code: str,
+        region_code: str,
+        status: str,
         batch: AwsPricingImportBatch | None = None,
         coverage: dict | None = None,
     ) -> AwsPricingSyncState:
@@ -421,15 +568,15 @@ class AwsRegionalPricingRepository:
             raise AwsPricingValidationError("synced requires a published import batch")
         code = _required(service_code, "service_code", 80)
         region = _region(region_code)
-        if batch is not None and (
-            batch.service_code != code or batch.region_code != region
-        ):
+        if batch is not None and (batch.service_code != code or batch.region_code != region):
             raise AwsPricingValidationError("sync batch service/region mismatch")
         self._lock(f"sync:{code}:{region}")
         state = self.get_sync_state(service_code=code, region_code=region)
         if state is None:
             state = AwsPricingSyncState(
-                service_code=code, region_code=region, coverage_status="never_synced",
+                service_code=code,
+                region_code=region,
+                coverage_status="never_synced",
                 schema_version=1,
             )
             self.db.add(state)
@@ -451,9 +598,15 @@ class AwsRegionalPricingResolver:
         self.db = db
 
     def resolve_aws_price(
-        self, *, service: str, service_code: str, region_code: str,
-        configuration: Mapping[str, str], billing_unit: str,
-        reference_at: datetime, purchase_option: str = "on_demand",
+        self,
+        *,
+        service: str,
+        service_code: str,
+        region_code: str,
+        configuration: Mapping[str, str],
+        billing_unit: str,
+        reference_at: datetime,
+        purchase_option: str = "on_demand",
     ) -> AwsRegionalPriceResolution:
         service = _required(service, "service", 64).lower()
         if service not in _ALLOWED_SERVICES:
@@ -464,33 +617,39 @@ class AwsRegionalPricingResolver:
         at = _date(reference_at, "reference_at")
         attributes = _attributes(service, configuration)
         base = dict(
-            service=service, service_code=code, region_code=region, reference_at=at,
+            service=service,
+            service_code=code,
+            region_code=region,
+            reference_at=at,
         )
 
         def missing(status: AwsPriceStatus, reason: str) -> AwsRegionalPriceResolution:
-            return AwsRegionalPriceResolution(
-                status=status, warning_code=reason, **base
-            )
+            return AwsRegionalPriceResolution(status=status, warning_code=reason, **base)
 
         sync = AwsRegionalPricingRepository(self.db).get_sync_state(
             service_code=code, region_code=region
         )
-        if sync is None or sync.coverage_status == "never_synced" or (
-            sync.coverage_status == "failed" and sync.last_successful_batch_id is None
+        if (
+            sync is None
+            or sync.coverage_status == "never_synced"
+            or (sync.coverage_status == "failed" and sync.last_successful_batch_id is None)
         ):
             return missing("sync_required", "aws_region_catalog_not_synchronized")
-        products = list(self.db.scalars(select(AwsPricingProduct).where(
-            AwsPricingProduct.service == service,
-            AwsPricingProduct.service_code == code,
-            AwsPricingProduct.region_code == region,
-            AwsPricingProduct.attribute_hash == _fingerprint(attributes),
-            AwsPricingProduct.status == "active",
-        )))
+        products = list(
+            self.db.scalars(
+                select(AwsPricingProduct).where(
+                    AwsPricingProduct.service == service,
+                    AwsPricingProduct.service_code == code,
+                    AwsPricingProduct.region_code == region,
+                    AwsPricingProduct.attribute_hash == _fingerprint(attributes),
+                    AwsPricingProduct.status == "active",
+                )
+            )
+        )
         products = [p for p in products if p.financial_attributes == attributes]
         if not products:
             return missing(
-                "sync_required" if sync.coverage_status in {"partial", "stale"}
-                else "sku_missing",
+                "sync_required" if sync.coverage_status in {"partial", "stale"} else "sku_missing",
                 "aws_regional_product_absent",
             )
         product_ids = [p.id for p in products]
@@ -514,17 +673,18 @@ class AwsRegionalPricingResolver:
             )
         ).all()
         active = [
-            (item, detail, product) for item, detail, product in rows
-            if item.enabled and detail.pricing_status == "active"
-            and detail.begin_range == "0" and detail.end_range == "Inf"
+            (item, detail, product)
+            for item, detail, product in rows
+            if item.enabled
+            and detail.pricing_status == "active"
+            and detail.begin_range == "0"
+            and detail.end_range == "Inf"
         ]
         effective = [
-            (item, detail, product) for item, detail, product in active
+            (item, detail, product)
+            for item, detail, product in active
             if _stored_date(item.effective_from) <= at
-            and (
-                item.effective_until is None
-                or at < _stored_date(item.effective_until)
-            )
+            and (item.effective_until is None or at < _stored_date(item.effective_until))
         ]
         if not effective:
             if active:
@@ -532,8 +692,7 @@ class AwsRegionalPricingResolver:
             if rows:
                 return missing("pricing_configuration_error", "aws_rate_not_publishable")
             return missing(
-                "sync_required" if sync.coverage_status in {"partial", "stale"}
-                else "sku_missing",
+                "sync_required" if sync.coverage_status in {"partial", "stale"} else "sku_missing",
                 "aws_rate_dimension_missing",
             )
         if len(effective) != 1:
@@ -542,11 +701,18 @@ class AwsRegionalPricingResolver:
         if item.currency != "USD" or detail.product_id != product.id:
             return missing("pricing_configuration_error", "aws_rate_integrity_error")
         return AwsRegionalPriceResolution(
-            status="priced", catalog_item_id=item.id, product_sku=product.product_sku,
-            rate_code=detail.rate_code, billing_unit=item.unit,
-            unit_price=Decimal(item.price), currency=item.currency,
-            effective_from=item.effective_from, effective_until=item.effective_until,
-            source=item.source, version=item.id, import_batch_id=detail.import_batch_id,
+            status="priced",
+            catalog_item_id=item.id,
+            product_sku=product.product_sku,
+            rate_code=detail.rate_code,
+            billing_unit=item.unit,
+            unit_price=Decimal(item.price),
+            currency=item.currency,
+            effective_from=item.effective_from,
+            effective_until=item.effective_until,
+            source=item.source,
+            version=item.id,
+            import_batch_id=detail.import_batch_id,
             synced_at=detail.synced_at,
             matched_attributes=dict(product.financial_attributes),
             **base,

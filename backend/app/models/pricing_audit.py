@@ -63,7 +63,12 @@ class PricingAuditEvent(Base):
         ),
         Index(
             "ix_pricing_audit_aws_key_occurred",
-            "provider", "service", "region_code", "sku", "unit", "occurred_at",
+            "provider",
+            "service",
+            "region_code",
+            "sku",
+            "unit",
+            "occurred_at",
         ),
         Index("ix_pricing_audit_item_occurred", "pricing_item_id", "occurred_at"),
         Index("ix_pricing_audit_actor", "actor_id"),
@@ -79,7 +84,8 @@ class PricingAuditEvent(Base):
     provider: Mapped[str] = mapped_column(String(16), nullable=False)
     region_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     import_batch_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
+        String(36),
+        ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
         nullable=True,
     )
     service: Mapped[str] = mapped_column(String(64), nullable=False)

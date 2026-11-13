@@ -1,4 +1,5 @@
 """Task 28.2: isolated AWS regional persistence and fail-closed resolution tests."""
+
 from __future__ import annotations
 
 import os
@@ -16,7 +17,6 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db.base import Base
 from app.db.migrations import migration_config
-from app.models.aws_pricing import AwsPricingRateDetail
 from app.models.pricing import PricingCatalogItem
 from app.models.pricing_audit import PricingAuditEvent
 from app.services.aws_regional_pricing import (
@@ -48,8 +48,11 @@ def pricing_db():
 
 def _product(db: Session, region: str = "sa-east-1"):
     return AwsRegionalPricingRepository(db).put_product(
-        service="ec2", service_code="AmazonEC2", region_code=region,
-        product_sku="SKU-TEST-001", product_family="Compute Instance",
+        service="ec2",
+        service_code="AmazonEC2",
+        region_code=region,
+        product_sku="SKU-TEST-001",
+        product_family="Compute Instance",
         description="Synthetic test fixture (not an AWS public price)",
         financial_attributes=ATTRS,
     )
@@ -58,29 +61,39 @@ def _product(db: Session, region: str = "sa-east-1"):
 def _publish(db: Session, region: str = "sa-east-1"):
     repo = AwsRegionalPricingRepository(db)
     batch = repo.get_or_create_batch(
-        service_code="AmazonEC2", region_code=region, source_version="fixture-1",
-        checksum="fixture-checksum", source_type="TEST_FIXTURE",
+        service_code="AmazonEC2",
+        region_code=region,
+        source_version="fixture-1",
+        checksum="fixture-checksum",
+        source_type="TEST_FIXTURE",
     )
     batch.status = "published"
-    repo.set_sync_state(
-        service_code="AmazonEC2", region_code=region, status="synced", batch=batch
-    )
+    repo.set_sync_state(service_code="AmazonEC2", region_code=region, status="synced", batch=batch)
     return batch
 
 
 def _rate(
-    db: Session, region: str = "sa-east-1", *,
-    amount: str = "0.12345678", effective_from: datetime | None = None,
+    db: Session,
+    region: str = "sa-east-1",
+    *,
+    amount: str = "0.12345678",
+    effective_from: datetime | None = None,
     rate_code: str = "SKU-TEST-001.JRTCKXETXF.6YS6EN2CT7",
 ):
     product = _product(db, region)
     batch = _publish(db, region)
     item = AwsRegionalPricingRepository(db).put_rate(
-        product=product, rate_code=rate_code, term_code="TESTTERM",
-        billing_unit="INSTANCE_HOUR", aws_unit="Hrs",
-        amount=Decimal(amount), effective_from=effective_from or AT - timedelta(days=5),
-        source="AWS_PUBLIC_PRICE_LIST", source_effective_at=AT - timedelta(days=10),
-        import_batch=batch, rate_description="synthetic test rate",
+        product=product,
+        rate_code=rate_code,
+        term_code="TESTTERM",
+        billing_unit="INSTANCE_HOUR",
+        aws_unit="Hrs",
+        amount=Decimal(amount),
+        effective_from=effective_from or AT - timedelta(days=5),
+        source="AWS_PUBLIC_PRICE_LIST",
+        source_effective_at=AT - timedelta(days=10),
+        import_batch=batch,
+        rate_description="synthetic test rate",
     )
     db.flush()
     return item
@@ -88,8 +101,12 @@ def _rate(
 
 def _resolve(db: Session, region: str, at: datetime = AT):
     return AwsRegionalPricingResolver(db).resolve_aws_price(
-        service="ec2", service_code="AmazonEC2", region_code=region,
-        configuration=ATTRS, billing_unit="INSTANCE_HOUR", reference_at=at,
+        service="ec2",
+        service_code="AmazonEC2",
+        region_code=region,
+        configuration=ATTRS,
+        billing_unit="INSTANCE_HOUR",
+        reference_at=at,
     )
 
 
@@ -138,15 +155,14 @@ def test_historical_version_and_current_version_without_overwrite(pricing_db):
     pricing_db.commit()
     assert original.id != later.id
     assert _resolve(pricing_db, "sa-east-1", AT).catalog_item_id == original.id
-    assert _resolve(pricing_db, "sa-east-1", AT + timedelta(days=3)).catalog_item_id == (
-        later.id
-    )
+    assert _resolve(pricing_db, "sa-east-1", AT + timedelta(days=3)).catalog_item_id == (later.id)
     assert _resolve(pricing_db, "sa-east-1", AT - timedelta(days=10)).status == (
         "price_not_effective"
     )
     assert original.effective_until == AT + timedelta(days=2)
     history = AwsRegionalPricingRepository(pricing_db).rate_history(
-        service="ec2", region_code="sa-east-1",
+        service="ec2",
+        region_code="sa-east-1",
         product_sku="SKU-TEST-001",
         rate_code="SKU-TEST-001.JRTCKXETXF.6YS6EN2CT7",
         billing_unit="INSTANCE_HOUR",
@@ -159,9 +175,11 @@ def test_identical_rate_import_is_idempotent_and_provenance_is_audited(pricing_d
     two = _rate(pricing_db)
     pricing_db.commit()
     assert one.id == two.id
-    rows = list(pricing_db.scalars(select(PricingAuditEvent).where(
-        PricingAuditEvent.pricing_item_id == one.id
-    )))
+    rows = list(
+        pricing_db.scalars(
+            select(PricingAuditEvent).where(PricingAuditEvent.pricing_item_id == one.id)
+        )
+    )
     assert len(rows) == 1
     assert rows[0].action == "IMPORTED"
     assert rows[0].region_code == "sa-east-1"
@@ -181,23 +199,38 @@ def test_invalid_decimals_and_attributes_are_rejected(pricing_db):
     product = _product(pricing_db)
     with pytest.raises(AwsPricingValidationError, match="precision"):
         AwsRegionalPricingRepository(pricing_db).put_rate(
-            product=product, rate_code="test-rate", term_code="term",
-            billing_unit="INSTANCE_HOUR", aws_unit="Hrs",
-            amount=Decimal("0.000000001"), effective_from=AT,
-            source="TEST", source_effective_at=AT,
+            product=product,
+            rate_code="test-rate",
+            term_code="term",
+            billing_unit="INSTANCE_HOUR",
+            aws_unit="Hrs",
+            amount=Decimal("0.000000001"),
+            effective_from=AT,
+            source="TEST",
+            source_effective_at=AT,
         )
     for amount in (Decimal("-1"), Decimal("NaN"), Decimal("Infinity")):
         with pytest.raises(AwsPricingValidationError, match="finite nonnegative"):
             AwsRegionalPricingRepository(pricing_db).put_rate(
-                product=product, rate_code="test-rate", term_code="term",
-                billing_unit="INSTANCE_HOUR", aws_unit="Hrs",
-                amount=amount, effective_from=AT, source="TEST", source_effective_at=AT,
+                product=product,
+                rate_code="test-rate",
+                term_code="term",
+                billing_unit="INSTANCE_HOUR",
+                aws_unit="Hrs",
+                amount=amount,
+                effective_from=AT,
+                source="TEST",
+                source_effective_at=AT,
             )
     with pytest.raises(AwsPricingValidationError, match="incomplete"):
         AwsRegionalPricingRepository(pricing_db).put_product(
-            service="ec2", service_code="AmazonEC2", region_code="sa-east-1",
-            product_sku="bad-fixture", product_family="Compute Instance",
-            description="fixture", financial_attributes={"instanceType": "m6i.large"},
+            service="ec2",
+            service_code="AmazonEC2",
+            region_code="sa-east-1",
+            product_sku="bad-fixture",
+            product_family="Compute Instance",
+            description="fixture",
+            financial_attributes={"instanceType": "m6i.large"},
         )
     with pytest.raises(AwsPricingValidationError, match="region"):
         _product(pricing_db, "non-existent-region")
@@ -206,16 +239,26 @@ def test_invalid_decimals_and_attributes_are_rejected(pricing_db):
 def test_distinct_product_skus_with_same_attributes_fail_closed(pricing_db):
     _rate(pricing_db)
     product = AwsRegionalPricingRepository(pricing_db).put_product(
-        service="ec2", service_code="AmazonEC2", region_code="sa-east-1",
-        product_sku="SKU-TEST-ALTERNATE", product_family="Compute Instance",
-        description="fixture alternate SKU", financial_attributes=ATTRS,
+        service="ec2",
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
+        product_sku="SKU-TEST-ALTERNATE",
+        product_family="Compute Instance",
+        description="fixture alternate SKU",
+        financial_attributes=ATTRS,
     )
     batch = _publish(pricing_db)
     AwsRegionalPricingRepository(pricing_db).put_rate(
-        product=product, rate_code="other-rate", term_code="OTHER-TERM",
-        billing_unit="INSTANCE_HOUR", aws_unit="Hrs", amount=Decimal("1.00000000"),
-        effective_from=AT - timedelta(days=2), source="AWS_PUBLIC_PRICE_LIST",
-        source_effective_at=AT - timedelta(days=5), import_batch=batch,
+        product=product,
+        rate_code="other-rate",
+        term_code="OTHER-TERM",
+        billing_unit="INSTANCE_HOUR",
+        aws_unit="Hrs",
+        amount=Decimal("1.00000000"),
+        effective_from=AT - timedelta(days=2),
+        source="AWS_PUBLIC_PRICE_LIST",
+        source_effective_at=AT - timedelta(days=5),
+        import_batch=batch,
     )
     pricing_db.commit()
     assert _resolve(pricing_db, "sa-east-1").status == "pricing_configuration_error"
@@ -225,30 +268,54 @@ def test_unsupported_tier_cannot_be_published_as_linear(pricing_db):
     product = _product(pricing_db)
     with pytest.raises(AwsPricingValidationError, match="tiered"):
         AwsRegionalPricingRepository(pricing_db).put_rate(
-            product=product, rate_code="rate-1", term_code="term",
-            billing_unit="GB_MONTH", aws_unit="GB-Mo",
-            amount=Decimal("0.1"), effective_from=AT,
-            source="AWS_PUBLIC_PRICE_LIST", source_effective_at=AT,
-            begin_range="100", end_range="Inf",
+            product=product,
+            rate_code="rate-1",
+            term_code="term",
+            billing_unit="GB_MONTH",
+            aws_unit="GB-Mo",
+            amount=Decimal("0.1"),
+            effective_from=AT,
+            source="AWS_PUBLIC_PRICE_LIST",
+            source_effective_at=AT,
+            begin_range="100",
+            end_range="Inf",
         )
 
 
 def test_database_constraints_reject_invalid_aws_rows(pricing_db):
-    pricing_db.add(PricingCatalogItem(
-        provider="aws", region_code="sa-east-1", service="ec2",
-        sku="BAD", description="bad currency fixture", unit="HOUR",
-        price=Decimal("0.12"), currency="BRL", effective_from=AT,
-        enabled=True, source="TEST",
-    ))
+    pricing_db.add(
+        PricingCatalogItem(
+            provider="aws",
+            region_code="sa-east-1",
+            service="ec2",
+            sku="BAD",
+            description="bad currency fixture",
+            unit="HOUR",
+            price=Decimal("0.12"),
+            currency="BRL",
+            effective_from=AT,
+            enabled=True,
+            source="TEST",
+        )
+    )
     with pytest.raises(IntegrityError):
         pricing_db.flush()
     pricing_db.rollback()
-    pricing_db.add(PricingCatalogItem(
-        provider="aws", region_code=None, service="ec2",
-        sku="BAD", description="missing region fixture", unit="HOUR",
-        price=Decimal("0.12"), currency="USD", effective_from=AT,
-        enabled=True, source="TEST",
-    ))
+    pricing_db.add(
+        PricingCatalogItem(
+            provider="aws",
+            region_code=None,
+            service="ec2",
+            sku="BAD",
+            description="missing region fixture",
+            unit="HOUR",
+            price=Decimal("0.12"),
+            currency="USD",
+            effective_from=AT,
+            enabled=True,
+            source="TEST",
+        )
+    )
     with pytest.raises(IntegrityError):
         pricing_db.flush()
     pricing_db.rollback()
@@ -295,13 +362,17 @@ def test_0040_migration_preserves_oci_and_supports_empty_downgrade(migration_eng
         inspector = inspect(connection)
         tables = set(inspector.get_table_names())
         assert {
-            "aws_pricing_products", "aws_pricing_rate_details",
-            "aws_pricing_import_batches", "aws_pricing_sync_state",
+            "aws_pricing_products",
+            "aws_pricing_rate_details",
+            "aws_pricing_import_batches",
+            "aws_pricing_sync_state",
         }.issubset(tables)
         catalog = Table("pricing_catalog_items", MetaData(), autoload_with=connection)
         assert "region_code" in catalog.c
-        assert set(inspector.get_indexes("pricing_catalog_items")[i]["name"]
-                   for i in range(len(inspector.get_indexes("pricing_catalog_items")))) >= {
+        assert set(
+            inspector.get_indexes("pricing_catalog_items")[i]["name"]
+            for i in range(len(inspector.get_indexes("pricing_catalog_items")))
+        ) >= {
             "uq_pricing_catalog_items_aws_effective",
             "uq_pricing_catalog_items_oci_effective",
             "ix_pricing_catalog_items_aws_lookup",
@@ -313,10 +384,12 @@ def test_0040_migration_preserves_oci_and_supports_empty_downgrade(migration_eng
         assert sorted(original) == sorted(after)
         assert all(row.region_code is None for row in connection.execute(select(catalog)).all())
         if connection.dialect.name == "postgresql":
-            constraint = connection.scalar(text(
-                "SELECT 1 FROM pg_constraint WHERE conname = "
-                "'ex_aws_pricing_effective_no_overlap'"
-            ))
+            constraint = connection.scalar(
+                text(
+                    "SELECT 1 FROM pg_constraint WHERE conname = "
+                    "'ex_aws_pricing_effective_no_overlap'"
+                )
+            )
             assert constraint == 1
 
         command.downgrade(cfg, "0039_oci_db_calculator_bindings")
@@ -340,14 +413,22 @@ def test_pg_constraint_prevents_overlapping_aws_rates(migration_engine):
     with Session(migration_engine) as db:
         item = _rate(db)
         db.commit()
-        db.add(PricingCatalogItem(
-            provider="aws", region_code="sa-east-1", service="ec2",
-            sku=item.sku, description="overlap test", unit="INSTANCE_HOUR",
-            price=Decimal("0.3"), currency="USD",
-            effective_from=AT - timedelta(days=4),
-            effective_until=AT + timedelta(days=2),
-            enabled=True, source="TEST",
-        ))
+        db.add(
+            PricingCatalogItem(
+                provider="aws",
+                region_code="sa-east-1",
+                service="ec2",
+                sku=item.sku,
+                description="overlap test",
+                unit="INSTANCE_HOUR",
+                price=Decimal("0.3"),
+                currency="USD",
+                effective_from=AT - timedelta(days=4),
+                effective_until=AT + timedelta(days=2),
+                enabled=True,
+                source="TEST",
+            )
+        )
         with pytest.raises(IntegrityError):
             db.commit()
         db.rollback()

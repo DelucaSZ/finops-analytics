@@ -1,4 +1,5 @@
 """AWS metadata extension; amounts remain authoritative in pricing_catalog_items."""
+
 from __future__ import annotations
 
 import uuid
@@ -6,7 +7,13 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    JSON, CheckConstraint, DateTime, ForeignKey, Index, Integer, String,
+    JSON,
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -25,12 +32,16 @@ class AwsPricingProduct(TimestampMixin, Base):
     __tablename__ = "aws_pricing_products"
     __table_args__ = (
         UniqueConstraint(
-            "service_code", "region_code", "product_sku",
+            "service_code",
+            "region_code",
+            "product_sku",
             name="uq_aws_pricing_product_identity",
         ),
         Index(
             "ix_aws_pricing_product_match",
-            "service", "region_code", "attribute_hash",
+            "service",
+            "region_code",
+            "attribute_hash",
         ),
         Index("ix_aws_pricing_product_family", "service", "region_code", "product_family"),
         CheckConstraint("length(region_code) > 0", name="ck_aws_product_region"),
@@ -54,7 +65,10 @@ class AwsPricingImportBatch(TimestampMixin, Base):
     __tablename__ = "aws_pricing_import_batches"
     __table_args__ = (
         UniqueConstraint(
-            "service_code", "region_code", "source_version", "checksum",
+            "service_code",
+            "region_code",
+            "source_version",
+            "checksum",
             name="uq_aws_import_batch_source",
         ),
         CheckConstraint(
@@ -99,11 +113,13 @@ class AwsPricingRateDetail(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     pricing_item_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("pricing_catalog_items.id", ondelete="RESTRICT"),
+        String(36),
+        ForeignKey("pricing_catalog_items.id", ondelete="RESTRICT"),
         nullable=False,
     )
     product_id: Mapped[str] = mapped_column(
-        String(36), ForeignKey("aws_pricing_products.id", ondelete="RESTRICT"),
+        String(36),
+        ForeignKey("aws_pricing_products.id", ondelete="RESTRICT"),
         nullable=False,
     )
     rate_code: Mapped[str] = mapped_column(String(180), nullable=False)
@@ -115,7 +131,8 @@ class AwsPricingRateDetail(TimestampMixin, Base):
     rate_description: Mapped[str] = mapped_column(String(500), nullable=False)
     pricing_status: Mapped[str] = mapped_column(String(24), nullable=False)
     import_batch_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
+        String(36),
+        ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
     )
     source_effective_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     synced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -136,13 +153,16 @@ class AwsPricingSyncState(TimestampMixin, Base):
     service_code: Mapped[str] = mapped_column(String(80), nullable=False)
     region_code: Mapped[str] = mapped_column(String(40), nullable=False)
     last_successful_batch_id: Mapped[str | None] = mapped_column(
-        String(36), ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
+        String(36),
+        ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT"),
     )
     last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_success_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     next_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     coverage_status: Mapped[str] = mapped_column(
-        String(24), nullable=False, default="never_synced",
+        String(24),
+        nullable=False,
+        default="never_synced",
     )
     coverage: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
     error_summary: Mapped[str | None] = mapped_column(String(500))

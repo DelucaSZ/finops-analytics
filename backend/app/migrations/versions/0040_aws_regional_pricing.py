@@ -5,9 +5,10 @@ Revises: 0039_oci_db_calculator_bindings
 
 No AWS prices are imported. All existing OCI pricing rows remain untouched.
 """
+
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB
 from alembic import op
+from sqlalchemy.dialects.postgresql import JSONB
 
 revision = "0040_aws_regional_pricing"
 down_revision = "0039_oci_db_calculator_bindings"
@@ -22,13 +23,10 @@ def upgrade() -> None:
     # PostgreSQL performs ordinary ALTERs, retaining every OCI row/id.
     with op.batch_alter_table("pricing_catalog_items") as batch:
         batch.add_column(sa.Column("region_code", sa.String(40), nullable=True))
-        batch.drop_constraint(
-            "uq_pricing_catalog_items_identity_effective_from", type_="unique"
-        )
+        batch.drop_constraint("uq_pricing_catalog_items_identity_effective_from", type_="unique")
         batch.create_check_constraint(
             "ck_pricing_catalog_items_aws_region",
-            "provider <> 'aws' OR "
-            "(region_code IS NOT NULL AND length(trim(region_code)) > 0)",
+            "provider <> 'aws' OR (region_code IS NOT NULL AND length(trim(region_code)) > 0)",
         )
         batch.create_check_constraint(
             "ck_pricing_catalog_items_aws_currency",
@@ -99,7 +97,10 @@ def upgrade() -> None:
             name="ck_aws_import_batch_counts",
         ),
         sa.UniqueConstraint(
-            "service_code", "region_code", "source_version", "checksum",
+            "service_code",
+            "region_code",
+            "source_version",
+            "checksum",
             name="uq_aws_import_batch_source",
         ),
     )
@@ -120,17 +121,21 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.CheckConstraint("length(region_code) > 0", name="ck_aws_product_region"),
         sa.UniqueConstraint(
-            "service_code", "region_code", "product_sku",
+            "service_code",
+            "region_code",
+            "product_sku",
             name="uq_aws_pricing_product_identity",
         ),
     )
     op.create_index(
         "ix_aws_pricing_product_match",
-        "aws_pricing_products", ["service", "region_code", "attribute_hash"],
+        "aws_pricing_products",
+        ["service", "region_code", "attribute_hash"],
     )
     op.create_index(
         "ix_aws_pricing_product_family",
-        "aws_pricing_products", ["service", "region_code", "product_family"],
+        "aws_pricing_products",
+        ["service", "region_code", "product_family"],
     )
     op.create_table(
         "aws_pricing_rate_details",
@@ -158,9 +163,7 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(
             ["pricing_item_id"], ["pricing_catalog_items.id"], ondelete="RESTRICT"
         ),
-        sa.ForeignKeyConstraint(
-            ["product_id"], ["aws_pricing_products.id"], ondelete="RESTRICT"
-        ),
+        sa.ForeignKeyConstraint(["product_id"], ["aws_pricing_products.id"], ondelete="RESTRICT"),
         sa.ForeignKeyConstraint(
             ["import_batch_id"], ["aws_pricing_import_batches.id"], ondelete="RESTRICT"
         ),
@@ -168,11 +171,13 @@ def upgrade() -> None:
     )
     op.create_index(
         "ix_aws_rate_product_option",
-        "aws_pricing_rate_details", ["product_id", "purchase_option", "rate_code"],
+        "aws_pricing_rate_details",
+        ["product_id", "purchase_option", "rate_code"],
     )
     op.create_index(
         "ix_aws_rate_import_batch",
-        "aws_pricing_rate_details", ["import_batch_id"],
+        "aws_pricing_rate_details",
+        ["import_batch_id"],
     )
     op.create_table(
         "aws_pricing_sync_state",
@@ -190,23 +195,25 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=False),
         sa.ForeignKeyConstraint(
-            ["last_successful_batch_id"], ["aws_pricing_import_batches.id"],
+            ["last_successful_batch_id"],
+            ["aws_pricing_import_batches.id"],
             ondelete="RESTRICT",
         ),
         sa.CheckConstraint(
             "coverage_status IN ('never_synced','synced','partial','stale','failed')",
             name="ck_aws_sync_coverage_status",
         ),
-        sa.UniqueConstraint(
-            "service_code", "region_code", name="uq_aws_sync_service_region"
-        ),
+        sa.UniqueConstraint("service_code", "region_code", name="uq_aws_sync_service_region"),
     )
     with op.batch_alter_table("pricing_audit_events") as batch:
         batch.add_column(sa.Column("region_code", sa.String(40), nullable=True))
         batch.add_column(sa.Column("import_batch_id", sa.String(36), nullable=True))
         batch.create_foreign_key(
-            "fk_pricing_audit_import_batch", "aws_pricing_import_batches",
-            ["import_batch_id"], ["id"], ondelete="RESTRICT",
+            "fk_pricing_audit_import_batch",
+            "aws_pricing_import_batches",
+            ["import_batch_id"],
+            ["id"],
+            ondelete="RESTRICT",
         )
     op.create_index(
         "ix_pricing_audit_aws_key_occurred",
@@ -219,17 +226,15 @@ def downgrade() -> None:
     # A downgrade is safe only before real AWS catalog data has been staged.
     bind = op.get_bind()
     for table in (
-        "aws_pricing_rate_details", "aws_pricing_products",
-        "aws_pricing_import_batches", "aws_pricing_sync_state",
+        "aws_pricing_rate_details",
+        "aws_pricing_products",
+        "aws_pricing_import_batches",
+        "aws_pricing_sync_state",
     ):
         count = bind.scalar(sa.text(f"SELECT count(*) FROM {table}"))
         if count:
-            raise RuntimeError(
-                f"Cannot downgrade AWS pricing with existing data in {table}"
-            )
-    if bind.scalar(
-        sa.text("SELECT count(*) FROM pricing_catalog_items WHERE provider = 'aws'")
-    ):
+            raise RuntimeError(f"Cannot downgrade AWS pricing with existing data in {table}")
+    if bind.scalar(sa.text("SELECT count(*) FROM pricing_catalog_items WHERE provider = 'aws'")):
         raise RuntimeError("Cannot downgrade AWS pricing with published AWS prices")
 
     op.drop_index("ix_pricing_audit_aws_key_occurred", table_name="pricing_audit_events")
@@ -249,18 +254,11 @@ def downgrade() -> None:
 
     if bind.dialect.name == "postgresql":
         op.execute(
-            "ALTER TABLE pricing_catalog_items "
-            "DROP CONSTRAINT ex_aws_pricing_effective_no_overlap"
+            "ALTER TABLE pricing_catalog_items DROP CONSTRAINT ex_aws_pricing_effective_no_overlap"
         )
-    op.drop_index(
-        "ix_pricing_catalog_items_aws_lookup", table_name="pricing_catalog_items"
-    )
-    op.drop_index(
-        "uq_pricing_catalog_items_aws_effective", table_name="pricing_catalog_items"
-    )
-    op.drop_index(
-        "uq_pricing_catalog_items_oci_effective", table_name="pricing_catalog_items"
-    )
+    op.drop_index("ix_pricing_catalog_items_aws_lookup", table_name="pricing_catalog_items")
+    op.drop_index("uq_pricing_catalog_items_aws_effective", table_name="pricing_catalog_items")
+    op.drop_index("uq_pricing_catalog_items_oci_effective", table_name="pricing_catalog_items")
     with op.batch_alter_table("pricing_catalog_items") as batch:
         batch.drop_constraint("ck_pricing_catalog_items_aws_currency", type_="check")
         batch.drop_constraint("ck_pricing_catalog_items_aws_region", type_="check")
