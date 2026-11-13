@@ -133,13 +133,17 @@ def classify_product(
         elif re.search(r"PublicIPv4|InUseAddress|IdleAddress", usage, re.I):
             service = "ipv4"
     elif service_code == "AmazonRDS":
-        if attr.get("instanceType") and attr.get("databaseEngine"):
+        if (
+            family == "Database Instance"
+            and attr.get("instanceType")
+            and attr.get("databaseEngine")
+        ):
             if attr.get("databaseEngine") not in {"PostgreSQL", "MySQL", "MariaDB"}:
                 return None
             if not attr.get("deploymentOption"):
                 return None
             service = "rds"
-        elif re.search(r"Storage|IOPS|Throughput", family + usage, re.I):
+        elif attr.get("usagetype") and re.search(r"Storage|IOPS|Throughput", family + usage, re.I):
             service = "rds"
     elif service_code == "AmazonVPC":
         if re.search(r"PublicIPv4|InUseAddress|IdleAddress", usage, re.I):
@@ -228,6 +232,9 @@ def normalize_rate(
         raise AwsPricingValidationError("rate exceeds NUMERIC(20,8) range")
     unit = _token(dimension.get("unit"))
     usage = product.attributes.get("usagetype", "")
+    if product.service == "rds" and unit.lower() in {"hrs", "hours"}:
+        if not product.attributes.get("instanceType"):
+            raise AwsPricingValidationError("non-instance RDS hourly offering")
     mapped = _unit(unit, product.service, usage)
     if not mapped:
         raise AwsPricingValidationError("unsupported billing unit " + unit[:40])
@@ -275,7 +282,8 @@ def coverage_component(rate: NormalizedRate) -> str:
             deployment = attr.get("deploymentOption", "").lower().replace("-", "")
             return "rds_" + engine + "_" + deployment
         if rate.unit == "GB_MONTH":
-            return "rds_" + (attr.get("storageType", "storage").lower()) + "_capacity"
+            volume = _volume_type(attr, usage) or "unknown"
+            return "rds_" + volume + "_capacity
         return "rds_" + rate.component
     if service == "snapshot":
         return "snapshot_storage"
@@ -303,7 +311,13 @@ _REQUIRED_COVERAGE: dict[str, frozenset[str]] = {
         }
     ),
     "AmazonRDS": frozenset(
-        {"rds_postgresql_singleaz", "rds_mysql_singleaz", "rds_mariadb_singleaz"}
+        {
+            "rds_postgresql_singleaz",
+            "rds_mysql_singleaz",
+            "rds_mariadb_singleaz",
+            "rds_gp2_capacity",
+            "rds_gp3_capacity",
+        }
     ),
     "AWSELB": frozenset({"alb_hour", "alb_lcu", "nlb_hour", "nlb_nlcu"}),
     "AmazonVPC": frozenset({"ipv4_hour"}),
