@@ -59,3 +59,13 @@ O Design System usa tokens semânticos, Theme Engine Light/Dark/System e compone
 5. Verificar permissões e qualidade dos dados em AWS/OCI antes de interpretar ausência de oportunidades como ausência de desperdício.
 
 Para instalação, operação, comandos, segurança e documentação por módulo, use o [README.md](README.md).
+
+## Fase 28 — AWS Pricing
+
+- **28.1:** auditoria de arquitetura e dependências.
+- **28.2:** persistência regional no catálogo compartilhado USD, migração 0040 e contratos internos.
+- **28.3:** importação oficial com streaming, normalização, idempotência e publicação transacional.
+- **28.4 (PR para revisão):** sincronizador por conta/região/serviço, lock PostgreSQL entre workers, histórico operacional (migração 0041), detecção de ARN, revalidação forçada, backoff, worker opt-in, cobertura efetiva, métricas e CLI.
+- **28.5–28.7 (pendentes):** UI Pricing AWS, migração de leitura da Calculadora AWS e das Políticas AWS.
+
+A Task 28.4 **não habilita agendamentos nem altera consumidores** automaticamente. Homologação com preços reais e implantação permanecem procedimentos operacionais separados, condicionados à validação de CI e PostgreSQL. Detalhes: `docs/pricing/aws/28.4-synchronization-versioning-monitoring.md`.
