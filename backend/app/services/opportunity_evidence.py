@@ -11,7 +11,7 @@ EVIDENCE_SCHEMA_VERSION = 1
 
 RULE_PARAMETER_KEYS: dict[str, tuple[str, ...]] = {
     "ebs_unattached": ("minimum_age_days", "minimum_monthly_savings_usd"),
-    "eip_unassociated": ("monthly_cost_usd", "minimum_monthly_savings_usd"),
+    "eip_unassociated": ("minimum_monthly_savings_usd",),
     "snapshot_retention": (
         "retention_days",
         "preserve_last_per_volume",
@@ -36,7 +36,6 @@ RULE_PARAMETER_KEYS: dict[str, tuple[str, ...]] = {
         "minimum_age_days",
         "maximum_requests",
         "maximum_processed_bytes",
-        "estimated_base_monthly_cost_usd",
     ),
     "rds_nonprod_idle": (
         "lookback_days",
@@ -210,8 +209,8 @@ def build_evidence(
     title: str,
     description: str,
     raw_evidence: dict[str, Any] | None,
-    current_monthly_cost: Decimal | float | int | str,
-    estimated_monthly_savings: Decimal | float | int | str,
+    current_monthly_cost: Decimal | float | int | str | None,
+    estimated_monthly_savings: Decimal | float | int | str | None,
     policy: dict[str, Any] | None = None,
     evaluated_at: datetime | str | None = None,
     provider: str = "aws",
@@ -287,6 +286,8 @@ def build_evidence(
                 "state": state,
                 "volume_type": volume_type,
                 "size_gib": size,
+                "iops": raw.get("iops"),
+                "throughput": raw.get("throughput"),
                 "created_at": raw.get("created_at"),
             }
         )
@@ -374,6 +375,8 @@ def build_evidence(
             {
                 "source_volume_id": raw.get("volume_id"),
                 "started_at": raw.get("started_at"),
+                "storage_tier": raw.get("storage_tier"),
+                "volume_size_gib": size,
                 "age_days": age,
                 "retention_days": retention,
             }
@@ -449,6 +452,8 @@ def build_evidence(
                         "volume_id": item.get("volume_id"),
                         "size_gib": item.get("size_gib"),
                         "type": item.get("type"),
+                        "iops": item.get("iops"),
+                        "throughput": item.get("throughput"),
                     }
                     for item in volumes
                     if isinstance(item, dict)
@@ -505,6 +510,8 @@ def build_evidence(
             {
                 "state": raw.get("state") or "running",
                 "instance_type": raw.get("instance_type"),
+                "platform_details": raw.get("platform_details"),
+                "tenancy": raw.get("tenancy"),
                 "observed_at": observed_at_value,
                 "observed_local_time": observed_local_time,
                 "environment_tags": environment_tags,
@@ -628,6 +635,11 @@ def build_evidence(
             {
                 "engine": raw.get("engine"),
                 "instance_class": raw.get("instance_class"),
+                "multi_az": raw.get("multi_az"),
+                "license_model": raw.get("license_model"),
+                "allocated_storage_gib": raw.get("allocated_storage_gib"),
+                "storage_type": raw.get("storage_type"),
+                "iops": raw.get("iops"),
                 "environment_tags": environment_tags,
                 "cpu_datapoint_count": raw.get("cpu_datapoint_count"),
                 "connection_datapoint_count": raw.get("connection_datapoint_count"),
