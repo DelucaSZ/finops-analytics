@@ -72,8 +72,12 @@ def aws_options(
     name = _ENGINES.get((engine or "").lower())
     if service == "rds" and not name:
         return {
-            "items": [], "total": 0, "limit": limit, "offset": offset,
-            "status": "unsupported_engine", "supported_engines": list(_ENGINES),
+            "items": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "status": "unsupported_engine",
+            "supported_engines": list(_ENGINES),
         }
     product = AwsPricingProduct
     instance = product.product_attributes["instanceType"].as_string()
@@ -91,30 +95,36 @@ def aws_options(
         func.lower(instance).contains(search.lower(), autoescape=True),
     ]
     if service == "ec2":
-        q.extend((
-            product.product_attributes["tenancy"].as_string() == "Shared",
-            product.product_attributes["preInstalledSw"].as_string().in_(("NA", "None")),
-            product.product_attributes["capacitystatus"].as_string() == "Used",
-            product.product_attributes["operation"].as_string().startswith("RunInstances"),
-            variant.in_(("Linux", "Windows")),
-        ))
+        q.extend(
+            (
+                product.product_attributes["tenancy"].as_string() == "Shared",
+                product.product_attributes["preInstalledSw"].as_string().in_(("NA", "None")),
+                product.product_attributes["capacitystatus"].as_string() == "Used",
+                product.product_attributes["operation"].as_string().startswith("RunInstances"),
+                variant.in_(("Linux", "Windows")),
+            )
+        )
     else:
         model = product.product_attributes["deploymentModel"].as_string()
         license_model = product.product_attributes["licenseModel"].as_string()
         edition = product.product_attributes["databaseEdition"].as_string()
-        q.extend((
-            product.product_attributes["databaseEngine"].as_string() == name,
-            variant.in_(("Single-AZ", "Multi-AZ")),
-            or_(model.is_(None), ~model.in_(("Custom", "Multi-AZ DB cluster"))),
-            or_(
-                license_model.is_(None),
-                func.lower(license_model).in_(("no license required", "license included")),
-            ),
-            or_(
-                edition.is_(None),
-                ~func.lower(edition).in_(("enterprise", "standard edition 2", "web", "express")),
-            ),
-        ))
+        q.extend(
+            (
+                product.product_attributes["databaseEngine"].as_string() == name,
+                variant.in_(("Single-AZ", "Multi-AZ")),
+                or_(model.is_(None), ~model.in_(("Custom", "Multi-AZ DB cluster"))),
+                or_(
+                    license_model.is_(None),
+                    func.lower(license_model).in_(("no license required", "license included")),
+                ),
+                or_(
+                    edition.is_(None),
+                    ~func.lower(edition).in_(
+                        ("enterprise", "standard edition 2", "web", "express")
+                    ),
+                ),
+            )
+        )
 
     now = datetime.now(UTC)
     price_exists = (
@@ -162,7 +172,9 @@ def aws_options(
         variant_value = (
             raw_variant.lower()
             if service == "ec2"
-            else "single_az" if raw_variant == "Single-AZ" else "multi_az"
+            else "single_az"
+            if raw_variant == "Single-AZ"
+            else "multi_az"
         )
         entry = (
             {"instance_type": instance_type, "operating_system": variant_value}
