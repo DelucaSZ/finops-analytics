@@ -495,3 +495,66 @@ def test_caller_rollback_keeps_cycle_open_when_close_fails(db, monkeypatch):
     audit_count = db.scalar(select(func.count(AuditEvent.id)))
     assert snapshot_count == 0
     assert audit_count == 0
+
+
+@pytest.mark.parametrize(
+    ("pricing_status", "saving", "known", "partial", "unknown"),
+    [
+        ("priced", "0", 1, 0, 0),
+        ("partially_priced", "35", 0, 1, 0),
+        ("price_unavailable", None, 0, 0, 1),
+    ],
+)
+def test_cycle_totals_never_promote_partial_or_missing_prices_to_known(
+    db, pricing_status, saving, known, partial, unknown
+):
+    actor = _admin(db)
+    finding = _finding(db)
+    run = _run(db, "run-financial-coverage", datetime(2026, 10, 10, tzinfo=UTC))
+    observation = _observation(
+        db,
+        finding,
+        run_id=run.id,
+        observed_at=run.started_at,
+        cost="99",
+        saving=saving or "0",
+    )
+    observation.estimated_monthly_savings = Decimal(saving) if saving is not None else None
+    observation.evidence = {
+        "pricing": {"provider": "aws", "status": pricing_status}
+    }
+    cycle = OpportunityHistoryCycleService.get_or_create_cycle_for(
+        db, datetime(2026, 10, 21, tzinfo=UTC)
+    )
+    OpportunityHistoryCycleService.close_cycle(db, cycle.id, actor=actor)
+    db.commit()
+
+    stats = cycle_stats(db, cycle.id)
+    assert stats["financial_coverage"] == [
+        {
+            "currency": "USD",
+            "known": known,
+            "partial": partial,
+            "unknown": unknown,
+            "complete": partial == 0 and unknown == 0,
+        }
+    ]
+    if known:
+        assert stats["potential_savings"] == [
+            {"currency": "USD", "amount": Decimal(saving)}
+        ]
+        assert stats["current_cost"] == [
+            {"currency": "USD", "amount": Decimal("99")}
+        ]
+    else:
+        assert stats["potential_savings"] == []
+        assert stats["current_cost"] == []
+    original = db.scalar(
+        select(OpportunityHistorySnapshot).where(
+            OpportunityHistorySnapshot.cycle_id == cycle.id
+        )
+    )
+    assert original.estimated_monthly_savings == (
+        Decimal(saving) if saving is not None else None
+    )
+    assert original.evidence["pricing"]["status"] == pricing_status
