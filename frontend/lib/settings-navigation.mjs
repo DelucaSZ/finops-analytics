@@ -10,6 +10,7 @@ const adminSettingsTabs = [
   { href: "/settings/users", labelKey: "users" },
   { href: "/settings/audit", labelKey: "audit" },
   { href: "/settings/https", labelKey: "https" },
+  { href: "/settings/pricing/aws", labelKey: "pricingAws" },
   { href: "/settings/pricing/oci", labelKey: "pricing" },
   { href: "/settings/billing/profiles", labelKey: "billingProfiles" },
   { href: "/settings/usage-costs", labelKey: "usageCosts" },
