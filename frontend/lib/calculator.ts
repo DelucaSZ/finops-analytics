@@ -6,7 +6,7 @@ export type PeriodMode = "monthly" | "hours" | "days" | "weeks" | "custom";
 export type PricingStatus =
   | "priced" | "partially_priced" | "sku_missing" | "unsupported_configuration"
   | "price_not_effective" | "missing_configuration" | "invalid_combination"
-  | "pricing_configuration_error";
+  | "pricing_configuration_error" | "sync_required";
 
 export interface CalculatorPeriod {
   mode: PeriodMode;
@@ -57,6 +57,11 @@ export interface PriceComponent {
   currency: "USD" | "BRL";
   source: string | null;
   pricing_item_id: string | null;
+  region_code?: string | null;
+  product_sku?: string | null;
+  rate_code?: string | null;
+  import_batch_id?: string | null;
+  synced_at?: string | null;
   effective_from: string | null;
   effective_until: string | null;
 }
@@ -99,6 +104,7 @@ export type AwsOption = {
   operating_system?: string;
   instance_class?: string;
   deployment?: string;
+  pricing_status?: PricingStatus;
 };
 export interface AwsOptionsResponse {
   items: AwsOption[];
@@ -141,12 +147,13 @@ export interface OciDbOptions {
 }
 
 export function fetchAwsRegions(signal?: AbortSignal) {
-  return api<{ items: string[]; source: string }>("/calculator/aws/regions", { signal });
+  return api<{ items: string[]; source: string; region_status: Record<string, string> }>("/calculator/aws/regions", { signal });
 }
 export function fetchAwsOptions(
-  service: "ec2" | "rds", region: string, search: string, engine: string, signal?: AbortSignal,
+  service: "ec2" | "rds", region: string, search: string, engine: string,
+  offset = 0, signal?: AbortSignal,
 ) {
-  const params = new URLSearchParams({ service, region, search, limit: "100" });
+  const params = new URLSearchParams({ service, region, search, limit: "100", offset: String(offset) });
   if (service === "rds") params.set("engine", engine);
   return api<AwsOptionsResponse>(`/calculator/aws/options?${params.toString()}`, { signal });
 }
