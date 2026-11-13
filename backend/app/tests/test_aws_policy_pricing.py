@@ -5,7 +5,6 @@ The fixtures are synthetic, and never represent audited official AWS tariff valu
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from decimal import Decimal
 from unittest.mock import patch
 
