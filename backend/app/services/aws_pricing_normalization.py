@@ -77,7 +77,7 @@ def _token(value: object) -> str:
 
 
 def _volume_type(attr: dict[str, str], usage: str) -> str | None:
-    match = re.search(r"(?:^|[-:])(gp2|gp3|io1|io2|st1|sc1)(?:$|[-:])", usage, re.I)
+    match = re.search(r"(?:^|[-:.])(gp2|gp3|io1|io2|st1|sc1)(?:$|[-:.])", usage, re.I)
     if match:
         return match.group(1).lower()
     source = (attr.get("volumeApiName") or attr.get("volumeType") or "").lower()
@@ -146,10 +146,10 @@ def classify_product(
             service = "ipv4"
     elif service_code == "AWSELB":
         lookup = (usage + " " + family + " " + group).lower()
-        if "application" in lookup or "alb" in lookup or "lcuusage" in lookup:
-            service = "alb"
-        elif "network" in lookup or "nlb" in lookup or "nlcuusage" in lookup:
+        if "network" in lookup or "nlb" in lookup or "nlcuusage" in lookup:
             service = "nlb"
+        elif "application" in lookup or "alb" in lookup or "lcuusage" in lookup:
+            service = "alb"
         elif "classic" in lookup or "clb" in lookup:
             service = "clb"
         # An unqualified LoadBalancerUsage is ambiguous: do not label it Classic.
