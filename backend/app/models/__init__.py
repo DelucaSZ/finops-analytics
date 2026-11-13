@@ -10,6 +10,7 @@ from app.models.aws_pricing import (
     AwsPricingImportBatch,
     AwsPricingProduct,
     AwsPricingRateDetail,
+    AwsPricingSyncRun,
     AwsPricingSyncState,
 )
 from app.models.billing_profile import BillingProfile
@@ -84,6 +85,7 @@ __all__ = [
     "AwsPricingProduct",
     "AwsPricingRateDetail",
     "AwsPricingSyncState",
+    "AwsPricingSyncRun",
     "AccessToken",
     "AuthRateLimit",
     "LoginSession",

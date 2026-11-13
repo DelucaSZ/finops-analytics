@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import time
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Engine, select, text
@@ -17,6 +18,7 @@ from app.models.opportunity_retention_run import (
     OpportunityRetentionRun,
     OpportunityRetentionRunStatus,
 )
+from app.services.aws_pricing_sync import AwsPricingSynchronizer
 from app.services.opportunity_policy import OpportunityManagementPolicyService
 from app.services.opportunity_retention import (
     OpportunityRetentionResult,
@@ -385,16 +387,51 @@ class RdsReservationsScheduler:
             return None
 
 
+class AwsPricingScheduler:
+    """Opt-in asynchronous maintenance without blocking collection-worker polling."""
+
+    def __init__(self, synchronizer: AwsPricingSynchronizer | None = None) -> None:
+        self.synchronizer = synchronizer or AwsPricingSynchronizer()
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aws-pricing")
+        self.future: Future | None = None
+        self.next_check_at: datetime | None = None
+
+    def tick(self, *, now: datetime | None = None) -> None:
+        if not settings.aws_pricing_sync_enabled:
+            return
+        current = now or datetime.now(UTC)
+        if self.future is not None:
+            if not self.future.done():
+                return
+            try:
+                result = self.future.result()
+                logger.info("event=aws_pricing_sync_cycle_completed jobs=%d", len(result))
+            except Exception:
+                logger.exception("event=aws_pricing_sync_cycle_failed")
+            self.future = None
+            self.next_check_at = current + timedelta(minutes=5)
+        if self.next_check_at is not None and current < self.next_check_at:
+            return
+        self.future = self.executor.submit(self.synchronizer.run_cycle, due_only=True)
+        self.next_check_at = current + timedelta(minutes=5)
+
+    def close(self) -> None:
+        self.executor.shutdown(wait=False, cancel_futures=True)
+
+
 def process_runtime_once(
     scheduler: DailyOpportunityRetentionScheduler,
     automation_scheduler: OpportunityAutomationScheduler | None = None,
     rds_scheduler: RdsReservationsScheduler | None = None,
+    aws_pricing_scheduler: AwsPricingScheduler | None = None,
 ) -> bool:
     # Collection/reconciliation work runs first so dependent maintenance never
     # races ahead of a scan that still needs to persist its observations.
     worked = worker.process_once()
     if rds_scheduler is not None:
         rds_scheduler.tick()
+    if aws_pricing_scheduler is not None:
+        aws_pricing_scheduler.tick()
     scheduler.tick()
     if automation_scheduler is not None:
         automation_scheduler.tick()
@@ -406,13 +443,18 @@ def main() -> None:
     scheduler = DailyOpportunityRetentionScheduler(engine)
     automation_scheduler = OpportunityAutomationScheduler()
     rds_scheduler = RdsReservationsScheduler()
+    aws_pricing_scheduler = AwsPricingScheduler() if settings.aws_pricing_sync_enabled else None
     logger.info("Aven worker started")
     try:
         while True:
-            worked = process_runtime_once(scheduler, automation_scheduler, rds_scheduler)
+            worked = process_runtime_once(
+                scheduler, automation_scheduler, rds_scheduler, aws_pricing_scheduler
+            )
             if not worked:
                 time.sleep(settings.worker_poll_seconds)
     finally:
+        if aws_pricing_scheduler is not None:
+            aws_pricing_scheduler.close()
         scheduler.close()
 
 

@@ -410,6 +410,27 @@ class AwsRegionalPricingRepository:
             ):
                 return item
             raise AwsPricingConflictError("same rate identity and start has conflicting data")
+        if rows and rows[0].enabled and is_active and start > _stored_date(rows[0].effective_from):
+            # Do not manufacture a financial version when only the official
+            # source publication changes but the actual rate stays constant.
+            current = rows[0]
+            current_detail = self.db.scalar(
+                select(AwsPricingRateDetail).where(
+                    AwsPricingRateDetail.pricing_item_id == current.id
+                )
+            )
+            if (
+                current_detail is not None
+                and current_detail.product_id == product.id
+                and current_detail.source_hash == digest
+                and current_detail.pricing_status == pricing_status
+                and current.price == price
+                and current.currency == "USD"
+                and (
+                    current.effective_until is None or start < _stored_date(current.effective_until)
+                )
+            ):
+                return current
         if rows and start <= _stored_date(rows[0].effective_from):
             raise AwsPricingConflictError(
                 "backdated publication requires an explicit reconciliation"

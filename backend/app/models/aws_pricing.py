@@ -167,3 +167,41 @@ class AwsPricingSyncState(TimestampMixin, Base):
     coverage: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
     error_summary: Mapped[str | None] = mapped_column(String(500))
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+
+
+class AwsPricingSyncRun(Base):
+    """Durable orchestration attempts; price batches remain the financial source of truth."""
+
+    __tablename__ = "aws_pricing_sync_runs"
+    __table_args__ = (
+        Index("ix_aws_pricing_sync_run_unit", "service_code", "region_code", "started_at"),
+        Index("ix_aws_pricing_sync_run_status", "status", "next_retry_at"),
+        CheckConstraint(
+            "status IN ('running','unchanged','published','partial','failed',"
+            "'interrupted','validated')",
+            name="ck_aws_pricing_sync_run_status",
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    service_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    region_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    trigger: Mapped[str] = mapped_column(String(24), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    next_retry_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    source_reference: Mapped[str | None] = mapped_column(String(500))
+    source_version: Mapped[str | None] = mapped_column(String(160))
+    batch_id: Mapped[str | None] = mapped_column(
+        String(36), ForeignKey("aws_pricing_import_batches.id", ondelete="RESTRICT")
+    )
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    products_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rates_seen: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rates_rejected: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    rates_published: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    metrics: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
+    coverage: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
+    error_code: Mapped[str | None] = mapped_column(String(100))
+    error_summary: Mapped[str | None] = mapped_column(String(500))
