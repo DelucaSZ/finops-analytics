@@ -179,14 +179,21 @@ def products(
     return {
         "items": [
             {
-                "id": row.id, "service_code": row.service_code, "service": row.service,
-                "region_code": row.region_code, "sku": row.product_sku,
-                "family": row.product_family, "description": row.description,
-                "attributes": row.product_attributes, "status": row.status,
+                "id": row.id,
+                "service_code": row.service_code,
+                "service": row.service,
+                "region_code": row.region_code,
+                "sku": row.product_sku,
+                "family": row.product_family,
+                "description": row.description,
+                "attributes": row.product_attributes,
+                "status": row.status,
             }
             for row in rows
         ],
-        "total": total, "limit": limit, "offset": offset,
+        "total": total,
+        "limit": limit,
+        "offset": offset,
     }
 
 
@@ -245,9 +252,7 @@ def rates(
 
 
 def _get_rate(db: Session, rate_id: str):
-    record = db.execute(
-        _rate_query().where(PricingCatalogItem.id == rate_id)
-    ).first()
+    record = db.execute(_rate_query().where(PricingCatalogItem.id == rate_id)).first()
     if record is None:
         raise _bad("rate_not_found", "AWS rate not found", 404)
     return record
@@ -266,14 +271,18 @@ def rate_history(
     db: Session = Depends(get_db),
 ) -> dict:
     item, detail, product = _get_rate(db, rate_id)
-    stmt = _rate_query().where(
-        AwsPricingProduct.service_code == product.service_code,
-        AwsPricingProduct.region_code == product.region_code,
-        AwsPricingProduct.product_sku == product.product_sku,
-        AwsPricingRateDetail.rate_code == detail.rate_code,
-        PricingCatalogItem.sku == item.sku,
-        PricingCatalogItem.unit == item.unit,
-    ).order_by(PricingCatalogItem.effective_from.desc())
+    stmt = (
+        _rate_query()
+        .where(
+            AwsPricingProduct.service_code == product.service_code,
+            AwsPricingProduct.region_code == product.region_code,
+            AwsPricingProduct.product_sku == product.product_sku,
+            AwsPricingRateDetail.rate_code == detail.rate_code,
+            PricingCatalogItem.sku == item.sku,
+            PricingCatalogItem.unit == item.unit,
+        )
+        .order_by(PricingCatalogItem.effective_from.desc())
+    )
     return _paged(db, stmt, limit=limit, offset=offset)
 
 
@@ -304,16 +313,25 @@ def coverage(
 
 def _run(run: AwsPricingSyncRun) -> dict:
     return {
-        "id": run.id, "service_code": run.service_code,
-        "region_code": run.region_code, "trigger": run.trigger,
-        "status": run.status, "attempt": run.attempt,
-        "started_at": _iso(run.started_at), "finished_at": _iso(run.finished_at),
+        "id": run.id,
+        "service_code": run.service_code,
+        "region_code": run.region_code,
+        "trigger": run.trigger,
+        "status": run.status,
+        "attempt": run.attempt,
+        "started_at": _iso(run.started_at),
+        "finished_at": _iso(run.finished_at),
         "next_retry_at": _iso(run.next_retry_at),
-        "source_reference": run.source_reference, "source_version": run.source_version,
-        "batch_id": run.batch_id, "products_seen": run.products_seen,
-        "rates_seen": run.rates_seen, "rates_published": run.rates_published,
-        "rates_rejected": run.rates_rejected, "metrics": run.metrics,
-        "coverage": run.coverage, "error_code": run.error_code,
+        "source_reference": run.source_reference,
+        "source_version": run.source_version,
+        "batch_id": run.batch_id,
+        "products_seen": run.products_seen,
+        "rates_seen": run.rates_seen,
+        "rates_published": run.rates_published,
+        "rates_rejected": run.rates_rejected,
+        "metrics": run.metrics,
+        "coverage": run.coverage,
+        "error_code": run.error_code,
         "error_summary": run.error_summary,
     }
 
@@ -335,7 +353,8 @@ def sync_runs(
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
     rows = db.scalars(
         stmt.order_by(AwsPricingSyncRun.started_at.desc(), AwsPricingSyncRun.id.desc())
-        .limit(limit).offset(offset)
+        .limit(limit)
+        .offset(offset)
     )
     return {"items": [_run(x) for x in rows], "total": total, "limit": limit, "offset": offset}
 
@@ -350,12 +369,17 @@ def sync_run_detail(run_id: str, db: Session = Depends(get_db)) -> dict:
 
 def _request(row: AwsPricingSyncRequest) -> dict:
     return {
-        "id": row.id, "service_code": row.service_code,
-        "region_code": row.region_code, "status": row.status,
-        "dry_run": row.dry_run, "force": row.force,
-        "requested_at": _iso(row.requested_at), "started_at": _iso(row.started_at),
+        "id": row.id,
+        "service_code": row.service_code,
+        "region_code": row.region_code,
+        "status": row.status,
+        "dry_run": row.dry_run,
+        "force": row.force,
+        "requested_at": _iso(row.requested_at),
+        "started_at": _iso(row.started_at),
         "finished_at": _iso(row.finished_at),
-        "result": row.result, "error_code": row.error_code,
+        "result": row.result,
+        "error_code": row.error_code,
     }
 
 
@@ -383,11 +407,13 @@ def submit_sync(
     if payload.region_code not in known:
         raise _bad("region_not_configured", "AWS pricing region is not configured")
     exists = db.scalar(
-        select(AwsPricingSyncRequest.id).where(
+        select(AwsPricingSyncRequest.id)
+        .where(
             AwsPricingSyncRequest.service_code == payload.service_code,
             AwsPricingSyncRequest.region_code == payload.region_code,
             AwsPricingSyncRequest.status.in_(("queued", "running")),
-        ).limit(1)
+        )
+        .limit(1)
     )
     if exists is not None:
         raise _bad("sync_busy", "AWS pricing synchronization already queued or running", 409)
