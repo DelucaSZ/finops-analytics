@@ -104,8 +104,8 @@ export type Finding = {
   provider_metadata: Record<string, unknown>;
   title: string;
   description: string;
-  current_monthly_cost: string;
-  estimated_monthly_savings: string;
+  current_monthly_cost: string | null;
+  estimated_monthly_savings: string | null;
   currency: string;
   confidence: string;
   severity: string;
@@ -184,6 +184,7 @@ export type OpportunityEvidence = {
   notes: string[];
   contributors: EvidenceContributor[];
   evaluated_at: string | null;
+  pricing?: Record<string, unknown> | null;
 };
 
 export type OpportunityDetail = Finding & {
@@ -211,8 +212,8 @@ export type OpportunityObservation = {
   collection_run_id: string;
   observed_at: string;
   severity: string;
-  current_monthly_cost: string;
-  estimated_monthly_savings: string;
+  current_monthly_cost: string | null;
+  estimated_monthly_savings: string | null;
   currency: string;
   confidence: string;
   provider_metadata: Record<string, unknown>;
@@ -339,7 +340,7 @@ export type DashboardSummary = {
     account_name: string | null;
     collection_run_id: string;
     severity: string;
-    estimated_monthly_savings: string;
+    estimated_monthly_savings: string | null;
     currency: string;
   }>;
   recent_changes: {
@@ -477,8 +478,8 @@ export type CollectionComparisonFinancialSummary = {
 export type CollectionComparisonObservation = {
   observed_at: string;
   severity: string;
-  current_monthly_cost: string;
-  estimated_monthly_savings: string;
+  current_monthly_cost: string | null;
+  estimated_monthly_savings: string | null;
   confidence: string;
   currency: string;
   evidence_summary: string | null;
