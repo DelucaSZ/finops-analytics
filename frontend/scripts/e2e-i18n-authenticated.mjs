@@ -299,7 +299,7 @@ async function runFunctional(){
 async function visualAndAccessibility(){
   const {ctx}=await createContext('en-US');
   try{
-    for(const route of ['/settings/appearance','/billing','/inventory','/opportunities','/rds/reservations']){
+    for(const route of ['/settings/appearance','/settings/pricing/aws','/billing','/inventory','/opportunities','/rds/reservations']){
       const page=await ctx.newPage();
       const record={route,locale:'en-US',scenario:'visual-a11y-representative',status:'not_run'};
       report.cases.push(record);
