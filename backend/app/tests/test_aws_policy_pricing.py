@@ -309,18 +309,22 @@ def test_legitimate_zero_price_is_distinct_from_missing(db):
     assert item.current_monthly_cost == Decimal("0.00")
     assert item.estimated_monthly_savings == Decimal("0.00")
 
-
-
 def test_flat_collector_evidence_is_priced_and_preserved_in_opportunity(db):
     ebs(db, amount="0.09")
     db.commit()
     item = CollectedFinding(
-        rule_key="ebs_unattached", service="EC2/EBS", region="sa-east-1",
-        resource_id="vol-123", title="Unattached volume",
+        rule_key="ebs_unattached",
+        service="EC2/EBS",
+        region="sa-east-1",
+        resource_id="vol-123",
+        title="Unattached volume",
         description="Operationally eligible volume.",
         evidence={
-            "size_gib": 20, "volume_type": "gp3",
-            "iops": 3000, "throughput": 125, "age_days": 15,
+            "size_gib": 20,
+            "volume_type": "gp3",
+            "iops": 3000,
+            "throughput": 125,
+            "age_days": 15,
         },
     )
     item = enrich(db, item)
@@ -342,17 +346,22 @@ def test_flat_collector_evidence_is_priced_and_preserved_in_opportunity(db):
 def test_flat_classic_load_balancer_preserves_partial_base_pricing(db):
     publish(
         db,
-        sku="CLASSIC-BASE", amount="0.04",
-        attrs={"usagetype": "SAE1-LoadBalancerUsage",
-               "productFamily": "Load Balancing"},
-        family="Load Balancing", service="clb",
-        service_code="AWSELB", unit="LB_HOUR", aws_unit="Hrs",
+        sku="CLASSIC-BASE",
+        amount="0.04",
+        attrs={"usagetype": "SAE1-LoadBalancerUsage", "productFamily": "Load Balancing"},
+        family="Load Balancing",
+        service="clb",
+        service_code="AWSELB",
+        unit="LB_HOUR",
+        aws_unit="Hrs",
     )
     db.commit()
     item = CollectedFinding(
         rule_key="load_balancer_no_traffic",
-        service="Elastic Load Balancing", region="sa-east-1",
-        resource_id="legacy-lb", title="Classic LB",
+        service="Elastic Load Balancing",
+        region="sa-east-1",
+        resource_id="legacy-lb",
+        title="Classic LB",
         description="CloudWatch has datapoints",
         evidence={"type": "classic", "datapoint_count": 7},
     )
