@@ -20,8 +20,7 @@ def test_pricing_aws_read_and_mutation_are_admin_only(auth_env, role):
     http, _, tokens, _ = auth_env
     assert http.get(BASE + "/meta", headers=headers(tokens, role)).status_code == 403
     assert (
-        http.get(BASE + "/rates?region=sa-east-1", headers=headers(tokens, role)).status_code
-        == 403
+        http.get(BASE + "/rates?region=sa-east-1", headers=headers(tokens, role)).status_code == 403
     )
     assert (
         http.post(
@@ -41,9 +40,7 @@ def test_empty_catalog_metadata_filters_and_invalid_region(auth_env):
     assert "AmazonEC2" in meta.json()["services"]
     empty = http.get(BASE + "/rates?region=sa-east-1", headers=headers(tokens))
     assert empty.status_code == 200 and empty.json()["total"] == 0
-    assert (
-        http.get(BASE + "/rates?region=wrong", headers=headers(tokens)).status_code == 400
-    )
+    assert http.get(BASE + "/rates?region=wrong", headers=headers(tokens)).status_code == 400
     assert (
         http.get(BASE + "/rates?region=sa-east-1&limit=999", headers=headers(tokens)).status_code
         == 422
@@ -98,10 +95,7 @@ def test_exact_decimal_rate_history_and_strict_region_isolation(auth_env):
     assert row["currency"] == "USD"
     assert row["product_sku"] == "EC2-TEST-SKU"
     assert row["region_code"] == "sa-east-1"
-    assert (
-        http.get(BASE + "/rates?region=us-east-1", headers=headers(tokens)).json()["total"]
-        == 0
-    )
+    assert http.get(BASE + "/rates?region=us-east-1", headers=headers(tokens)).json()["total"] == 0
     detail = http.get(BASE + f"/rates/{row['id']}", headers=headers(tokens))
     assert detail.status_code == 200
     history = http.get(BASE + f"/rates/{row['id']}/history", headers=headers(tokens))
@@ -150,9 +144,7 @@ def test_manual_submission_requires_optin_and_deduplicates(auth_env, monkeypatch
     assert submitted.status_code == 202, submitted.text
     assert submitted.json()["status"] == "queued"
     request_id = submitted.json()["id"]
-    poll = http.get(
-        BASE + f"/sync/requests/{request_id}", headers=headers(tokens)
-    )
+    poll = http.get(BASE + f"/sync/requests/{request_id}", headers=headers(tokens))
     assert poll.status_code == 200 and poll.json()["status"] == "queued"
     concurrent = http.post(
         BASE + "/sync",
