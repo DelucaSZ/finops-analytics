@@ -49,6 +49,12 @@ class CalculatorPriceLookup:
     price: ResolvedPrice | None
     reference_at: datetime
     warning_code: str | None = None
+    # AWS provenance is optional; OCI and older adapters remain compatible.
+    region_code: str | None = None
+    product_sku: str | None = None
+    rate_code: str | None = None
+    import_batch_id: str | None = None
+    synced_at: datetime | None = None
 
     @property
     def available(self) -> bool:
