@@ -496,7 +496,7 @@ def _top_current_opportunities(
             CloudAccount.name,
             current.c.collection_run_id,
             current.c.severity,
-            current.c.estimated_monthly_savings,
+            current.c.complete_savings.label("estimated_monthly_savings"),
             current.c.currency,
         )
         .select_from(current)
@@ -504,7 +504,7 @@ def _top_current_opportunities(
         .outerjoin(CloudAccount, _account_name_join(current))
         .where(Finding.status == "open")
         .order_by(
-            current.c.estimated_monthly_savings.desc(),
+            current.c.complete_savings.desc(),
             severity_order.desc(),
             Finding.id,
         )
