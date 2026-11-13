@@ -13,6 +13,7 @@ import json
 import logging
 import os
 import sys
+from dataclasses import asdict
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -80,7 +81,7 @@ def main(argv: list[str] | None = None) -> int:
             max_rates=args.max_rates,
             endpoint_region=args.pricing_endpoint,
         )
-        print(json.dumps(vars(result), default=str, sort_keys=True, indent=2))
+        print(json.dumps(asdict(result), default=str, sort_keys=True, indent=2))
         return 0 if result.status in {"validated", "published", "already_published"} else 2
     except Exception as exc:
         logging.getLogger(__name__).error(
