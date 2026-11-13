@@ -458,3 +458,26 @@ def test_regions_and_options_are_local_paginated_and_engine_specific(db):
     assert pg["total"] == 1
     assert pg["items"][0]["instance_class"] == "db.t3.medium"
     assert pg["items"][0]["deployment"] == "single_az"
+
+
+def test_ec2_missing_optional_importer_attributes_do_not_hide_valid_price(db):
+    attrs = {
+        "instanceType": "t3.medium",
+        "operatingSystem": "Linux",
+        "tenancy": "Shared",
+        "operation": "RunInstances",
+        "productFamily": "Compute Instance",
+    }
+    row = publish(db, sku="EC2-OPTIONAL-ATTRS", amount="1.1", attrs=attrs,
+                  family="Compute Instance")
+    db.commit()
+    result = estimate(db, storage=False)
+    assert result.pricing_status == "priced"
+    assert result.pricing_components[0].pricing_item_id == row.id
+    assert result.pricing_components[0].unit_price == Decimal("1.1")
+    options = aws_options(
+        db, service="ec2", region="sa-east-1", search="t3",
+        engine=None, offset=0, limit=10,
+    )
+    assert options["total"] == 1
+    assert options["items"][0]["pricing_status"] == "priced"
