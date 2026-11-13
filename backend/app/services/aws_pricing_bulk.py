@@ -13,6 +13,7 @@ import re
 import sqlite3
 import time
 from dataclasses import asdict, dataclass, field
+from decimal import Decimal
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Iterator
@@ -266,6 +267,7 @@ def iter_staged_rates(database: Path) -> Iterator[NormalizedRate]:
         for product_json, rate_json in cursor:
             product = _read_product(product_json)
             payload = json.loads(rate_json)
+            payload["amount"] = Decimal(payload["amount"])
             yield NormalizedRate(product=product, **payload)
 
 
@@ -331,7 +333,11 @@ def stage_offer(
                         if not isinstance(term, dict):
                             stats.reject("invalid term")
                             continue
-                        for code, dimension in term.get("priceDimensions", {}).items():
+                        dimensions = term.get("priceDimensions")
+                        if not isinstance(dimensions, dict):
+                            stats.reject("invalid priceDimensions")
+                            continue
+                        for code, dimension in dimensions.items():
                             stats.rates_seen += 1
                             if stats.rates_seen > max_rates:
                                 raise AwsBulkImportError("rate processing limit exceeded")
@@ -345,6 +351,7 @@ def stage_offer(
                                 )
                                 payload = asdict(rate)
                                 payload.pop("product")
+                                payload["amount"] = str(rate.amount)
                                 payload["effective_at"] = _effective(rate.effective_at)
                                 if len(product.sku + ":" + rate.rate_code) > 160:
                                     raise AwsPricingValidationError("composite SKU exceeds 160")
