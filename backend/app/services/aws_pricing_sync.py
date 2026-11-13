@@ -502,9 +502,26 @@ class AwsPricingSynchronizer:
                     .limit(1)
                 )
                 updated = _utc(state.last_attempt_at) if state and state.last_attempt_at else None
+                # A failed recent attempt must never make an old catalog appear fresh.
+                verified = db.scalar(
+                    select(AwsPricingSyncRun.finished_at)
+                    .where(
+                        AwsPricingSyncRun.service_code == svc,
+                        AwsPricingSyncRun.region_code == reg,
+                        AwsPricingSyncRun.status.in_(["published", "unchanged"]),
+                    )
+                    .order_by(AwsPricingSyncRun.finished_at.desc())
+                    .limit(1)
+                )
+                last_good = _utc(state.last_success_at) if state and state.last_success_at else None
+                verified_at = max(
+                    (value for value in (_utc(verified) if verified else None, last_good) if value),
+                    default=None,
+                )
                 stale = (
-                    updated is None
-                    or updated + timedelta(hours=self.config.aws_pricing_sync_stale_hours) < _utc()
+                    verified_at is None
+                    or verified_at + timedelta(hours=self.config.aws_pricing_sync_stale_hours)
+                    < _utc()
                 )
                 records.append(
                     {
@@ -514,6 +531,7 @@ class AwsPricingSynchronizer:
                         "catalog_status": state.coverage_status if state else "never_synced",
                         "freshness": "stale" if stale else "current",
                         "last_attempt_at": updated.isoformat() if updated else None,
+                        "last_verified_at": verified_at.isoformat() if verified_at else None,
                         "last_success_at": _utc(state.last_success_at).isoformat()
                         if state and state.last_success_at
                         else None,
