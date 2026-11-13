@@ -520,9 +520,7 @@ def test_cycle_totals_never_promote_partial_or_missing_prices_to_known(
         saving=saving or "0",
     )
     observation.estimated_monthly_savings = Decimal(saving) if saving is not None else None
-    observation.evidence = {
-        "pricing": {"provider": "aws", "status": pricing_status}
-    }
+    observation.evidence = {"pricing": {"provider": "aws", "status": pricing_status}}
     cycle = OpportunityHistoryCycleService.get_or_create_cycle_for(
         db, datetime(2026, 10, 21, tzinfo=UTC)
     )
@@ -540,21 +538,13 @@ def test_cycle_totals_never_promote_partial_or_missing_prices_to_known(
         }
     ]
     if known:
-        assert stats["potential_savings"] == [
-            {"currency": "USD", "amount": Decimal(saving)}
-        ]
-        assert stats["current_cost"] == [
-            {"currency": "USD", "amount": Decimal("99")}
-        ]
+        assert stats["potential_savings"] == [{"currency": "USD", "amount": Decimal(saving)}]
+        assert stats["current_cost"] == [{"currency": "USD", "amount": Decimal("99")}]
     else:
         assert stats["potential_savings"] == []
         assert stats["current_cost"] == []
     original = db.scalar(
-        select(OpportunityHistorySnapshot).where(
-            OpportunityHistorySnapshot.cycle_id == cycle.id
-        )
+        select(OpportunityHistorySnapshot).where(OpportunityHistorySnapshot.cycle_id == cycle.id)
     )
-    assert original.estimated_monthly_savings == (
-        Decimal(saving) if saving is not None else None
-    )
+    assert original.estimated_monthly_savings == (Decimal(saving) if saving is not None else None)
     assert original.evidence["pricing"]["status"] == pricing_status
