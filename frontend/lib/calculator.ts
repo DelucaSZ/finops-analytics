@@ -147,7 +147,7 @@ export interface OciDbOptions {
 }
 
 export function fetchAwsRegions(signal?: AbortSignal) {
-  return api<{ items: string[]; source: string; region_status: Record<string, string> }>("/calculator/aws/regions", { signal });
+  return api<{ items: string[]; source: string; region_status: Record<string, string>; service_status: Record<string, Record<string, string>> }>("/calculator/aws/regions", { signal });
 }
 export function fetchAwsOptions(
   service: "ec2" | "rds", region: string, search: string, engine: string,
