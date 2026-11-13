@@ -256,13 +256,13 @@ def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[st
             CloudAccount.name.label("account_name"),
             current.c.collection_run_id,
             current.c.severity,
-            current.c.estimated_monthly_savings,
+            current.c.complete_savings.label("estimated_monthly_savings"),
             current.c.currency,
             func.row_number()
             .over(
                 partition_by=current.c.currency,
                 order_by=(
-                    current.c.estimated_monthly_savings.desc(),
+                    current.c.complete_savings.desc(),
                     severity_order.desc(),
                     Finding.id,
                 ),
@@ -274,7 +274,7 @@ def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[st
         .outerjoin(CloudAccount, account_join)
         .where(
             Finding.status == "open",
-            current.c.estimated_monthly_savings.is_not(None),
+            current.c.complete_savings.is_not(None),
         )
         .cte("dashboard_executive_top")
     )
