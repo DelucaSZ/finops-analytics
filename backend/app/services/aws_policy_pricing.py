@@ -25,7 +25,6 @@ from app.services.collector_types import CollectedFinding
 
 _CENT = Decimal("0.01")
 _INSTANCE_HOURS = Decimal("730")
-_STORAGE_HOURS = Decimal("720")
 _AWS_FINANCIAL_RULES = frozenset({
     "ebs_unattached", "ec2_stopped_with_ebs", "eip_unassociated",
     "snapshot_retention", "ec2_nonprod_outside_hours",
@@ -239,10 +238,12 @@ class AwsPolicyPricingAdapter:
         platform = str(details.get("platform_details") or "").lower()
         if "windows" in platform:
             operating_system = "Windows"
-        elif "linux" in platform:
+        elif "linux" in platform or "unix" in platform:
             operating_system = "Linux"
         else:
             return [], ["ec2_operating_system_unknown"]
+        if str(details.get("tenancy") or "").lower() not in {"default", "shared"}:
+            return [], ["ec2_shared_tenancy_not_confirmed"]
         if not instance_type:
             return [], ["ec2_instance_type_unknown"]
         rate = self._calculator_rate(
@@ -267,6 +268,13 @@ class AwsPolicyPricingAdapter:
         multi = details.get("multi_az")
         if not engine or not instance_type or not isinstance(multi, bool):
             return [], ["rds_financial_identity_incomplete"]
+        expected_license = (
+            "postgresql-license" if engine == "PostgreSQL"
+            else "general-public-license"
+        )
+        license_model = str(details.get("license_model") or "").lower()
+        if license_model not in {expected_license, "no-license-required"}:
+            return [], ["rds_license_model_unsupported_or_missing"]
         deployment = "Multi-AZ" if multi else "Single-AZ"
         rate = self._calculator_rate(
             service="rds", region=region, family="Database Instance",
@@ -439,6 +447,22 @@ class AwsPolicyPricingAdapter:
             "missing_components": missing,
             "notes": notes,
         }
+        if current is not None:
+            finding.evidence.setdefault("metrics", []).append({
+                "key": "aws_regional_priced_monthly_cost",
+                "label": "Regional public rate estimated monthly cost",
+                "value": float(current),
+                "unit": "USD_MONTH",
+                "kind": "estimate",
+            })
+        if savings is not None:
+            finding.evidence.setdefault("metrics", []).append({
+                "key": "aws_regional_priced_monthly_savings",
+                "label": "Regional public rate estimated monthly savings",
+                "value": float(savings),
+                "unit": "USD_MONTH",
+                "kind": "estimate",
+            })
         finding.evidence.setdefault("notes", []).extend(notes)
         return True
 
