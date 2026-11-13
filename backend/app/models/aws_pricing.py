@@ -8,6 +8,7 @@ from typing import Any
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     DateTime,
     ForeignKey,
@@ -205,3 +206,28 @@ class AwsPricingSyncRun(Base):
     coverage: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
     error_code: Mapped[str | None] = mapped_column(String(100))
     error_summary: Mapped[str | None] = mapped_column(String(500))
+
+
+class AwsPricingSyncRequest(Base):
+    """Durable, authorized single-unit manual sync submissions.
+
+    The importer and worker are still the sole publishers of financial data.
+    """
+
+    __tablename__ = "aws_pricing_sync_requests"
+    __table_args__ = (
+        Index("ix_aws_sync_request_status", "status", "requested_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
+    service_code: Mapped[str] = mapped_column(String(80), nullable=False)
+    region_code: Mapped[str] = mapped_column(String(40), nullable=False)
+    requested_by: Mapped[str] = mapped_column(String(36), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False, default="queued")
+    dry_run: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    force: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    requested_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    result: Mapped[dict[str, Any] | None] = mapped_column(_AWS_JSON)
+    error_code: Mapped[str | None] = mapped_column(String(100))
