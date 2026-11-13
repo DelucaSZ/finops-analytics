@@ -106,6 +106,11 @@ def _date(value: datetime, name: str) -> datetime:
     return value.astimezone(UTC)
 
 
+def _stored_date(value: datetime) -> datetime:
+    """SQLite loses timezone metadata; stored UTC timestamps stay UTC."""
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def _attributes(service: str, attributes: Mapping[str, str]) -> dict[str, str]:
     if not isinstance(attributes, Mapping) or not attributes:
         raise AwsPricingValidationError("financial_attributes must be a non-empty mapping")
@@ -295,7 +300,7 @@ class AwsRegionalPricingRepository:
             .with_for_update()
         ))
         for item in rows:
-            if _date(item.effective_from, "stored effective_from") != start:
+            if _stored_date(item.effective_from) != start:
                 continue
             detail = self.db.scalar(select(AwsPricingRateDetail).where(
                 AwsPricingRateDetail.pricing_item_id == item.id
@@ -310,7 +315,7 @@ class AwsRegionalPricingRepository:
             ):
                 return item
             raise AwsPricingConflictError("same rate identity and start has conflicting data")
-        if rows and start <= _date(rows[0].effective_from, "stored effective_from"):
+        if rows and start <= _stored_date(rows[0].effective_from):
             raise AwsPricingConflictError("backdated publication requires an explicit reconciliation")
         if rows and rows[0].enabled:
             previous = rows[0]
@@ -470,7 +475,9 @@ class AwsRegionalPricingResolver:
         sync = AwsRegionalPricingRepository(self.db).get_sync_state(
             service_code=code, region_code=region
         )
-        if sync is None or sync.coverage_status in {"never_synced", "failed"}:
+        if sync is None or sync.coverage_status == "never_synced" or (
+            sync.coverage_status == "failed" and sync.last_successful_batch_id is None
+        ):
             return missing("sync_required", "aws_region_catalog_not_synchronized")
         products = list(self.db.scalars(select(AwsPricingProduct).where(
             AwsPricingProduct.service == service,
@@ -513,10 +520,10 @@ class AwsRegionalPricingResolver:
         ]
         effective = [
             (item, detail, product) for item, detail, product in active
-            if _date(item.effective_from, "effective_from") <= at
+            if _stored_date(item.effective_from) <= at
             and (
                 item.effective_until is None
-                or at < _date(item.effective_until, "effective_until")
+                or at < _stored_date(item.effective_until)
             )
         ]
         if not effective:
