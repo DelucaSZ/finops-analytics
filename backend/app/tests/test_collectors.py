@@ -73,17 +73,18 @@ class FakeSession:
         return FakeEc2()
 
 
-def test_unattached_ebs_estimates_configured_monthly_cost() -> None:
+def test_unattached_ebs_collects_operational_data_without_static_prices() -> None:
     findings = collect_ebs_unattached(
         FakeSession(),  # type: ignore[arg-type]
         "sa-east-1",
         {
             "minimum_age_days": 7,
             "minimum_monthly_savings_usd": 1,
-            "monthly_price_per_gb": {"gp3": 0.08},
             "excluded_tag_keys": [],
         },
     )
     assert len(findings) == 1
-    assert str(findings[0].estimated_monthly_savings) == "8.00"
+    assert findings[0].estimated_monthly_savings is None
+    assert findings[0].current_monthly_cost is None
+    assert findings[0].evidence["volume_type"] == "gp3"
     assert findings[0].resource_id == "vol-123"
