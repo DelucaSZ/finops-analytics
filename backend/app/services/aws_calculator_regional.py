@@ -55,7 +55,9 @@ class AwsLocalCalculatorResolver:
         key: str,
     ) -> CalculatorPriceLookup:
         if not _REGION.fullmatch(region):
-            return self._missing(service, region, key, unit, at, "invalid_combination", "invalid_aws_region")
+            return self._missing(
+                service, region, key, unit, at, "invalid_combination", "invalid_aws_region"
+            )
         if at.tzinfo is None:
             raise ValueError("pricing reference must be timezone-aware")
         at = at.astimezone(UTC)
@@ -63,10 +65,13 @@ class AwsLocalCalculatorResolver:
         target_service = "ebs" if service == "ec2" and family != "Compute Instance" else service
 
         sync = self.repository.get_sync_state(service_code=code, region_code=region)
-        if sync is not None and sync.coverage_status in {"stale", "partial", "failed"}:
-            # A last-good published tariff is not invalidated by a failed later sync.
-            if sync.last_successful_batch_id is not None:
-                self.warnings.append("aws_region_catalog_" + sync.coverage_status)
+        # A last-good published tariff is not invalidated by a failed later sync.
+        if (
+            sync is not None
+            and sync.coverage_status in {"stale", "partial", "failed"}
+            and sync.last_successful_batch_id is not None
+        ):
+            self.warnings.append("aws_region_catalog_" + sync.coverage_status)
 
         statement = select(AwsPricingProduct).where(
             AwsPricingProduct.service == target_service,
@@ -77,7 +82,9 @@ class AwsLocalCalculatorResolver:
         )
         for field, value in filters.items():
             if field.startswith("contains:"):
-                column = AwsPricingProduct.product_attributes[field.removeprefix("contains:")].as_string()
+                column = AwsPricingProduct.product_attributes[
+                    field.removeprefix("contains:")
+                ].as_string()
                 statement = statement.where(column.contains(value, autoescape=True))
             else:
                 # Strict product qualification is done in SQL, not by loading all SKUs.
@@ -113,7 +120,11 @@ class AwsLocalCalculatorResolver:
             return self._missing(
                 target_service, region, key, unit, at,
                 "sync_required" if needs_sync else "sku_missing",
-                "aws_region_catalog_not_synchronized" if needs_sync else f"aws_{service}_{key}_price_unavailable",
+                (
+                    "aws_region_catalog_not_synchronized"
+                    if needs_sync
+                    else f"aws_{service}_{key}_price_unavailable"
+                ),
             )
         if len(candidates) != 1:
             return self._missing(
