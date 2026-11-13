@@ -382,9 +382,7 @@ def test_reject_does_not_create_saving(auth_env):
         "pricing_configuration_error",
     ],
 )
-def test_incomplete_aws_pricing_cannot_create_recognized_savings(
-    auth_env, pricing_status
-):
+def test_incomplete_aws_pricing_cannot_create_recognized_savings(auth_env, pricing_status):
     http, engine, tokens, _ids = auth_env
     with Session(engine) as db:
         finding = db.get(Finding, "finding")
