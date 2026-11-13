@@ -274,9 +274,7 @@ def import_aws_prices(
                 endpoint_region=endpoint_region,
                 client=client,
             )
-            checksum, size = download_official_offer(
-                reference, source, max_bytes=max_bytes
-            )
+            checksum, size = download_official_offer(reference, source, max_bytes=max_bytes)
             source_uri = reference.url
         stats = stage_offer(
             source,
@@ -333,8 +331,13 @@ def import_aws_prices(
                 batch_id = batch.id
                 if batch.status == "published":
                     return _result(
-                        service_code, region_code, False, "already_published",
-                        source_type, stats, batch_id=batch_id,
+                        service_code,
+                        region_code,
+                        False,
+                        "already_published",
+                        source_type,
+                        stats,
+                        batch_id=batch_id,
                         diagnostics=diagnostics,
                         elapsed_seconds=time.monotonic() - start,
                     )
@@ -353,12 +356,19 @@ def import_aws_prices(
                     )
                     if existing is None or existing.last_successful_batch_id is None:
                         repository.set_sync_state(
-                            service_code=service_code, region_code=region_code,
-                            status="partial", coverage=stats.coverage,
+                            service_code=service_code,
+                            region_code=region_code,
+                            status="partial",
+                            coverage=stats.coverage,
                         )
                     return _result(
-                        service_code, region_code, False, "partial",
-                        source_type, stats, batch_id=batch_id,
+                        service_code,
+                        region_code,
+                        False,
+                        "partial",
+                        source_type,
+                        stats,
+                        batch_id=batch_id,
                         diagnostics=diagnostics,
                         elapsed_seconds=time.monotonic() - start,
                     )
@@ -396,33 +406,50 @@ def import_aws_prices(
                     if published % 500 == 0:
                         db.flush()
                         batch.checkpoint = {
-                            "source_version": stats.source_version, "rows": published
+                            "source_version": stats.source_version,
+                            "rows": published,
                         }
                 batch.status = "published"
                 batch.finished_at = utcnow()
                 batch.published_at = utcnow()
                 batch.checkpoint = {"source_version": stats.source_version, "rows": published}
                 repository.set_sync_state(
-                    service_code=service_code, region_code=region_code,
+                    service_code=service_code,
+                    region_code=region_code,
                     status="synced" if complete else "partial",
-                    batch=batch, coverage=stats.coverage,
+                    batch=batch,
+                    coverage=stats.coverage,
                 )
             logger.info(
                 "aws_bulk_import_published service=%s region=%s version=%s rates=%s complete=%s",
-                service_code, region_code, stats.source_version, published, complete,
+                service_code,
+                region_code,
+                stats.source_version,
+                published,
+                complete,
             )
             return _result(
-                service_code, region_code, False,
+                service_code,
+                region_code,
+                False,
                 "published" if complete else "published_partial",
-                source_type, stats, batch_id=batch_id,
-                published_rates=published, diagnostics=diagnostics,
+                source_type,
+                stats,
+                batch_id=batch_id,
+                published_rates=published,
+                diagnostics=diagnostics,
                 elapsed_seconds=time.monotonic() - start,
             )
         except Exception as exc:
             db.rollback()
             _record_failure(
-                db, service_code, region_code, stats, source_type,
-                source_uri, type(exc).__name__ + ": " + str(exc)[:150],
+                db,
+                service_code,
+                region_code,
+                stats,
+                source_type,
+                source_uri,
+                type(exc).__name__ + ": " + str(exc)[:150],
             )
             if isinstance(exc, (AwsBulkImportError, AwsPricingConflictError)):
                 raise
