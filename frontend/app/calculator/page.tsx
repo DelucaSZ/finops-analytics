@@ -53,6 +53,8 @@ export default function CalculatorPage() {
   const [convert, setConvert] = useState(false);
   const [volumes, setVolumes] = useState<VolumeInput[]>([]);
   const [awsRegions, setAwsRegions] = useState<string[]>([]);
+  const [awsRegionStatus, setAwsRegionStatus] = useState<Record<string, string>>({});
+  const [awsOptionsOffset, setAwsOptionsOffset] = useState(0);
   const [awsOptions, setAwsOptions] = useState<AwsOptionsResponse | null>(null);
   const [ociCompute, setOciCompute] = useState<OciComputeOptions | null>(null);
   const [ociDb, setOciDb] = useState<OciDbOptions | null>(null);
@@ -96,6 +98,7 @@ export default function CalculatorPage() {
     setVolumes([]);
     setConvert(nextProvider === "aws" && provider === "aws" ? convert : false);
     setAwsOptions(null);
+    setAwsOptionsOffset(0);
     setOciCompute(null);
     setOciDb(null);
     setMetadataStatus("initial");
@@ -108,13 +111,14 @@ export default function CalculatorPage() {
       ...previous, region: next, instance: "", os: "", deployment: "", shape: "", dbChoice: "",
     }));
     setAwsOptions(null);
+    setAwsOptionsOffset(0);
     setOciCompute(null);
     setOciDb(null);
     setMetadataStatus("initial");
     setMetadataError("");
   }
 
-  // AWS regions must come from Pricing API; the browser never embeds a fictitious region catalog.
+  // AWS regions are from local account configuration and published catalog metadata.
   useEffect(() => {
     if (provider !== "aws") return;
     const controller = new AbortController();
@@ -123,10 +127,12 @@ export default function CalculatorPage() {
     fetchAwsRegions(controller.signal).then((data) => {
       if (controller.signal.aborted) return;
       setAwsRegions(data.items);
+      setAwsRegionStatus(data.region_status ?? {});
       setMetadataStatus("ready");
     }).catch((error) => {
       if (controller.signal.aborted || AbortableError(error)) return;
       setAwsRegions([]);
+      setAwsRegionStatus({});
       setMetadataStatus("error");
       setMetadataError("regions");
     });
@@ -141,23 +147,26 @@ export default function CalculatorPage() {
       return;
     }
     const controller = new AbortController();
-    setAwsOptions(null);
+    if (awsOptionsOffset === 0) setAwsOptions(null);
     setMetadataStatus("loading");
     setMetadataError("");
     const timer = window.setTimeout(() => {
-      fetchAwsOptions(service, region, search, form.engine, controller.signal).then((data) => {
+      fetchAwsOptions(service, region, search, form.engine, awsOptionsOffset, controller.signal).then((data) => {
         if (controller.signal.aborted) return;
-        setAwsOptions(data);
+        setAwsOptions((previous) => awsOptionsOffset === 0 ? data : {
+          ...data,
+          items: [...(previous?.items ?? []), ...data.items],
+        });
         setMetadataStatus("ready");
       }).catch((error) => {
         if (controller.signal.aborted || AbortableError(error)) return;
-        setAwsOptions(null);
+        if (awsOptionsOffset === 0) setAwsOptions(null);
         setMetadataStatus("error");
         setMetadataError("options");
       });
     }, 350);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [provider, service, region, search, form.engine]);
+  }, [provider, service, region, search, form.engine, awsOptionsOffset]);
 
   useEffect(() => {
     if (provider !== "oci" || region.length < 5 || (service !== "compute" && service !== "db_system")) return;
@@ -380,6 +389,9 @@ export default function CalculatorPage() {
                     placeholder={t("ociRegionPlaceholder")} helperText={t("ociRegionHint")} maxLength={80} />}
               {metadataStatus === "error" && <Alert variant="warning" title={t("metadataError")} description={tx("errors." + metadataError)} />}
               {provider === "aws" && !awsRegions.length && metadataStatus === "loading" && <p className={styles.hint}>{t("loadingOptions")}</p>}
+              {provider === "aws" && !awsRegions.length && metadataStatus === "ready" && <Alert variant="warning" description={t("noAwsRegions")} />}
+              {provider === "aws" && region && awsRegionStatus[region] === "sync_required" && <Alert variant="warning" description={t("regionSyncRequired")} />}
+              {provider === "aws" && region && ["stale", "partial", "failed"].includes(awsRegionStatus[region]) && <Alert variant="warning" description={t("regionCatalogPartial")} />}
             </CardContent>
           </Card>
 
@@ -389,13 +401,17 @@ export default function CalculatorPage() {
               {provider === "aws" && (
                 <>
                   {service === "rds" && choice(t("engine"), form.engine, engineOptions.map((v) => ({ value: v, label: tx("engines." + v) })),
-                    (v) => { invalidate(); setForm((old) => ({ ...old, engine: v, instance: "", deployment: "" })); setAwsOptions(null); })}
+                    (v) => { invalidate(); setForm((old) => ({ ...old, engine: v, instance: "", deployment: "" })); setAwsOptions(null); setAwsOptionsOffset(0); })}
                   <Input label={t("searchClass")} value={form.search} onChange={(e) => {
-                    invalidate(); setForm((old) => ({ ...old, search: e.target.value, instance: "", os: "", deployment: "" })); setAwsOptions(null);
+                    invalidate(); setForm((old) => ({ ...old, search: e.target.value, instance: "", os: "", deployment: "" })); setAwsOptions(null); setAwsOptionsOffset(0);
                   }} placeholder={t("searchPlaceholder")} helperText={t("searchHint")} />
                   {search.length >= 2 && metadataStatus === "loading" && <p className={styles.hint}>{t("loadingOptions")}</p>}
                   {search.length >= 2 && metadataStatus === "ready" && !awsOptions?.items.length && <Alert variant="info" description={t("noOptions")} />}
-                  {awsOptions && awsOptions.total > awsOptions.items.length && <p className={styles.hint}>{t("limitedResults")}</p>}
+                  {awsOptions && awsOptions.total > awsOptions.items.length && <Button type="button" variant="secondary"
+                    disabled={metadataStatus === "loading"} onClick={() => setAwsOptionsOffset((previous) => previous + 100)}>
+                    {t("loadMore")}
+                  </Button>}
+                  {awsOptions?.items.some((item) => item.pricing_status !== "priced") && <p className={styles.hint}>{t("unpricedOptionsHint")}</p>}
                   {choice(service === "ec2" ? t("instanceType") : t("instanceClass"), form.instance,
                     (service === "ec2" ? instanceOptions : rdsClassOptions).map((v) => ({ value: v, label: v })),
                     (v) => { invalidate(); setForm((old) => ({ ...old, instance: v, os: "", deployment: "" })); },
@@ -664,7 +680,10 @@ export default function CalculatorPage() {
           {estimate.pricing_components.some((item) => item.source) && <details className={styles.provenance}>
             <summary>{t("provenance")}</summary>
             {estimate.pricing_components.map((item, index) => <p key={index} className={styles.codeWrap}>
-              {item.sku}: {item.source ?? "—"} · {formatLocaleDate(item.effective_from, locale)} · {formatLocaleDate(item.effective_until, locale)}
+              {item.sku} · {item.region_code ?? estimate.region} · {item.source ?? "—"} · {formatLocaleDate(item.effective_from, locale)} · {formatLocaleDate(item.effective_until, locale)}
+              {item.pricing_item_id ? ` · ID: ${item.pricing_item_id}` : ""}
+              {item.rate_code ? ` · Rate: ${item.rate_code}` : ""}
+              {item.synced_at ? ` · ${t("syncedAt")}: ${formatLocaleDateTime(item.synced_at, locale)}` : ""}
             </p>)}
           </details>}
         </CardContent>
