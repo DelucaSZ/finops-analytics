@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 import app.models  # noqa: F401
 from app.api.routes import (
     accounts,
+    aws_pricing,
     audit,
     auth,
     billing,
@@ -121,6 +122,7 @@ app.include_router(accounts.router, prefix="/api/v1")
 app.include_router(cloud_accounts.router, prefix="/api/v1")
 app.include_router(policies.router, prefix="/api/v1")
 app.include_router(pricing.router, prefix="/api/v1")
+app.include_router(aws_pricing.router, prefix="/api/v1")
 app.include_router(scans.router, prefix="/api/v1")
 app.include_router(collections.router, prefix="/api/v1")
 app.include_router(rds_inventory.router, prefix="/api/v1")
