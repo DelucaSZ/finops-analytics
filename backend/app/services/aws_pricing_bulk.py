@@ -269,7 +269,8 @@ def iter_staged_rates(database: Path) -> Iterator[NormalizedRate]:
     """Read a bounded cursor, looking up official product identity from local disk."""
     with sqlite3.connect(database) as db:
         cursor = db.execute(
-            "SELECT p.data, r.rate FROM rates r JOIN products p ON p.sku = r.sku ORDER BY r.id"
+            "SELECT p.data, r.rate FROM rates r JOIN products p ON p.sku = r.sku "
+            "ORDER BY r.sku, json_extract(r.rate, '$.effective_at'), r.id"
         )
         for product_json, rate_json in cursor:
             product = _read_product(product_json)
