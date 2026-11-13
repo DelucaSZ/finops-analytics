@@ -243,6 +243,7 @@ def import_aws_prices(
     max_products: int = 1_000_000,
     max_rates: int = 1_000_000,
     endpoint_region: str = "us-east-1",
+    reference: PriceListReference | None = None,
     client=None,
 ) -> AwsImportResult:
     """Import one official service+region. Caller supplies an idle SQLAlchemy session.
@@ -251,6 +252,8 @@ def import_aws_prices(
     No endpoint, UI, scheduler or customer account credentials are involved.
     """
     start = time.monotonic()
+    if reference is not None and (fixture_path is not None or reference.service_code != service_code or reference.region_code != region_code):
+        raise AwsBulkImportError("official price-list reference does not match service/region")
     if not dry_run and db is None:
         raise AwsBulkImportError("database session required for publication")
     if allow_partial and dry_run:
@@ -261,19 +264,19 @@ def import_aws_prices(
         source = directory / "official-offer.json"
         staging = directory / "staged.sqlite"
         source_type = _FIXTURE if fixture_path else _SOURCE
-        reference: PriceListReference | None = None
         if fixture_path is not None:
             checksum, size = _file_digest(fixture_path, max_bytes)
             source = fixture_path
             source_uri = "offline-fixture"
         else:
-            reference = discover_price_list(
-                service_code,
-                region_code,
-                effective_at=effective_at,
-                endpoint_region=endpoint_region,
-                client=client,
-            )
+            if reference is None:
+                reference = discover_price_list(
+                    service_code,
+                    region_code,
+                    effective_at=effective_at,
+                    endpoint_region=endpoint_region,
+                    client=client,
+                )
             checksum, size = download_official_offer(reference, source, max_bytes=max_bytes)
             source_uri = reference.url
         stats = stage_offer(
