@@ -48,16 +48,21 @@ test("Aven typography uses the approved operational scale and named roles", asyn
   assert.ok(foundations.includes("--font-variant-numeric-tabular: tabular-nums;"));
 });
 
-test("Inter and Sora are delivered through the framework-native font loader with only approved weights", async () => {
-  const layout = await readFile(new URL("layout.tsx", appUrl), "utf8");
+test("Inter and Sora are bundled locally and retain the Aven font tokens", async () => {
+  const [layout, primitives, packageJson] = await Promise.all([
+    readFile(new URL("layout.tsx", appUrl), "utf8"),
+    readFile(new URL("primitives.css", tokensUrl), "utf8"),
+    read("package.json"),
+  ]);
 
-  assert.match(layout, /from "next\/font\/google"/);
-  assert.match(layout, /Inter\(\{/);
-  assert.match(layout, /Sora\(\{/);
-  assert.match(layout, /weight: \["400", "500", "600", "700"\]/g);
-  assert.match(layout, /variable: "--aven-font-inter"/);
-  assert.match(layout, /variable: "--aven-font-sora"/);
-  assert.match(layout, /className=\{`\$\{inter\.variable\} \$\{sora\.variable\}`\}/);
+  const deps = JSON.parse(packageJson).dependencies;
+  assert.ok(layout.includes('import "@fontsource-variable/inter/wght.css"'));
+  assert.ok(layout.includes('import "@fontsource-variable/sora/wght.css"'));
+  assert.ok(!layout.includes("next/font/google"));
+  assert.equal(declaration(primitives, "--aven-font-inter"), '"Inter Variable"');
+  assert.equal(declaration(primitives, "--aven-font-sora"), '"Sora Variable"');
+  assert.equal(deps["@fontsource-variable/inter"], "5.3.0");
+  assert.equal(deps["@fontsource-variable/sora"], "5.3.0");
 });
 
 test("Light and Dark use distinct elevation strategies", async () => {
