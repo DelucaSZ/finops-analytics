@@ -9,7 +9,7 @@ from types import SimpleNamespace
 
 import pytest
 from sqlalchemy import create_engine, func, select
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
@@ -20,8 +20,8 @@ from app.models.pricing import PricingCatalogItem
 from app.services.aws_pricing_bulk import PriceListReference
 from app.services.aws_pricing_import import AwsImportResult
 from app.services.aws_pricing_sync import (
-    AwsPricingSynchronizer,
     _SQLITE_TEST_LOCK,
+    AwsPricingSynchronizer,
     coverage_report,
     discover_regions,
 )
@@ -61,8 +61,11 @@ def account(db, account_id, regions, enabled=True):
     )
     db.add(
         AwsAccount(
-            cloud_account=master, name=account_id, aws_account_id=account_id,
-            role_arn="arn:aws:iam::123456789012:role/test", external_id="test",
+            cloud_account=master,
+            name=account_id,
+            aws_account_id=account_id,
+            role_arn="arn:aws:iam::123456789012:role/test",
+            external_id="test",
             regions=regions,
         )
     )
@@ -71,13 +74,28 @@ def account(db, account_id, regions, enabled=True):
 
 def result(service, region, version, batch_id, status="published"):
     return AwsImportResult(
-        service_code=service, region_code=region, dry_run=False, status=status,
-        source_type="AWS_PUBLIC_PRICE_LIST", source_version=version,
-        checksum="abc" + version, batch_id=batch_id, products_seen=1,
-        products_matched=1, rates_seen=1, rates_staged=1, rates_rejected=0,
-        rates_unsupported=0, published_rates=1 if status == "published" else 0,
-        coverage={"complete": True, "required": ["ipv4_hour"], "present": ["ipv4_hour"],
-                  "missing": [], "counts": {"ipv4_hour": 1}},
+        service_code=service,
+        region_code=region,
+        dry_run=False,
+        status=status,
+        source_type="AWS_PUBLIC_PRICE_LIST",
+        source_version=version,
+        checksum="abc" + version,
+        batch_id=batch_id,
+        products_seen=1,
+        products_matched=1,
+        rates_seen=1,
+        rates_staged=1,
+        rates_rejected=0,
+        rates_unsupported=0,
+        published_rates=1 if status == "published" else 0,
+        coverage={
+            "complete": True,
+            "required": ["ipv4_hour"],
+            "present": ["ipv4_hour"],
+            "missing": [],
+            "counts": {"ipv4_hour": 1},
+        },
         diagnostics={"source_bytes": 1000},
         elapsed_seconds=0.01,
     )
@@ -91,32 +109,42 @@ def fake_importer_factory(calls):
         with db.begin():
             repository = AwsRegionalPricingRepository(db)
             batch = repository.get_or_create_batch(
-                service_code=service_code, region_code=region_code,
-                source_version=reference.arn, checksum="sha" + reference.arn,
-                source_type="AWS_PUBLIC_PRICE_LIST", source_uri=reference.url,
+                service_code=service_code,
+                region_code=region_code,
+                source_version=reference.arn,
+                checksum="sha" + reference.arn,
+                source_type="AWS_PUBLIC_PRICE_LIST",
+                source_uri=reference.url,
             )
             batch.status = "published"
             batch.finished_at = NOW
             batch.published_at = NOW
             batch.diagnostics = {"official_arn": reference.arn}
             repository.set_sync_state(
-                service_code=service_code, region_code=region_code,
-                status="synced", batch=batch,
+                service_code=service_code,
+                region_code=region_code,
+                status="synced",
+                batch=batch,
                 coverage={"complete": True, "present": ["ipv4_hour"], "missing": []},
             )
         return result(service_code, region_code, reference.arn, batch.id)
+
     return importer
 
 
 def sync(maker, calls, refs, **kwargs):
     return AwsPricingSynchronizer(
-        session_factory=maker, config=CONFIG,
+        session_factory=maker,
+        config=CONFIG,
         discovery=lambda service, region: PriceListReference(
-            service, region, refs[region],
+            service,
+            region,
+            refs[region],
             "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/test",
         ),
         importer=fake_importer_factory(calls),
-        allow_sqlite_tests=True, **kwargs,
+        allow_sqlite_tests=True,
+        **kwargs,
     )
 
 
@@ -128,7 +156,10 @@ def test_region_discovery_deduplicated_and_active_only(sessions):
     with sessions() as db:
         assert discover_regions(db) == ["sa-east-1", "us-east-1", "us-west-2"]
         assert discover_regions(db, "eu-north-1,sa-east-1") == [
-            "eu-north-1", "sa-east-1", "us-east-1", "us-west-2"
+            "eu-north-1",
+            "sa-east-1",
+            "us-east-1",
+            "us-west-2",
         ]
         with pytest.raises(ValueError):
             discover_regions(db, "invalid-url")
@@ -165,9 +196,11 @@ def test_failure_keeps_last_good_and_is_independent_by_region(sessions, monkeypa
     orchestrator = sync(sessions, calls, refs)
     orchestrator.run_unit("AmazonVPC", "sa-east-1")
     with sessions() as db:
-        original = AwsRegionalPricingRepository(db).get_sync_state(
-            service_code="AmazonVPC", region_code="sa-east-1"
-        ).last_successful_batch_id
+        original = (
+            AwsRegionalPricingRepository(db)
+            .get_sync_state(service_code="AmazonVPC", region_code="sa-east-1")
+            .last_successful_batch_id
+        )
 
     def broken(service, region):
         if region == "sa-east-1":
@@ -198,8 +231,11 @@ def test_claim_busy_and_recover_interrupted_run(sessions, monkeypatch):
         account(db, "111111111111", ["sa-east-1"])
         db.add(
             AwsPricingSyncRun(
-                service_code="AmazonVPC", region_code="sa-east-1",
-                trigger="automatic", status="running", started_at=NOW,
+                service_code="AmazonVPC",
+                region_code="sa-east-1",
+                trigger="automatic",
+                status="running",
+                started_at=NOW,
             )
         )
     orchestrator = sync(sessions, [], {"sa-east-1": "arn-v1"})
@@ -245,15 +281,28 @@ def test_validated_live_coverage_does_not_count_expired_or_unsupported_rates(ses
     with sessions.begin() as db:
         repo = AwsRegionalPricingRepository(db)
         product = repo.put_product(
-            service="ipv4", service_code="AmazonVPC", region_code="sa-east-1",
-            product_sku="VPC-1", product_family="IP Address", description="ipv4",
-            financial_attributes={"group": "PublicIPv4", "usagetype": "SAE1-PublicIPv4:InUseAddress"},
+            service="ipv4",
+            service_code="AmazonVPC",
+            region_code="sa-east-1",
+            product_sku="VPC-1",
+            product_family="IP Address",
+            description="ipv4",
+            financial_attributes={
+                "group": "PublicIPv4",
+                "usagetype": "SAE1-PublicIPv4:InUseAddress",
+            },
             product_attributes={"group": "PublicIPv4", "usagetype": "SAE1-PublicIPv4:InUseAddress"},
         )
         repo.put_rate(
-            product=product, rate_code="VPC-1.RATE", term_code="TERM",
-            billing_unit="IP_HOUR", aws_unit="Hrs", amount=Decimal("0.00500000"),
-            effective_from=NOW, source="AWS_PUBLIC_PRICE_LIST", source_effective_at=NOW,
+            product=product,
+            rate_code="VPC-1.RATE",
+            term_code="TERM",
+            billing_unit="IP_HOUR",
+            aws_unit="Hrs",
+            amount=Decimal("0.00500000"),
+            effective_from=NOW,
+            source="AWS_PUBLIC_PRICE_LIST",
+            source_effective_at=NOW,
         )
     with sessions() as db:
         present = coverage_report(db, "AmazonVPC", "sa-east-1", at=NOW + timedelta(days=1))
@@ -268,13 +317,24 @@ def test_same_price_later_official_effective_date_is_not_a_new_financial_version
     with sessions.begin() as db:
         repo = AwsRegionalPricingRepository(db)
         product = repo.put_product(
-            service="ipv4", service_code="AmazonVPC", region_code="sa-east-1",
-            product_sku="VPC-2", product_family="IP Address", description="ipv4",
-            financial_attributes={"group": "PublicIPv4", "usagetype": "SAE1-PublicIPv4:InUseAddress"},
+            service="ipv4",
+            service_code="AmazonVPC",
+            region_code="sa-east-1",
+            product_sku="VPC-2",
+            product_family="IP Address",
+            description="ipv4",
+            financial_attributes={
+                "group": "PublicIPv4",
+                "usagetype": "SAE1-PublicIPv4:InUseAddress",
+            },
         )
         params = dict(
-            product=product, rate_code="VPC-2.RATE", term_code="TERM",
-            billing_unit="IP_HOUR", aws_unit="Hrs", amount=Decimal("0.00500000"),
+            product=product,
+            rate_code="VPC-2.RATE",
+            term_code="TERM",
+            billing_unit="IP_HOUR",
+            aws_unit="Hrs",
+            amount=Decimal("0.00500000"),
             source="AWS_PUBLIC_PRICE_LIST",
         )
         first = repo.put_rate(**params, effective_from=NOW, source_effective_at=NOW)

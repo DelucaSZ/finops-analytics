@@ -113,9 +113,7 @@ class Settings(BaseSettings):
     aws_pricing_sync_services: str = Field(
         "AmazonEC2,AmazonRDS,AWSELB,AmazonVPC", alias="AVEN_AWS_PRICING_SYNC_SERVICES"
     )
-    aws_pricing_sync_extra_regions: str = Field(
-        "", alias="AVEN_AWS_PRICING_SYNC_EXTRA_REGIONS"
-    )
+    aws_pricing_sync_extra_regions: str = Field("", alias="AVEN_AWS_PRICING_SYNC_EXTRA_REGIONS")
     aws_pricing_sync_max_bytes: int = Field(
         2_000_000_000, ge=1, le=10_000_000_000, alias="AVEN_AWS_PRICING_SYNC_MAX_BYTES"
     )

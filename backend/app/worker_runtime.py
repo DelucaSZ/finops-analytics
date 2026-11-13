@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import Future, ThreadPoolExecutor
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
 from datetime import UTC, date, datetime, timedelta
 
 from sqlalchemy import Engine, select, text
@@ -18,12 +18,12 @@ from app.models.opportunity_retention_run import (
     OpportunityRetentionRun,
     OpportunityRetentionRunStatus,
 )
+from app.services.aws_pricing_sync import AwsPricingSynchronizer
 from app.services.opportunity_policy import OpportunityManagementPolicyService
 from app.services.opportunity_retention import (
     OpportunityRetentionResult,
     OpportunityRetentionService,
 )
-from app.services.aws_pricing_sync import AwsPricingSynchronizer
 from app.services.rds_reservations_pipeline import (
     RdsReservationsPipelineBusy,
     rds_reservations_refresh_due,

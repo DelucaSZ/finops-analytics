@@ -10,8 +10,8 @@ from app.models.aws_pricing import (
     AwsPricingImportBatch,
     AwsPricingProduct,
     AwsPricingRateDetail,
-    AwsPricingSyncState,
     AwsPricingSyncRun,
+    AwsPricingSyncState,
 )
 from app.models.billing_profile import BillingProfile
 from app.models.cloudwatch_pricing import CloudWatchPricingRule

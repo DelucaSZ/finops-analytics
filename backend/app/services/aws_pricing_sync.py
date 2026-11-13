@@ -13,9 +13,10 @@ import re
 import threading
 import time
 from collections import Counter
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from datetime import UTC, datetime, timedelta
-from typing import Any, Callable, Iterator
+from typing import Any
 
 from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, sessionmaker
@@ -131,11 +132,10 @@ class AwsPricingSynchronizer:
             return
         acquired: list[int] = []
         with engine.connect() as connection:
+
             def take(name: str) -> bool:
                 key = _key("aven:aws-pricing-sync:" + name)
-                if connection.scalar(
-                    text("SELECT pg_try_advisory_lock(:key)"), {"key": key}
-                ):
+                if connection.scalar(text("SELECT pg_try_advisory_lock(:key)"), {"key": key}):
                     acquired.append(key)
                     return True
                 return False
@@ -153,12 +153,12 @@ class AwsPricingSynchronizer:
                 yield claimed
             finally:
                 for key in reversed(acquired):
-                    connection.execute(
-                        text("SELECT pg_advisory_unlock(:key)"), {"key": key}
-                    )
+                    connection.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
                 connection.commit()
 
-    def units(self, *, service: str | None = None, region: str | None = None) -> list[tuple[str, str]]:
+    def units(
+        self, *, service: str | None = None, region: str | None = None
+    ) -> list[tuple[str, str]]:
         enabled = _services(self.config.aws_pricing_sync_services)
         if service and service not in enabled:
             raise ValueError("service disabled or unsupported for AWS price synchronization")
@@ -207,8 +207,7 @@ class AwsPricingSynchronizer:
             )
             attempt = (
                 min(previous_run.attempt + 1, self.config.aws_pricing_sync_max_retries)
-                if previous_run is not None
-                and previous_run.status in {"failed", "interrupted"}
+                if previous_run is not None and previous_run.status in {"failed", "interrupted"}
                 else 1
             )
             item = AwsPricingSyncRun(
@@ -223,7 +222,9 @@ class AwsPricingSynchronizer:
             db.flush()
             return item.id
 
-    def _last_published(self, db: Session, service: str, region: str) -> AwsPricingImportBatch | None:
+    def _last_published(
+        self, db: Session, service: str, region: str
+    ) -> AwsPricingImportBatch | None:
         state = AwsRegionalPricingRepository(db).get_sync_state(
             service_code=service, region_code=region
         )
@@ -310,7 +311,12 @@ class AwsPricingSynchronizer:
             }
         logger.info(
             "event=aws_pricing_sync_completed execution_id=%s service=%s region=%s status=%s elapsed=%.3f error_code=%s",
-            run_id, report["service_code"], report["region_code"], status, elapsed, error_code,
+            run_id,
+            report["service_code"],
+            report["region_code"],
+            status,
+            elapsed,
+            error_code,
         )
         return report
 
@@ -330,8 +336,13 @@ class AwsPricingSynchronizer:
             raise ValueError("invalid AWS pricing trigger")
         if not dry_run and os.environ.get("AVEN_AWS_PRICING_IMPORT_ENABLED") != "1":
             raise PermissionError("publication requires AVEN_AWS_PRICING_IMPORT_ENABLED=1")
-        if fixture_path is not None and not dry_run and (
-            not self.allow_sqlite_tests or os.environ.get("AVEN_ALLOW_OFFLINE_PRICE_FIXTURES") != "1"
+        if (
+            fixture_path is not None
+            and not dry_run
+            and (
+                not self.allow_sqlite_tests
+                or os.environ.get("AVEN_ALLOW_OFFLINE_PRICE_FIXTURES") != "1"
+            )
         ):
             raise PermissionError("offline fixture publication is restricted to explicit tests")
         current = _utc(now)
@@ -344,14 +355,23 @@ class AwsPricingSynchronizer:
                     reference = None if fixture_path else self.discovery(service, region)
                     # Dry-run is a read-only report and cannot publish or queue a job.
                     result = self.importer(
-                        service_code=service, region_code=region, db=db, dry_run=True,
-                        reference=reference, fixture_path=fixture_path,
+                        service_code=service,
+                        region_code=region,
+                        db=db,
+                        dry_run=True,
+                        reference=reference,
+                        fixture_path=fixture_path,
                         max_bytes=self.config.aws_pricing_sync_max_bytes,
                         max_products=self.config.aws_pricing_sync_max_products,
                         max_rates=self.config.aws_pricing_sync_max_rates,
                     )
-                return {"service_code": service, "region_code": region, "status": result.status,
-                        "coverage": result.coverage, "source_version": result.source_version}
+                return {
+                    "service_code": service,
+                    "region_code": region,
+                    "status": result.status,
+                    "coverage": result.coverage,
+                    "source_version": result.source_version,
+                }
             run_id = self._start(service, region, trigger, current)
             reference = None
             result = None
@@ -367,13 +387,20 @@ class AwsPricingSynchronizer:
                             and (latest.diagnostics or {}).get("official_arn") == reference.arn
                         ):
                             return self._finish(
-                                run_id, status="unchanged", now=_utc(),
-                                reference=reference, elapsed=time.monotonic() - started,
+                                run_id,
+                                status="unchanged",
+                                now=_utc(),
+                                reference=reference,
+                                elapsed=time.monotonic() - started,
                             )
                 with self.sessions() as db:
                     result = self.importer(
-                        service_code=service, region_code=region, db=db, dry_run=False,
-                        reference=reference, fixture_path=fixture_path,
+                        service_code=service,
+                        region_code=region,
+                        db=db,
+                        dry_run=False,
+                        reference=reference,
+                        fixture_path=fixture_path,
                         max_bytes=self.config.aws_pricing_sync_max_bytes,
                         max_products=self.config.aws_pricing_sync_max_products,
                         max_rates=self.config.aws_pricing_sync_max_rates,
@@ -385,18 +412,29 @@ class AwsPricingSynchronizer:
                     "published_partial": "partial",
                 }.get(result.status, "failed")
                 return self._finish(
-                    run_id, status=status, now=_utc(), result=result,
-                    reference=reference, error_code="unexpected_import_status" if status == "failed" else None,
+                    run_id,
+                    status=status,
+                    now=_utc(),
+                    result=result,
+                    reference=reference,
+                    error_code="unexpected_import_status" if status == "failed" else None,
                     elapsed=time.monotonic() - started,
                 )
             except Exception as exc:
                 logger.warning(
                     "event=aws_pricing_sync_failed execution_id=%s service=%s region=%s code=%s",
-                    run_id, service, region, type(exc).__name__,
+                    run_id,
+                    service,
+                    region,
+                    type(exc).__name__,
                 )
                 return self._finish(
-                    run_id, status="failed", now=_utc(), reference=reference,
-                    error_code=type(exc).__name__[:100], elapsed=time.monotonic() - started,
+                    run_id,
+                    status="failed",
+                    now=_utc(),
+                    reference=reference,
+                    error_code=type(exc).__name__[:100],
+                    elapsed=time.monotonic() - started,
                 )
 
     def run_cycle(
@@ -418,17 +456,25 @@ class AwsPricingSynchronizer:
                 with self.sessions() as db:
                     latest = db.scalar(
                         select(AwsPricingSyncRun.status)
-                        .where(AwsPricingSyncRun.service_code == svc, AwsPricingSyncRun.region_code == reg)
+                        .where(
+                            AwsPricingSyncRun.service_code == svc,
+                            AwsPricingSyncRun.region_code == reg,
+                        )
                         .order_by(AwsPricingSyncRun.started_at.desc(), AwsPricingSyncRun.id.desc())
                         .limit(1)
                     )
                     if latest not in {"failed", "interrupted"}:
                         continue
-            result.append(self.run_unit(svc, reg, trigger="automatic" if due_only else "manual", dry_run=dry_run))
+            result.append(
+                self.run_unit(
+                    svc, reg, trigger="automatic" if due_only else "manual", dry_run=dry_run
+                )
+            )
         return result
 
-    def status(self, *, service: str | None = None, region: str | None = None,
-               limit: int = 100) -> list[dict[str, Any]]:
+    def status(
+        self, *, service: str | None = None, region: str | None = None, limit: int = 100
+    ) -> list[dict[str, Any]]:
         if not 1 <= limit <= 500:
             raise ValueError("invalid status pagination limit")
         with self.sessions() as db:
@@ -440,32 +486,42 @@ class AwsPricingSynchronizer:
                 )
                 latest = db.scalar(
                     select(AwsPricingSyncRun)
-                    .where(AwsPricingSyncRun.service_code == svc, AwsPricingSyncRun.region_code == reg)
+                    .where(
+                        AwsPricingSyncRun.service_code == svc, AwsPricingSyncRun.region_code == reg
+                    )
                     .order_by(AwsPricingSyncRun.started_at.desc(), AwsPricingSyncRun.id.desc())
                     .limit(1)
                 )
                 updated = _utc(state.last_attempt_at) if state and state.last_attempt_at else None
-                stale = updated is None or updated + timedelta(
-                    hours=self.config.aws_pricing_sync_stale_hours
-                ) < _utc()
-                records.append({
-                    "service_code": svc, "region_code": reg,
-                    "last_attempt_status": latest.status if latest else "not_synced",
-                    "catalog_status": state.coverage_status if state else "never_synced",
-                    "freshness": "stale" if stale else "current",
-                    "last_attempt_at": updated.isoformat() if updated else None,
-                    "last_success_at": _utc(state.last_success_at).isoformat()
-                    if state and state.last_success_at else None,
-                    "next_due_at": _utc(state.next_due_at).isoformat()
-                    if state and state.next_due_at else None,
-                    "published_batch_id": state.last_successful_batch_id if state else None,
-                    "coverage": state.coverage if state else None,
-                    "error_code": latest.error_code if latest else None,
-                })
+                stale = (
+                    updated is None
+                    or updated + timedelta(hours=self.config.aws_pricing_sync_stale_hours) < _utc()
+                )
+                records.append(
+                    {
+                        "service_code": svc,
+                        "region_code": reg,
+                        "last_attempt_status": latest.status if latest else "not_synced",
+                        "catalog_status": state.coverage_status if state else "never_synced",
+                        "freshness": "stale" if stale else "current",
+                        "last_attempt_at": updated.isoformat() if updated else None,
+                        "last_success_at": _utc(state.last_success_at).isoformat()
+                        if state and state.last_success_at
+                        else None,
+                        "next_due_at": _utc(state.next_due_at).isoformat()
+                        if state and state.next_due_at
+                        else None,
+                        "published_batch_id": state.last_successful_batch_id if state else None,
+                        "coverage": state.coverage if state else None,
+                        "error_code": latest.error_code if latest else None,
+                    }
+                )
             return records
 
 
-def coverage_report(db: Session, service: str, region: str, at: datetime | None = None) -> dict[str, Any]:
+def coverage_report(
+    db: Session, service: str, region: str, at: datetime | None = None
+) -> dict[str, Any]:
     """Calculate coverage from CURRENT valid, linear published rates, not row totals.
 
     This complements immutable import-time coverage and detects expired dimension
@@ -483,7 +539,10 @@ def coverage_report(db: Session, service: str, region: str, at: datetime | None 
             PricingCatalogItem.enabled.is_(True),
             PricingCatalogItem.source == "AWS_PUBLIC_PRICE_LIST",
             PricingCatalogItem.effective_from <= now,
-            (PricingCatalogItem.effective_until.is_(None) | (PricingCatalogItem.effective_until > now)),
+            (
+                PricingCatalogItem.effective_until.is_(None)
+                | (PricingCatalogItem.effective_until > now)
+            ),
         )
         .execution_options(yield_per=500)
     )
@@ -496,28 +555,41 @@ def coverage_report(db: Session, service: str, region: str, at: datetime | None 
         if component is None:
             continue
         normalized = NormalizedProduct(
-            sku=product.product_sku, service=product.service,
-            service_code=service, region=region, family=product.product_family,
-            description=product.description, attributes=product.product_attributes,
+            sku=product.product_sku,
+            service=product.service,
+            service_code=service,
+            region=region,
+            family=product.product_family,
+            description=product.description,
+            attributes=product.product_attributes,
             financial_attributes=product.financial_attributes,
         )
         rate = NormalizedRate(
-            product=normalized, rate_code=detail.rate_code, term_code=detail.term_code,
-            amount=item.price, effective_at=_utc(item.effective_from).isoformat(),
-            aws_unit=detail.billing_unit_aws, unit=item.unit,
-            begin_range=detail.begin_range, end_range=detail.end_range,
-            description=detail.rate_description, pricing_status=detail.pricing_status,
+            product=normalized,
+            rate_code=detail.rate_code,
+            term_code=detail.term_code,
+            amount=item.price,
+            effective_at=_utc(item.effective_from).isoformat(),
+            aws_unit=detail.billing_unit_aws,
+            unit=item.unit,
+            begin_range=detail.begin_range,
+            end_range=detail.end_range,
+            description=detail.rate_description,
+            pricing_status=detail.pricing_status,
             component=component,
         )
         components[coverage_component(rate)] += 1
         rates += 1
     summary = coverage_summary(service, dict(components))
     summary["active_rates"] = rates
-    summary["products"] = db.scalar(
-        select(func.count(AwsPricingProduct.id)).where(
-            AwsPricingProduct.service_code == service, AwsPricingProduct.region_code == region
+    summary["products"] = (
+        db.scalar(
+            select(func.count(AwsPricingProduct.id)).where(
+                AwsPricingProduct.service_code == service, AwsPricingProduct.region_code == region
+            )
         )
-    ) or 0
+        or 0
+    )
     # RDS Multi-AZ is required by the calculator even when the 28.3 minimum
     # (historically Single-AZ) is met.
     if service == "AmazonRDS":

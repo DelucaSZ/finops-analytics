@@ -426,7 +426,9 @@ class AwsRegionalPricingRepository:
                 and current_detail.pricing_status == pricing_status
                 and current.price == price
                 and current.currency == "USD"
-                and (current.effective_until is None or start < _stored_date(current.effective_until))
+                and (
+                    current.effective_until is None or start < _stored_date(current.effective_until)
+                )
             ):
                 return current
         if rows and start <= _stored_date(rows[0].effective_from):

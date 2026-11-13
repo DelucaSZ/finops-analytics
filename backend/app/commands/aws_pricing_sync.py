@@ -30,7 +30,9 @@ def main(argv: list[str] | None = None) -> int:
     mode.add_argument("--apply", action="store_true", help="Publish checked official sources")
     parser.add_argument("--service", help="Official AWS ServiceCode")
     parser.add_argument("--region", help="Commercial AWS region")
-    parser.add_argument("--all", action="store_true", help="Process eligible regions (bounded cycle)")
+    parser.add_argument(
+        "--all", action="store_true", help="Process eligible regions (bounded cycle)"
+    )
     parser.add_argument("--retry-failed", action="store_true", help="Only retry last failed units")
     parser.add_argument("--fixture", type=Path, help="Read-only official-format test fixture")
     parser.add_argument("--limit", type=int, default=100, help="Status pagination limit (max 500)")
@@ -43,9 +45,7 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("coverage requires --service and --region")
     if args.retry_failed and not args.apply:
         parser.error("--retry-failed requires --apply")
-    if (args.apply or args.dry_run) and not args.all and (
-        not args.service or not args.region
-    ):
+    if (args.apply or args.dry_run) and not args.all and (not args.service or not args.region):
         parser.error("a single run requires --service and --region; use --all for a bounded cycle")
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
     sync = AwsPricingSynchronizer()
@@ -65,14 +65,19 @@ def main(argv: list[str] | None = None) -> int:
             )
         else:
             output = sync.run_unit(
-                args.service, args.region, dry_run=args.dry_run, fixture_path=args.fixture,
+                args.service,
+                args.region,
+                dry_run=args.dry_run,
+                fixture_path=args.fixture,
             )
         print(json.dumps(output, default=str, sort_keys=True, indent=2))
         if isinstance(output, list):
             failed = any(item.get("status") in {"failed", "partial", "busy"} for item in output)
         else:
             failed = isinstance(output, dict) and output.get("status") in {
-                "failed", "partial", "busy"
+                "failed",
+                "partial",
+                "busy",
             }
         return 2 if failed else 0
     except (ValueError, PermissionError, RuntimeError) as exc:

@@ -252,7 +252,11 @@ def import_aws_prices(
     No endpoint, UI, scheduler or customer account credentials are involved.
     """
     start = time.monotonic()
-    if reference is not None and (fixture_path is not None or reference.service_code != service_code or reference.region_code != region_code):
+    if reference is not None and (
+        fixture_path is not None
+        or reference.service_code != service_code
+        or reference.region_code != region_code
+    ):
         raise AwsBulkImportError("official price-list reference does not match service/region")
     if not dry_run and db is None:
         raise AwsBulkImportError("database session required for publication")
