@@ -36,8 +36,14 @@ class AwsLocalCalculatorResolver:
         self.warnings: list[str] = []
 
     def _missing(
-        self, service: str, region: str, key: str, unit: str, at: datetime,
-        status: str, warning: str,
+        self,
+        service: str,
+        region: str,
+        key: str,
+        unit: str,
+        at: datetime,
+        status: str,
+        warning: str,
     ) -> CalculatorPriceLookup:
         return missing_aws_lookup(service, region, key, unit, at, status, warning)
 
@@ -92,20 +98,27 @@ class AwsLocalCalculatorResolver:
                 statement = statement.where(column == value)
         if service == "ec2" and family == "Compute Instance":
             statement = statement.where(
-                AwsPricingProduct.financial_attributes["operation"].as_string().startswith("RunInstances")
+                AwsPricingProduct.financial_attributes["operation"]
+                .as_string()
+                .startswith("RunInstances")
             )
         if service == "rds" and family == "Database Instance":
             statement = statement.where(
                 AwsPricingProduct.financial_attributes["deploymentModel"].as_string().is_(None)
-                | ~AwsPricingProduct.financial_attributes["deploymentModel"].as_string().in_(
-                    ("Custom", "Multi-AZ DB cluster")
-                )
+                | ~AwsPricingProduct.financial_attributes["deploymentModel"]
+                .as_string()
+                .in_(("Custom", "Multi-AZ DB cluster"))
             )
         rows = list(self.db.scalars(statement.limit(_MAX_CANDIDATES + 1)))
         if len(rows) > _MAX_CANDIDATES:
             return self._missing(
-                target_service, region, key, unit, at,
-                "pricing_configuration_error", "aws_catalog_product_match_limit",
+                target_service,
+                region,
+                key,
+                unit,
+                at,
+                "pricing_configuration_error",
+                "aws_catalog_product_match_limit",
             )
         candidates = [p for p in rows if matches(p.product_attributes)]
         if not candidates:
@@ -118,7 +131,11 @@ class AwsLocalCalculatorResolver:
                 )
             )
             return self._missing(
-                target_service, region, key, unit, at,
+                target_service,
+                region,
+                key,
+                unit,
+                at,
                 "sync_required" if needs_sync else "sku_missing",
                 (
                     "aws_region_catalog_not_synchronized"
@@ -128,8 +145,13 @@ class AwsLocalCalculatorResolver:
             )
         if len(candidates) != 1:
             return self._missing(
-                target_service, region, key, unit, at,
-                "pricing_configuration_error", f"aws_{service}_{key}_ambiguous_product",
+                target_service,
+                region,
+                key,
+                unit,
+                at,
+                "pricing_configuration_error",
+                f"aws_{service}_{key}_ambiguous_product",
             )
 
         product = candidates[0]
@@ -145,18 +167,32 @@ class AwsLocalCalculatorResolver:
         )
         if resolved.status != "priced":
             return self._missing(
-                product.service, region, key, unit, at,
-                resolved.status, resolved.warning_code or resolved.status,
+                product.service,
+                region,
+                key,
+                unit,
+                at,
+                resolved.status,
+                resolved.warning_code or resolved.status,
             )
         if (
-            resolved.unit_price is None or resolved.catalog_item_id is None
-            or not resolved.product_sku or not resolved.rate_code
-            or resolved.currency != "USD" or resolved.billing_unit != unit
-            or resolved.effective_from is None or resolved.source is None
+            resolved.unit_price is None
+            or resolved.catalog_item_id is None
+            or not resolved.product_sku
+            or not resolved.rate_code
+            or resolved.currency != "USD"
+            or resolved.billing_unit != unit
+            or resolved.effective_from is None
+            or resolved.source is None
         ):
             return self._missing(
-                product.service, region, key, unit, at,
-                "pricing_configuration_error", "aws_rate_integrity_error",
+                product.service,
+                region,
+                key,
+                unit,
+                at,
+                "pricing_configuration_error",
+                "aws_rate_integrity_error",
             )
         identity = PricingIdentity(
             "aws", product.service, f"{resolved.product_sku}:{resolved.rate_code}", unit
