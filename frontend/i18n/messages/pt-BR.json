@@ -290,6 +290,7 @@
       "openBacklogHelp": "Backlog OPEN atual e não arquivado",
       "monthlySavings": "Economia potencial mensal",
       "currenciesSeparate": "Moedas permanecem separadas; nenhum câmbio é inferido",
+      "incompleteCoverage": "Cobertura financeira incompleta: {known} conhecidas, {partial} parciais e {unknown} desconhecidas. A soma inclui apenas estimativas completas.",
       "validScopeHelp": "Contas com uma coleta válida disponível para o resumo atual",
       "monthSuffix": "/mês"
     },
