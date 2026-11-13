@@ -11,10 +11,10 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal
 from typing import Literal
 
-from sqlalchemy import func, or_, select, text
+from sqlalchemy import select, text
 from sqlalchemy.orm import Session
 
 from app.db.base import utcnow
@@ -412,6 +412,8 @@ class AwsRegionalPricingRepository:
     ) -> AwsPricingSyncState:
         if status not in {"never_synced", "synced", "partial", "stale", "failed"}:
             raise AwsPricingValidationError("invalid sync status")
+        if status == "synced" and (batch is None or batch.status != "published"):
+            raise AwsPricingValidationError("synced requires a published import batch")
         code = _required(service_code, "service_code", 80)
         region = _region(region_code)
         if batch is not None and (

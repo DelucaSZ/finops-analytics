@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from sqlalchemy import (
-    JSON, CheckConstraint, DateTime, ForeignKey, Index, Integer, Numeric, String,
+    JSON, CheckConstraint, DateTime, ForeignKey, Index, Integer, String,
     UniqueConstraint,
 )
 from sqlalchemy.dialects.postgresql import JSONB

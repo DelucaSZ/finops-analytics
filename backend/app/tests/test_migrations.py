@@ -61,7 +61,7 @@ def test_fresh_database_matches_models_and_worker_is_ready(migration_engine):
     with migration_engine.connect() as connection:
         assert (
             connection.scalar(text("SELECT version_num FROM deepops_mfa_schema_version"))
-            == "0039_oci_db_calculator_bindings"
+            == "0040_aws_regional_pricing"
         )
         assert (
             compare_metadata(

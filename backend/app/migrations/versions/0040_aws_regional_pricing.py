@@ -6,6 +6,7 @@ Revises: 0039_oci_db_calculator_bindings
 No AWS prices are imported. All existing OCI pricing rows remain untouched.
 """
 import sqlalchemy as sa
+from sqlalchemy.dialects.postgresql import JSONB
 from alembic import op
 
 revision = "0040_aws_regional_pricing"
@@ -13,7 +14,7 @@ down_revision = "0039_oci_db_calculator_bindings"
 branch_labels = None
 depends_on = None
 
-_JSON = sa.JSON().with_variant(sa.dialects.postgresql.JSONB(), "postgresql")
+_JSON = sa.JSON().with_variant(JSONB(), "postgresql")
 
 
 def upgrade() -> None:

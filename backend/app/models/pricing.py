@@ -10,7 +10,6 @@ from sqlalchemy import (
     text,
     Numeric,
     String,
-    UniqueConstraint,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column

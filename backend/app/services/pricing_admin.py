@@ -69,6 +69,8 @@ class PricingCatalogAdminService:
     def __init__(self, db: Session, *, provider: str) -> None:
         self.db = db
         self.provider = provider.strip().lower()
+        if self.provider == "aws":
+            raise PricingAdminValidationError("AWS prices require the regional repository")
 
     def list_items(
         self,
