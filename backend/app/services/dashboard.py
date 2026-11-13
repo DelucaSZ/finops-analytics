@@ -643,8 +643,7 @@ def dashboard_summary(
     stale = [
         row
         for row in rows
-        if row.summary_run_id != row.expected_run_id
-        or "coverage" not in (row.financial or {})
+        if row.summary_run_id != row.expected_run_id or "coverage" not in (row.financial or {})
     ]
     if stale:
         try:
@@ -671,8 +670,7 @@ def dashboard_summary(
             )
 
     if any(
-        row.summary_run_id != row.expected_run_id
-        or "coverage" not in (row.financial or {})
+        row.summary_run_id != row.expected_run_id or "coverage" not in (row.financial or {})
         for row in rows
     ):
         return _dashboard_summary_direct(
