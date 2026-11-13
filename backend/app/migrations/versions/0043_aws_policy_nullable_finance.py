@@ -22,14 +22,14 @@ _COLUMNS = ("current_monthly_cost", "estimated_monthly_savings")
 
 def upgrade() -> None:
     for table in _TABLES:
-        for column in _COLUMNS:
-            op.alter_column(
-                table,
-                column,
-                existing_type=sa.Numeric(14, 2),
-                existing_nullable=False,
-                nullable=True,
-            )
+        with op.batch_alter_table(table) as batch_op:
+            for column in _COLUMNS:
+                batch_op.alter_column(
+                    column,
+                    existing_type=sa.Numeric(14, 2),
+                    existing_nullable=False,
+                    nullable=True,
+                )
 
 
 def downgrade() -> None:
@@ -47,11 +47,11 @@ def downgrade() -> None:
                 f"{nulls} rows contain unknown estimates"
             )
     for table in reversed(_TABLES):
-        for column in _COLUMNS:
-            op.alter_column(
-                table,
-                column,
-                existing_type=sa.Numeric(14, 2),
-                existing_nullable=True,
-                nullable=False,
-            )
+        with op.batch_alter_table(table) as batch_op:
+            for column in _COLUMNS:
+                batch_op.alter_column(
+                    column,
+                    existing_type=sa.Numeric(14, 2),
+                    existing_nullable=True,
+                    nullable=False,
+                )
