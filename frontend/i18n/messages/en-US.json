@@ -1193,6 +1193,7 @@
       "afterFilters": "{status} after applying filters",
       "potential": "Potential savings on this page",
       "noConversion": "Currencies kept separate; no FX conversion is applied",
+      "incompleteCoverage": "Incomplete coverage on this page: the subtotal excludes partial or unknown savings.",
       "lastArchive": "Most recent archive",
       "lastDetection": "Last detection on this page",
       "archiveDescription": "Date of entry into history among the loaded items",
@@ -1359,6 +1360,7 @@
     },
     "savings": {
       "notEstimated": "Not estimated",
+      "partialEstimate": "Partial estimate, excluded from total",
       "perMonth": "/month"
     },
     "detail": {
