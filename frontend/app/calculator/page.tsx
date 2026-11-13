@@ -54,6 +54,7 @@ export default function CalculatorPage() {
   const [volumes, setVolumes] = useState<VolumeInput[]>([]);
   const [awsRegions, setAwsRegions] = useState<string[]>([]);
   const [awsRegionStatus, setAwsRegionStatus] = useState<Record<string, string>>({});
+  const [awsServiceStatus, setAwsServiceStatus] = useState<Record<string, Record<string, string>>>({});
   const [awsOptionsOffset, setAwsOptionsOffset] = useState(0);
   const [awsOptions, setAwsOptions] = useState<AwsOptionsResponse | null>(null);
   const [ociCompute, setOciCompute] = useState<OciComputeOptions | null>(null);
@@ -128,11 +129,13 @@ export default function CalculatorPage() {
       if (controller.signal.aborted) return;
       setAwsRegions(data.items);
       setAwsRegionStatus(data.region_status ?? {});
+      setAwsServiceStatus(data.service_status ?? {});
       setMetadataStatus("ready");
     }).catch((error) => {
       if (controller.signal.aborted || AbortableError(error)) return;
       setAwsRegions([]);
       setAwsRegionStatus({});
+      setAwsServiceStatus({});
       setMetadataStatus("error");
       setMetadataError("regions");
     });
@@ -141,6 +144,7 @@ export default function CalculatorPage() {
 
   const region = form.region.trim();
   const search = form.search.trim();
+  const activeAwsRegionStatus = awsServiceStatus[service]?.[region] ?? awsRegionStatus[region];
   useEffect(() => {
     if (provider !== "aws" || !region || search.length < 2 || (service !== "ec2" && service !== "rds")) {
       setAwsOptions(null);
@@ -390,8 +394,8 @@ export default function CalculatorPage() {
               {metadataStatus === "error" && <Alert variant="warning" title={t("metadataError")} description={tx("errors." + metadataError)} />}
               {provider === "aws" && !awsRegions.length && metadataStatus === "loading" && <p className={styles.hint}>{t("loadingOptions")}</p>}
               {provider === "aws" && !awsRegions.length && metadataStatus === "ready" && <Alert variant="warning" description={t("noAwsRegions")} />}
-              {provider === "aws" && region && awsRegionStatus[region] === "sync_required" && <Alert variant="warning" description={t("regionSyncRequired")} />}
-              {provider === "aws" && region && ["stale", "partial", "failed"].includes(awsRegionStatus[region]) && <Alert variant="warning" description={t("regionCatalogPartial")} />}
+              {provider === "aws" && region && activeAwsRegionStatus === "sync_required" && <Alert variant="warning" description={t("regionSyncRequired")} />}
+              {provider === "aws" && region && ["stale", "partial", "failed"].includes(activeAwsRegionStatus) && <Alert variant="warning" description={t("regionCatalogPartial")} />}
             </CardContent>
           </Card>
 
