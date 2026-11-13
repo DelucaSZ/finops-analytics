@@ -38,7 +38,7 @@ def _provider_distribution(db: Session, current) -> list[dict[str, object]]:
             current.c.provider,
             current.c.currency,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.sum(current.c.estimated_monthly_savings).label("amount"),
+            func.sum(current.c.complete_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -99,7 +99,7 @@ def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict
             CloudAccount.name.label("account_name"),
             top_accounts.c.open,
             current.c.currency,
-            func.sum(current.c.estimated_monthly_savings).label("amount"),
+            func.sum(current.c.complete_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -174,7 +174,7 @@ def _dimension_distribution(
             top_dimensions.c.dimension_key,
             top_dimensions.c.open,
             current.c.currency,
-            func.sum(current.c.estimated_monthly_savings).label("amount"),
+            func.sum(current.c.complete_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
