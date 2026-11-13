@@ -202,7 +202,9 @@ def get_effective_policy(db: Session, rule_key: str, account_id: int | None = No
         if account_policy:
             enabled = account_policy.enabled if account_policy.enabled is not None else enabled
             config = deep_merge(config, strip_legacy_pricing(rule_key, account_policy.config or {}))
-            override_fields = sorted(strip_legacy_pricing(rule_key, account_policy.config or {}).keys())
+            override_fields = sorted(
+                strip_legacy_pricing(rule_key, account_policy.config or {}).keys()
+            )
             if account_policy.enabled is not None:
                 override_fields.insert(0, "enabled")
 

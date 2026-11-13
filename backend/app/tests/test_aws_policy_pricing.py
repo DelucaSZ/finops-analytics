@@ -59,11 +59,15 @@ def db(request):
 
 def finding(key, region="sa-east-1", **details):
     return CollectedFinding(
-        rule_key=key, service="EC2", region=region,
-        resource_id="resource-123", title="Synthetic financial test",
+        rule_key=key,
+        service="EC2",
+        region=region,
+        resource_id="resource-123",
+        title="Synthetic financial test",
         description="A resource eligible for financial assessment.",
         evidence={"details": details, "metrics": [], "notes": []},
-        current_monthly_cost=None, estimated_monthly_savings=None,
+        current_monthly_cost=None,
+        estimated_monthly_savings=None,
     )
 
 
@@ -74,20 +78,36 @@ def enrich(db, item, *, config=None, at=AT):
         side_effect=AssertionError("Live AWS Pricing API must not be called"),
     ):
         AwsPolicyPricingAdapter(db, reference_at=at).enrich_findings(
-            values, [{"rule_key": item.rule_key, "config": config or {}}],
+            values,
+            [{"rule_key": item.rule_key, "config": config or {}}],
         )
     return values[0] if values else None
 
 
 def test_ebs_gp3_rate_is_identical_to_calculator_and_regional(db):
     ebs(db, amount="0.10")
-    ebs(db, family="System Operation", usage="VolumeP-IOPS.gp3",
-        sku="IOPS-3000", amount="0.005", unit="IOPS_MONTH", aws_unit="IOPS-Mo")
-    ebs(db, family="Provisioned Throughput", usage="VolumeP-Throughput.gp3",
-        sku="THROUGHPUT", amount="0.04", unit="MBPS_MONTH", aws_unit="MBps-Mo")
+    ebs(
+        db,
+        family="System Operation",
+        usage="VolumeP-IOPS.gp3",
+        sku="IOPS-3000",
+        amount="0.005",
+        unit="IOPS_MONTH",
+        aws_unit="IOPS-Mo",
+    )
+    ebs(
+        db,
+        family="Provisioned Throughput",
+        usage="VolumeP-Throughput.gp3",
+        sku="THROUGHPUT",
+        amount="0.04",
+        unit="MBPS_MONTH",
+        aws_unit="MBps-Mo",
+    )
     db.commit()
-    item = enrich(db, finding("ebs_unattached", size_gib=100, volume_type="gp3",
-                              iops=4000, throughput=150))
+    item = enrich(
+        db, finding("ebs_unattached", size_gib=100, volume_type="gp3", iops=4000, throughput=150)
+    )
     assert item is not None
     assert item.estimated_monthly_savings == Decimal("16.00")
     assert item.evidence["pricing"]["status"] == "priced"
@@ -101,9 +121,11 @@ def test_ebs_gp3_rate_is_identical_to_calculator_and_regional(db):
 def test_ebs_gp3_missing_required_component_keeps_operational_finding(db):
     ebs(db, amount="0.10")
     db.commit()
-    item = enrich(db, finding("ebs_unattached", size_gib=100, volume_type="gp3",
-                              iops=4000, throughput=125),
-                  config={"minimum_monthly_savings_usd": 1000})
+    item = enrich(
+        db,
+        finding("ebs_unattached", size_gib=100, volume_type="gp3", iops=4000, throughput=125),
+        config={"minimum_monthly_savings_usd": 1000},
+    )
     assert item is not None
     assert item.evidence["pricing"]["status"] == "partially_priced"
     assert item.evidence["pricing"]["known_subtotal_usd"] == "10.00"
@@ -115,8 +137,17 @@ def test_ebs_gp3_missing_required_component_keeps_operational_finding(db):
 def test_unsynced_region_never_defaults_to_zero_or_another_region(db):
     ebs(db)
     db.commit()
-    item = enrich(db, finding("ebs_unattached", "us-east-1", size_gib=100,
-                              volume_type="gp3", iops=3000, throughput=125))
+    item = enrich(
+        db,
+        finding(
+            "ebs_unattached",
+            "us-east-1",
+            size_gib=100,
+            volume_type="gp3",
+            iops=3000,
+            throughput=125,
+        ),
+    )
     assert item is not None
     assert item.evidence["pricing"]["status"] == "sync_required"
     assert item.current_monthly_cost is None
@@ -126,11 +157,15 @@ def test_unsynced_region_never_defaults_to_zero_or_another_region(db):
 def test_stopped_ec2_counts_ebs_only_and_preserves_no_prices(db):
     ebs(db)
     db.commit()
-    item = enrich(db, finding(
-        "ec2_stopped_with_ebs",
-        volumes=[{"volume_id": "v1", "type": "gp3", "size_gib": 40,
-                  "iops": 3000, "throughput": 125}],
-    ))
+    item = enrich(
+        db,
+        finding(
+            "ec2_stopped_with_ebs",
+            volumes=[
+                {"volume_id": "v1", "type": "gp3", "size_gib": 40, "iops": 3000, "throughput": 125}
+            ],
+        ),
+    )
     assert item is not None
     assert item.current_monthly_cost == Decimal("4.00")
     assert item.estimated_monthly_savings == Decimal("4.00")
@@ -141,14 +176,20 @@ def test_stopped_ec2_counts_ebs_only_and_preserves_no_prices(db):
 def test_ec2_linux_nonprod_uses_monthly_schedule_not_fixed_365_hours(db):
     compute(db, amount="1")
     db.commit()
-    item = enrich(db, finding(
-        "ec2_nonprod_outside_hours", instance_type="t3.medium",
-        platform_details="Linux/UNIX", tenancy="default",
-    ), config={
-        "business_days": [1, 2, 3, 4, 5],
-        "business_hours_start": "08:00",
-        "business_hours_end": "19:00",
-    })
+    item = enrich(
+        db,
+        finding(
+            "ec2_nonprod_outside_hours",
+            instance_type="t3.medium",
+            platform_details="Linux/UNIX",
+            tenancy="default",
+        ),
+        config={
+            "business_days": [1, 2, 3, 4, 5],
+            "business_hours_start": "08:00",
+            "business_hours_end": "19:00",
+        },
+    )
     assert item is not None
     assert item.current_monthly_cost == Decimal("730.00")
     assert item.estimated_monthly_savings != Decimal("365.00")
@@ -158,27 +199,50 @@ def test_ec2_linux_nonprod_uses_monthly_schedule_not_fixed_365_hours(db):
 def test_rds_is_engine_and_deployment_specific_compute_only(db):
     rds(db, deployment="Multi-AZ", amount="2")
     db.commit()
-    item = enrich(db, finding(
-        "rds_nonprod_idle", engine="postgres", instance_class="db.t3.medium",
-        multi_az=True, license_model="postgresql-license",
-    ))
+    item = enrich(
+        db,
+        finding(
+            "rds_nonprod_idle",
+            engine="postgres",
+            instance_class="db.t3.medium",
+            multi_az=True,
+            license_model="postgresql-license",
+        ),
+    )
     assert item is not None
     assert item.evidence["pricing"]["status"] == "partially_priced"
     assert item.estimated_monthly_savings == Decimal("1460.00")
     assert item.current_monthly_cost is None
-    assert "rds_storage_and_additional_costs_excluded" in item.evidence["pricing"]["missing_components"]
+    assert (
+        "rds_storage_and_additional_costs_excluded"
+        in item.evidence["pricing"]["missing_components"]
+    )
 
 
 def test_snapshot_price_is_upper_bound_not_recognized_saving(db):
-    publish(db, sku="SNAP-STANDARD", amount="0.06",
-            attrs={"usagetype": "SAE1-EBS:SnapshotUsage", "snapshotType": "standard",
-                   "productFamily": "Snapshot Storage"},
-            family="Snapshot Storage", service="snapshot",
-            unit="GB_MONTH", aws_unit="GB-Mo")
+    publish(
+        db,
+        sku="SNAP-STANDARD",
+        amount="0.06",
+        attrs={
+            "usagetype": "SAE1-EBS:SnapshotUsage",
+            "snapshotType": "standard",
+            "productFamily": "Snapshot Storage",
+        },
+        family="Snapshot Storage",
+        service="snapshot",
+        unit="GB_MONTH",
+        aws_unit="GB-Mo",
+    )
     db.commit()
-    item = enrich(db, finding(
-        "snapshot_retention", storage_tier="standard", volume_size_gib=200,
-    ))
+    item = enrich(
+        db,
+        finding(
+            "snapshot_retention",
+            storage_tier="standard",
+            volume_size_gib=200,
+        ),
+    )
     assert item is not None
     assert item.current_monthly_cost == Decimal("12.00")
     assert item.estimated_monthly_savings is None
@@ -186,11 +250,17 @@ def test_snapshot_price_is_upper_bound_not_recognized_saving(db):
 
 
 def test_eip_uses_hourly_public_price_without_monthly_hardcoding(db):
-    publish(db, sku="IP-IDLE", amount="0.005",
-            attrs={"usagetype": "SAE1-PublicIPv4:IdleAddress",
-                   "productFamily": "Public IPv4"},
-            family="Public IPv4", service="ipv4",
-            service_code="AmazonVPC", unit="IP_HOUR", aws_unit="Hrs")
+    publish(
+        db,
+        sku="IP-IDLE",
+        amount="0.005",
+        attrs={"usagetype": "SAE1-PublicIPv4:IdleAddress", "productFamily": "Public IPv4"},
+        family="Public IPv4",
+        service="ipv4",
+        service_code="AmazonVPC",
+        unit="IP_HOUR",
+        aws_unit="Hrs",
+    )
     db.commit()
     item = enrich(db, finding("eip_unassociated"))
     assert item is not None
@@ -199,16 +269,26 @@ def test_eip_uses_hourly_public_price_without_monthly_hardcoding(db):
 
 
 def test_load_balancer_base_does_not_claim_full_cost_or_savings(db):
-    publish(db, sku="ALB-HOURS", amount="0.03",
-            attrs={"usagetype": "SAE1-LoadBalancerUsage",
-                   "productFamily": "Load Balancing"},
-            family="Load Balancing", service="alb",
-            service_code="AWSELB", unit="LB_HOUR", aws_unit="Hrs")
+    publish(
+        db,
+        sku="ALB-HOURS",
+        amount="0.03",
+        attrs={"usagetype": "SAE1-LoadBalancerUsage", "productFamily": "Load Balancing"},
+        family="Load Balancing",
+        service="alb",
+        service_code="AWSELB",
+        unit="LB_HOUR",
+        aws_unit="Hrs",
+    )
     db.commit()
-    item = enrich(db, finding(
-        "load_balancer_no_traffic", load_balancer_type="application",
-        datapoint_count=7,
-    ))
+    item = enrich(
+        db,
+        finding(
+            "load_balancer_no_traffic",
+            load_balancer_type="application",
+            datapoint_count=7,
+        ),
+    )
     assert item is not None
     assert item.evidence["pricing"]["status"] == "partially_priced"
     assert item.evidence["pricing"]["known_subtotal_usd"] == "21.90"
@@ -218,9 +298,11 @@ def test_load_balancer_base_does_not_claim_full_cost_or_savings(db):
 def test_legitimate_zero_price_is_distinct_from_missing(db):
     ebs(db, amount="0")
     db.commit()
-    item = enrich(db, finding("ebs_unattached", size_gib=10, volume_type="gp3",
-                              iops=3000, throughput=125),
-                  config={"minimum_monthly_savings_usd": 0})
+    item = enrich(
+        db,
+        finding("ebs_unattached", size_gib=10, volume_type="gp3", iops=3000, throughput=125),
+        config={"minimum_monthly_savings_usd": 0},
+    )
     assert item is not None
     assert item.evidence["pricing"]["status"] == "priced"
     assert item.current_monthly_cost == Decimal("0.00")

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 from typing import Any
 
 from sqlalchemy import select
@@ -25,11 +25,17 @@ from app.services.collector_types import CollectedFinding
 
 _CENT = Decimal("0.01")
 _INSTANCE_HOURS = Decimal("730")
-_AWS_FINANCIAL_RULES = frozenset({
-    "ebs_unattached", "ec2_stopped_with_ebs", "eip_unassociated",
-    "snapshot_retention", "ec2_nonprod_outside_hours",
-    "load_balancer_no_traffic", "rds_nonprod_idle",
-})
+_AWS_FINANCIAL_RULES = frozenset(
+    {
+        "ebs_unattached",
+        "ec2_stopped_with_ebs",
+        "eip_unassociated",
+        "snapshot_retention",
+        "ec2_nonprod_outside_hours",
+        "load_balancer_no_traffic",
+        "rds_nonprod_idle",
+    }
+)
 
 
 def _money(value: Decimal) -> Decimal:
@@ -67,7 +73,9 @@ class _Rate:
             "quantity": format(quantity, "f"),
             "unit": self.unit,
             "unit_price_usd": format(self.unit_price, "f") if valid else None,
-            "estimated_cost_usd": format(_money(quantity * self.unit_price), "f") if valid else None,
+            "estimated_cost_usd": format(_money(quantity * self.unit_price), "f")
+            if valid
+            else None,
             "catalog_item_id": self.catalog_item_id,
             "product_sku": self.product_sku,
             "rate_code": self.rate_code,
@@ -103,27 +111,59 @@ class AwsPolicyPricingAdapter:
             product_sku=result.product_sku,
             rate_code=result.rate_code,
             source=price.source if price is not None and result.available else None,
-            effective_from=price.effective_from.isoformat() if price is not None and result.available else None,
-            effective_until=price.effective_until.isoformat() if price is not None and price.effective_until else None,
+            effective_from=price.effective_from.isoformat()
+            if price is not None and result.available
+            else None,
+            effective_until=price.effective_until.isoformat()
+            if price is not None and price.effective_until
+            else None,
             import_batch_id=result.import_batch_id,
         )
 
     def _calculator_rate(
-        self, *, service: str, region: str, family: str, filters: dict[str, str],
-        key: str, unit: str, matcher,
+        self,
+        *,
+        service: str,
+        region: str,
+        family: str,
+        filters: dict[str, str],
+        key: str,
+        unit: str,
+        matcher,
     ) -> _Rate:
-        cache_key = ("calculator", service, region, family, key, unit, tuple(sorted(filters.items())))
+        cache_key = (
+            "calculator",
+            service,
+            region,
+            family,
+            key,
+            unit,
+            tuple(sorted(filters.items())),
+        )
         if cache_key not in self._cache:
             result = self.calculator.resolve(
-                service=service, region=region, family=family, filters=filters,
-                matches=matcher, unit=unit, aws_unit="", at=self.reference_at, key=key,
+                service=service,
+                region=region,
+                family=family,
+                filters=filters,
+                matches=matcher,
+                unit=unit,
+                aws_unit="",
+                at=self.reference_at,
+                key=key,
             )
             self._cache[cache_key] = self._from_calculator(result)
         return self._cache[cache_key]
 
     def _catalog_rate(
-        self, *, service: str, region: str, unit: str, usage_token: str,
-        service_codes: tuple[str, ...], family_token: str | None = None,
+        self,
+        *,
+        service: str,
+        region: str,
+        unit: str,
+        usage_token: str,
+        service_codes: tuple[str, ...],
+        family_token: str | None = None,
     ) -> _Rate:
         key = ("catalog", service, region, unit, usage_token, service_codes, family_token)
         if key in self._cache:
@@ -137,7 +177,8 @@ class AwsPolicyPricingAdapter:
         if usage_token:
             statement = statement.where(
                 AwsPricingProduct.financial_attributes["usagetype"]
-                .as_string().contains(usage_token, autoescape=True)
+                .as_string()
+                .contains(usage_token, autoescape=True)
             )
         if family_token:
             statement = statement.where(
@@ -160,7 +201,9 @@ class AwsPolicyPricingAdapter:
                 )
                 rate = _Rate(
                     "sync_required" if missing_sync else "sku_missing",
-                    "aws_region_catalog_not_synchronized" if missing_sync else "aws_policy_product_absent",
+                    "aws_region_catalog_not_synchronized"
+                    if missing_sync
+                    else "aws_policy_product_absent",
                 )
         else:
             product = rows[0]
@@ -182,8 +225,12 @@ class AwsPolicyPricingAdapter:
                 product_sku=resolution.product_sku,
                 rate_code=resolution.rate_code,
                 source=resolution.source,
-                effective_from=resolution.effective_from.isoformat() if resolution.effective_from else None,
-                effective_until=resolution.effective_until.isoformat() if resolution.effective_until else None,
+                effective_from=resolution.effective_from.isoformat()
+                if resolution.effective_from
+                else None,
+                effective_until=resolution.effective_until.isoformat()
+                if resolution.effective_until
+                else None,
                 import_batch_id=resolution.import_batch_id,
             )
         self._cache[key] = rate
@@ -199,9 +246,12 @@ class AwsPolicyPricingAdapter:
 
         def add(name: str, token: str, family: str, unit: str, quantity: Decimal):
             rate = self._calculator_rate(
-                service="ec2", region=region, family=family,
+                service="ec2",
+                region=region,
+                family=family,
                 filters={"contains:usagetype": token},
-                key=name, unit=unit,
+                key=name,
+                unit=unit,
                 matcher=lambda a: (
                     a.get("volumeApiName") in (None, volume_type)
                     and str(a.get("usagetype", "")).endswith(token)
@@ -218,19 +268,34 @@ class AwsPolicyPricingAdapter:
             if iops is None:
                 missing.append("ebs_iops:missing_provisioned_iops")
             else:
-                add("ebs_iops", "EBS:VolumeP-IOPS." + volume_type,
-                    "System Operation", "IOPS_MONTH", iops)
+                add(
+                    "ebs_iops",
+                    "EBS:VolumeP-IOPS." + volume_type,
+                    "System Operation",
+                    "IOPS_MONTH",
+                    iops,
+                )
         if volume_type == "gp3":
             if iops is None:
                 missing.append("ebs_iops:missing_provisioned_iops")
             elif iops > 3000:
-                add("ebs_iops", "EBS:VolumeP-IOPS.gp3", "System Operation",
-                    "IOPS_MONTH", iops - 3000)
+                add(
+                    "ebs_iops",
+                    "EBS:VolumeP-IOPS.gp3",
+                    "System Operation",
+                    "IOPS_MONTH",
+                    iops - 3000,
+                )
             if throughput is None:
                 missing.append("ebs_throughput:missing_provisioned_throughput")
             elif throughput > 125:
-                add("ebs_throughput", "EBS:VolumeP-Throughput.gp3", "Provisioned Throughput",
-                    "MBPS_MONTH", throughput - 125)
+                add(
+                    "ebs_throughput",
+                    "EBS:VolumeP-Throughput.gp3",
+                    "Provisioned Throughput",
+                    "MBPS_MONTH",
+                    throughput - 125,
+                )
         return components, missing
 
     def _ec2(self, region: str, details: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
@@ -247,9 +312,16 @@ class AwsPolicyPricingAdapter:
         if not instance_type:
             return [], ["ec2_instance_type_unknown"]
         rate = self._calculator_rate(
-            service="ec2", region=region, family="Compute Instance",
-            filters={"instanceType": instance_type, "operatingSystem": operating_system, "tenancy": "Shared"},
-            key="ec2_compute", unit="INSTANCE_HOUR",
+            service="ec2",
+            region=region,
+            family="Compute Instance",
+            filters={
+                "instanceType": instance_type,
+                "operatingSystem": operating_system,
+                "tenancy": "Shared",
+            },
+            key="ec2_compute",
+            unit="INSTANCE_HOUR",
             matcher=lambda a: (
                 a.get("instanceType") == instance_type
                 and a.get("operatingSystem") == operating_system
@@ -259,28 +331,39 @@ class AwsPolicyPricingAdapter:
                 and str(a.get("operation", "")).startswith("RunInstances")
             ),
         )
-        return [rate.component("ec2_compute", _INSTANCE_HOURS)], [] if rate.status == "priced" else [rate.status]
+        return [
+            rate.component("ec2_compute", _INSTANCE_HOURS)
+        ], [] if rate.status == "priced" else [rate.status]
 
     def _rds(self, region: str, details: dict[str, Any]) -> tuple[list[dict[str, Any]], list[str]]:
-        engine = {"postgres": "PostgreSQL", "postgresql": "PostgreSQL",
-                  "mysql": "MySQL", "mariadb": "MariaDB"}.get(str(details.get("engine") or "").lower())
+        engine = {
+            "postgres": "PostgreSQL",
+            "postgresql": "PostgreSQL",
+            "mysql": "MySQL",
+            "mariadb": "MariaDB",
+        }.get(str(details.get("engine") or "").lower())
         instance_type = str(details.get("instance_class") or "")
         multi = details.get("multi_az")
         if not engine or not instance_type or not isinstance(multi, bool):
             return [], ["rds_financial_identity_incomplete"]
         expected_license = (
-            "postgresql-license" if engine == "PostgreSQL"
-            else "general-public-license"
+            "postgresql-license" if engine == "PostgreSQL" else "general-public-license"
         )
         license_model = str(details.get("license_model") or "").lower()
         if license_model not in {expected_license, "no-license-required"}:
             return [], ["rds_license_model_unsupported_or_missing"]
         deployment = "Multi-AZ" if multi else "Single-AZ"
         rate = self._calculator_rate(
-            service="rds", region=region, family="Database Instance",
-            filters={"instanceType": instance_type, "databaseEngine": engine,
-                     "deploymentOption": deployment},
-            key="rds_instance", unit="INSTANCE_HOUR",
+            service="rds",
+            region=region,
+            family="Database Instance",
+            filters={
+                "instanceType": instance_type,
+                "databaseEngine": engine,
+                "deploymentOption": deployment,
+            },
+            key="rds_instance",
+            unit="INSTANCE_HOUR",
             matcher=lambda a: (
                 a.get("instanceType") == instance_type
                 and a.get("databaseEngine") == engine
@@ -292,7 +375,9 @@ class AwsPolicyPricingAdapter:
                 not in ("enterprise", "standard edition 2", "web", "express")
             ),
         )
-        return [rate.component("rds_instance", _INSTANCE_HOURS)], [] if rate.status == "priced" else [rate.status]
+        return [
+            rate.component("rds_instance", _INSTANCE_HOURS)
+        ], [] if rate.status == "priced" else [rate.status]
 
     @staticmethod
     def _status(components: list[dict[str, Any]], missing: list[str]) -> str:
@@ -311,8 +396,12 @@ class AwsPolicyPricingAdapter:
     @staticmethod
     def _total(components: list[dict[str, Any]]) -> Decimal:
         return sum(
-            (Decimal(part["estimated_cost_usd"]) for part in components
-             if part.get("estimated_cost_usd") is not None), Decimal("0")
+            (
+                Decimal(part["estimated_cost_usd"])
+                for part in components
+                if part.get("estimated_cost_usd") is not None
+            ),
+            Decimal("0"),
         )
 
     @staticmethod
@@ -327,14 +416,14 @@ class AwsPolicyPricingAdapter:
             end = end_h * 60 + end_m
             if not (0 <= start < end <= 1440):
                 return None
-            monthly_hours = (Decimal(10080 - len(days) * (end - start)) / Decimal(10080)) * _INSTANCE_HOURS
+            monthly_hours = (
+                Decimal(10080 - len(days) * (end - start)) / Decimal(10080)
+            ) * _INSTANCE_HOURS
             return monthly_hours
         except (KeyError, TypeError, ValueError):
             return None
 
-    def _price_one(
-        self, finding: CollectedFinding, config: dict[str, Any]
-    ) -> bool:
+    def _price_one(self, finding: CollectedFinding, config: dict[str, Any]) -> bool:
         details = finding.evidence.get("details", {})
         region = finding.region or ""
         components: list[dict[str, Any]] = []
@@ -353,24 +442,38 @@ class AwsPolicyPricingAdapter:
                 missing.extend(absent)
             if not details.get("volumes"):
                 missing.append("ebs_volumes_not_described")
-            notes.append("Stopping EC2 does not eliminate attached EBS charges; deletion requires separate validation.")
+            notes.append(
+                "Stopping EC2 does not eliminate attached EBS charges; deletion requires separate validation."
+            )
         elif key == "eip_unassociated":
-            rate = self._catalog_rate(service="ipv4", region=region, unit="IP_HOUR",
-                                      usage_token="IdleAddress", service_codes=("AmazonVPC", "AmazonEC2"))
+            rate = self._catalog_rate(
+                service="ipv4",
+                region=region,
+                unit="IP_HOUR",
+                usage_token="IdleAddress",
+                service_codes=("AmazonVPC", "AmazonEC2"),
+            )
             components = [rate.component("public_ipv4_idle", _INSTANCE_HOURS)]
         elif key == "snapshot_retention":
             tier = str(details.get("storage_tier") or "standard").lower()
             if tier != "standard":
                 missing.append("snapshot_storage_tier_not_supported")
             else:
-                rate = self._catalog_rate(service="snapshot", region=region, unit="GB_MONTH",
-                                          usage_token="SnapshotUsage", service_codes=("AmazonEC2",))
+                rate = self._catalog_rate(
+                    service="snapshot",
+                    region=region,
+                    unit="GB_MONTH",
+                    usage_token="SnapshotUsage",
+                    service_codes=("AmazonEC2",),
+                )
                 size = _number(details.get("volume_size_gib"))
                 if size is None:
                     missing.append("snapshot_logical_size_unknown")
                 else:
                     components = [rate.component("snapshot_logical_upper_bound", size)]
-            notes.append("Incremental snapshots: source volume size is an upper bound, not measured billable storage.")
+            notes.append(
+                "Incremental snapshots: source volume size is an upper bound, not measured billable storage."
+            )
         elif key == "ec2_nonprod_outside_hours":
             components, missing = self._ec2(region, details)
         elif key == "load_balancer_no_traffic":
@@ -379,8 +482,13 @@ class AwsPolicyPricingAdapter:
             if service is None:
                 missing.append("load_balancer_type_unsupported")
             else:
-                rate = self._catalog_rate(service=service, region=region, unit="LB_HOUR",
-                                          usage_token="LoadBalancerUsage", service_codes=("AWSELB",))
+                rate = self._catalog_rate(
+                    service=service,
+                    region=region,
+                    unit="LB_HOUR",
+                    usage_token="LoadBalancerUsage",
+                    service_codes=("AWSELB",),
+                )
                 components = [rate.component("load_balancer_base", _INSTANCE_HOURS)]
             missing.append("load_balancer_variable_usage_not_estimated")
             notes.append("Base rate only; LCU/NLCU/other variable charges are excluded.")
@@ -388,7 +496,9 @@ class AwsPolicyPricingAdapter:
                 notes.append("CloudWatch has no datapoints: zero traffic is not established.")
         elif key == "rds_nonprod_idle":
             components, missing = self._rds(region, details)
-            notes.append("Only instance compute is potentially avoidable; storage and other RDS costs remain.")
+            notes.append(
+                "Only instance compute is potentially avoidable; storage and other RDS costs remain."
+            )
         else:
             return True
 
@@ -412,7 +522,9 @@ class AwsPolicyPricingAdapter:
                 unit_price = _number(components[0].get("unit_price_usd"))
                 if unit_price is not None:
                     savings = _money(unit_price * scheduled)
-                    notes.append("Off-hours estimate assumes recurring running time; actual uptime not verified.")
+                    notes.append(
+                        "Off-hours estimate assumes recurring running time; actual uptime not verified."
+                    )
         elif key == "rds_nonprod_idle" and full:
             # Current total is unknown because storage and additional usage are excluded.
             savings = _money(total)
@@ -448,29 +560,36 @@ class AwsPolicyPricingAdapter:
             "notes": notes,
         }
         if current is not None:
-            finding.evidence.setdefault("metrics", []).append({
-                "key": "aws_regional_priced_monthly_cost",
-                "label": "Regional public rate estimated monthly cost",
-                "value": float(current),
-                "unit": "USD_MONTH",
-                "kind": "estimate",
-            })
+            finding.evidence.setdefault("metrics", []).append(
+                {
+                    "key": "aws_regional_priced_monthly_cost",
+                    "label": "Regional public rate estimated monthly cost",
+                    "value": float(current),
+                    "unit": "USD_MONTH",
+                    "kind": "estimate",
+                }
+            )
         if savings is not None:
-            finding.evidence.setdefault("metrics", []).append({
-                "key": "aws_regional_priced_monthly_savings",
-                "label": "Regional public rate estimated monthly savings",
-                "value": float(savings),
-                "unit": "USD_MONTH",
-                "kind": "estimate",
-            })
+            finding.evidence.setdefault("metrics", []).append(
+                {
+                    "key": "aws_regional_priced_monthly_savings",
+                    "label": "Regional public rate estimated monthly savings",
+                    "value": float(savings),
+                    "unit": "USD_MONTH",
+                    "kind": "estimate",
+                }
+            )
         finding.evidence.setdefault("notes", []).extend(notes)
         return True
 
-    def enrich_findings(self, findings: list[CollectedFinding], policies: list[dict[str, Any]]) -> None:
+    def enrich_findings(
+        self, findings: list[CollectedFinding], policies: list[dict[str, Any]]
+    ) -> None:
         by_rule = {policy["rule_key"]: policy.get("config", {}) for policy in policies}
         # All resource discovery is complete before any pricing DB query is made.
         findings[:] = [
-            finding for finding in findings
+            finding
+            for finding in findings
             if finding.rule_key not in _AWS_FINANCIAL_RULES
             or self._price_one(finding, by_rule.get(finding.rule_key, {}))
         ]

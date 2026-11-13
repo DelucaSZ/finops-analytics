@@ -9,8 +9,8 @@ from app.models.user import User
 from app.schemas.policy import PolicyRead, PolicyUpdate
 from app.services.audit import AuditService, audit_snapshot
 from app.services.policies import (
-    RULES,
     LEGACY_PRICING_KEYS,
+    RULES,
     get_effective_policy,
     get_policy_row,
     list_effective_policies,
