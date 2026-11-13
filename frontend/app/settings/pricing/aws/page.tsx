@@ -294,7 +294,7 @@ export default function AwsPricingPage() {
         )}
       </div>
       {error && <div role="alert" className="alert error">{error}</div>}
-      {loadingMeta ? <div className={styles.state} role="status">{t("loading")}</div>
+      {loadingMeta && !meta ? <div className={styles.state} role="status">{t("loading")}</div>
         : regionOptions.length === 0 ? (
           <div className={styles.state}>{t("emptyRegions")}</div>
         ) : (
