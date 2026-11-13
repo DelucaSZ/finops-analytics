@@ -273,8 +273,16 @@ def test_due_and_stale_are_independent_of_financial_publication(sessions, monkey
         state = AwsRegionalPricingRepository(db).get_sync_state(
             service_code="AmazonVPC", region_code="sa-east-1"
         )
-        state.last_attempt_at = NOW - timedelta(days=8)
-    assert orchestrator.status(service="AmazonVPC")[0]["freshness"] == "stale"
+        state.last_success_at = NOW - timedelta(days=8)
+        # A fresh FAILED attempt does not refresh the last valid verification.
+        state.last_attempt_at = NOW
+        runs = db.scalars(select(AwsPricingSyncRun))
+        for run in runs:
+            run.finished_at = NOW - timedelta(days=8)
+    snapshot = orchestrator.status(service="AmazonVPC")[0]
+    assert snapshot["freshness"] == "stale"
+    assert snapshot["last_attempt_at"] is not None
+    assert snapshot["last_verified_at"] is not None
 
 
 def test_validated_live_coverage_does_not_count_expired_or_unsupported_rates(sessions):
