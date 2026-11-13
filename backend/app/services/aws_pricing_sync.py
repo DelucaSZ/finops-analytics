@@ -271,7 +271,9 @@ class AwsPricingSynchronizer:
                 "rates_rejected": run.rates_rejected,
                 "download_seconds": result.diagnostics.get("download_seconds") if result else 0,
                 "parse_seconds": result.diagnostics.get("parse_seconds") if result else 0,
-                "persistence_seconds": result.diagnostics.get("persistence_seconds") if result else 0,
+                "persistence_seconds": (
+                    result.diagnostics.get("persistence_seconds") if result else 0
+                ),
             }
             cadence = timedelta(hours=self.config.aws_pricing_sync_interval_hours)
             if status == "failed":
@@ -313,7 +315,8 @@ class AwsPricingSynchronizer:
                 "error_code": error_code,
             }
         logger.info(
-            "event=aws_pricing_sync_completed execution_id=%s service=%s region=%s status=%s elapsed=%.3f error_code=%s",
+            "event=aws_pricing_sync_completed execution_id=%s service=%s "
+            "region=%s status=%s elapsed=%.3f error_code=%s",
             run_id,
             report["service_code"],
             report["region_code"],
