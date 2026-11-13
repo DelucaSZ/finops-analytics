@@ -34,6 +34,7 @@ def main(argv: list[str] | None = None) -> int:
         "--all", action="store_true", help="Process eligible regions (bounded cycle)"
     )
     parser.add_argument("--retry-failed", action="store_true", help="Only retry last failed units")
+    parser.add_argument("--force", action="store_true", help="Revalidate even if ARN is unchanged")
     parser.add_argument("--fixture", type=Path, help="Read-only official-format test fixture")
     parser.add_argument("--limit", type=int, default=100, help="Status pagination limit (max 500)")
     args = parser.parse_args(argv)
@@ -43,6 +44,10 @@ def main(argv: list[str] | None = None) -> int:
         parser.error("fixture requires --service and --region")
     if args.coverage and (not args.service or not args.region):
         parser.error("coverage requires --service and --region")
+    if args.force and not args.apply:
+        parser.error("--force requires --apply")
+    if args.force and args.all:
+        parser.error("--force applies only to a single service/region")
     if args.retry_failed and not args.apply:
         parser.error("--retry-failed requires --apply")
     if (args.apply or args.dry_run) and not args.all and (not args.service or not args.region):
@@ -69,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.region,
                 dry_run=args.dry_run,
                 fixture_path=args.fixture,
+                force=args.force,
             )
         print(json.dumps(output, default=str, sort_keys=True, indent=2))
         if isinstance(output, list):
