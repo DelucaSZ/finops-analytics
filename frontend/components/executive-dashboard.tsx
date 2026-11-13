@@ -111,7 +111,7 @@ type ExecutiveDashboardSummary = Omit<
     account_name: string | null;
     collection_run_id: string;
     severity: string;
-    estimated_monthly_savings: string;
+    estimated_monthly_savings: string | null;
     currency: string;
   }>;
 };
@@ -215,6 +215,7 @@ export function ExecutiveDashboard() {
     scopedDashboardHref("/opportunities", state, { current: "true", ...extra });
 
   const totals = summary?.financial.totals || [];
+  const financialCoverage = summary?.financial.coverage;
   const hasBacklog = Boolean(summary?.opportunities.open);
   const newDetails = summary?.opportunities.new_since_previous_details ?? null;
   const newHref = buildDashboardNewOpportunitiesHref(state, newDetails?.comparison_context, "new_vs_previous");
@@ -365,7 +366,13 @@ export function ExecutiveDashboard() {
                 value={<SavingsValues totals={totals} />}
                 supportingText={
                   <MetricSupport
-                    text={t("metrics.currenciesSeparate")}
+                    text={financialCoverage && !financialCoverage.complete
+                      ? t("metrics.incompleteCoverage", {
+                          known: financialCoverage.known,
+                          partial: financialCoverage.partial,
+                          unknown: financialCoverage.unknown,
+                        })
+                      : t("metrics.currenciesSeparate")}
                     href={opportunityHref({ status: "open", sort: "estimated_savings", order: "desc" })}
                   />
                 }
@@ -686,12 +693,16 @@ function TopOpportunities({
               <div className={styles.opportunityMetadata}>
                 <span>{item.account_name || item.account_id}{item.region ? ` · ${item.region}` : ""}</span>
                 <span className={styles.opportunitySavings}>
-                  <CurrencyDisplay
-                    value={Number(item.estimated_monthly_savings)}
-                    currency={item.currency}
-                                        currencyDisplay="code"
-                  />
-                  <span>{t("metrics.monthSuffix")}</span>
+                  {item.estimated_monthly_savings == null ? "—" : (
+                    <>
+                      <CurrencyDisplay
+                        value={Number(item.estimated_monthly_savings)}
+                        currency={item.currency}
+                        currencyDisplay="code"
+                      />
+                      <span>{t("metrics.monthSuffix")}</span>
+                    </>
+                  )}
                 </span>
               </div>
             }

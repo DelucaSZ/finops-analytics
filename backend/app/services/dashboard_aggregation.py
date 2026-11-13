@@ -4,7 +4,7 @@ import logging
 from collections.abc import Iterable
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.base import utcnow
@@ -41,6 +41,8 @@ def _latest_successful_run(
 
 
 def _current_metrics(db: Session, target: CollectionRun) -> dict:
+    pricing_status = OpportunityObservation.evidence["pricing"]["status"].as_string()
+    complete = or_(pricing_status.is_(None), pricing_status == "priced")
     rows = db.execute(
         select(
             OpportunityObservation.currency,
@@ -78,16 +80,40 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
                         and_(
                             Finding.status == _OPEN,
                             OpportunityObservation.estimated_monthly_savings.is_not(None),
+                            complete,
                         ),
                         1,
                     )
                 )
             ).label("priced_open"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == _OPEN,
+                            OpportunityObservation.estimated_monthly_savings.is_not(None),
+                            ~complete,
+                        ),
+                        1,
+                    )
+                )
+            ).label("partial_open"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == _OPEN,
+                            OpportunityObservation.estimated_monthly_savings.is_(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("unknown_open"),
             func.coalesce(
                 func.sum(
                     case(
                         (
-                            Finding.status == _OPEN,
+                            and_(Finding.status == _OPEN, complete),
                             OpportunityObservation.estimated_monthly_savings,
                         ),
                         else_=Decimal("0"),
@@ -129,6 +155,14 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
         "financial": {
             "metric": "estimated_monthly_savings",
             "period": "month",
+            "coverage": {
+                "known": sum(int(row.priced_open or 0) for row in rows),
+                "partial": sum(int(row.partial_open or 0) for row in rows),
+                "unknown": sum(int(row.unknown_open or 0) for row in rows),
+                "complete": not any(
+                    int(row.partial_open or 0) or int(row.unknown_open or 0) for row in rows
+                ),
+            },
             "totals": financial_totals,
         },
     }

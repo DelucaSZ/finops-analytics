@@ -290,6 +290,7 @@
       "openBacklogHelp": "Backlog OPEN atual e não arquivado",
       "monthlySavings": "Economia potencial mensal",
       "currenciesSeparate": "Moedas permanecem separadas; nenhum câmbio é inferido",
+      "incompleteCoverage": "Cobertura financeira incompleta: {known} conhecidas, {partial} parciais e {unknown} desconhecidas. A soma inclui apenas estimativas completas.",
       "validScopeHelp": "Contas com uma coleta válida disponível para o resumo atual",
       "monthSuffix": "/mês"
     },
@@ -1192,6 +1193,7 @@
       "afterFilters": "{status} após os filtros aplicados",
       "potential": "Economia potencial na página",
       "noConversion": "Moedas preservadas separadamente; nenhuma conversão FX é aplicada",
+      "incompleteCoverage": "Cobertura incompleta nesta página: o subtotal exclui economias parciais ou desconhecidas.",
       "lastArchive": "Arquivamento mais recente",
       "lastDetection": "Última detecção na página",
       "archiveDescription": "Data de entrada no histórico entre os itens carregados",
@@ -1358,6 +1360,7 @@
     },
     "savings": {
       "notEstimated": "Não estimada",
+      "partialEstimate": "Estimativa parcial, fora do total",
       "perMonth": "/mês"
     },
     "detail": {
@@ -1517,6 +1520,7 @@
         "afterClose": "Disponível após o fechamento do ciclo",
         "potential": "Economia potencial",
         "noFx": "Moedas preservadas sem conversão",
+        "incompleteFinancialCoverage": "Valores conhecidos somados; existem estimativas parciais ou desconhecidas neste ciclo.",
         "current": "Custo atual no fechamento",
         "captured": "Valor capturado no ciclo selecionado",
         "collections": "Cobertura de coletas",

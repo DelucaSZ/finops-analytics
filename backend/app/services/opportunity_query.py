@@ -222,6 +222,7 @@ def serialize_list_item(
     finding: Finding,
     account: CloudAccount | None,
     aws_configuration: AwsAccount | None,
+    pricing_status: str | None = None,
 ) -> dict:
     return {
         "id": finding.id,
@@ -241,6 +242,7 @@ def serialize_list_item(
         "description": finding.description,
         "current_monthly_cost": finding.current_monthly_cost,
         "estimated_monthly_savings": finding.estimated_monthly_savings,
+        "pricing_status": pricing_status,
         "currency": finding.currency,
         "confidence": finding.confidence,
         "severity": finding.severity,
@@ -273,7 +275,12 @@ def list_opportunities(
     order: str,
 ) -> dict:
     base = (
-        select(Finding, CloudAccount, AwsAccount)
+        select(
+            Finding,
+            CloudAccount,
+            AwsAccount,
+            Finding.evidence["pricing"]["status"].as_string().label("pricing_status"),
+        )
         .outerjoin(CloudAccount, _account_join())
         .outerjoin(AwsAccount, AwsAccount.cloud_account_id == CloudAccount.id)
         .options(
@@ -296,8 +303,8 @@ def list_opportunities(
     rows = db.execute(statement).all()
     return {
         "items": [
-            serialize_list_item(finding, account, aws_configuration)
-            for finding, account, aws_configuration in rows
+            serialize_list_item(finding, account, aws_configuration, pricing_status)
+            for finding, account, aws_configuration, pricing_status in rows
         ],
         **_page_meta(total, page, page_size),
     }
@@ -460,7 +467,9 @@ def get_opportunity(db: Session, opportunity_id: str) -> dict | None:
             estimated_monthly_savings=finding.estimated_monthly_savings,
         )
     )
-    return serialize_list_item(finding, account, aws_configuration) | {
+    pricing = finding.evidence.get("pricing") if isinstance(finding.evidence, dict) else None
+    pricing_status = pricing.get("status") if isinstance(pricing, dict) else None
+    return serialize_list_item(finding, account, aws_configuration, pricing_status) | {
         "scan_id": finding.scan_id,
         "treated_at": finding.treated_at,
         "treated_by": finding.treated_by,

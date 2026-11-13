@@ -372,3 +372,25 @@ def test_flat_classic_load_balancer_preserves_partial_base_pricing(db):
     assert item.evidence["pricing"]["known_subtotal_usd"] == "29.20"
     assert item.evidence["pricing"]["components"][0]["product_sku"] == "CLASSIC-BASE"
     assert item.estimated_monthly_savings is None
+
+
+def test_partial_rds_compute_saving_does_not_hide_operational_finding(db):
+    rds(db, deployment="Multi-AZ", amount="0.20")
+    db.commit()
+    item = enrich(
+        db,
+        finding(
+            "rds_nonprod_idle",
+            engine="postgres",
+            instance_class="db.t3.medium",
+            multi_az=True,
+            license_model="postgresql-license",
+        ),
+        config={"minimum_monthly_savings_usd": 500},
+    )
+    assert item is not None
+    assert item.evidence["pricing"]["status"] == "partially_priced"
+    assert item.estimated_monthly_savings == Decimal("146.00")
+    assert item.current_monthly_cost is None
+    missing = item.evidence["pricing"]["missing_components"]
+    assert "rds_storage_and_additional_costs_excluded" in missing

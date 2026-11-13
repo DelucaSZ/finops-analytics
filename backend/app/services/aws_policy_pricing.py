@@ -548,7 +548,13 @@ class AwsPolicyPricingAdapter:
         else:
             finding.severity = "low"
         threshold = _number(config.get("minimum_monthly_savings_usd", 0))
-        if threshold is not None and savings is not None and savings < threshold:
+        # Incomplete public-rate coverage must not silently suppress an operational finding.
+        if (
+            threshold is not None
+            and status == "priced"
+            and savings is not None
+            and savings < threshold
+        ):
             return False
         finding.evidence["pricing"] = {
             "provider": "aws",

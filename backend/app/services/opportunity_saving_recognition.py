@@ -26,6 +26,8 @@ from app.services.finops_ledger import FinOpsLedgerError, FinOpsLedgerService
 logger = logging.getLogger(__name__)
 
 NO_MONETARY_SAVING = "NO_MONETARY_SAVING"
+INCOMPLETE_PRICING = "INCOMPLETE_PRICING"
+CURRENCY_MISMATCH = "CURRENCY_MISMATCH"
 ZERO_SAVING = "ZERO_SAVING"
 NEGATIVE_SAVING = "NEGATIVE_SAVING"
 NO_CURRENCY = "NO_CURRENCY"
@@ -222,6 +224,17 @@ class OpportunitySavingRecognitionService:
                 continue
 
             snapshot = observation if observation is not None else finding
+            # A known component subtotal is not a complete financial estimate.
+            # Fail closed on the immutable observation, not the mutable finding.
+            evidence = snapshot.evidence or {}
+            pricing = evidence.get("pricing") if isinstance(evidence, dict) else None
+            if (
+                normalize_provider(finding.provider) == "aws"
+                and isinstance(pricing, dict)
+                and pricing.get("status") != "priced"
+            ):
+                results.append(self._skip(finding, event, INCOMPLETE_PRICING, observation))
+                continue
             amount = _decimal(snapshot.estimated_monthly_savings)
             if amount is None:
                 results.append(self._skip(finding, event, NO_MONETARY_SAVING, observation))
@@ -252,6 +265,8 @@ class OpportunitySavingRecognitionService:
                     currency,
                     expected_currency,
                 )
+                results.append(self._skip(finding, event, CURRENCY_MISMATCH, observation))
+                continue
 
             cloud_account = cloud_accounts.get((provider, finding.account_id))
             if cloud_account is None:

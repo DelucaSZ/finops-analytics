@@ -106,6 +106,7 @@ export type Finding = {
   description: string;
   current_monthly_cost: string | null;
   estimated_monthly_savings: string | null;
+  pricing_status?: string | null;
   currency: string;
   confidence: string;
   severity: string;
@@ -312,6 +313,7 @@ export type DashboardSummary = {
     metric: string;
     label: string;
     period: string;
+    coverage?: { known: number; partial: number; unknown: number; complete: boolean };
     totals: Array<{ currency: string; amount: string }>;
   };
   by_provider: Array<{

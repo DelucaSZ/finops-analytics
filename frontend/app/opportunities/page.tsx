@@ -157,6 +157,12 @@ function MoneyValue({ value, currency }: { value: string | number | null | undef
 function SavingsValue({ finding }: { finding: Finding }) {
   const t = useTranslations("opportunities");
   if (finding.rule_key === "cost_growth_anomaly") return <span>{t("savings.notEstimated")}</span>;
+  if (finding.provider === "aws" && finding.pricing_status && finding.pricing_status !== "priced") {
+    if (finding.pricing_status === "partially_priced" && numericValue(finding.estimated_monthly_savings) != null) {
+      return <span><MoneyValue value={finding.estimated_monthly_savings} currency={finding.currency} /> · {t("savings.partialEstimate")}</span>;
+    }
+    return <span>{t("savings.notEstimated")}</span>;
+  }
   return (
     <span className={styles.moneyWithPeriod}>
       <MoneyValue value={finding.estimated_monthly_savings} currency={finding.currency} />
@@ -366,6 +372,7 @@ function OpportunitiesContent() {
 
   const pageSavings = findings.reduce<Record<string, number>>((totals, finding) => {
     if (finding.rule_key === "cost_growth_anomaly") return totals;
+    if (finding.provider === "aws" && finding.pricing_status && finding.pricing_status !== "priced") return totals;
     const amount = numericValue(finding.estimated_monthly_savings);
     const currency = finding.currency?.trim();
     if (amount == null || !currency) return totals;
@@ -373,6 +380,11 @@ function OpportunitiesContent() {
     return totals;
   }, {});
   const pageSavingsEntries = Object.entries(pageSavings).sort(([left], [right]) => left.localeCompare(right));
+  const incompletePagePricing = findings.some((finding) =>
+    finding.rule_key !== "cost_growth_anomaly" &&
+    (finding.estimated_monthly_savings == null ||
+      (finding.provider === "aws" && Boolean(finding.pricing_status) && finding.pricing_status !== "priced"))
+  );
 
   const newestObservation = findings.reduce<string | null>((latest, finding) => {
     if (!latest || new Date(finding.last_seen_at) > new Date(latest)) return finding.last_seen_at;
@@ -718,7 +730,7 @@ function OpportunitiesContent() {
                 ))}
               </span>
             ) : "—"}
-            supportingText={t("summary.noConversion")}
+            supportingText={incompletePagePricing ? t("summary.incompleteCoverage") : t("summary.noConversion")}
             icon={<WalletCards {...iconDefaults} />}
             loading={listRequest.isLoading}
           />
