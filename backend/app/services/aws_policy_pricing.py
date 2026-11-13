@@ -480,7 +480,7 @@ class AwsPolicyPricingAdapter:
         elif key == "ec2_nonprod_outside_hours":
             components, missing = self._ec2(region, details)
         elif key == "load_balancer_no_traffic":
-            lb_type = str(details.get("load_balancer_type") or "")
+            lb_type = str(details.get("load_balancer_type") or details.get("type") or "")
             service = {"application": "alb", "network": "nlb", "classic": "clb"}.get(lb_type)
             if service is None:
                 missing.append("load_balancer_type_unsupported")
