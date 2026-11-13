@@ -8,9 +8,9 @@ from fastapi.responses import JSONResponse
 import app.models  # noqa: F401
 from app.api.routes import (
     accounts,
-    aws_pricing,
     audit,
     auth,
+    aws_pricing,
     billing,
     calculator,
     cloud_accounts,
