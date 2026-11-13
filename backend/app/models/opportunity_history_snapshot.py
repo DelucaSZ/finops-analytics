@@ -102,10 +102,10 @@ class OpportunityHistorySnapshot(Base):
     rejection_reason: Mapped[str | None] = mapped_column(String(32), nullable=True)
     rejection_note: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    current_monthly_cost: Mapped[Decimal] = mapped_column(Numeric(14, 2), nullable=False)
-    estimated_monthly_savings: Mapped[Decimal] = mapped_column(
+    current_monthly_cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
+    estimated_monthly_savings: Mapped[Decimal | None] = mapped_column(
         Numeric(14, 2),
-        nullable=False,
+        nullable=True,
     )
     currency: Mapped[str] = mapped_column(String(3), nullable=False)
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
