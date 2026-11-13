@@ -18,8 +18,8 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db.base import Base
 from app.services.aws_policy_pricing import AwsPolicyPricingAdapter
-from app.services.opportunity_evidence import build_collected_finding_evidence
 from app.services.collector_types import CollectedFinding
+from app.services.opportunity_evidence import build_collected_finding_evidence
 from app.tests.test_aws_calculator_regional import (
     AT,
     compute,
