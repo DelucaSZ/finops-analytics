@@ -326,3 +326,18 @@ Comando seguro de validação: `cd backend && python -m app.commands.aws_pricing
 ### Task 25.9 — validação automatizada da internacionalização
 
 A Task 25.9 adiciona verificadores de catálogo e referências, guardrail incremental contra novos textos fixos e smoke Chromium com HTTPS local. No CI do commit `32ed73d6`, os testes frontend passaram 552/552; [CI](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306806), [Compose](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306736) e [Auto Deploy Tests](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306922) foram aprovados. Veja [matriz](docs/i18n/25.9-test-matrix.md) e [limitações](docs/i18n/25.9-known-limitations.md). A integração automatizada não substitui homologação end-to-end das telas financeiras e administrativas em staging.
+
+### AWS regional Pricing — sincronização (Fase 28.4)
+
+O catálogo AWS agora tem suporte de backend para sincronização regional com **AWS Pricing Bulk API**, histórico operacional e versionamento de tarifas. A sincronização usa as regiões das contas AWS **ativas**, executa verificações por serviço/região, conserva a última versão financeira válida em falhas e oferece consulta de cobertura e de freshness. O importador oficial existente é reutilizado; não há preços hardcoded criados pela Task 28.4.
+
+O agendamento está **desabilitado por padrão** (`AVEN_AWS_PRICING_SYNC_ENABLED=0`); publicação exige opt-in adicional `AVEN_AWS_PRICING_IMPORT_ENABLED=1`. Sem execução massiva ou deploy automático. A UI em Settings será entregue na Task 28.5; Calculadora AWS e Políticas continuam inalteradas até as Tasks 28.6/28.7.
+
+```bash
+cd backend
+python -m app.commands.aws_pricing_sync --status
+python -m app.commands.aws_pricing_sync --coverage --service AmazonEC2 --region sa-east-1
+python -m app.commands.aws_pricing_sync --service AmazonEC2 --region sa-east-1 --dry-run
+```
+
+Configuração completa, migração 0041, requisitos PostgreSQL, operação, riscos e validação: [Task 28.4 — sincronização e monitoramento](docs/pricing/aws/28.4-synchronization-versioning-monitoring.md).
