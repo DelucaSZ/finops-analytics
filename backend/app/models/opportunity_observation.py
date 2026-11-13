@@ -38,9 +38,7 @@ class OpportunityObservation(TimestampMixin, Base):
     )
     severity: Mapped[str] = mapped_column(String(16), nullable=False)
     current_monthly_cost: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
-    estimated_monthly_savings: Mapped[Decimal | None] = mapped_column(
-        Numeric(14, 2), nullable=True
-    )
+    estimated_monthly_savings: Mapped[Decimal | None] = mapped_column(Numeric(14, 2), nullable=True)
     currency: Mapped[str] = mapped_column(
         String(3), default="USD", server_default="USD", nullable=False
     )
