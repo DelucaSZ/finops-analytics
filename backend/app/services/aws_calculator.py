@@ -8,6 +8,8 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from decimal import Decimal
 
+from sqlalchemy.orm import Session
+
 from app.schemas.calculator import (
     AwsEc2Configuration,
     AwsRdsConfiguration,
@@ -15,6 +17,7 @@ from app.schemas.calculator import (
     CalculatorEstimateResponse,
 )
 from app.services.aws_calculator_pricing import AwsPublicPriceResolver, missing_aws_lookup
+from app.services.aws_calculator_regional import AwsLocalCalculatorResolver
 from app.services.calculator_engine import (
     CalculatorMeteredComponent,
     estimate_calculator_cost,
@@ -37,7 +40,6 @@ _EXCLUSIONS = (
     "excludes_monitoring",
     "excludes_optional_io_requests",
     "aws_public_on_demand_not_contract_net_price",
-    "aws_price_list_current_snapshot_not_historical",
 )
 
 
@@ -187,7 +189,6 @@ def _ec2(request, at, resolver):
             key,
             family,
             {
-                "volumeApiName": cfg.ebs_volume_type,
                 "contains:usagetype": {
                     "ebs_storage": f"EBS:VolumeUsage.{cfg.ebs_volume_type}",
                     "ebs_iops": "EBS:VolumeP-IOPS.gp3",
@@ -195,7 +196,7 @@ def _ec2(request, at, resolver):
                 }[key],
             },
             lambda a: (
-                a.get("volumeApiName") == cfg.ebs_volume_type
+                a.get("volumeApiName") in (None, cfg.ebs_volume_type)
                 and a.get("usagetype", "").endswith(
                     {
                         "ebs_storage": f"EBS:VolumeUsage.{cfg.ebs_volume_type}",
@@ -415,18 +416,21 @@ def _rds(request, at, resolver):
 def estimate_aws_calculator(
     request: CalculatorEstimateRequest,
     *,
-    resolver: AwsPublicPriceResolver | None = None,
+    resolver: AwsPublicPriceResolver | AwsLocalCalculatorResolver | None = None,
+    db: Session | None = None,
     reference_at: datetime | None = None,
 ) -> CalculatorEstimateResponse:
     if request.provider != "aws":
         raise ValueError("only_aws")
     at = (request.pricing_reference_date or reference_at or datetime.now(UTC)).astimezone(UTC)
-    provider = resolver or AwsPublicPriceResolver()
+    if resolver is None and db is None:
+        raise ValueError("AWS calculator requires a database session")
+    provider = resolver if resolver is not None else AwsLocalCalculatorResolver(db)
     if request.resource_configuration.service == "ec2":
         components, extra = _ec2(request, at, provider)
     else:
         components, extra = _rds(request, at, provider)
     result = estimate_calculator_cost(request, components, reference_at=at)
     return result.model_copy(
-        update={"warnings": list(dict.fromkeys([*result.warnings, *extra, *_EXCLUSIONS]))}
+        update={"warnings": list(dict.fromkeys([*result.warnings, *extra, *getattr(provider, "warnings", []), *_EXCLUSIONS]))}
     )
