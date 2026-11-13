@@ -10,7 +10,7 @@ import hashlib
 import logging
 import tempfile
 import time
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -177,11 +177,10 @@ def _check_dry_run_conflicts(db: Session, staging: Path, limit: int = 100000) ->
             original = item.effective_from
             if original.tzinfo is None:
                 original = original.replace(tzinfo=UTC)
-            if original == epoch and (
-                item.price != rate.amount or detail.rate_code != rate.rate_code
-            ):
-                errors += 1
-            elif epoch < original:
+            if (
+                original == epoch
+                and (item.price != rate.amount or detail.rate_code != rate.rate_code)
+            ) or epoch < original:
                 errors += 1
     return errors
 
@@ -264,8 +263,6 @@ def import_aws_prices(
         source_type = _FIXTURE if fixture_path else _SOURCE
         reference: PriceListReference | None = None
         if fixture_path is not None:
-            service = service_code
-            region = region_code
             checksum, size = _file_digest(fixture_path, max_bytes)
             source = fixture_path
             source_uri = "offline-fixture"
@@ -421,7 +418,7 @@ def import_aws_prices(
                 published_rates=published, diagnostics=diagnostics,
                 elapsed_seconds=time.monotonic() - start,
             )
-        except (Exception,) as exc:
+        except Exception as exc:
             db.rollback()
             _record_failure(
                 db, service_code, region_code, stats, source_type,
