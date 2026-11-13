@@ -89,8 +89,8 @@ type Snapshot = {
   treatment_note: string | null;
   rejection_reason: string | null;
   rejection_note: string | null;
-  current_monthly_cost: string | number;
-  estimated_monthly_savings: string | number;
+  current_monthly_cost: string | number | null;
+  estimated_monthly_savings: string | number | null;
   currency: string;
   severity: string;
   confidence: string;
@@ -432,8 +432,8 @@ export default function OpportunityHistoryCyclesPage() {
                     </div>
                   </TableCell>
                   <TableCell kind="badge"><StatusIndicator status={severityTone(item.severity)} label={["high","medium","low"].includes(item.severity) ? severityT(item.severity as "high" | "medium" | "low") : item.severity} /></TableCell>
-                  <TableCell kind="currency" numeric>{formatMoney(item.current_monthly_cost, item.currency, locale)}</TableCell>
-                  <TableCell kind="currency" numeric>{formatMoney(item.estimated_monthly_savings, item.currency, locale)}</TableCell>
+                  <TableCell kind="currency" numeric>{item.current_monthly_cost == null ? "—" : formatMoney(item.current_monthly_cost, item.currency, locale)}</TableCell>
+                  <TableCell kind="currency" numeric>{item.estimated_monthly_savings == null ? "—" : formatMoney(item.estimated_monthly_savings, item.currency, locale)}</TableCell>
                   <TableCell kind="numeric" numeric>{item.occurrence_count_in_cycle}</TableCell>
                   <TableCell kind="date">{formatDate(item.last_observed_in_cycle_at, locale)}</TableCell>
                 </TableRow>
@@ -473,8 +473,8 @@ export default function OpportunityHistoryCyclesPage() {
             <div><dt>{t("detail.presence")}</dt><dd>{presenceLabel(selected.presence_status)}</dd></div>
             <div><dt>{t("detail.severityConfidence")}</dt><dd>{(["high","medium","low"].includes(selected.severity) ? severityT(selected.severity as "high" | "medium" | "low") : selected.severity)} · {(["high","medium","low"].includes(selected.confidence) ? severityT(selected.confidence as "high" | "medium" | "low") : selected.confidence)}</dd></div>
             <div><dt>{t("detail.archived")}</dt><dd>{selected.archived ? `${t("detail.yes")}${selected.archive_reason ? ` · ${selected.archive_reason}` : ""}` : t("detail.no")}</dd></div>
-            <div><dt>{t("detail.periodCost")}</dt><dd>{formatMoney(selected.current_monthly_cost, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
-            <div><dt>{t("detail.estimatedSavings")}</dt><dd>{formatMoney(selected.estimated_monthly_savings, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.periodCost")}</dt><dd>{selected.current_monthly_cost == null ? "—" : formatMoney(selected.current_monthly_cost, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
+            <div><dt>{t("detail.estimatedSavings")}</dt><dd>{selected.estimated_monthly_savings == null ? "—" : formatMoney(selected.estimated_monthly_savings, selected.currency, locale)}{t("detail.perMonth")}</dd></div>
             <div><dt>{t("detail.firstObserved")}</dt><dd>{formatDate(selected.first_observed_in_cycle_at, locale)}</dd></div>
             <div><dt>{t("detail.lastObserved")}</dt><dd>{formatDate(selected.last_observed_in_cycle_at, locale)}</dd></div>
             <div><dt>{t("detail.occurrences")}</dt><dd>{selected.occurrence_count_in_cycle}</dd></div>
