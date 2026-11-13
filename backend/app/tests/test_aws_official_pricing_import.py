@@ -7,16 +7,20 @@ PostgreSQL exclusion/migration tests continue in test_aws_regional_pricing.py.
 from __future__ import annotations
 
 import json
+import os
+import uuid
 from datetime import UTC, datetime
 from decimal import Decimal
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from alembic import command
+from sqlalchemy import create_engine, func, select, text
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 import app.models  # noqa: F401
 from app.db.base import Base
+from app.db.migrations import migration_config
 from app.models.aws_pricing import AwsPricingImportBatch, AwsPricingRateDetail
 from app.models.pricing import PricingCatalogItem
 from app.services.aws_pricing_bulk import (
@@ -392,3 +396,35 @@ def test_component_coverage_is_not_equated_to_file_download():
     result = coverage_summary("AmazonEC2", {"ec2_linux": 1})
     assert result["complete"] is False
     assert "ec2_windows" in result["missing"]
+
+
+def test_postgresql_official_format_import_uses_0040_migration(tmp_path):
+    url = os.environ.get("TEST_POSTGRES_URL")
+    if not url:
+        pytest.skip("TEST_POSTGRES_URL unavailable")
+    schema = "test_aws_bulk_" + uuid.uuid4().hex
+    control = create_engine(url)
+    with control.begin() as connection:
+        connection.execute(text(f'CREATE SCHEMA "{schema}"'))
+    engine = create_engine(url, connect_args={"options": f"-csearch_path={schema}"})
+    try:
+        with engine.begin() as connection:
+            config = migration_config()
+            config.attributes["connection"] = connection
+            config.attributes["version_table"] = "deepops_mfa_schema_version"
+            command.upgrade(config, "0040_aws_regional_pricing")
+        with Session(engine, expire_on_commit=False) as session:
+            fixture = _fixture(tmp_path, _offer())
+            published = _import(session, fixture)
+            assert published.status == "published"
+            again = _import(session, fixture)
+            assert again.status == "already_published"
+            assert session.scalar(select(func.count()).select_from(PricingCatalogItem).where(
+                PricingCatalogItem.provider == "aws"
+            )) == 1
+            assert session.scalar(select(func.count()).select_from(AwsPricingRateDetail)) == 1
+    finally:
+        engine.dispose()
+        with control.begin() as connection:
+            connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
+        control.dispose()
