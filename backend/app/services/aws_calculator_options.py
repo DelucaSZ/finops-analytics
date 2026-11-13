@@ -59,6 +59,7 @@ def available_regions(db: Session) -> dict:
         "service_status": by_service,
     }
 
+
 def aws_options(
     db: Session,
     *,
