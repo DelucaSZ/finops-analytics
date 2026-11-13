@@ -805,7 +805,7 @@ def build_evidence(
             "apenas evidências persistidas são exibidas."
         )
 
-    return _base(
+    result = _base(
         rule_key=rule_key,
         policy=policy,
         summary=summary,
@@ -818,6 +818,9 @@ def build_evidence(
         contributors=contributors,
         evaluated_at=raw.get("evaluated_at") or evaluated_at,
     )
+    if provider.lower() == "aws" and isinstance(raw.get("pricing"), dict):
+        result["pricing"] = raw["pricing"]
+    return result
 
 
 def build_collected_finding_evidence(
