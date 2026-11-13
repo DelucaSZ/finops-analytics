@@ -160,8 +160,7 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
                 "partial": sum(int(row.partial_open or 0) for row in rows),
                 "unknown": sum(int(row.unknown_open or 0) for row in rows),
                 "complete": not any(
-                    int(row.partial_open or 0) or int(row.unknown_open or 0)
-                    for row in rows
+                    int(row.partial_open or 0) or int(row.unknown_open or 0) for row in rows
                 ),
             },
             "totals": financial_totals,
