@@ -301,7 +301,7 @@ export default function AwsPricingPage() {
           <>
             <section className={`panel ${styles.filters}`} aria-label={t("filters")}>
               <label>{t("region")}
-                <NativeSelect value={region} onChange={(event) => {
+                <NativeSelect id="aws-pricing-region" value={region} onChange={(event) => {
                   setRegion(event.target.value); setOffset(0); setRunOffset(0);
                   setSelected(null); setRequest(null);
                 }}>
@@ -309,7 +309,7 @@ export default function AwsPricingPage() {
                 </NativeSelect>
               </label>
               <label>{t("service")}
-                <NativeSelect value={service} onChange={(event) => {
+                <NativeSelect id="aws-pricing-service" value={service} onChange={(event) => {
                   setService(event.target.value); setOffset(0); setRunOffset(0); setSelected(null);
                 }}>
                   <option value="">{t("allServices")}</option>
@@ -317,7 +317,7 @@ export default function AwsPricingPage() {
                 </NativeSelect>
               </label>
               <label>{t("status")}
-                <NativeSelect value={status} onChange={(event) => {
+                <NativeSelect id="aws-pricing-status" value={status} onChange={(event) => {
                   setStatus(event.target.value); setOffset(0);
                 }}>
                   {["active", "all", "unsupported", "quarantined", "withdrawn", "expired", "future"]
@@ -342,7 +342,7 @@ export default function AwsPricingPage() {
               <div className={styles.sectionHeading}>
                 <h2>{t("catalog")}</h2>
                 <div>{t("resultCount", { count: page.total })}
-                  <NativeSelect value={String(limit)} aria-label={t("pageSize")} onChange={(event) => {
+                  <NativeSelect id="aws-pricing-page-size" value={String(limit)} aria-label={t("pageSize")} onChange={(event) => {
                     setLimit(Number(event.target.value)); setOffset(0);
                   }}>
                     {[25, 50, 100].map((count) =>
