@@ -6,7 +6,8 @@ import { Copy, History, RefreshCw, Search, X } from "lucide-react";
 import { NativeSelect } from "@/components/ui";
 import { PageHeader } from "@/components/page-header";
 import { api, ApiError } from "@/lib/api";
-import { formatLocaleCurrency, formatLocaleDateTime } from "@/i18n/formatters.mjs";
+import { formatLocaleDateTime } from "@/i18n/formatters.mjs";
+import { formatAwsPrice } from "@/lib/aws-pricing.mjs";
 import styles from "./pricing.module.css";
 
 type Meta = {
@@ -53,15 +54,6 @@ type SyncRequest = {
   requested_at: string; result: Record<string, unknown> | null;
   error_code: string | null;
 };
-
-function formatPrice(value: string, locale: string): string {
-  const fractional = value.split(".")[1] ?? "";
-  const precision = Math.max(2, Math.min(8, fractional.length));
-  return formatLocaleCurrency(value, "USD", locale, {
-    minimumFractionDigits: precision,
-    maximumFractionDigits: 8,
-  });
-}
 
 function textError(err: unknown, fallback: string, forbidden: string, busy: string): string {
   if (!(err instanceof ApiError)) return fallback;
@@ -379,7 +371,7 @@ export default function AwsPricingPage() {
                           <td><ShortId value={item.product_sku} /></td>
                           <td className={styles.description} title={item.rate_description}>{item.rate_description}</td>
                           <td><ShortId value={item.unit} /></td>
-                          <td><strong title={item.price + " USD"}>{formatPrice(item.price, locale)}</strong></td>
+                          <td><strong title={item.price + " USD"}>{formatAwsPrice(item.price, locale)}</strong></td>
                           <td>{humanDate(item.effective_from, locale)}</td>
                           <td>{stateLabel(item.pricing_status)}</td>
                           <td><button className="button small ghost" onClick={() => {
@@ -537,7 +529,7 @@ export default function AwsPricingPage() {
               <thead><tr><th>{t("price")}</th><th>{t("effectiveFrom")}</th>
                 <th>{t("effectiveUntil")}</th><th>{t("source")}</th></tr></thead>
               <tbody>{history.items.map((row) => <tr key={row.id}>
-                <td>{formatPrice(row.price, locale)}</td>
+                <td>{formatAwsPrice(row.price, locale)}</td>
                 <td>{humanDate(row.effective_from, locale)}</td>
                 <td>{humanDate(row.effective_until, locale)}</td><td>{row.source}</td>
               </tr>)}</tbody>
