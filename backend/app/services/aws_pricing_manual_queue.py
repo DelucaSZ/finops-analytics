@@ -28,9 +28,7 @@ class AwsPricingManualQueue:
         synchronizer: AwsPricingSynchronizer | None = None,
     ) -> None:
         self.sessions = session_factory
-        self.synchronizer = synchronizer or AwsPricingSynchronizer(
-            session_factory=session_factory
-        )
+        self.synchronizer = synchronizer or AwsPricingSynchronizer(session_factory=session_factory)
 
     def run_next(self) -> dict | None:
         # Opt-in applies equally to automatic and manual publication.
@@ -41,10 +39,12 @@ class AwsPricingManualQueue:
             # Long-running downloads are protected by the 28.4 advisory lock.
             cutoff = datetime.now(UTC) - timedelta(hours=12)
             abandoned = db.scalars(
-                select(AwsPricingSyncRequest).where(
+                select(AwsPricingSyncRequest)
+                .where(
                     AwsPricingSyncRequest.status == "running",
                     AwsPricingSyncRequest.started_at < cutoff,
-                ).with_for_update(skip_locked=True)
+                )
+                .with_for_update(skip_locked=True)
             )
             for old in abandoned:
                 old.status = "queued"
