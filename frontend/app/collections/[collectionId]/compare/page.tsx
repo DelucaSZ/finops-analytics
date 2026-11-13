@@ -425,7 +425,7 @@ function CollectionComparisonContent() {
                       {item.baseline ? (
                         <>
                           <StatusBadge value={item.baseline.severity} />
-                          <span>{formatMoney(item.baseline.estimated_monthly_savings, item.baseline.currency, locale)}{t("perMonth")}</span>
+                          <span>{(item.baseline.estimated_monthly_savings == null ? "—" : formatMoney(item.baseline.estimated_monthly_savings, item.baseline.currency, locale))}{t("perMonth")}</span>
                           <span>{item.baseline.evidence_summary || t("noSummary")}</span>
                         </>
                       ) : (
@@ -436,7 +436,7 @@ function CollectionComparisonContent() {
                       {item.target ? (
                         <>
                           <StatusBadge value={item.target.severity} />
-                          <span>{formatMoney(item.target.estimated_monthly_savings, item.target.currency, locale)}{t("perMonth")}</span>
+                          <span>{(item.target.estimated_monthly_savings == null ? "—" : formatMoney(item.target.estimated_monthly_savings, item.target.currency, locale))}{t("perMonth")}</span>
                           <span>{item.target.evidence_summary || t("noSummary")}</span>
                         </>
                       ) : (
