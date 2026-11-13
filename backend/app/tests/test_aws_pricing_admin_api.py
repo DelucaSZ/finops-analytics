@@ -52,40 +52,39 @@ def test_empty_catalog_metadata_filters_and_invalid_region(auth_env):
 
 def test_exact_decimal_rate_history_and_strict_region_isolation(auth_env):
     http, engine, tokens, _ = auth_env
-    with Session(engine) as db:
-        with db.begin():
-            catalog = AwsRegionalPricingRepository(db)
-            product = catalog.put_product(
-                service="ec2",
-                service_code="AmazonEC2",
-                region_code="sa-east-1",
-                product_sku="EC2-TEST-SKU",
-                product_family="Compute Instance",
-                description="Test-only AWS price fixture",
-                financial_attributes={
-                    "instanceType": "t3.small",
-                    "operatingSystem": "Linux",
-                    "tenancy": "Shared",
-                    "operation": "RunInstances",
-                },
-                product_attributes={
-                    "instanceType": "t3.small",
-                    "operatingSystem": "Linux",
-                    "tenancy": "Shared",
-                    "operation": "RunInstances",
-                },
-            )
-            catalog.put_rate(
-                product=product,
-                rate_code="EC2.TEST.RATE",
-                term_code="JRTCKXETXF",
-                billing_unit="INSTANCE_HOUR",
-                aws_unit="Hrs",
-                amount=Decimal("0.00425000"),
-                effective_from=EFFECTIVE,
-                source="AWS_PUBLIC_PRICE_LIST",
-                source_effective_at=EFFECTIVE,
-            )
+    with Session(engine) as db, db.begin():
+        catalog = AwsRegionalPricingRepository(db)
+        product = catalog.put_product(
+            service="ec2",
+            service_code="AmazonEC2",
+            region_code="sa-east-1",
+            product_sku="EC2-TEST-SKU",
+            product_family="Compute Instance",
+            description="Test-only AWS price fixture",
+            financial_attributes={
+                "instanceType": "t3.small",
+                "operatingSystem": "Linux",
+                "tenancy": "Shared",
+                "operation": "RunInstances",
+            },
+            product_attributes={
+                "instanceType": "t3.small",
+                "operatingSystem": "Linux",
+                "tenancy": "Shared",
+                "operation": "RunInstances",
+            },
+        )
+        catalog.put_rate(
+            product=product,
+            rate_code="EC2.TEST.RATE",
+            term_code="JRTCKXETXF",
+            billing_unit="INSTANCE_HOUR",
+            aws_unit="Hrs",
+            amount=Decimal("0.00425000"),
+            effective_from=EFFECTIVE,
+            source="AWS_PUBLIC_PRICE_LIST",
+            source_effective_at=EFFECTIVE,
+        )
 
     listing = http.get(
         BASE + "/rates?region=sa-east-1&q=EC2-TEST-SKU&limit=1",
