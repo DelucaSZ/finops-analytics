@@ -239,10 +239,11 @@ async function runFunctional(){
       const rateText=locale==='pt-BR'?'0,00425000':'0.00425000';
       assert.ok((await page.locator('body').innerText()).includes(rateText),
         'precise AWS price not displayed');
-      const region=page.locator('select').filter({
+      const region=page.locator('[data-aven-select]').filter({
         has:page.locator('option[value="us-east-1"]')
-      }).first();
-      await region.selectOption('us-east-1');
+      }).getByRole('combobox');
+      await region.click();
+      await page.getByRole('option',{name:'us-east-1',exact:true}).click();
       await page.waitForFunction(()=>
         document.body.innerText.includes(document.documentElement.lang==='pt-BR'?'0,00250000':'0.00250000'),
         null,{timeout});
