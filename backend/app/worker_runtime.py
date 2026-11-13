@@ -420,7 +420,6 @@ class AwsPricingScheduler:
         self.executor.shutdown(wait=False, cancel_futures=True)
 
 
-
 class AwsPricingManualScheduler:
     """Poll approved DB requests without turning on the automatic AWS import cycle."""
 
@@ -482,7 +481,10 @@ def main() -> None:
     try:
         while True:
             worked = process_runtime_once(
-                scheduler, automation_scheduler, rds_scheduler, aws_pricing_scheduler,
+                scheduler,
+                automation_scheduler,
+                rds_scheduler,
+                aws_pricing_scheduler,
                 aws_pricing_manual_scheduler,
             )
             if not worked:
