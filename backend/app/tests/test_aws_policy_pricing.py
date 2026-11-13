@@ -18,6 +18,7 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db.base import Base
 from app.services.aws_policy_pricing import AwsPolicyPricingAdapter
+from app.services.opportunity_evidence import build_collected_finding_evidence
 from app.services.collector_types import CollectedFinding
 from app.tests.test_aws_calculator_regional import (
     AT,
@@ -307,3 +308,32 @@ def test_legitimate_zero_price_is_distinct_from_missing(db):
     assert item.evidence["pricing"]["status"] == "priced"
     assert item.current_monthly_cost == Decimal("0.00")
     assert item.estimated_monthly_savings == Decimal("0.00")
+
+
+
+def test_flat_collector_evidence_is_priced_and_preserved_in_opportunity(db):
+    ebs(db, amount="0.09")
+    db.commit()
+    item = CollectedFinding(
+        rule_key="ebs_unattached", service="EC2/EBS", region="sa-east-1",
+        resource_id="vol-123", title="Unattached volume",
+        description="Operationally eligible volume.",
+        evidence={
+            "size_gib": 20, "volume_type": "gp3",
+            "iops": 3000, "throughput": 125, "age_days": 15,
+        },
+    )
+    item = enrich(db, item)
+    assert item is not None
+    assert item.estimated_monthly_savings == Decimal("1.80")
+    normalized = build_collected_finding_evidence(
+        item,
+        {"rule_key": "ebs_unattached", "config": {"minimum_age_days": 7}},
+        evaluated_at=AT,
+    )
+    assert normalized["pricing"]["region"] == "sa-east-1"
+    assert normalized["pricing"]["status"] == "priced"
+    assert normalized["pricing"]["components"][0]["unit_price_usd"] == "0.09000000"
+    assert normalized["pricing"]["components"][0]["rate_code"]
+    assert normalized["pricing"]["components"][0]["product_sku"]
+    assert normalized["pricing"]["components"][0]["catalog_item_id"]
