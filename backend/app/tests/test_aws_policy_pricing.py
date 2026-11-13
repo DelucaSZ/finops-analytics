@@ -337,3 +337,28 @@ def test_flat_collector_evidence_is_priced_and_preserved_in_opportunity(db):
     assert normalized["pricing"]["components"][0]["rate_code"]
     assert normalized["pricing"]["components"][0]["product_sku"]
     assert normalized["pricing"]["components"][0]["catalog_item_id"]
+
+
+def test_flat_classic_load_balancer_preserves_partial_base_pricing(db):
+    publish(
+        db,
+        sku="CLASSIC-BASE", amount="0.04",
+        attrs={"usagetype": "SAE1-LoadBalancerUsage",
+               "productFamily": "Load Balancing"},
+        family="Load Balancing", service="clb",
+        service_code="AWSELB", unit="LB_HOUR", aws_unit="Hrs",
+    )
+    db.commit()
+    item = CollectedFinding(
+        rule_key="load_balancer_no_traffic",
+        service="Elastic Load Balancing", region="sa-east-1",
+        resource_id="legacy-lb", title="Classic LB",
+        description="CloudWatch has datapoints",
+        evidence={"type": "classic", "datapoint_count": 7},
+    )
+    item = enrich(db, item)
+    assert item is not None
+    assert item.evidence["pricing"]["status"] == "partially_priced"
+    assert item.evidence["pricing"]["known_subtotal_usd"] == "29.20"
+    assert item.evidence["pricing"]["components"][0]["product_sku"] == "CLASSIC-BASE"
+    assert item.estimated_monthly_savings is None
