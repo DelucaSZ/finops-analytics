@@ -269,6 +269,9 @@ class AwsPricingSynchronizer:
                 "rates_staged": result.rates_staged if result else 0,
                 "rates_unsupported": result.rates_unsupported if result else 0,
                 "rates_rejected": run.rates_rejected,
+                "download_seconds": result.diagnostics.get("download_seconds") if result else 0,
+                "parse_seconds": result.diagnostics.get("parse_seconds") if result else 0,
+                "persistence_seconds": result.diagnostics.get("persistence_seconds") if result else 0,
             }
             cadence = timedelta(hours=self.config.aws_pricing_sync_interval_hours)
             if status == "failed":
@@ -329,6 +332,7 @@ class AwsPricingSynchronizer:
         dry_run: bool = False,
         now: datetime | None = None,
         fixture_path=None,
+        force: bool = False,
     ) -> dict[str, Any]:
         if not supported_source(service) or not _REGION.fullmatch(region):
             raise ValueError("invalid AWS pricing service or commercial region")
@@ -382,7 +386,8 @@ class AwsPricingSynchronizer:
                         latest = self._last_published(db, service, region)
                         # Publication identity is the immutable official ARN, not request time.
                         if (
-                            latest is not None
+                            not force
+                            and latest is not None
                             and latest.source_type == "AWS_PUBLIC_PRICE_LIST"
                             and (latest.diagnostics or {}).get("official_arn") == reference.arn
                         ):
