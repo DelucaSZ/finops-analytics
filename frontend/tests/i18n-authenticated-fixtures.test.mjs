@@ -3,12 +3,12 @@ import assert from 'node:assert/strict';
 import {PROTECTED_ROUTES,PUBLIC_ROUTES,TECHNICAL_ROUTES,INVENTORIED_COUNT} from '../e2e/i18n/routes.mjs';
 import {apiFixture,FIXTURE_FINANCIAL} from '../e2e/i18n/fixtures.mjs';
 
-test('reconciles 34 unique page routes, 25 protected, five public and four technical',()=>{
-  assert.equal(INVENTORIED_COUNT,34);
-  assert.equal(PROTECTED_ROUTES.length,25);
+test('reconciles 35 unique page routes, 26 protected, five public and four technical',()=>{
+  assert.equal(INVENTORIED_COUNT,35);
+  assert.equal(PROTECTED_ROUTES.length,26);
   assert.equal(PUBLIC_ROUTES.length,5);
   assert.equal(TECHNICAL_ROUTES.length,4);
-  assert.equal(new Set([...PROTECTED_ROUTES,...PUBLIC_ROUTES,...TECHNICAL_ROUTES]).size,34);
+  assert.equal(new Set([...PROTECTED_ROUTES,...PUBLIC_ROUTES,...TECHNICAL_ROUTES]).size,35);
 });
 test('synthetic auth fixture represents admin without bypassing production auth',()=>{
   const response=apiFixture('/auth/me');
@@ -62,4 +62,16 @@ test('authenticated Settings fixtures have known success contracts',()=>{
   assert.equal(apiFixture('/pricing/oci').body.total,0);
   assert.equal(apiFixture('/settings/opportunity-policy').body.cycle_mode,'CALENDAR_MONTH');
   assert.ok(Array.isArray(apiFixture('/usage/cloudwatch/summary?group_by=region').body.items));
+});
+
+test('AWS pricing browser fixture isolates regions, keeps decimal strings and blocks mutation',()=>{
+  const sa=apiFixture('/pricing/aws/rates?region=sa-east-1&service=AmazonEC2').body;
+  const us=apiFixture('/pricing/aws/rates?region=us-east-1&service=AmazonEC2').body;
+  assert.equal(sa.total,1);
+  assert.equal(sa.items[0].price,'0.00425000');
+  assert.equal(us.items[0].price,'0.00250000');
+  assert.notEqual(sa.items[0].region_code,us.items[0].region_code);
+  assert.equal(apiFixture('/pricing/aws/sync/status?region=sa-east-1').body.items[0].catalog_status,'synced');
+  assert.equal(apiFixture('/pricing/aws/sync/status?region=sa-east-1').body.items[0].last_attempt_status,'failed');
+  assert.equal(apiFixture('/pricing/aws/sync','POST',{}).status,403);
 });
