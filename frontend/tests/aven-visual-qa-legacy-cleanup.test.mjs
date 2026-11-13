@@ -51,6 +51,7 @@ const expectedRoutes = [
   "/settings/https",
   "/settings/opportunities",
   "/settings/policies",
+  "/settings/pricing/aws",
   "/settings/pricing/oci",
   "/settings/security",
   "/settings/sessions",
