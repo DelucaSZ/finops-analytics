@@ -35,7 +35,7 @@ def _iso(value: datetime | None) -> str | None:
 def pricing_snapshot(item: PricingCatalogItem) -> dict[str, Any]:
     """Serialize only audit-safe catalog fields; Decimal is never converted to float."""
 
-    return {
+    result = {
         "id": item.id,
         "provider": item.provider,
         "service": item.service,
@@ -49,6 +49,9 @@ def pricing_snapshot(item: PricingCatalogItem) -> dict[str, Any]:
         "enabled": item.enabled,
         "source": item.source,
     }
+    if item.provider == "aws":
+        result["region_code"] = item.region_code
+    return result
 
 
 def normalize_reason(reason: str | None, *, required: bool) -> str | None:
@@ -92,6 +95,7 @@ class AuditedPricingCatalogAdminService(PricingCatalogAdminService):
             pricing_item_id=item.id,
             provider=item.provider,
             service=item.service,
+            region_code=item.region_code,
             sku=item.sku,
             unit=item.unit,
             action=action,

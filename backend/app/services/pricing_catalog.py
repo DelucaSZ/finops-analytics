@@ -205,6 +205,8 @@ class PricingResolver:
     ) -> PricingSnapshot:
         reference = self.reference_at if at is None else _utc_reference(at)
         normalized_provider = provider.strip().lower()
+        if normalized_provider == "aws":
+            raise PricingCatalogError("AWS requires AwsRegionalPricingResolver with region")
         rows = self._db.scalars(
             self._effective_query(reference).where(
                 PricingCatalogItem.provider == normalized_provider
@@ -247,6 +249,8 @@ class PricingResolver:
     ) -> ResolvedPrice:
         reference = self.reference_at if at is None else _utc_reference(at)
         identity = _identity(provider, service, sku, unit)
+        if identity.provider == "aws":
+            raise PricingCatalogError("AWS requires AwsRegionalPricingResolver with region")
         cached = self._cache.get((identity, reference))
         if cached is not None:
             _validate_currency(cached, expected_currency)

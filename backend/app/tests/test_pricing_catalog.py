@@ -14,6 +14,7 @@ from app.models.pricing import PricingCatalogItem
 from app.services.oci_pricing import OciPricingService
 from app.services.pricing_catalog import (
     PricingAmbiguityError,
+    PricingCatalogError,
     PricingCurrencyMismatchError,
     PricingNotFoundError,
     PricingResolver,
@@ -43,12 +44,14 @@ def _item(
     unit: str = "OCPU_HOUR",
     price: str = "0.0689",
     currency: str = "BRL",
+    region_code: str | None = None,
     effective_from: datetime | None = None,
     effective_until: datetime | None = None,
     enabled: bool = True,
 ) -> PricingCatalogItem:
     return PricingCatalogItem(
         provider=provider,
+        region_code=region_code,
         service=service,
         sku=sku,
         description=f"Pricing item {sku}",
@@ -147,6 +150,7 @@ def test_brl_oci_and_usd_aws_can_coexist_without_becoming_equivalent(pricing_db)
             _item(currency="BRL"),
             _item(
                 provider="aws",
+                region_code="sa-east-1",
                 service="ec2",
                 sku="TEST_AWS_INSTANCE_HOUR",
                 unit="INSTANCE_HOUR",
@@ -165,16 +169,16 @@ def test_brl_oci_and_usd_aws_can_coexist_without_becoming_equivalent(pricing_db)
         unit="OCPU_HOUR",
         expected_currency="BRL",
     )
-    aws = resolver.resolve_price(
-        provider="aws",
-        service="ec2",
-        sku="TEST_AWS_INSTANCE_HOUR",
-        unit="INSTANCE_HOUR",
-        expected_currency="USD",
-    )
+    with pytest.raises(PricingCatalogError, match="region"):
+        resolver.resolve_price(
+            provider="aws",
+            service="ec2",
+            sku="TEST_AWS_INSTANCE_HOUR",
+            unit="INSTANCE_HOUR",
+            expected_currency="USD",
+        )
 
     assert oci.currency == "BRL"
-    assert aws.currency == "USD"
     with pytest.raises(PricingCurrencyMismatchError):
         resolver.resolve_price(
             provider="oci",

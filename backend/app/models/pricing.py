@@ -9,7 +9,7 @@ from sqlalchemy import (
     Index,
     Numeric,
     String,
-    UniqueConstraint,
+    text,
     true,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -31,13 +31,46 @@ class PricingCatalogItem(TimestampMixin, Base):
             "effective_until IS NULL OR effective_until > effective_from",
             name="ck_pricing_catalog_items_effective_interval",
         ),
-        UniqueConstraint(
+        CheckConstraint(
+            "provider <> 'aws' OR (region_code IS NOT NULL AND length(trim(region_code)) > 0)",
+            name="ck_pricing_catalog_items_aws_region",
+        ),
+        CheckConstraint(
+            "provider <> 'aws' OR currency = 'USD'",
+            name="ck_pricing_catalog_items_aws_currency",
+        ),
+        Index(
+            "uq_pricing_catalog_items_oci_effective",
             "provider",
             "service",
             "sku",
             "unit",
             "effective_from",
-            name="uq_pricing_catalog_items_identity_effective_from",
+            unique=True,
+            postgresql_where=text("provider <> 'aws'"),
+            sqlite_where=text("provider <> 'aws'"),
+        ),
+        Index(
+            "uq_pricing_catalog_items_aws_effective",
+            "provider",
+            "service",
+            "region_code",
+            "sku",
+            "unit",
+            "effective_from",
+            unique=True,
+            postgresql_where=text("provider = 'aws'"),
+            sqlite_where=text("provider = 'aws'"),
+        ),
+        Index(
+            "ix_pricing_catalog_items_aws_lookup",
+            "provider",
+            "service",
+            "region_code",
+            "sku",
+            "unit",
+            "enabled",
+            "effective_from",
         ),
         Index(
             "ix_pricing_catalog_items_lookup",
@@ -52,6 +85,7 @@ class PricingCatalogItem(TimestampMixin, Base):
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     provider: Mapped[str] = mapped_column(String(16), nullable=False)
+    region_code: Mapped[str | None] = mapped_column(String(40), nullable=True)
     service: Mapped[str] = mapped_column(String(64), nullable=False)
     sku: Mapped[str] = mapped_column(String(160), nullable=False)
     description: Mapped[str] = mapped_column(String(255), nullable=False)

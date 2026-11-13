@@ -6,6 +6,12 @@ from app.models.account import (
 )
 from app.models.audit_event import AuditEvent
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
+from app.models.aws_pricing import (
+    AwsPricingImportBatch,
+    AwsPricingProduct,
+    AwsPricingRateDetail,
+    AwsPricingSyncState,
+)
 from app.models.billing_profile import BillingProfile
 from app.models.cloudwatch_pricing import CloudWatchPricingRule
 from app.models.cloudwatch_usage import CloudWatchUsageEvent
@@ -74,6 +80,10 @@ __all__ = [
     "RecoveryCode",
     "SecurityEvent",
     "AuditEvent",
+    "AwsPricingImportBatch",
+    "AwsPricingProduct",
+    "AwsPricingRateDetail",
+    "AwsPricingSyncState",
     "AccessToken",
     "AuthRateLimit",
     "LoginSession",
