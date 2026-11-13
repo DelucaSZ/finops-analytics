@@ -410,7 +410,7 @@ class AwsRegionalPricingRepository:
             ):
                 return item
             raise AwsPricingConflictError("same rate identity and start has conflicting data")
-        if rows and rows[0].enabled and is_active:
+        if rows and rows[0].enabled and is_active and start > _stored_date(rows[0].effective_from):
             # Do not manufacture a financial version when only the official
             # source publication changes but the actual rate stays constant.
             current = rows[0]
