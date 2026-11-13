@@ -166,8 +166,9 @@ class AwsPricingSynchronizer:
             raise ValueError("invalid AWS pricing region")
         with self.sessions() as db:
             regions = discover_regions(db, self.config.aws_pricing_sync_extra_regions)
-        if region and region not in regions:
-            # Manual administrative selection can bootstrap a new region explicitly.
+        if region:
+            # Explicit administrative selections filter the requested region and
+            # may also bootstrap a region not yet listed on an account.
             regions = [region]
         return [(svc, reg) for reg in regions for svc in (enabled if not service else [service])]
 
