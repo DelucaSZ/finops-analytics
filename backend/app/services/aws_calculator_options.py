@@ -98,8 +98,14 @@ def aws_options(
         q.extend(
             (
                 product.product_attributes["tenancy"].as_string() == "Shared",
-                product.product_attributes["preInstalledSw"].as_string().in_(("NA", "None")),
-                product.product_attributes["capacitystatus"].as_string() == "Used",
+                or_(
+                    product.product_attributes["preInstalledSw"].as_string().is_(None),
+                    product.product_attributes["preInstalledSw"].as_string().in_(("NA", "None")),
+                ),
+                or_(
+                    product.product_attributes["capacitystatus"].as_string().is_(None),
+                    product.product_attributes["capacitystatus"].as_string() == "Used",
+                ),
                 product.product_attributes["operation"].as_string().startswith("RunInstances"),
                 variant.in_(("Linux", "Windows")),
             )
