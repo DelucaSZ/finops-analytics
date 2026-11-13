@@ -1193,6 +1193,7 @@
       "afterFilters": "{status} após os filtros aplicados",
       "potential": "Economia potencial na página",
       "noConversion": "Moedas preservadas separadamente; nenhuma conversão FX é aplicada",
+      "incompleteCoverage": "Cobertura incompleta nesta página: o subtotal exclui economias parciais ou desconhecidas.",
       "lastArchive": "Arquivamento mais recente",
       "lastDetection": "Última detecção na página",
       "archiveDescription": "Data de entrada no histórico entre os itens carregados",
@@ -1359,6 +1360,7 @@
     },
     "savings": {
       "notEstimated": "Não estimada",
+      "partialEstimate": "Estimativa parcial, fora do total",
       "perMonth": "/mês"
     },
     "detail": {
