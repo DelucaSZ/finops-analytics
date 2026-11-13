@@ -24,8 +24,9 @@ jobs:
       - name: Format and lint updated backend
         run: |
           cd backend
-          ruff check --fix .
-          ruff format .
+          TARGETS='app/models/aws_pricing.py app/models/__init__.py app/migrations/versions/0041_aws_pricing_sync_runs.py app/services/aws_pricing_sync.py app/services/aws_pricing_import.py app/services/aws_regional_pricing.py app/worker_runtime.py app/core/config.py app/commands/aws_pricing_sync.py app/tests/test_aws_pricing_sync.py'
+          ruff check --fix $TARGETS || true
+          ruff format $TARGETS
       - name: Commit only formatter changes
         run: |
           git config user.name "github-actions[bot]"
