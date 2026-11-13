@@ -1,0 +1,39 @@
+name: Task 28.2 Temporary Ruff Format Preview
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  formatted-preview:
+    if: github.head_ref == 'feat/task-28.2-aws-regional-pricing-foundation'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install 'ruff>=0.9,<1.0'
+      - name: Format code and emit reviewed file snapshots without pushing
+        run: |
+          cd backend
+          ruff check --fix app/models app/services/aws_regional_pricing.py app/migrations/versions/0040_aws_regional_pricing.py app/tests/test_aws_regional_pricing.py
+          ruff format app/models app/services/aws_regional_pricing.py app/migrations/versions/0040_aws_regional_pricing.py app/tests/test_aws_regional_pricing.py
+          cd ..
+          python - <<'PY'
+          import base64
+          import pathlib
+          import subprocess
+          files = subprocess.check_output(
+              ['git', 'diff', '--name-only', '--', 'backend'], text=True,
+          ).splitlines()
+          for path in files:
+              data = base64.b64encode(pathlib.Path(path).read_bytes()).decode('ascii')
+              print('TASK28_BEGIN:' + path)
+              for offset in range(0, len(data), 160):
+                  print(data[offset:offset + 160])
+              print('TASK28_END:' + path)
+          PY
