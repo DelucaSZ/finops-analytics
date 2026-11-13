@@ -56,8 +56,12 @@ def db():
 
 
 def _offer(
-    service="AmazonVPC", region="sa-east-1", version="20261113000000",
-    amount="0.00500000", effective=AT, tier=False,
+    service="AmazonVPC",
+    region="sa-east-1",
+    version="20261113000000",
+    amount="0.00500000",
+    effective=AT,
+    tier=False,
 ):
     sku = "SKU-VPC-1"
     return {
@@ -161,9 +165,12 @@ def test_dry_run_does_not_insert_or_set_state(db, tmp_path):
     assert result.diagnostics["conflicts"] == 0
     assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
     assert db.scalar(select(func.count()).select_from(AwsPricingImportBatch)) == 0
-    assert AwsRegionalPricingRepository(db).get_sync_state(
-        service_code="AmazonVPC", region_code="sa-east-1"
-    ) is None
+    assert (
+        AwsRegionalPricingRepository(db).get_sync_state(
+            service_code="AmazonVPC", region_code="sa-east-1"
+        )
+        is None
+    )
 
 
 def test_missing_region_never_falls_back(db, tmp_path):
@@ -193,15 +200,12 @@ def test_new_version_closes_previous_window_and_preserves_history(db, tmp_path):
     old = _fixture(tmp_path, _offer(), "old.json")
     new = _fixture(
         tmp_path,
-        _offer(version="20261114000000", amount="0.00600000",
-               effective="2026-11-14T00:00:00Z"),
+        _offer(version="20261114000000", amount="0.00600000", effective="2026-11-14T00:00:00Z"),
         "new.json",
     )
     _import(db, old)
     _import(db, new)
-    rows = db.scalars(
-        select(PricingCatalogItem).order_by(PricingCatalogItem.effective_from)
-    ).all()
+    rows = db.scalars(select(PricingCatalogItem).order_by(PricingCatalogItem.effective_from)).all()
     assert len(rows) == 2
     assert rows[0].price == Decimal("0.00500000")
     assert rows[1].price == Decimal("0.00600000")
@@ -263,9 +267,9 @@ def test_reject_unrepresentable_fraction_without_rounding(db, tmp_path):
 
 def test_non_usd_and_unknown_unit_are_rejected(db, tmp_path):
     offer = _offer()
-    dimension = next(iter(next(iter(
-        offer["terms"]["OnDemand"].values()
-    )).values()))["priceDimensions"]
+    dimension = next(iter(next(iter(offer["terms"]["OnDemand"].values())).values()))[
+        "priceDimensions"
+    ]
     row = next(iter(dimension.values()))
     row["pricePerUnit"] = {"BRL": "0.2"}
     path = _fixture(tmp_path, offer)
@@ -283,12 +287,15 @@ def test_wrong_region_product_not_persisted(db, tmp_path):
     assert result.rates_staged == 0
 
 
-@pytest.mark.parametrize("url", [
-    "http://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/1/file.json",
-    "https://evil.example/offers/v1.0/aws/AmazonVPC/1/file.json",
-    "https://pricing.us-east-1.amazonaws.com.evil.example/offers/v1.0/aws/AmazonVPC/1/x",
-    "https://pricing.us-east-1.amazonaws.com/not-offers/AmazonVPC/1/file",
-])
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/1/file.json",
+        "https://evil.example/offers/v1.0/aws/AmazonVPC/1/file.json",
+        "https://pricing.us-east-1.amazonaws.com.evil.example/offers/v1.0/aws/AmazonVPC/1/x",
+        "https://pricing.us-east-1.amazonaws.com/not-offers/AmazonVPC/1/file",
+    ],
+)
 def test_file_url_allowlist_rejects_unofficial_hosts(url):
     with pytest.raises(AwsBulkImportError):
         validate_official_url(url, "AmazonVPC")
@@ -305,12 +312,14 @@ class FakeBulkClient:
     def list_price_lists(self, **kw):
         self.calls.append(("list", kw))
         return {
-            "PriceLists": [{
-                "CurrencyCode": "USD",
-                "RegionCode": "sa-east-1",
-                "FileFormats": ["json"],
-                "PriceListArn": "arn:aws:pricing:::price-list/aws/AmazonVPC/USD/20261113/sa-east-1",
-            }],
+            "PriceLists": [
+                {
+                    "CurrencyCode": "USD",
+                    "RegionCode": "sa-east-1",
+                    "FileFormats": ["json"],
+                    "PriceListArn": "arn:aws:pricing:::price-list/aws/AmazonVPC/USD/20261113/sa-east-1",
+                }
+            ],
         }
 
     def get_price_list_file_url(self, **kw):
@@ -326,7 +335,8 @@ class FakeBulkClient:
 def test_bulk_discovery_keeps_commercial_region_separate_from_endpoint():
     client = FakeBulkClient()
     ref = discover_price_list(
-        "AmazonVPC", "sa-east-1",
+        "AmazonVPC",
+        "sa-east-1",
         effective_at=datetime(2026, 11, 13, tzinfo=UTC),
         client=client,
     )
@@ -353,8 +363,11 @@ def test_parser_rejects_product_limit(tmp_path):
     path = _fixture(tmp_path, _offer())
     with pytest.raises(AwsBulkImportError, match="processing limit"):
         stage_offer(
-            path, tmp_path / "stage.sqlite",
-            service_code="AmazonVPC", region="sa-east-1", max_products=0
+            path,
+            tmp_path / "stage.sqlite",
+            service_code="AmazonVPC",
+            region="sa-east-1",
+            max_products=0,
         )
 
 
@@ -362,9 +375,12 @@ def test_compute_linux_windows_distinct_financial_attributes():
     base = {
         "productFamily": "Compute Instance",
         "attributes": {
-            "regionCode": "sa-east-1", "instanceType": "m6i.large",
-            "tenancy": "Shared", "operation": "RunInstances",
-            "operatingSystem": "Linux", "preInstalledSw": "NA",
+            "regionCode": "sa-east-1",
+            "instanceType": "m6i.large",
+            "tenancy": "Shared",
+            "operation": "RunInstances",
+            "operatingSystem": "Linux",
+            "preInstalledSw": "NA",
         },
     }
     linux = classify_product("AmazonEC2", "sa-east-1", "SKU-L", base)
@@ -376,15 +392,17 @@ def test_compute_linux_windows_distinct_financial_attributes():
 
 
 def test_tiered_dimension_never_becomes_active_linear_rate():
-    product = classify_product(
-        "AmazonVPC", "sa-east-1", "SKU-1",
-        _offer()["products"]["SKU-VPC-1"]
-    )
+    product = classify_product("AmazonVPC", "sa-east-1", "SKU-1", _offer()["products"]["SKU-VPC-1"])
     assert product is not None
     rate = normalize_rate(
-        product, "RATE", "TERM", {"effectiveDate": AT},
+        product,
+        "RATE",
+        "TERM",
+        {"effectiveDate": AT},
         {
-            "unit": "Hrs", "beginRange": "0", "endRange": "100",
+            "unit": "Hrs",
+            "beginRange": "0",
+            "endRange": "100",
             "pricePerUnit": {"USD": "0.00"},
         },
     )
