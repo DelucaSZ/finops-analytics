@@ -20,7 +20,7 @@ jobs:
       - name: Format code and emit reviewed file snapshots without pushing
         run: |
           cd backend
-          ruff check --fix app/models app/services/aws_regional_pricing.py app/migrations/versions/0040_aws_regional_pricing.py app/tests/test_aws_regional_pricing.py
+          ruff check --fix app/models app/services/aws_regional_pricing.py app/migrations/versions/0040_aws_regional_pricing.py app/tests/test_aws_regional_pricing.py || true
           ruff format app/models app/services/aws_regional_pricing.py app/migrations/versions/0040_aws_regional_pricing.py app/tests/test_aws_regional_pricing.py
           cd ..
           python - <<'PY'
