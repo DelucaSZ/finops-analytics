@@ -78,8 +78,8 @@ class OpportunityHistorySnapshotRead(BaseModel):
     treatment_note: str | None
     rejection_reason: str | None
     rejection_note: str | None
-    current_monthly_cost: Decimal
-    estimated_monthly_savings: Decimal
+    current_monthly_cost: Decimal | None
+    estimated_monthly_savings: Decimal | None
     currency: str
     severity: str
     confidence: str
