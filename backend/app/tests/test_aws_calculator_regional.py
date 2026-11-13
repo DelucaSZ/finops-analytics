@@ -37,6 +37,7 @@ def db(request):
         if not uri:
             pytest.skip("TEST_POSTGRES_URL is required for PostgreSQL integration")
         from sqlalchemy import text
+
         engine = create_engine(uri)
         schema = "test_calculator_28_" + uuid.uuid4().hex
         with engine.begin() as conn:
@@ -90,85 +91,153 @@ def publish(
 ):
     repo = AwsRegionalPricingRepository(db)
     product = repo.put_product(
-        service=service, service_code=service_code, region_code=region,
-        product_sku=sku, product_family=family, description=sku,
-        financial_attributes=attrs, product_attributes=attrs,
+        service=service,
+        service_code=service_code,
+        region_code=region,
+        product_sku=sku,
+        product_family=family,
+        description=sku,
+        financial_attributes=attrs,
+        product_attributes=attrs,
     )
     return repo.put_rate(
-        product=product, rate_code=f"{sku}.RATE", term_code="TEST-TERM",
-        billing_unit=unit, aws_unit=aws_unit, amount=Decimal(amount),
+        product=product,
+        rate_code=f"{sku}.RATE",
+        term_code="TEST-TERM",
+        billing_unit=unit,
+        aws_unit=aws_unit,
+        amount=Decimal(amount),
         effective_from=effective_at or AT - timedelta(days=10),
-        source="AWS_PUBLIC_PRICE_LIST", source_effective_at=AT - timedelta(days=15),
+        source="AWS_PUBLIC_PRICE_LIST",
+        source_effective_at=AT - timedelta(days=15),
         import_batch=batch(db, service_code, region),
     )
 
 
 def compute(db, *, region="sa-east-1", os_name="Linux", amount="1", sku=None, effective_at=None):
     attrs = {
-        "instanceType": "t3.medium", "operatingSystem": os_name,
-        "tenancy": "Shared", "preInstalledSw": "NA", "capacitystatus": "Used",
+        "instanceType": "t3.medium",
+        "operatingSystem": os_name,
+        "tenancy": "Shared",
+        "preInstalledSw": "NA",
+        "capacitystatus": "Used",
         "operation": "RunInstances" if os_name == "Linux" else "RunInstances:0002",
         "productFamily": "Compute Instance",
     }
     return publish(
-        db, sku=sku or f"EC2-{os_name}", amount=amount, attrs=attrs,
-        family="Compute Instance", region=region, effective_at=effective_at,
+        db,
+        sku=sku or f"EC2-{os_name}",
+        amount=amount,
+        attrs=attrs,
+        family="Compute Instance",
+        region=region,
+        effective_at=effective_at,
     )
 
 
 def ebs(
-    db, *, family="Storage", usage="VolumeUsage.gp3", sku="EBS-GP3",
-    amount="0.1", unit="GB_MONTH", aws_unit="GB-Mo",
+    db,
+    *,
+    family="Storage",
+    usage="VolumeUsage.gp3",
+    sku="EBS-GP3",
+    amount="0.1",
+    unit="GB_MONTH",
+    aws_unit="GB-Mo",
 ):
     attrs = {
-        "volumeApiName": "gp3", "usagetype": "SAE1-EBS:" + usage, "productFamily": family,
+        "volumeApiName": "gp3",
+        "usagetype": "SAE1-EBS:" + usage,
+        "productFamily": family,
     }
     return publish(
-        db, sku=sku, amount=amount, attrs=attrs, family=family, service="ebs",
-        unit=unit, aws_unit=aws_unit,
+        db,
+        sku=sku,
+        amount=amount,
+        attrs=attrs,
+        family=family,
+        service="ebs",
+        unit=unit,
+        aws_unit=aws_unit,
     )
 
 
 def rds(db, *, engine="PostgreSQL", deployment="Single-AZ", amount="2", sku=None):
     attrs = {
-        "instanceType": "db.t3.medium", "databaseEngine": engine,
-        "deploymentOption": deployment, "licenseModel": "No license required",
+        "instanceType": "db.t3.medium",
+        "databaseEngine": engine,
+        "deploymentOption": deployment,
+        "licenseModel": "No license required",
         "productFamily": "Database Instance",
     }
     return publish(
-        db, sku=sku or f"RDS-{engine}-{deployment}", amount=amount, attrs=attrs,
-        family="Database Instance", service="rds", service_code="AmazonRDS",
+        db,
+        sku=sku or f"RDS-{engine}-{deployment}",
+        amount=amount,
+        attrs=attrs,
+        family="Database Instance",
+        service="rds",
+        service_code="AmazonRDS",
     )
 
 
 def rds_storage(db, *, deployment="Single-AZ", amount="0.2"):
     usage = ("Multi-AZ-" if deployment == "Multi-AZ" else "") + "GP3-Storage"
-    attrs = {"usagetype": "SAE1-RDS:" + usage, "deploymentOption": deployment,
-             "productFamily": "Database Storage"}
+    attrs = {
+        "usagetype": "SAE1-RDS:" + usage,
+        "deploymentOption": deployment,
+        "productFamily": "Database Storage",
+    }
     return publish(
-        db, sku="RDS-STORAGE-" + deployment, amount=amount,
-        attrs=attrs, family="Database Storage", service="rds",
-        service_code="AmazonRDS", unit="GB_MONTH", aws_unit="GB-Mo",
+        db,
+        sku="RDS-STORAGE-" + deployment,
+        amount=amount,
+        attrs=attrs,
+        family="Database Storage",
+        service="rds",
+        service_code="AmazonRDS",
+        unit="GB_MONTH",
+        aws_unit="GB-Mo",
     )
 
 
-def estimate(db, *, region="sa-east-1", os_name="linux", storage=True, terms=None,
-             service="ec2", deployment="single_az", engine="postgres"):
+def estimate(
+    db,
+    *,
+    region="sa-east-1",
+    os_name="linux",
+    storage=True,
+    terms=None,
+    service="ec2",
+    deployment="single_az",
+    engine="postgres",
+):
     cfg = (
         {
-            "service": "ec2", "instance_type": "t3.medium", "operating_system": os_name,
+            "service": "ec2",
+            "instance_type": "t3.medium",
+            "operating_system": os_name,
             "root_volume_gb": "100" if storage else None,
         }
-        if service == "ec2" else {
-            "service": "rds", "instance_class": "db.t3.medium", "engine": engine,
-            "deployment": deployment, "storage_type": "gp3",
+        if service == "ec2"
+        else {
+            "service": "rds",
+            "instance_class": "db.t3.medium",
+            "engine": engine,
+            "deployment": deployment,
+            "storage_type": "gp3",
             "allocated_storage_gb": "100",
         }
     )
-    request = CalculatorEstimateRequest.model_validate({
-        "provider": "aws", "region": region, "resource_configuration": cfg,
-        "pricing_reference_date": AT, "aws_financial": terms,
-    })
+    request = CalculatorEstimateRequest.model_validate(
+        {
+            "provider": "aws",
+            "region": region,
+            "resource_configuration": cfg,
+            "pricing_reference_date": AT,
+            "aws_financial": terms,
+        }
+    )
     return estimate_aws_calculator(request, db=db)
 
 
@@ -182,8 +251,13 @@ def test_locally_published_price_equals_regional_resolver_and_catalog(db):
     ):
         output = estimate(db)
         choices = aws_options(
-            db, service="ec2", region="sa-east-1", search="t3",
-            engine=None, offset=0, limit=10,
+            db,
+            service="ec2",
+            region="sa-east-1",
+            search="t3",
+            engine=None,
+            offset=0,
+            limit=10,
         )
     assert output.pricing_status == "priced"
     line = output.pricing_components[0]
@@ -198,13 +272,20 @@ def test_locally_published_price_equals_regional_resolver_and_catalog(db):
     assert choices["total"] == 1
     assert choices["items"][0]["pricing_status"] == "priced"
     resolved = AwsRegionalPricingResolver(db).resolve_aws_price(
-        service="ec2", service_code="AmazonEC2", region_code="sa-east-1",
+        service="ec2",
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
         configuration={
-            "instanceType": "t3.medium", "operatingSystem": "Linux",
-            "tenancy": "Shared", "preInstalledSw": "NA", "capacitystatus": "Used",
-            "operation": "RunInstances", "productFamily": "Compute Instance",
+            "instanceType": "t3.medium",
+            "operatingSystem": "Linux",
+            "tenancy": "Shared",
+            "preInstalledSw": "NA",
+            "capacitystatus": "Used",
+            "operation": "RunInstances",
+            "productFamily": "Compute Instance",
         },
-        billing_unit="INSTANCE_HOUR", reference_at=AT,
+        billing_unit="INSTANCE_HOUR",
+        reference_at=AT,
     )
     assert resolved.catalog_item_id == line.pricing_item_id
     assert resolved.unit_price == line.unit_price
@@ -228,35 +309,59 @@ def test_regional_isolation_and_unsynced_region(db):
 def test_gp3_capacity_and_extra_performance_is_not_discounted(db):
     compute(db)
     ebs(db)
-    ebs(db, family="System Operation", usage="VolumeP-IOPS.gp3",
-        sku="EBS-IOPS", amount="0.005", unit="IOPS_MONTH", aws_unit="IOPS-Mo")
-    ebs(db, family="Provisioned Throughput", usage="VolumeP-Throughput.gp3",
-        sku="EBS-MBPS", amount="0.04", unit="MBPS_MONTH", aws_unit="MBps-Mo")
+    ebs(
+        db,
+        family="System Operation",
+        usage="VolumeP-IOPS.gp3",
+        sku="EBS-IOPS",
+        amount="0.005",
+        unit="IOPS_MONTH",
+        aws_unit="IOPS-Mo",
+    )
+    ebs(
+        db,
+        family="Provisioned Throughput",
+        usage="VolumeP-Throughput.gp3",
+        sku="EBS-MBPS",
+        amount="0.04",
+        unit="MBPS_MONTH",
+        aws_unit="MBps-Mo",
+    )
     db.commit()
-    request = CalculatorEstimateRequest.model_validate({
-        "provider": "aws", "region": "sa-east-1", "pricing_reference_date": AT,
-        "resource_configuration": {
-            "service": "ec2", "instance_type": "t3.medium",
-            "operating_system": "linux", "root_volume_gb": "100",
-            "ebs_iops": 4000, "ebs_throughput_mbps": 200,
-        },
-        "aws_financial": {
-            "discount_percent": "10", "conversion_enabled": True,
-            "usd_brl_rate": "5", "tax_percent": "13",
-        },
-    })
+    request = CalculatorEstimateRequest.model_validate(
+        {
+            "provider": "aws",
+            "region": "sa-east-1",
+            "pricing_reference_date": AT,
+            "resource_configuration": {
+                "service": "ec2",
+                "instance_type": "t3.medium",
+                "operating_system": "linux",
+                "root_volume_gb": "100",
+                "ebs_iops": 4000,
+                "ebs_throughput_mbps": 200,
+            },
+            "aws_financial": {
+                "discount_percent": "10",
+                "conversion_enabled": True,
+                "usd_brl_rate": "5",
+                "tax_percent": "13",
+            },
+        }
+    )
     result = estimate_aws_calculator(request, db=db)
     assert result.pricing_status == "priced"
     assert [c.unit_price for c in result.pricing_components] == [
-        Decimal("1"), Decimal("0.1"), Decimal("0.005"), Decimal("0.04")
+        Decimal("1"),
+        Decimal("0.1"),
+        Decimal("0.005"),
+        Decimal("0.04"),
     ]
     assert result.monthly_original_cost == Decimal("748.00")
     assert result.monthly_discount_amount == Decimal("73.00")
     assert result.monthly_net_cost == Decimal("675.00")
     assert result.monthly_final_cost == Decimal("3813.75")
-    assert [c.discount_eligible for c in result.pricing_components] == [
-        True, False, False, False
-    ]
+    assert [c.discount_eligible for c in result.pricing_components] == [True, False, False, False]
 
 
 @pytest.mark.parametrize("engine", ["PostgreSQL", "MySQL", "MariaDB"])
@@ -266,7 +371,9 @@ def test_rds_engines_deployments_and_storage(db, engine, deployment, expected):
     rds_storage(db, deployment=deployment)
     db.commit()
     result = estimate(
-        db, service="rds", engine=engine.lower().replace("postgresql", "postgres"),
+        db,
+        service="rds",
+        engine=engine.lower().replace("postgresql", "postgres"),
         deployment="single_az" if deployment == "Single-AZ" else "multi_az",
     )
     assert result.pricing_status == "priced"
@@ -318,16 +425,31 @@ def test_regions_and_options_are_local_paginated_and_engine_specific(db):
     ):
         regions = available_regions(db)
         a = aws_options(
-            db, service="ec2", region="sa-east-1", search="t3",
-            engine=None, limit=1, offset=0,
+            db,
+            service="ec2",
+            region="sa-east-1",
+            search="t3",
+            engine=None,
+            limit=1,
+            offset=0,
         )
         b = aws_options(
-            db, service="ec2", region="sa-east-1", search="t3",
-            engine=None, limit=1, offset=1,
+            db,
+            service="ec2",
+            region="sa-east-1",
+            search="t3",
+            engine=None,
+            limit=1,
+            offset=1,
         )
         pg = aws_options(
-            db, service="rds", region="sa-east-1", search="t3",
-            engine="postgres", limit=10, offset=0,
+            db,
+            service="rds",
+            region="sa-east-1",
+            search="t3",
+            engine="postgres",
+            limit=10,
+            offset=0,
         )
     assert regions["source"] == "AWS_REGIONAL_CATALOG"
     assert "sa-east-1" in regions["items"]
