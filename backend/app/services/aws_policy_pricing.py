@@ -443,7 +443,8 @@ class AwsPolicyPricingAdapter:
             if not details.get("volumes"):
                 missing.append("ebs_volumes_not_described")
             notes.append(
-                "Stopping EC2 does not eliminate attached EBS charges; deletion requires separate validation."
+                "Stopping EC2 does not eliminate attached EBS charges; "
+                "deletion requires separate validation."
             )
         elif key == "eip_unassociated":
             rate = self._catalog_rate(
@@ -472,7 +473,8 @@ class AwsPolicyPricingAdapter:
                 else:
                     components = [rate.component("snapshot_logical_upper_bound", size)]
             notes.append(
-                "Incremental snapshots: source volume size is an upper bound, not measured billable storage."
+                "Incremental snapshots: source volume size is an upper bound, "
+                "not measured billable storage."
             )
         elif key == "ec2_nonprod_outside_hours":
             components, missing = self._ec2(region, details)
@@ -497,7 +499,8 @@ class AwsPolicyPricingAdapter:
         elif key == "rds_nonprod_idle":
             components, missing = self._rds(region, details)
             notes.append(
-                "Only instance compute is potentially avoidable; storage and other RDS costs remain."
+                "Only instance compute is potentially avoidable; "
+                "storage and other RDS costs remain."
             )
         else:
             return True
@@ -523,7 +526,8 @@ class AwsPolicyPricingAdapter:
                 if unit_price is not None:
                     savings = _money(unit_price * scheduled)
                     notes.append(
-                        "Off-hours estimate assumes recurring running time; actual uptime not verified."
+                        "Off-hours estimate assumes recurring running time; "
+                        "actual uptime not verified."
                     )
         elif key == "rds_nonprod_idle" and full:
             # Current total is unknown because storage and additional usage are excluded.
