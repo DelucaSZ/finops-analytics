@@ -111,7 +111,7 @@ type ExecutiveDashboardSummary = Omit<
     account_name: string | null;
     collection_run_id: string;
     severity: string;
-    estimated_monthly_savings: string;
+    estimated_monthly_savings: string | null;
     currency: string;
   }>;
 };
@@ -693,12 +693,16 @@ function TopOpportunities({
               <div className={styles.opportunityMetadata}>
                 <span>{item.account_name || item.account_id}{item.region ? ` · ${item.region}` : ""}</span>
                 <span className={styles.opportunitySavings}>
-                  <CurrencyDisplay
-                    value={Number(item.estimated_monthly_savings)}
-                    currency={item.currency}
-                                        currencyDisplay="code"
-                  />
-                  <span>{t("metrics.monthSuffix")}</span>
+                  {item.estimated_monthly_savings == null ? "—" : (
+                    <>
+                      <CurrencyDisplay
+                        value={Number(item.estimated_monthly_savings)}
+                        currency={item.currency}
+                        currencyDisplay="code"
+                      />
+                      <span>{t("metrics.monthSuffix")}</span>
+                    </>
+                  )}
                 </span>
               </div>
             }
