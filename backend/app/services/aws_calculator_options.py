@@ -1,52 +1,67 @@
-"""Bounded read-only options for the future Aven AWS calculator dropdowns.
+"""Authenticated read-only regional AWS calculator metadata.
 
-Every returned class/OS/deployment has a matching current On-Demand product in
-the selected region. Searches are deliberately paginated at the HTTP boundary.
+Regions and searchable EC2/RDS combinations come only from local database state.
+The public AWS Pricing API is used by the importer, never by calculator endpoints.
 """
 
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from functools import lru_cache
-from time import time
 
-from app.services.aws_calculator_pricing import (
-    AwsPriceUnavailable,
-    AwsPublicPriceResolver,
-    _client,
-    _price_dimension,
+from sqlalchemy import case, func, or_, select
+from sqlalchemy.orm import Session
+
+from app.core.config import settings
+from app.models.aws_pricing import (
+    AwsPricingProduct,
+    AwsPricingRateDetail,
+    AwsPricingSyncState,
 )
+from app.models.pricing import PricingCatalogItem
+from app.services.aws_pricing_sync import discover_regions
 
 _ENGINES = {"postgres": "PostgreSQL", "mysql": "MySQL", "mariadb": "MariaDB"}
 
 
-@lru_cache(maxsize=2)
-def _regions_hour(bucket: int) -> tuple[str, ...]:
-    client = _client()
-    values = set()
-    token = None
-    for _ in range(4):
-        payload = {"ServiceCode": "AmazonEC2", "AttributeName": "regionCode", "MaxResults": 100}
-        if token:
-            payload["NextToken"] = token
-        try:
-            response = client.get_attribute_values(**payload)
-        except Exception as exc:
-            raise AwsPriceUnavailable("aws_pricing_regions_unavailable") from exc
-        values.update(
-            item["Value"] for item in response.get("AttributeValues", ()) if item.get("Value")
+def _coverage_status(states: list[AwsPricingSyncState]) -> str:
+    if not states or all(state.last_successful_batch_id is None for state in states):
+        return "sync_required"
+    for status in ("stale", "partial", "failed"):
+        if any(state.coverage_status == status for state in states):
+            return status
+    return "synced"
+
+
+def available_regions(db: Session) -> dict:
+    """Account regions, local catalog, and per-service sync coverage."""
+    regions = set(discover_regions(db, settings.aws_pricing_sync_extra_regions))
+    regions.update(db.scalars(select(AwsPricingProduct.region_code).distinct()))
+    states = list(
+        db.scalars(
+            select(AwsPricingSyncState).where(
+                AwsPricingSyncState.service_code.in_(("AmazonEC2", "AmazonRDS"))
+            )
         )
-        token = response.get("NextToken")
-        if not token:
-            return tuple(sorted(values))
-    raise AwsPriceUnavailable("aws_pricing_regions_page_limit")
-
-
-def available_regions() -> list[str]:
-    return list(_regions_hour(int(time() // 3600)))
+    )
+    regions.update(state.region_code for state in states)
+    statuses: dict[str, str] = {}
+    by_service: dict[str, dict[str, str]] = {"ec2": {}, "rds": {}}
+    for region in sorted(regions):
+        matches = [state for state in states if state.region_code == region]
+        statuses[region] = _coverage_status(matches)
+        for name, code in (("ec2", "AmazonEC2"), ("rds", "AmazonRDS")):
+            service_states = [state for state in matches if state.service_code == code]
+            by_service[name][region] = _coverage_status(service_states)
+    return {
+        "items": sorted(regions),
+        "source": "AWS_REGIONAL_CATALOG",
+        "region_status": statuses,
+        "service_status": by_service,
+    }
 
 
 def aws_options(
+    db: Session,
     *,
     region: str,
     service: str,
@@ -54,82 +69,139 @@ def aws_options(
     engine: str | None,
     offset: int,
     limit: int,
-    resolver: AwsPublicPriceResolver | None = None,
 ) -> dict:
-    pricing = resolver or AwsPublicPriceResolver()
-    filters = {
-        "regionCode": region,
-        "contains:instanceType": search,
-        "productFamily": "Compute Instance" if service == "ec2" else "Database Instance",
-    }
+    if not (1 <= limit <= 100 and 0 <= offset <= 1_000_000):
+        raise ValueError("invalid pagination")
+    if service not in {"ec2", "rds"}:
+        raise ValueError("unsupported AWS calculator service")
+    name = _ENGINES.get((engine or "").lower())
+    if service == "rds" and not name:
+        return {
+            "items": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "status": "unsupported_engine",
+            "supported_engines": list(_ENGINES),
+        }
+    product = AwsPricingProduct
+    instance = product.product_attributes["instanceType"].as_string()
+    variant = (
+        product.product_attributes["operatingSystem"].as_string()
+        if service == "ec2"
+        else product.product_attributes["deploymentOption"].as_string()
+    )
+    q = [
+        product.service == service,
+        product.service_code == ("AmazonEC2" if service == "ec2" else "AmazonRDS"),
+        product.region_code == region,
+        product.product_family == ("Compute Instance" if service == "ec2" else "Database Instance"),
+        product.status == "active",
+        func.lower(instance).contains(search.lower(), autoescape=True),
+    ]
     if service == "ec2":
-        filters.update({"tenancy": "Shared", "preInstalledSw": "NA", "capacitystatus": "Used"})
-        code = "AmazonEC2"
-    else:
-        name = _ENGINES.get((engine or "").lower())
-        if not name:
-            return {
-                "items": [],
-                "total": 0,
-                "limit": limit,
-                "offset": offset,
-                "status": "unsupported_engine",
-                "supported_engines": list(_ENGINES),
-            }
-        filters["databaseEngine"] = name
-        code = "AmazonRDS"
-    rows = pricing.products(code, filters)
-    choices: set[tuple[str, str]] = set()
-    now = datetime.now(UTC)
-    for row in rows:
-        product = row.get("product", {})
-        attrs = product.get("attributes", {})
-        if (
-            product.get("productFamily") != filters["productFamily"]
-            or attrs.get("regionCode") != region
-            or not attrs.get("instanceType")
-            or search.lower() not in attrs["instanceType"].lower()
-            or not _price_dimension(row, unit="Hrs", at=now)
-        ):
-            continue
-        if service == "ec2":
-            if (
-                attrs.get("tenancy") != "Shared"
-                or attrs.get("preInstalledSw") != "NA"
-                or attrs.get("capacitystatus") != "Used"
-                or attrs.get("operatingSystem") not in ("Linux", "Windows")
-            ):
-                continue
-            choices.add((attrs["instanceType"], attrs["operatingSystem"].lower()))
-        else:
-            if (
-                attrs.get("databaseEngine") != filters["databaseEngine"]
-                or attrs.get("deploymentOption") not in ("Single-AZ", "Multi-AZ")
-                or attrs.get("licenseModel", "No license required").lower()
-                not in ("no license required", "license included")
-                or attrs.get("deploymentModel") in ("Custom", "Multi-AZ DB cluster")
-            ):
-                continue
-            choices.add(
-                (
-                    attrs["instanceType"],
-                    "single_az" if attrs["deploymentOption"] == "Single-AZ" else "multi_az",
-                )
+        q.extend(
+            (
+                product.product_attributes["tenancy"].as_string() == "Shared",
+                or_(
+                    product.product_attributes["preInstalledSw"].as_string().is_(None),
+                    product.product_attributes["preInstalledSw"].as_string().in_(("NA", "None")),
+                ),
+                or_(
+                    product.product_attributes["capacitystatus"].as_string().is_(None),
+                    product.product_attributes["capacitystatus"].as_string() == "Used",
+                ),
+                product.product_attributes["operation"].as_string().startswith("RunInstances"),
+                variant.in_(("Linux", "Windows")),
             )
-    ordered = sorted(choices)
+        )
+    else:
+        model = product.product_attributes["deploymentModel"].as_string()
+        license_model = product.product_attributes["licenseModel"].as_string()
+        edition = product.product_attributes["databaseEdition"].as_string()
+        q.extend(
+            (
+                product.product_attributes["databaseEngine"].as_string() == name,
+                variant.in_(("Single-AZ", "Multi-AZ")),
+                or_(model.is_(None), ~model.in_(("Custom", "Multi-AZ DB cluster"))),
+                or_(
+                    license_model.is_(None),
+                    func.lower(license_model).in_(("no license required", "license included")),
+                ),
+                or_(
+                    edition.is_(None),
+                    ~func.lower(edition).in_(
+                        ("enterprise", "standard edition 2", "web", "express")
+                    ),
+                ),
+            )
+        )
+
+    now = datetime.now(UTC)
+    price_exists = (
+        select(PricingCatalogItem.id)
+        .join(
+            AwsPricingRateDetail,
+            AwsPricingRateDetail.pricing_item_id == PricingCatalogItem.id,
+        )
+        .where(
+            AwsPricingRateDetail.product_id == product.id,
+            AwsPricingRateDetail.purchase_option == "on_demand",
+            AwsPricingRateDetail.pricing_status == "active",
+            AwsPricingRateDetail.begin_range == "0",
+            AwsPricingRateDetail.end_range == "Inf",
+            PricingCatalogItem.provider == "aws",
+            PricingCatalogItem.service == service,
+            PricingCatalogItem.region_code == region,
+            PricingCatalogItem.currency == "USD",
+            PricingCatalogItem.unit == "INSTANCE_HOUR",
+            PricingCatalogItem.enabled.is_(True),
+            PricingCatalogItem.effective_from <= now,
+            or_(
+                PricingCatalogItem.effective_until.is_(None),
+                PricingCatalogItem.effective_until > now,
+            ),
+        )
+        .correlate(product)
+        .exists()
+    )
+    # Group and paginate at SQL level; never load a region's SKU catalog into Python.
+    statement = (
+        select(
+            instance.label("instance_type"),
+            variant.label("variant"),
+            func.max(case((price_exists, 1), else_=0)).label("has_price"),
+        )
+        .where(*q)
+        .group_by(instance, variant)
+        .order_by(instance, variant)
+    )
+    total = db.scalar(select(func.count()).select_from(statement.order_by(None).subquery())) or 0
+    results = db.execute(statement.offset(offset).limit(limit)).all()
+    items = []
+    for instance_type, raw_variant, has_price in results:
+        variant_value = (
+            raw_variant.lower()
+            if service == "ec2"
+            else "single_az"
+            if raw_variant == "Single-AZ"
+            else "multi_az"
+        )
+        entry = (
+            {"instance_type": instance_type, "operating_system": variant_value}
+            if service == "ec2"
+            else {"instance_class": instance_type, "deployment": variant_value}
+        )
+        entry["pricing_status"] = "priced" if has_price else "price_not_effective"
+        items.append(entry)
     return {
         "service": service,
         "region": region,
-        "source": "AWS_PUBLIC_PRICE_LIST",
-        "items": [
-            {"instance_type": instance, "operating_system": variant}
-            if service == "ec2"
-            else {"instance_class": instance, "deployment": variant}
-            for instance, variant in ordered[offset : offset + limit]
-        ],
-        "total": len(ordered),
+        "source": "AWS_REGIONAL_CATALOG",
+        "items": items,
+        "total": total,
         "limit": limit,
         "offset": offset,
-        "status": "ok",
+        "status": "ok" if total else "no_results",
         "supported_engines": list(_ENGINES) if service == "rds" else [],
     }

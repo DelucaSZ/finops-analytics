@@ -209,6 +209,7 @@ CalculatorPricingStatus = Literal[
     "missing_configuration",
     "invalid_combination",
     "pricing_configuration_error",
+    "sync_required",
 ]
 
 
@@ -224,6 +225,11 @@ class CalculatorPricingComponent(BaseModel):
     billing_increment_seconds: int | None = None
     minimum_billable_seconds: int = 0
     pricing_item_id: str | None = None
+    region_code: str | None = None
+    product_sku: str | None = None
+    rate_code: str | None = None
+    import_batch_id: str | None = None
+    synced_at: datetime | None = None
     unit_price: Decimal | None = None
     monthly_units: Decimal | None = None
     period_units: Decimal | None = None
