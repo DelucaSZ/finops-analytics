@@ -5,6 +5,12 @@ from app.models.account import (
     OciAccountConfiguration,
 )
 from app.models.audit_event import AuditEvent
+from app.models.aws_pricing import (
+    AwsPricingImportBatch,
+    AwsPricingProduct,
+    AwsPricingRateDetail,
+    AwsPricingSyncState,
+)
 from app.models.auth import AccessToken, AuthRateLimit, LoginSession
 from app.models.billing_profile import BillingProfile
 from app.models.cloudwatch_pricing import CloudWatchPricingRule
@@ -74,6 +80,10 @@ __all__ = [
     "RecoveryCode",
     "SecurityEvent",
     "AuditEvent",
+    "AwsPricingImportBatch",
+    "AwsPricingProduct",
+    "AwsPricingRateDetail",
+    "AwsPricingSyncState",
     "AccessToken",
     "AuthRateLimit",
     "LoginSession",
