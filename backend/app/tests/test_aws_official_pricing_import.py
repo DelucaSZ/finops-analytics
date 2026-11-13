@@ -317,7 +317,10 @@ class FakeBulkClient:
                     "CurrencyCode": "USD",
                     "RegionCode": "sa-east-1",
                     "FileFormats": ["json"],
-                    "PriceListArn": "arn:aws:pricing:::price-list/aws/AmazonVPC/USD/20261113/sa-east-1",
+                    "PriceListArn": (
+                        "arn:aws:pricing:::price-list/aws/AmazonVPC/"
+                        "USD/20261113/sa-east-1"
+                    ),
                 }
             ],
         }
