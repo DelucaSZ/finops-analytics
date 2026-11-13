@@ -72,6 +72,17 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
                     )
                 )
             ).label("severity_other"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == _OPEN,
+                            OpportunityObservation.estimated_monthly_savings.is_not(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("priced_open"),
             func.coalesce(
                 func.sum(
                     case(
@@ -107,7 +118,7 @@ def _current_metrics(db: Session, target: CollectionRun) -> dict:
             "amount": format(Decimal(row.amount or 0), "f"),
         }
         for row in rows
-        if int(row.open or 0) > 0
+        if int(row.priced_open or 0) > 0
     ]
 
     return {
