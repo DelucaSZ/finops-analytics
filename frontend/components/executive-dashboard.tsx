@@ -215,6 +215,7 @@ export function ExecutiveDashboard() {
     scopedDashboardHref("/opportunities", state, { current: "true", ...extra });
 
   const totals = summary?.financial.totals || [];
+  const financialCoverage = summary?.financial.coverage;
   const hasBacklog = Boolean(summary?.opportunities.open);
   const newDetails = summary?.opportunities.new_since_previous_details ?? null;
   const newHref = buildDashboardNewOpportunitiesHref(state, newDetails?.comparison_context, "new_vs_previous");
@@ -365,7 +366,9 @@ export function ExecutiveDashboard() {
                 value={<SavingsValues totals={totals} />}
                 supportingText={
                   <MetricSupport
-                    text={t("metrics.currenciesSeparate")}
+                    text={financialCoverage && !financialCoverage.complete
+                      ? t("metrics.incompleteCoverage", financialCoverage)
+                      : t("metrics.currenciesSeparate")}
                     href={opportunityHref({ status: "open", sort: "estimated_savings", order: "desc" })}
                   />
                 }
