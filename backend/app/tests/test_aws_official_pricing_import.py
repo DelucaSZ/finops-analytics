@@ -312,7 +312,10 @@ class FakeBulkClient:
     def get_price_list_file_url(self, **kw):
         self.calls.append(("url", kw))
         return {
-            "Url": "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/AmazonVPC/20261113/sa-east-1/index.json"
+            "Url": (
+                "https://pricing.us-east-1.amazonaws.com/offers/v1.0/aws/"
+                "AmazonVPC/20261113/sa-east-1/index.json"
+            )
         }
 
 
