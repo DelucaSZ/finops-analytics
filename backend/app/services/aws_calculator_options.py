@@ -23,8 +23,17 @@ from app.services.aws_pricing_sync import discover_regions
 _ENGINES = {"postgres": "PostgreSQL", "mysql": "MySQL", "mariadb": "MariaDB"}
 
 
+def _coverage_status(states: list[AwsPricingSyncState]) -> str:
+    if not states or all(state.last_successful_batch_id is None for state in states):
+        return "sync_required"
+    for status in ("stale", "partial", "failed"):
+        if any(state.coverage_status == status for state in states):
+            return status
+    return "synced"
+
+
 def available_regions(db: Session) -> dict:
-    """Accounts, explicit sync configuration, catalog and sync state are all local."""
+    """Account regions, local catalog, and per-service sync coverage."""
     regions = set(discover_regions(db, settings.aws_pricing_sync_extra_regions))
     regions.update(db.scalars(select(AwsPricingProduct.region_code).distinct()))
     states = list(
@@ -36,24 +45,19 @@ def available_regions(db: Session) -> dict:
     )
     regions.update(state.region_code for state in states)
     statuses: dict[str, str] = {}
+    by_service: dict[str, dict[str, str]] = {"ec2": {}, "rds": {}}
     for region in sorted(regions):
         matches = [state for state in states if state.region_code == region]
-        if not matches or all(state.last_successful_batch_id is None for state in matches):
-            statuses[region] = "sync_required"
-        elif any(state.coverage_status == "stale" for state in matches):
-            statuses[region] = "stale"
-        elif any(state.coverage_status == "partial" for state in matches):
-            statuses[region] = "partial"
-        elif any(state.coverage_status == "failed" for state in matches):
-            statuses[region] = "failed"
-        else:
-            statuses[region] = "synced"
+        statuses[region] = _coverage_status(matches)
+        for name, code in (("ec2", "AmazonEC2"), ("rds", "AmazonRDS")):
+            service_states = [state for state in matches if state.service_code == code]
+            by_service[name][region] = _coverage_status(service_states)
     return {
         "items": sorted(regions),
         "source": "AWS_REGIONAL_CATALOG",
         "region_status": statuses,
+        "service_status": by_service,
     }
-
 
 def aws_options(
     db: Session,
