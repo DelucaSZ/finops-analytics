@@ -28,9 +28,13 @@ def test_manual_queue_runs_async_worker_contract_and_preserves_request(monkeypat
 
     with sessions.begin() as db:
         request = AwsPricingSyncRequest(
-            service_code="AmazonEC2", region_code="sa-east-1",
-            requested_by="admin-test", status="queued", dry_run=True,
-            force=False, requested_at=datetime.now(UTC),
+            service_code="AmazonEC2",
+            region_code="sa-east-1",
+            requested_by="admin-test",
+            status="queued",
+            dry_run=True,
+            force=False,
+            requested_at=datetime.now(UTC),
         )
         db.add(request)
         db.flush()
@@ -57,9 +61,13 @@ def test_manual_queue_stays_disabled_without_optin(monkeypatch):
     with sessions.begin() as db:
         db.add(
             AwsPricingSyncRequest(
-                service_code="AmazonVPC", region_code="sa-east-1",
-                requested_by="admin-test", status="queued", dry_run=False,
-                force=False, requested_at=datetime.now(UTC),
+                service_code="AmazonVPC",
+                region_code="sa-east-1",
+                requested_by="admin-test",
+                status="queued",
+                dry_run=False,
+                force=False,
+                requested_at=datetime.now(UTC),
             )
         )
     queue = AwsPricingManualQueue(session_factory=sessions)
