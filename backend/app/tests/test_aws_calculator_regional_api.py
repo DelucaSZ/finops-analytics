@@ -61,14 +61,17 @@ def test_aws_catalog_endpoints_are_not_public(auth_env):
         ).status_code
         == 401
     )
-    assert client.post(
-        BASE + "/estimate",
-        json={
-            "provider": "aws",
-            "region": "sa-east-1",
-            "resource_configuration": {"service": "ec2"},
-        },
-    ).status_code == 401
+    assert (
+        client.post(
+            BASE + "/estimate",
+            json={
+                "provider": "aws",
+                "region": "sa-east-1",
+                "resource_configuration": {"service": "ec2"},
+            },
+        ).status_code
+        == 401
+    )
 
 
 def test_aws_option_pagination_is_bounded(auth_env):
