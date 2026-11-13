@@ -288,7 +288,7 @@ export default function AwsPricingPage() {
       />
       <div className={styles.notice}>
         <strong>{t("officialSource")}:</strong> {meta?.source ?? "AWS_PUBLIC_PRICE_LIST"}
-        <span>{t("currency")}: USD</span>
+        <span>{t("currency")}: {meta?.currency ?? "USD"}</span>
         {selectedStatus && (
           <span>{t("lastVerified")}: {humanDate(selectedStatus.last_verified_at, locale)}</span>
         )}
