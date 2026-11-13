@@ -367,7 +367,11 @@ export function ExecutiveDashboard() {
                 supportingText={
                   <MetricSupport
                     text={financialCoverage && !financialCoverage.complete
-                      ? t("metrics.incompleteCoverage", financialCoverage)
+                      ? t("metrics.incompleteCoverage", {
+                          known: financialCoverage.known,
+                          partial: financialCoverage.partial,
+                          unknown: financialCoverage.unknown,
+                        })
                       : t("metrics.currenciesSeparate")}
                     href={opportunityHref({ status: "open", sort: "estimated_savings", order: "desc" })}
                   />
