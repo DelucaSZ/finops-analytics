@@ -169,7 +169,7 @@ def test_brl_oci_and_usd_aws_can_coexist_without_becoming_equivalent(pricing_db)
         unit="OCPU_HOUR",
         expected_currency="BRL",
     )
-    with pytest.raises(PricingCatalogError, match="regional"):
+    with pytest.raises(PricingCatalogError, match="region"):
         resolver.resolve_price(
             provider="aws",
             service="ec2",

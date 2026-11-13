@@ -159,7 +159,7 @@ def test_historical_version_and_current_version_without_overwrite(pricing_db):
     assert _resolve(pricing_db, "sa-east-1", AT - timedelta(days=10)).status == (
         "price_not_effective"
     )
-    assert original.effective_until == AT + timedelta(days=2)
+    assert original.effective_until.replace(tzinfo=UTC) == AT + timedelta(days=2)
     history = AwsRegionalPricingRepository(pricing_db).rate_history(
         service="ec2",
         region_code="sa-east-1",
