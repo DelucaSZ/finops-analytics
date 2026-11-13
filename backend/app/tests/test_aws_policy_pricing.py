@@ -309,6 +309,7 @@ def test_legitimate_zero_price_is_distinct_from_missing(db):
     assert item.current_monthly_cost == Decimal("0.00")
     assert item.estimated_monthly_savings == Decimal("0.00")
 
+
 def test_flat_collector_evidence_is_priced_and_preserved_in_opportunity(db):
     ebs(db, amount="0.09")
     db.commit()
