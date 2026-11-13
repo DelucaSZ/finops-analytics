@@ -392,4 +392,5 @@ def test_partial_rds_compute_saving_does_not_hide_operational_finding(db):
     assert item.evidence["pricing"]["status"] == "partially_priced"
     assert item.estimated_monthly_savings == Decimal("146.00")
     assert item.current_monthly_cost is None
-    assert "rds_storage_and_additional_costs_excluded" in item.evidence["pricing"]["missing_components"]
+    missing = item.evidence["pricing"]["missing_components"]
+    assert "rds_storage_and_additional_costs_excluded" in missing
