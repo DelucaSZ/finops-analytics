@@ -413,6 +413,14 @@ def test_valid_zero_price_remains_priced(db):
     assert result.pricing_components[0].unit_price == Decimal(0)
 
 
+def test_service_specific_sync_status_does_not_mark_rds_as_synced_with_only_ec2(db):
+    compute(db)
+    db.commit()
+    regions = available_regions(db)
+    assert regions["service_status"]["ec2"]["sa-east-1"] == "synced"
+    assert regions["service_status"]["rds"]["sa-east-1"] == "sync_required"
+
+
 def test_regions_and_options_are_local_paginated_and_engine_specific(db):
     compute(db, os_name="Linux")
     compute(db, os_name="Windows")
