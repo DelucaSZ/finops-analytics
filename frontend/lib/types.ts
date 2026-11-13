@@ -106,6 +106,7 @@ export type Finding = {
   description: string;
   current_monthly_cost: string | null;
   estimated_monthly_savings: string | null;
+  pricing_status?: string | null;
   currency: string;
   confidence: string;
   severity: string;
