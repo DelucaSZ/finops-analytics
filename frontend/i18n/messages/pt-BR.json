@@ -1518,6 +1518,7 @@
         "afterClose": "Disponível após o fechamento do ciclo",
         "potential": "Economia potencial",
         "noFx": "Moedas preservadas sem conversão",
+        "incompleteFinancialCoverage": "Valores conhecidos somados; existem estimativas parciais ou desconhecidas neste ciclo.",
         "current": "Custo atual no fechamento",
         "captured": "Valor capturado no ciclo selecionado",
         "collections": "Cobertura de coletas",
