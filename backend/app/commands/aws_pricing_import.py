@@ -47,7 +47,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--fixture", type=Path, help="Offline official-format test fixture")
     parser.add_argument("--allow-fixture-apply", action="store_true")
     parser.add_argument(
-        "--offline-dry-run", action="store_true",
+        "--offline-dry-run",
+        action="store_true",
         help="Skip DB conflict lookup (dry-run only, report this limitation)",
     )
     args = parser.parse_args(argv)
@@ -55,9 +56,13 @@ def main(argv: list[str] | None = None) -> int:
         parser.error(
             "apply requires AVEN_AWS_PRICING_IMPORT_ENABLED=1 in administrative environment"
         )
-    if args.apply and args.fixture and (
-        not args.allow_fixture_apply
-        or os.environ.get("AVEN_ALLOW_OFFLINE_PRICE_FIXTURES") != "1"
+    if (
+        args.apply
+        and args.fixture
+        and (
+            not args.allow_fixture_apply
+            or os.environ.get("AVEN_ALLOW_OFFLINE_PRICE_FIXTURES") != "1"
+        )
     ):
         parser.error(
             "test fixture publication requires explicit fixture flags and environment opt-in"
@@ -90,7 +95,10 @@ def main(argv: list[str] | None = None) -> int:
     except Exception as exc:
         logging.getLogger(__name__).error(
             "aws_pricing_import_failed service=%s region=%s type=%s error=%s",
-            args.service, args.region, type(exc).__name__, str(exc)[:300],
+            args.service,
+            args.region,
+            type(exc).__name__,
+            str(exc)[:300],
         )
         return 3
     finally:
