@@ -312,6 +312,7 @@ export type DashboardSummary = {
     metric: string;
     label: string;
     period: string;
+    coverage?: { known: number; partial: number; unknown: number; complete: boolean };
     totals: Array<{ currency: string; amount: string }>;
   };
   by_provider: Array<{
