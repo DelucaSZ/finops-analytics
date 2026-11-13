@@ -183,7 +183,7 @@ def test_stage_one_data_is_backfilled_without_inventing_history(tmp_path):
                 connection,
                 opts={"version_table": "deepops_mfa_schema_version"},
             ).get_current_revision()
-            == "0041_aws_pricing_sync_runs"
+            == "0042_aws_pricing_manual_requests"
         )
 
     engine.dispose()

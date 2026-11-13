@@ -32,7 +32,7 @@ test("Task 25.7 translations use the official parallel ICU catalogs", () => {
 test("Settings navigation labels cannot affect route, permission or role checks", () => {
   const admin = settingsTabsForRole("admin");
   const viewer = settingsTabsForRole("viewer");
-  assert.equal(admin.length, 12);
+  assert.equal(admin.length, 13);
   assert.equal(viewer.length, 5);
   for (const tab of admin) {
     assert.ok(tab.href.startsWith("/settings/"));

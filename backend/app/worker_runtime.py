@@ -18,6 +18,7 @@ from app.models.opportunity_retention_run import (
     OpportunityRetentionRun,
     OpportunityRetentionRunStatus,
 )
+from app.services.aws_pricing_manual_queue import AwsPricingManualQueue
 from app.services.aws_pricing_sync import AwsPricingSynchronizer
 from app.services.opportunity_policy import OpportunityManagementPolicyService
 from app.services.opportunity_retention import (
@@ -419,11 +420,40 @@ class AwsPricingScheduler:
         self.executor.shutdown(wait=False, cancel_futures=True)
 
 
+class AwsPricingManualScheduler:
+    """Poll approved DB requests without turning on the automatic AWS import cycle."""
+
+    def __init__(self, queue: AwsPricingManualQueue | None = None) -> None:
+        self.queue = queue or AwsPricingManualQueue()
+        self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="aws-manual")
+        self.future: Future | None = None
+        self.next_check_at: datetime | None = None
+
+    def tick(self, *, now: datetime | None = None) -> None:
+        current = now or datetime.now(UTC)
+        if self.future is not None:
+            if not self.future.done():
+                return
+            try:
+                self.future.result()
+            except Exception:
+                logger.exception("event=aws_pricing_manual_queue_failed")
+            self.future = None
+        if self.next_check_at is not None and current < self.next_check_at:
+            return
+        self.future = self.executor.submit(self.queue.run_next)
+        self.next_check_at = current + timedelta(seconds=10)
+
+    def close(self) -> None:
+        self.executor.shutdown(wait=False, cancel_futures=True)
+
+
 def process_runtime_once(
     scheduler: DailyOpportunityRetentionScheduler,
     automation_scheduler: OpportunityAutomationScheduler | None = None,
     rds_scheduler: RdsReservationsScheduler | None = None,
     aws_pricing_scheduler: AwsPricingScheduler | None = None,
+    aws_pricing_manual_scheduler: AwsPricingManualScheduler | None = None,
 ) -> bool:
     # Collection/reconciliation work runs first so dependent maintenance never
     # races ahead of a scan that still needs to persist its observations.
@@ -432,6 +462,8 @@ def process_runtime_once(
         rds_scheduler.tick()
     if aws_pricing_scheduler is not None:
         aws_pricing_scheduler.tick()
+    if aws_pricing_manual_scheduler is not None:
+        aws_pricing_manual_scheduler.tick()
     scheduler.tick()
     if automation_scheduler is not None:
         automation_scheduler.tick()
@@ -444,17 +476,23 @@ def main() -> None:
     automation_scheduler = OpportunityAutomationScheduler()
     rds_scheduler = RdsReservationsScheduler()
     aws_pricing_scheduler = AwsPricingScheduler() if settings.aws_pricing_sync_enabled else None
+    aws_pricing_manual_scheduler = AwsPricingManualScheduler()
     logger.info("Aven worker started")
     try:
         while True:
             worked = process_runtime_once(
-                scheduler, automation_scheduler, rds_scheduler, aws_pricing_scheduler
+                scheduler,
+                automation_scheduler,
+                rds_scheduler,
+                aws_pricing_scheduler,
+                aws_pricing_manual_scheduler,
             )
             if not worked:
                 time.sleep(settings.worker_poll_seconds)
     finally:
         if aws_pricing_scheduler is not None:
             aws_pricing_scheduler.close()
+        aws_pricing_manual_scheduler.close()
         scheduler.close()
 
 

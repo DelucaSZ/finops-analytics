@@ -49,6 +49,7 @@ export default function SettingsLayout({ children }: { children: React.ReactNode
     audit: t("navigation.audit"),
     https: t("navigation.https"),
     pricing: t("navigation.pricing"),
+    pricingAws: t("navigation.pricingAws"),
     billingProfiles: t("navigation.billingProfiles"),
     usageCosts: t("navigation.usageCosts"),
     retention: t("navigation.retention"),

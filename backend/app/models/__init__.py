@@ -10,6 +10,7 @@ from app.models.aws_pricing import (
     AwsPricingImportBatch,
     AwsPricingProduct,
     AwsPricingRateDetail,
+    AwsPricingSyncRequest,
     AwsPricingSyncRun,
     AwsPricingSyncState,
 )
@@ -85,6 +86,7 @@ __all__ = [
     "AwsPricingProduct",
     "AwsPricingRateDetail",
     "AwsPricingSyncState",
+    "AwsPricingSyncRequest",
     "AwsPricingSyncRun",
     "AccessToken",
     "AuthRateLimit",

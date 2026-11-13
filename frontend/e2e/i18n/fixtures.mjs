@@ -141,6 +141,72 @@ export function apiFixture(path,method='GET',body=null) {
     return {status:200,body:{csrf_token:'qa-only-token'}};
   if (method!=='GET' && !['/billing/aws/summary','/billing/aws/timeseries','/billing/aws/breakdown'].includes(pathname))
     return {status:403,body:{}}; // No administrative/financial mutations are authorized.
+
+  // Task 28.5 fixtures: deterministic two-region official-pricing examples, read-only.
+  const awsRegion = new URL(path,'https://qa.local').searchParams.get('region') || 'sa-east-1';
+  const awsService = new URL(path,'https://qa.local').searchParams.get('service') || 'AmazonEC2';
+  const awsSearch = new URL(path,'https://qa.local').searchParams.get('q') || '';
+  const awsRate = {
+    id:awsRegion==='us-east-1'?'qa-us-rate':'qa-sa-rate',
+    service:'ec2',service_code:'AmazonEC2',region_code:awsRegion,
+    product_sku:'QA-EC2-T3-SMALL',product_family:'Compute Instance',
+    description:'Fixture only · EC2 Linux shared',
+    product_attributes:{instanceType:'t3.small',operatingSystem:'Linux',tenancy:'Shared'},
+    financial_attributes:{instanceType:'t3.small',operatingSystem:'Linux',tenancy:'Shared'},
+    rate_code:'QA-EC2-HOUR',term_code:'JRTCKXETXF',purchase_option:'on_demand',
+    billing_unit:'Hrs',unit:'INSTANCE_HOUR',rate_description:'Fixture On-Demand usage',
+    begin_range:'0',end_range:'Inf',pricing_status:'active',
+    price:awsRegion==='us-east-1'?'0.00250000':'0.00425000',
+    currency:'USD',effective_from:FIXTURE_TIME,effective_until:null,enabled:true,
+    source:'AWS_PUBLIC_PRICE_LIST',source_effective_at:FIXTURE_TIME,
+    synced_at:FIXTURE_TIME,import_batch_id:'qa-batch-1',
+  };
+  if(pathname==='/pricing/aws/meta')return {status:200,body:{
+    provider:'aws',currency:'USD',source:'AWS_PUBLIC_PRICE_LIST',
+    regions:['sa-east-1','us-east-1'],
+    services:['AmazonEC2','AmazonRDS','AmazonVPC','AWSELB'],import_enabled:false
+  }};
+  if(pathname==='/pricing/aws/rates') {
+    const found=awsService==='AmazonEC2'&&
+      (!awsSearch||JSON.stringify(awsRate).toLowerCase().includes(awsSearch.toLowerCase()));
+    const items=found?[awsRate]:[];
+    return {status:200,body:{items,total:items.length,limit:25,offset:0}};
+  }
+  if(pathname==='/pricing/aws/products')return {status:200,body:{
+    items:[],total:0,limit:25,offset:0
+  }};
+  if(/^\/pricing\/aws\/rates\/[^/]+\/history$/.test(pathname))
+    return {status:200,body:{items:[awsRate],total:1,limit:25,offset:0}};
+  if(/^\/pricing\/aws\/rates\/[^/]+$/.test(pathname))
+    return {status:200,body:awsRate};
+  if(pathname==='/pricing/aws/sync/status')return {status:200,body:{items:[{
+    service_code:awsService,region_code:awsRegion,
+    last_attempt_status:'failed',catalog_status:'synced',freshness:'current',
+    last_attempt_at:FIXTURE_TIME,last_verified_at:FIXTURE_TIME,
+    last_success_at:FIXTURE_TIME,next_due_at:FIXTURE_TIME,
+    published_batch_id:'qa-batch-1',error_code:'QA_SOURCE_TIMEOUT'
+  }]}};
+  if(pathname==='/pricing/aws/sync/coverage')return {status:200,body:{
+    service_code:awsService,region_code:awsRegion,complete:false,
+    required:['ec2_linux_shared','ec2_windows_shared'],
+    present:['ec2_linux_shared'],missing:['ec2_windows_shared'],
+    counts:{ec2_linux_shared:1},active_rates:1,products:1
+  }};
+  if(pathname==='/pricing/aws/sync/runs')return {status:200,body:{
+    items:[{
+      id:'qa-sync-run-1',service_code:awsService,region_code:awsRegion,
+      trigger:'scheduled',status:'failed',attempt:1,
+      started_at:FIXTURE_TIME,finished_at:FIXTURE_TIME,next_retry_at:null,
+      source_reference:'fixture',source_version:'fixture-1',
+      batch_id:null,products_seen:0,rates_seen:0,rates_published:0,
+      rates_rejected:0,metrics:null,coverage:null,
+      error_code:'QA_SOURCE_TIMEOUT',error_summary:'Synthetic failure'
+    }],total:1,limit:20,offset:0
+  }};
+  if(/^\/pricing\/aws\/sync\/runs\/[^/]+$/.test(pathname))
+    return {status:404,body:{detail:'not found'}};
+  if(/^\/pricing\/aws\/sync\/requests\/[^/]+$/.test(pathname))
+    return {status:404,body:{detail:'not found'}};
   // The calculator region metadata is a read-only test fixture; no synthetic price quotes.
   if (pathname==='/calculator/aws/regions')return {status:200,body:{items:['sa-east-1'],source:'AWS_PUBLIC_PRICE_LIST'}};
   if (pathname==='/cloud-accounts')return {status:200,body:accounts};
