@@ -87,6 +87,45 @@ class Settings(BaseSettings):
             )
         return self
 
+    # Task 28.4: opt-in AWS price-list maintenance; nothing downloads on deployment.
+    aws_pricing_sync_enabled: bool = Field(False, alias="AVEN_AWS_PRICING_SYNC_ENABLED")
+    aws_pricing_sync_interval_hours: int = Field(
+        24, ge=1, le=720, alias="AVEN_AWS_PRICING_SYNC_INTERVAL_HOURS"
+    )
+    aws_pricing_sync_stale_hours: int = Field(
+        72, ge=1, le=2160, alias="AVEN_AWS_PRICING_SYNC_STALE_HOURS"
+    )
+    aws_pricing_sync_max_jobs_per_cycle: int = Field(
+        2, ge=1, le=20, alias="AVEN_AWS_PRICING_SYNC_MAX_JOBS_PER_CYCLE"
+    )
+    aws_pricing_sync_max_concurrent: int = Field(
+        1, ge=1, le=4, alias="AVEN_AWS_PRICING_SYNC_MAX_CONCURRENT"
+    )
+    aws_pricing_sync_max_downloads: int = Field(
+        1, ge=1, le=4, alias="AVEN_AWS_PRICING_SYNC_MAX_DOWNLOADS"
+    )
+    aws_pricing_sync_max_retries: int = Field(
+        3, ge=1, le=8, alias="AVEN_AWS_PRICING_SYNC_MAX_RETRIES"
+    )
+    aws_pricing_sync_backoff_seconds: int = Field(
+        60, ge=5, le=3600, alias="AVEN_AWS_PRICING_SYNC_BACKOFF_SECONDS"
+    )
+    aws_pricing_sync_services: str = Field(
+        "AmazonEC2,AmazonRDS,AWSELB,AmazonVPC", alias="AVEN_AWS_PRICING_SYNC_SERVICES"
+    )
+    aws_pricing_sync_extra_regions: str = Field(
+        "", alias="AVEN_AWS_PRICING_SYNC_EXTRA_REGIONS"
+    )
+    aws_pricing_sync_max_bytes: int = Field(
+        2_000_000_000, ge=1, le=10_000_000_000, alias="AVEN_AWS_PRICING_SYNC_MAX_BYTES"
+    )
+    aws_pricing_sync_max_products: int = Field(
+        1_000_000, ge=1, le=10_000_000, alias="AVEN_AWS_PRICING_SYNC_MAX_PRODUCTS"
+    )
+    aws_pricing_sync_max_rates: int = Field(
+        1_000_000, ge=1, le=10_000_000, alias="AVEN_AWS_PRICING_SYNC_MAX_RATES"
+    )
+
     worker_poll_seconds: int = Field(5, alias="NUVEMIQ_WORKER_POLL_SECONDS")
     opportunity_resolution_missing_runs: int = Field(
         3,
