@@ -12,11 +12,12 @@ import logging
 import re
 import sqlite3
 import time
+from collections.abc import Iterator
 from dataclasses import asdict, dataclass, field
-from decimal import Decimal
 from datetime import UTC, datetime
+from decimal import Decimal
 from pathlib import Path
-from typing import Any, Iterator
+from typing import Any
 from urllib.parse import urlparse
 
 import boto3
@@ -93,7 +94,11 @@ def _client(endpoint_region: str = "us-east-1"):
     return boto3.client(
         "pricing",
         region_name=endpoint_region,
-        config=Config(connect_timeout=5, read_timeout=20, retries={"mode": "standard", "max_attempts": 4}),
+        config=Config(
+            connect_timeout=5,
+            read_timeout=20,
+            retries={"mode": "standard", "max_attempts": 4},
+        ),
     )
 
 
@@ -209,7 +214,9 @@ def download_official_offer(
                 if response.status_code in (429, 500, 502, 503, 504):
                     raise requests.HTTPError("transient HTTP " + str(response.status_code))
                 if response.status_code != 200:
-                    raise AwsBulkImportError("official download returned HTTP " + str(response.status_code))
+                    raise AwsBulkImportError(
+                        "official download returned HTTP " + str(response.status_code)
+                    )
                 digest = hashlib.sha256()
                 total = 0
                 with destination.open("wb") as handle:
