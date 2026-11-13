@@ -231,6 +231,30 @@ async function runFunctional(){
       assert.ok(requests.some(r=>r.path.includes('/inventory/resources?')&&
         r.path.includes('search=qa-resource')),'inventory search not sent to API');
     });
+    await scenario(locale,'/settings/pricing/aws',async(page,requests)=>{
+      await page.getByText('Fixture only · EC2 Linux shared').first().waitFor({timeout});
+      assert.ok(requests.some(r=>r.path.includes('/pricing/aws/rates?')&&
+        r.path.includes('region=sa-east-1')&&r.status===200),
+        'AWS pricing catalog fixture was not fetched for São Paulo');
+      const rateText=locale==='pt-BR'?'0,00425000':'0.00425000';
+      assert.ok((await page.locator('body').innerText()).includes(rateText),
+        'precise AWS price not displayed');
+      const region=page.locator('select').filter({
+        has:page.locator('option[value="us-east-1"]')
+      }).first();
+      await region.selectOption('us-east-1');
+      await page.waitForFunction(()=>
+        document.body.innerText.includes(document.documentElement.lang==='pt-BR'?'0,00250000':'0.00250000'),
+        null,{timeout});
+      assert.ok(requests.some(r=>r.path.includes('/pricing/aws/rates?')&&
+        r.path.includes('region=us-east-1')&&r.status===200),
+        'AWS pricing selection did not request the new region');
+      assert.ok(!(await page.locator('body').innerText()).includes(rateText),
+        'AWS pricing reused the previous region rate');
+      await page.getByRole('button',{name:locale==='pt-BR'?'Detalhes':'Details'}).first().click();
+      await page.getByRole('dialog').getByText('QA-EC2-HOUR').first().waitFor({timeout});
+      await page.getByRole('dialog').getByRole('button',{name:locale==='pt-BR'?'Fechar':'Close'}).click();
+    });
     await scenario(locale,'/flow',async(page,requests)=>{
       await page.locator('h3').first().waitFor({timeout});
       const previousSummaryRequests=requests.filter(r=>r.path.startsWith('/finops/flow/summary')).length;
@@ -294,6 +318,42 @@ async function runFunctional(){
       await radio.check();
       assert.equal(await page.locator('html').getAttribute('data-theme-preference'),'dark');
     });
+  }
+}
+
+async function awsPricingVisualMatrix(){
+  const widths=[1920,1440,1366,1280,1024,768,390,360];
+  for(const locale of ['pt-BR','en-US']){
+    for(const theme of ['light','dark','system']){
+      const {ctx}=await createContext(locale,{
+        theme:theme==='system'?null:theme,
+        colorScheme:theme==='dark'?'dark':'light'
+      });
+      const page=await ctx.newPage();
+      const record={
+        route:'/settings/pricing/aws',locale,theme,
+        scenario:'task-28.5-visual-matrix',status:'not_run',pageErrors:[]
+      };
+      report.cases.push(record);
+      watch(page,record.pageErrors);
+      try{
+        await visit(page,'/settings/pricing/aws',locale,record);
+        await page.getByText('Fixture only · EC2 Linux shared').first().waitFor({timeout});
+        for(const width of widths){
+          await page.setViewportSize({width,height:width<=768?844:900});
+          const overflow=await page.evaluate(()=>
+            document.documentElement.scrollWidth>window.innerWidth+3);
+          assert.equal(overflow,false,'AWS pricing document overflow at '+width+'px');
+          await page.screenshot({
+            path:OUT+'/aws-pricing-'+locale+'-'+theme+'-'+width+'.png',
+            fullPage:true,animations:'disabled'
+          });
+        }
+        assert.deepEqual(record.pageErrors,[],'AWS pricing browser runtime errors');
+        record.status='passed';
+      }catch(error){fail(record,error)}
+      finally{await page.close();await ctx.close()}
+    }
   }
 }
 async function visualAndAccessibility(){
@@ -362,7 +422,7 @@ try{
     }else await runPhase27(deps);
   }else{
     await routeSuite('pt-BR');await routeSuite('en-US');
-    if(full){await runFunctional();await visualAndAccessibility()}
+    if(full){await runFunctional();await visualAndAccessibility();await awsPricingVisualMatrix()}
   }
   // Public/technical paths are already covered by the existing browser smoke and
   // its separate report; count them in the inventory, never as this suite's passes.
