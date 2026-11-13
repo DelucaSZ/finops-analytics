@@ -127,15 +127,13 @@ def _ec2(request, at, resolver):
             "instanceType": cfg.instance_type,
             "operatingSystem": os_name,
             "tenancy": "Shared",
-            "preInstalledSw": "NA",
-            "capacitystatus": "Used",
         },
         lambda a: (
             a.get("instanceType") == cfg.instance_type
             and a.get("operatingSystem") == os_name
             and a.get("tenancy") == "Shared"
-            and a.get("preInstalledSw") == "NA"
-            and a.get("capacitystatus") == "Used"
+            and a.get("preInstalledSw", "NA") in ("NA", "None")
+            and a.get("capacitystatus", "Used") == "Used"
             and a.get("operation", "").startswith("RunInstances")
         ),
         "INSTANCE_HOUR",
