@@ -331,10 +331,14 @@ def test_dashboard_requires_authentication(dashboard):
 def test_partial_aws_pricing_is_not_totaled_as_known_dashboard_savings(dashboard):
     http, engine = dashboard
     with Session(engine) as db:
-        observation = db.query(OpportunityObservation).filter_by(
+        observation = (
+            db.query(OpportunityObservation)
+            .filter_by(
             opportunity_id="opp-003",
             collection_run_id="run-b1",
-        ).one()
+            )
+            .one()
+        )
         observation.evidence = {
             "pricing": {
                 "provider": "aws",
@@ -347,41 +351,39 @@ def test_partial_aws_pricing_is_not_totaled_as_known_dashboard_savings(dashboard
     response = http.get("/dashboard/summary")
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["financial"]["totals"] == [
-        {"currency": "USD", "amount": "20.00"}
-    ]
+    assert body["financial"]["totals"] == [{"currency": "USD", "amount": "20.00"}]
     assert body["financial"]["coverage"] == {
         "known": 1,
         "partial": 1,
         "unknown": 0,
         "complete": False,
     }
-    assert body["by_provider"][0]["savings"] == [
-        {"currency": "USD", "amount": "20.00"}
-    ]
-    assert body["by_service"][0]["savings"] == [
-        {"currency": "USD", "amount": "20.00"}
-    ]
+    assert body["by_provider"][0]["savings"] == [{"currency": "USD", "amount": "20.00"}]
+    assert body["by_service"][0]["savings"] == [{"currency": "USD", "amount": "20.00"}]
 
 
 def test_missing_and_partial_prices_never_appear_as_zero_known_total(dashboard):
     http, engine = dashboard
     with Session(engine) as db:
-        unpriced = db.query(OpportunityObservation).filter_by(
+        unpriced = (
+            db.query(OpportunityObservation)
+            .filter_by(
             opportunity_id="opp-000",
             collection_run_id="run-a2",
-        ).one()
+            )
+            .one()
+        )
         unpriced.estimated_monthly_savings = None
-        unpriced.evidence = {
-            "pricing": {"provider": "aws", "status": "price_unavailable"}
-        }
-        partial = db.query(OpportunityObservation).filter_by(
+        unpriced.evidence = {"pricing": {"provider": "aws", "status": "price_unavailable"}}
+        partial = (
+            db.query(OpportunityObservation)
+            .filter_by(
             opportunity_id="opp-003",
             collection_run_id="run-b1",
-        ).one()
-        partial.evidence = {
-            "pricing": {"provider": "aws", "status": "partially_priced"}
-        }
+            )
+            .one()
+        )
+        partial.evidence = {"pricing": {"provider": "aws", "status": "partially_priced"}}
         db.commit()
 
     response = http.get("/dashboard/summary")
