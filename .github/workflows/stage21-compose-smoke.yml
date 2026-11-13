@@ -73,7 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0041_aws_pricing_sync_runs"
+          test "$version" = "0042_aws_pricing_manual_requests"
           curl --fail --silent --show-error http://127.0.0.1/health | grep -q '"status":"ok"'
           curl --fail --silent --show-error http://127.0.0.1/ >/tmp/frontend.html
           test -s /tmp/frontend.html
@@ -92,7 +92,7 @@ jobs:
             sleep 2
           done
           version="$(docker compose -p deepops-stage21 exec -T db             psql -U nuvemiq -d nuvemiq -Atc             'SELECT version_num FROM deepops_mfa_schema_version;')"
-          test "$version" = "0041_aws_pricing_sync_runs"
+          test "$version" = "0042_aws_pricing_manual_requests"
           curl --fail --silent --show-error http://127.0.0.1/version | grep -q "${GITHUB_SHA}"
           docker compose -p deepops-stage21 ps
 
