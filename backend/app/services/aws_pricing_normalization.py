@@ -283,7 +283,7 @@ def coverage_component(rate: NormalizedRate) -> str:
             return "rds_" + engine + "_" + deployment
         if rate.unit == "GB_MONTH":
             volume = _volume_type(attr, usage) or "unknown"
-            return "rds_" + volume + "_capacity
+            return "rds_" + volume + "_capacity"
         return "rds_" + rate.component
     if service == "snapshot":
         return "snapshot_storage"
