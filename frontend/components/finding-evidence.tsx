@@ -173,8 +173,31 @@ export function FindingEvidence({
         </ul>
       )}
 
+      {evidence.pricing && (
+        <div className="evidence-block" aria-label={t("regionalPricing")}>
+          <h4>{t("regionalPricing")}</h4>
+          <p>{t("regionalPricingStatus")}: {displayScalar(evidence.pricing.status, labels)}</p>
+          {Array.isArray(evidence.pricing.missing_components) && evidence.pricing.missing_components.length > 0 && (
+            <p>{t("observedUnavailable")}: {evidence.pricing.missing_components.join(", ")}</p>
+          )}
+        </div>
+      )}
+
       <details className="evidence-technical">
         <summary>{t("seeTechnical")}</summary>
+        {evidence.pricing && (
+          <div>
+            <h4>{t("regionalPricingProvenance")}</h4>
+            <dl className="evidence-facts">
+              {Object.entries(evidence.pricing).map(([key, value]) => (
+                <div key={key}>
+                  <dt>{key}</dt>
+                  <dd>{displayTechnical(value, labels)}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+        )}
         <div className="evidence-columns">
           <div>
             <h4>{t("observedDetails")}</h4>

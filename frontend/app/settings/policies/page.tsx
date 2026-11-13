@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, type ReactNode } from "react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { RotateCcw, Save, SlidersHorizontal } from "lucide-react";
 import { PageHeader } from "@/components/aven";
@@ -22,6 +23,16 @@ import { iconDefaults } from "@/lib/iconography";
 import { canManagePolicies } from "@/lib/settings-navigation.mjs";
 import type { CloudAccount, Policy, ProviderCapabilities } from "@/lib/types";
 import styles from "./page.module.css";
+
+const REGIONAL_PRICING_RULES = new Set([
+  "ebs_unattached",
+  "ec2_stopped_with_ebs",
+  "eip_unassociated",
+  "snapshot_retention",
+  "ec2_nonprod_outside_hours",
+  "load_balancer_no_traffic",
+  "rds_nonprod_idle",
+]);
 
 type CurrentUser = { role: string };
 type AwsPolicyAccount = CloudAccount & { aws_configuration: NonNullable<CloudAccount["aws_configuration"]> };
@@ -296,6 +307,12 @@ function PolicyCard({ policy, scope, accountId, canManage, onSaved }: { policy: 
             {scope === "account" && policy.inherited && <Badge variant="neutral">{t("inherited")}</Badge>}
           </div>
           <p className={styles.policyDescription}>{policy.description}</p>
+          {REGIONAL_PRICING_RULES.has(policy.rule_key) && (
+            <p className={styles.policyDescription}>
+              {t("regionalPricingSource")}{" "}
+              <Link href="/settings/pricing/aws">{t("viewRegionalPricing")}</Link>
+            </p>
+          )}
         </div>
         <div className={styles.policySummaryActions}>
           <Switch

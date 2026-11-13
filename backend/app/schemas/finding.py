@@ -31,8 +31,8 @@ class FindingRead(BaseModel):
     title: str
     description: str
     evidence: dict
-    current_monthly_cost: Decimal
-    estimated_monthly_savings: Decimal
+    current_monthly_cost: Decimal | None
+    estimated_monthly_savings: Decimal | None
     currency: str
     confidence: str
     severity: str

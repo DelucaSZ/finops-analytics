@@ -1,6 +1,7 @@
 import logging
 import time
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Protocol
 
 from sqlalchemy import select
@@ -13,6 +14,7 @@ from app.models.collection_run import CollectionRun
 from app.models.scan import Scan
 from app.services.aws_auth import assume_account_session, get_caller_identity
 from app.services.aws_inventory_discovery import AwsInventoryDiscoveryService
+from app.services.aws_policy_pricing import AwsPolicyPricingAdapter
 from app.services.collection_errors import classify_collection_error
 from app.services.collector_types import CollectedFinding
 from app.services.collectors import run_collectors
@@ -387,6 +389,12 @@ class AwsCollectionExecutor:
         try:
             findings, collector_errors, failed_rule_keys = run_collectors(
                 aws_session, regions, policies
+            )
+            reference_at = scan.started_at or datetime.now(UTC)
+            if reference_at.tzinfo is None:
+                reference_at = reference_at.replace(tzinfo=UTC)
+            AwsPolicyPricingAdapter(db, reference_at=reference_at).enrich_findings(
+                findings, policies
             )
         except Exception as exc:
             info = classify_collection_error(exc)

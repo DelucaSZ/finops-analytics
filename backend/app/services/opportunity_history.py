@@ -417,7 +417,10 @@ def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
             OpportunityHistorySnapshot.currency,
             func.sum(OpportunityHistorySnapshot.estimated_monthly_savings),
         )
-        .where(OpportunityHistorySnapshot.cycle_id == cycle_id)
+        .where(
+            OpportunityHistorySnapshot.cycle_id == cycle_id,
+            OpportunityHistorySnapshot.estimated_monthly_savings.is_not(None),
+        )
         .group_by(OpportunityHistorySnapshot.currency)
     ).all()
     cost_rows = db.execute(
@@ -425,7 +428,10 @@ def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
             OpportunityHistorySnapshot.currency,
             func.sum(OpportunityHistorySnapshot.current_monthly_cost),
         )
-        .where(OpportunityHistorySnapshot.cycle_id == cycle_id)
+        .where(
+            OpportunityHistorySnapshot.cycle_id == cycle_id,
+            OpportunityHistorySnapshot.current_monthly_cost.is_not(None),
+        )
         .group_by(OpportunityHistorySnapshot.currency)
     ).all()
     providers = int(

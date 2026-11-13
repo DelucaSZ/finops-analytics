@@ -27,9 +27,9 @@ def _append_money(
     currency: str | None,
     amount: Decimal | None,
 ) -> None:
-    if not currency:
+    if not currency or amount is None:
         return
-    target[currency] = target.get(currency, Decimal("0")) + Decimal(str(amount or 0))
+    target[currency] = target.get(currency, Decimal("0")) + Decimal(str(amount))
 
 
 def _provider_distribution(db: Session, current) -> list[dict[str, object]]:
@@ -38,9 +38,7 @@ def _provider_distribution(db: Session, current) -> list[dict[str, object]]:
             current.c.provider,
             current.c.currency,
             func.count(func.distinct(Finding.id)).label("open"),
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "amount"
-            ),
+            func.sum(current.c.estimated_monthly_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -101,9 +99,7 @@ def _account_distribution(db: Session, current, *, limit: int = 10) -> list[dict
             CloudAccount.name.label("account_name"),
             top_accounts.c.open,
             current.c.currency,
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "amount"
-            ),
+            func.sum(current.c.estimated_monthly_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -178,9 +174,7 @@ def _dimension_distribution(
             top_dimensions.c.dimension_key,
             top_dimensions.c.open,
             current.c.currency,
-            func.coalesce(func.sum(current.c.estimated_monthly_savings), Decimal("0")).label(
-                "amount"
-            ),
+            func.sum(current.c.estimated_monthly_savings).label("amount"),
         )
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
@@ -278,7 +272,10 @@ def _top_opportunities(db: Session, current, *, limit: int = 10) -> list[dict[st
         .select_from(current)
         .join(Finding, Finding.id == current.c.opportunity_id)
         .outerjoin(CloudAccount, account_join)
-        .where(Finding.status == "open")
+        .where(
+            Finding.status == "open",
+            current.c.estimated_monthly_savings.is_not(None),
+        )
         .cte("dashboard_executive_top")
     )
     rows = db.execute(

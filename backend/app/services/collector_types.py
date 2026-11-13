@@ -17,8 +17,8 @@ class CollectedFinding:
     resource_type: str | None = None
     provider_metadata: dict[str, Any] = field(default_factory=dict)
     evidence: dict[str, Any] = field(default_factory=dict)
-    current_monthly_cost: Decimal = Decimal("0")
-    estimated_monthly_savings: Decimal = Decimal("0")
+    current_monthly_cost: Decimal | None = None
+    estimated_monthly_savings: Decimal | None = None
     currency: str = "USD"
     confidence: str = "medium"
     severity: str = "medium"

@@ -38,20 +38,12 @@ def _severity(savings: Decimal) -> str:
     return "low"
 
 
-def _volume_monthly_cost(volume: dict, config: dict[str, Any]) -> Decimal:
-    rates = config.get("monthly_price_per_gb", {})
-    rate = Decimal(str(rates.get(volume.get("VolumeType", "gp3"), rates.get("gp3", 0))))
-    base = Decimal(str(volume.get("Size", 0))) * rate
-    return _money(base)
-
-
 def collect_ebs_unattached(
     session: boto3.Session, region: str, config: dict[str, Any]
 ) -> list[CollectedFinding]:
     ec2 = session.client("ec2", region_name=region, config=BOTO_CONFIG)
     now = datetime.now(UTC)
     minimum_age = int(config.get("minimum_age_days", 7))
-    minimum_savings = Decimal(str(config.get("minimum_monthly_savings_usd", 0)))
     findings: list[CollectedFinding] = []
 
     paginator = ec2.get_paginator("describe_volumes")
@@ -62,9 +54,6 @@ def collect_ebs_unattached(
                 continue
             age_days = max(0, (now - volume["CreateTime"]).days)
             if age_days < minimum_age:
-                continue
-            savings = _volume_monthly_cost(volume, config)
-            if savings < minimum_savings:
                 continue
             findings.append(
                 CollectedFinding(
@@ -83,15 +72,17 @@ def collect_ebs_unattached(
                         "state": volume.get("State"),
                         "size_gib": volume.get("Size"),
                         "volume_type": volume.get("VolumeType"),
+                        "iops": volume.get("Iops"),
+                        "throughput": volume.get("Throughput"),
                         "created_at": volume["CreateTime"].isoformat(),
                         "age_days": age_days,
                         "tags": tags,
                         "observation": "Age is based on volume creation time, not detachment time.",
                     },
-                    current_monthly_cost=savings,
-                    estimated_monthly_savings=savings,
-                    confidence="medium",
-                    severity=_severity(savings),
+                    current_monthly_cost=None,
+                    estimated_monthly_savings=None,
+                    confidence="low",
+                    severity="low",
                 )
             )
     return findings
@@ -101,11 +92,6 @@ def collect_eip_unassociated(
     session: boto3.Session, region: str, config: dict[str, Any]
 ) -> list[CollectedFinding]:
     ec2 = session.client("ec2", region_name=region, config=BOTO_CONFIG)
-    monthly_cost = _money(config.get("monthly_cost_usd", 3.65))
-    minimum_savings = Decimal(str(config.get("minimum_monthly_savings_usd", 0)))
-    if monthly_cost < minimum_savings:
-        return []
-
     findings: list[CollectedFinding] = []
     for address in ec2.describe_addresses().get("Addresses", []):
         if (
@@ -135,10 +121,10 @@ def collect_eip_unassociated(
                     "domain": address.get("Domain"),
                     "tags": tags,
                 },
-                current_monthly_cost=monthly_cost,
-                estimated_monthly_savings=monthly_cost,
-                confidence="high",
-                severity=_severity(monthly_cost),
+                current_monthly_cost=None,
+                estimated_monthly_savings=None,
+                confidence="low",
+                severity="low",
             )
         )
     return findings
@@ -164,8 +150,6 @@ def collect_old_snapshots(
     retention_days = int(config.get("retention_days", 90))
     preserve_last = int(config.get("preserve_last_per_volume", 3))
     preserve_ami = bool(config.get("preserve_ami_snapshots", True))
-    rate = Decimal(str(config.get("monthly_price_per_gb", 0.05)))
-    minimum_savings = Decimal(str(config.get("minimum_monthly_savings_usd", 0)))
     protected_by_ami = _ami_snapshot_ids(ec2) if preserve_ami else set()
 
     snapshots: list[dict] = []
@@ -195,9 +179,6 @@ def collect_old_snapshots(
         age_days = max(0, (now - snapshot["StartTime"]).days)
         if age_days <= retention_days:
             continue
-        estimated_upper_bound = _money(Decimal(str(snapshot.get("VolumeSize", 0))) * rate)
-        if estimated_upper_bound < minimum_savings:
-            continue
         findings.append(
             CollectedFinding(
                 rule_key="snapshot_retention",
@@ -213,16 +194,17 @@ def collect_old_snapshots(
                 evidence={
                     "volume_id": snapshot.get("VolumeId"),
                     "volume_size_gib": snapshot.get("VolumeSize"),
+                    "storage_tier": snapshot.get("StorageTier", "standard"),
                     "started_at": snapshot["StartTime"].isoformat(),
                     "age_days": age_days,
                     "retention_days": retention_days,
                     "tags": tags,
                     "cost_note": "Upper-bound estimate; EBS snapshots are incremental.",
                 },
-                current_monthly_cost=estimated_upper_bound,
-                estimated_monthly_savings=estimated_upper_bound,
+                current_monthly_cost=None,
+                estimated_monthly_savings=None,
                 confidence="low",
-                severity=_severity(estimated_upper_bound),
+                severity="low",
             )
         )
     return findings
@@ -256,7 +238,6 @@ def collect_stopped_ec2_with_ebs(
     now = datetime.now(UTC)
     minimum_days = int(config.get("minimum_stopped_days", 7))
     include_unknown = bool(config.get("include_unknown_stop_time", True))
-    minimum_savings = Decimal(str(config.get("minimum_monthly_savings_usd", 0)))
     instances: list[dict] = []
 
     paginator = ec2.get_paginator("describe_instances")
@@ -291,12 +272,6 @@ def collect_stopped_ec2_with_ebs(
             for mapping in instance.get("BlockDeviceMappings", [])
             if mapping.get("Ebs", {}).get("VolumeId") in volumes
         ]
-        savings = sum(
-            (_volume_monthly_cost(volume, config) for volume in attached_volumes), Decimal("0")
-        )
-        savings = _money(savings)
-        if savings < minimum_savings:
-            continue
         duration = (
             f"há {stopped_days} dias" if stopped_days is not None else "por tempo não determinado"
         )
@@ -323,15 +298,17 @@ def collect_stopped_ec2_with_ebs(
                             "volume_id": volume["VolumeId"],
                             "size_gib": volume.get("Size"),
                             "type": volume.get("VolumeType"),
+                            "iops": volume.get("Iops"),
+                            "throughput": volume.get("Throughput"),
                         }
                         for volume in attached_volumes
                     ],
                     "tags": tags,
                 },
-                current_monthly_cost=savings,
-                estimated_monthly_savings=savings,
-                confidence="medium" if stopped_at else "low",
-                severity=_severity(savings),
+                current_monthly_cost=None,
+                estimated_monthly_savings=None,
+                confidence="low",
+                severity="low",
             )
         )
     return findings
@@ -364,7 +341,6 @@ def collect_nonprod_ec2_outside_hours(
     observed_at = datetime.now(UTC)
     timezone = ZoneInfo(str(config.get("timezone", "UTC")))
     ec2 = session.client("ec2", region_name=region, config=BOTO_CONFIG)
-    hourly_prices = config.get("estimated_hourly_cost_by_instance_type", {})
     findings: list[CollectedFinding] = []
     paginator = ec2.get_paginator("describe_instances")
     for page in paginator.paginate(
@@ -376,7 +352,6 @@ def collect_nonprod_ec2_outside_hours(
                 if _is_excluded(tags, config) or not _is_nonproduction(tags, config):
                     continue
                 instance_type = instance.get("InstanceType", "unknown")
-                hourly_cost = Decimal(str(hourly_prices.get(instance_type, 0)))
                 findings.append(
                     CollectedFinding(
                         rule_key="ec2_nonprod_outside_hours",
@@ -392,6 +367,8 @@ def collect_nonprod_ec2_outside_hours(
                         evidence={
                             "state": instance.get("State", {}).get("Name"),
                             "instance_type": instance_type,
+                            "platform_details": instance.get("PlatformDetails"),
+                            "tenancy": instance.get("Placement", {}).get("Tenancy"),
                             "launched_at": instance.get("LaunchTime").isoformat()
                             if instance.get("LaunchTime")
                             else None,
@@ -402,10 +379,10 @@ def collect_nonprod_ec2_outside_hours(
                             "business_hours_end": config.get("business_hours_end"),
                             "tags": tags,
                         },
-                        current_monthly_cost=_money(hourly_cost * Decimal("730")),
-                        estimated_monthly_savings=_money(hourly_cost * Decimal("365")),
-                        confidence="medium" if hourly_cost else "low",
-                        severity="medium",
+                        current_monthly_cost=None,
+                        estimated_monthly_savings=None,
+                        confidence="low",
+                        severity="low",
                     )
                 )
     return findings
@@ -444,7 +421,6 @@ def collect_load_balancers_no_traffic(
     minimum_age_days = int(config.get("minimum_age_days", 7))
     maximum_requests = float(config.get("maximum_requests", 0))
     maximum_bytes = float(config.get("maximum_processed_bytes", 0))
-    estimated_cost = _money(config.get("estimated_base_monthly_cost_usd", 0))
     findings: list[CollectedFinding] = []
 
     paginator = elbv2.get_paginator("describe_load_balancers")
@@ -511,10 +487,10 @@ def collect_load_balancers_no_traffic(
                         "created_at": load_balancer["CreatedTime"].isoformat(),
                         "tags": tags,
                     },
-                    current_monthly_cost=estimated_cost,
-                    estimated_monthly_savings=estimated_cost,
+                    current_monthly_cost=None,
+                    estimated_monthly_savings=None,
                     confidence="low",
-                    severity=_severity(estimated_cost),
+                    severity="low",
                 )
             )
 
@@ -575,10 +551,10 @@ def collect_load_balancers_no_traffic(
                         "created_at": load_balancer["CreatedTime"].isoformat(),
                         "tags": tags,
                     },
-                    current_monthly_cost=estimated_cost,
-                    estimated_monthly_savings=estimated_cost,
+                    current_monthly_cost=None,
+                    estimated_monthly_savings=None,
                     confidence="low",
-                    severity=_severity(estimated_cost),
+                    severity="low",
                 )
             )
     return findings
@@ -592,7 +568,6 @@ def collect_idle_nonprod_rds(
     lookback_days = int(config.get("lookback_days", 7))
     max_cpu = float(config.get("maximum_average_cpu_percent", 5))
     max_connections = float(config.get("maximum_connections", 1))
-    price_map = config.get("estimated_monthly_cost_by_instance_class", {})
     findings: list[CollectedFinding] = []
 
     paginator = rds.get_paginator("describe_db_instances")
@@ -627,7 +602,6 @@ def collect_idle_nonprod_rds(
             if average_cpu > max_cpu or maximum_connections > max_connections:
                 continue
             instance_class = instance.get("DBInstanceClass", "unknown")
-            estimated_cost = _money(price_map.get(instance_class, 0))
             findings.append(
                 CollectedFinding(
                     rule_key="rds_nonprod_idle",
@@ -643,6 +617,11 @@ def collect_idle_nonprod_rds(
                     evidence={
                         "engine": instance.get("Engine"),
                         "instance_class": instance_class,
+                        "multi_az": instance.get("MultiAZ"),
+                        "license_model": instance.get("LicenseModel"),
+                        "allocated_storage_gib": instance.get("AllocatedStorage"),
+                        "storage_type": instance.get("StorageType"),
+                        "iops": instance.get("Iops"),
                         "average_cpu_percent": round(average_cpu, 2),
                         "maximum_connections": round(maximum_connections, 2),
                         "cpu_datapoint_count": len(cpu_values),
@@ -650,10 +629,10 @@ def collect_idle_nonprod_rds(
                         "lookback_days": lookback_days,
                         "tags": tags,
                     },
-                    current_monthly_cost=estimated_cost,
-                    estimated_monthly_savings=estimated_cost,
-                    confidence="medium" if estimated_cost else "low",
-                    severity="medium",
+                    current_monthly_cost=None,
+                    estimated_monthly_savings=None,
+                    confidence="low",
+                    severity="low",
                 )
             )
     return findings

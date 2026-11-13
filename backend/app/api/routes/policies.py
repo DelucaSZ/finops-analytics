@@ -9,6 +9,7 @@ from app.models.user import User
 from app.schemas.policy import PolicyRead, PolicyUpdate
 from app.services.audit import AuditService, audit_snapshot
 from app.services.policies import (
+    LEGACY_PRICING_KEYS,
     RULES,
     get_effective_policy,
     get_policy_row,
@@ -27,6 +28,16 @@ router = APIRouter(prefix="/policies", tags=["policies"], dependencies=[Depends(
 def _validate_rule(rule_key: str) -> None:
     if rule_key not in RULES:
         raise HTTPException(status_code=404, detail="Rule not found")
+
+
+def _reject_manual_prices(rule_key: str, config: dict) -> None:
+    forbidden = sorted(LEGACY_PRICING_KEYS.get(rule_key, frozenset()) & config.keys())
+    if forbidden:
+        raise HTTPException(
+            status_code=422,
+            detail="AWS public prices must come from Pricing AWS, not policy overrides: "
+            + ", ".join(forbidden),
+        )
 
 
 def _validate_account(db: Session, account_id: int) -> None:
@@ -97,6 +108,7 @@ def update_global_policy(
     actor: User = Depends(require_admin),
 ) -> dict:
     _validate_rule(rule_key)
+    _reject_manual_prices(rule_key, payload.config)
     before = get_effective_policy(db, rule_key)
     upsert_policy(
         db,
@@ -160,6 +172,7 @@ def update_account_policy(
 ) -> dict:
     _validate_rule(rule_key)
     _validate_account(db, account_id)
+    _reject_manual_prices(rule_key, payload.config)
     before = get_effective_policy(db, rule_key, account_id)
     upsert_policy(
         db,

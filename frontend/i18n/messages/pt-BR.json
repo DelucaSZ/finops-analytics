@@ -1116,7 +1116,10 @@
         "datapoints": "amostras",
         "associations": "associações",
         "tags": "tags"
-      }
+      },
+      "regionalPricing": "Precificação regional AWS",
+      "regionalPricingStatus": "Status financeiro",
+      "regionalPricingProvenance": "Componentes e origem das tarifas"
     },
     "archive": {
       "titleOne": "Arquivar oportunidade",
@@ -1770,7 +1773,9 @@
         "minimumGrowthPercent": "Crescimento mínimo (%)",
         "minimumDeltaUsd": "Aumento mínimo (USD)",
         "minimumCurrentSpendUsd": "Gasto atual mínimo (USD)"
-      }
+      },
+      "regionalPricingSource": "Fonte de precificação: Pricing AWS — tarifas regionais.",
+      "viewRegionalPricing": "Consultar Pricing AWS"
     },
     "billingProfiles": {
       "title": "Perfis de Billing",
@@ -3011,12 +3016,12 @@
     "loadingOptions": "Carregando opções do catálogo…",
     "noOptions": "Nenhuma combinação disponível para esta pesquisa. Tente outro termo.",
     "limitedResults": "Exibindo somente os primeiros 100 resultados. Refine a pesquisa.",
-      "loadMore": "Carregar mais instâncias",
-      "noAwsRegions": "Não há regiões AWS cadastradas. Solicite a um administrador a configuração ou sincronização do catálogo.",
-      "regionSyncRequired": "Esta região ainda precisa de sincronização do Pricing AWS. Contate um administrador.",
-      "regionCatalogPartial": "O Pricing AWS desta região está parcial, desatualizado ou com falha recente de sincronização. Tarifas já publicadas podem continuar válidas.",
-      "unpricedOptionsHint": "Algumas configurações ainda não possuem tarifa vigente. A simulação identificará os componentes pendentes.",
-      "syncedAt": "Sincronizado em",
+    "loadMore": "Carregar mais instâncias",
+    "noAwsRegions": "Não há regiões AWS cadastradas. Solicite a um administrador a configuração ou sincronização do catálogo.",
+    "regionSyncRequired": "Esta região ainda precisa de sincronização do Pricing AWS. Contate um administrador.",
+    "regionCatalogPartial": "O Pricing AWS desta região está parcial, desatualizado ou com falha recente de sincronização. Tarifas já publicadas podem continuar válidas.",
+    "unpricedOptionsHint": "Algumas configurações ainda não possuem tarifa vigente. A simulação identificará os componentes pendentes.",
+    "syncedAt": "Sincronizado em",
     "instanceType": "Tipo de instância",
     "instanceClass": "Classe da instância",
     "operatingSystem": "Sistema operacional",
