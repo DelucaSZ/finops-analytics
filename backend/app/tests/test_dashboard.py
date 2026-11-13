@@ -360,6 +360,7 @@ def test_partial_aws_pricing_is_not_totaled_as_known_dashboard_savings(dashboard
     }
     assert body["by_provider"][0]["savings"] == [{"currency": "USD", "amount": "20.00"}]
     assert body["by_service"][0]["savings"] == [{"currency": "USD", "amount": "20.00"}]
+    assert {item["id"] for item in body["top_opportunities"]} == {"opp-000"}
 
 
 def test_missing_and_partial_prices_never_appear_as_zero_known_total(dashboard):
@@ -397,3 +398,4 @@ def test_missing_and_partial_prices_never_appear_as_zero_known_total(dashboard):
         "complete": False,
     }
     assert body["by_provider"][0]["savings"] == []
+    assert body["top_opportunities"] == []
