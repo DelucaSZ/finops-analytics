@@ -11,6 +11,7 @@ from app.models.aws_pricing import (
     AwsPricingProduct,
     AwsPricingRateDetail,
     AwsPricingSyncState,
+    AwsPricingSyncRun,
 )
 from app.models.billing_profile import BillingProfile
 from app.models.cloudwatch_pricing import CloudWatchPricingRule
@@ -84,6 +85,7 @@ __all__ = [
     "AwsPricingProduct",
     "AwsPricingRateDetail",
     "AwsPricingSyncState",
+    "AwsPricingSyncRun",
     "AccessToken",
     "AuthRateLimit",
     "LoginSession",
