@@ -16,6 +16,7 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    text as sa_text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -215,7 +216,21 @@ class AwsPricingSyncRequest(Base):
     """
 
     __tablename__ = "aws_pricing_sync_requests"
-    __table_args__ = (Index("ix_aws_sync_request_status", "status", "requested_at"),)
+    __table_args__ = (
+        Index("ix_aws_sync_request_status", "status", "requested_at"),
+        Index(
+            "uq_aws_sync_request_active_unit",
+            "service_code",
+            "region_code",
+            unique=True,
+            postgresql_where=sa_text("status IN ('queued','running')"),
+            sqlite_where=sa_text("status IN ('queued','running')"),
+        ),
+        CheckConstraint(
+            "status IN ('queued','running','completed','failed')",
+            name="ck_aws_sync_request_status",
+        ),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_id)
     service_code: Mapped[str] = mapped_column(String(80), nullable=False)
