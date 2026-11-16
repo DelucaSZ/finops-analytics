@@ -65,7 +65,7 @@ def _offer(
 ):
     sku = "SKU-VPC-1"
     return {
-        "formatVersion": "aws_v1",
+        "formatVersion": "v1.0",
         "offerCode": service,
         "version": version,
         "publicationDate": AT,
@@ -349,6 +349,28 @@ def test_service_discovery_fails_closed_when_missing():
     client = FakeBulkClient()
     with pytest.raises(AwsBulkImportError):
         discover_price_list("AmazonRDS", "sa-east-1", client=client)
+
+
+@pytest.mark.parametrize("format_version", ["v1.0", "aws_v1"])
+def test_parser_accepts_official_offer_and_legacy_fixture_formats(tmp_path, format_version):
+    offer = _offer()
+    offer["formatVersion"] = format_version
+    path = _fixture(tmp_path, offer)
+    stats = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AmazonVPC", region="sa-east-1"
+    )
+    assert stats.format_version == format_version
+    assert stats.source_version == "20261113000000"
+    assert stats.products_seen == 1
+    assert stats.rates_staged == 1
+
+
+def test_parser_rejects_mismatched_offer_code(tmp_path):
+    offer = _offer()
+    offer["offerCode"] = "AmazonEC2"
+    path = _fixture(tmp_path, offer)
+    with pytest.raises(AwsBulkImportError, match="schema"):
+        stage_offer(path, tmp_path / "staged.sqlite", service_code="AmazonVPC", region="sa-east-1")
 
 
 def test_parser_rejects_schema_mismatch(tmp_path):

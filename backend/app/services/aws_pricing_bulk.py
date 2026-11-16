@@ -300,8 +300,11 @@ def stage_offer(
         stats.source_version = str(_scalar(source, "version") or "")
         stats.publication_date = str(_scalar(source, "publicationDate") or "")
         offer_code = _scalar(source, "offerCode")
+        # DescribeServices reports FormatVersion="aws_v1", but the downloadable
+        # service offer JSON uses formatVersion="v1.0". Keep the legacy value
+        # accepted for existing test fixtures; reject all unknown formats.
         if (
-            stats.format_version != "aws_v1"
+            stats.format_version not in {"v1.0", "aws_v1"}
             or not stats.source_version
             or offer_code != service_code
         ):
