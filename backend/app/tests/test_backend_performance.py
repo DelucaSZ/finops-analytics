@@ -1,5 +1,7 @@
 """Contract and bounded-loading regression tests (SQLite and CI PostgreSQL)."""
 
+import re
+
 from sqlalchemy import event
 from sqlalchemy.orm import Session
 
@@ -39,7 +41,14 @@ def test_read_contracts_and_bounded_loading(migration_engine):  # noqa: F811
                 assert len(result["items"]) == size
                 assert len(statements) <= 2
                 assert "join" not in statements[0]
-                assert all("findings.evidence" not in sql for sql in statements)
+                # Scalar JSON pricing status is allowed; full evidence payloads are not.
+                assert all(
+                    not re.search(
+                        r"(?:select|,)\s+findings\.evidence\s*(?:as\s|,|\s+from)",
+                        sql,
+                    )
+                    for sql in statements
+                )
                 assert all("aws_accounts.external_id" not in sql for sql in statements)
 
             current = list_opportunities(

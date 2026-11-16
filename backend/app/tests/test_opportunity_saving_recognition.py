@@ -371,3 +371,88 @@ def test_reject_does_not_create_saving(auth_env):
     assert response.status_code == 200, response.text
     with Session(engine) as db:
         assert _entries(db, "finding") == []
+
+
+@pytest.mark.parametrize(
+    "pricing_status",
+    [
+        "partially_priced",
+        "price_unavailable",
+        "sync_required",
+        "pricing_configuration_error",
+    ],
+)
+def test_incomplete_aws_pricing_cannot_create_recognized_savings(auth_env, pricing_status):
+    http, engine, tokens, _ids = auth_env
+    with Session(engine) as db:
+        finding = db.get(Finding, "finding")
+        finding.estimated_monthly_savings = Decimal("120")
+        finding.evidence = {
+            "pricing": {
+                "provider": "aws",
+                "status": pricing_status,
+                "known_subtotal_usd": "120.00",
+            }
+        }
+        db.commit()
+
+    response = http.post(
+        "/api/v1/findings/finding/treat",
+        headers=headers(tokens),
+        json={"note": "Review incomplete AWS pricing"},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "treated"
+    with Session(engine) as db:
+        assert _entries(db, "finding") == []
+
+
+def test_latest_observation_with_partial_pricing_blocks_financial_credit(auth_env):
+    http, engine, tokens, _ids = auth_env
+    with Session(engine) as db:
+        finding = db.get(Finding, "finding")
+        finding.estimated_monthly_savings = Decimal("500")
+        finding.evidence = {"pricing": {"provider": "aws", "status": "priced"}}
+        observation = _observation(
+            db,
+            finding,
+            observed_at=datetime.now(UTC),
+            saving="900",
+            currency="USD",
+        )
+        observation.evidence = {
+            "pricing": {
+                "provider": "aws",
+                "status": "partially_priced",
+                "known_subtotal_usd": "900.00",
+            }
+        }
+        db.commit()
+
+    response = http.post(
+        "/api/v1/findings/finding/treat",
+        headers=headers(tokens),
+        json={},
+    )
+    assert response.status_code == 200, response.text
+    with Session(engine) as db:
+        assert _entries(db, "finding") == []
+
+
+def test_aws_saving_currency_mismatch_does_not_create_financial_credit(auth_env):
+    http, engine, tokens, _ids = auth_env
+    with Session(engine) as db:
+        finding = db.get(Finding, "finding")
+        finding.currency = "BRL"
+        finding.estimated_monthly_savings = Decimal("500")
+        db.commit()
+
+    response = http.post(
+        "/api/v1/findings/finding/treat",
+        headers=headers(tokens),
+        json={},
+    )
+    assert response.status_code == 200, response.text
+    assert response.json()["status"] == "treated"
+    with Session(engine) as db:
+        assert _entries(db, "finding") == []

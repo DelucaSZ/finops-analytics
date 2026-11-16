@@ -402,6 +402,14 @@ class OpportunityHistoryCycleService:
 
 
 def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
+    pricing_status = OpportunityHistorySnapshot.evidence["pricing"]["status"].as_string()
+    complete = or_(pricing_status.is_(None), pricing_status == "priced")
+    known_savings = and_(
+        OpportunityHistorySnapshot.estimated_monthly_savings.is_not(None), complete
+    )
+    partial_savings = and_(
+        OpportunityHistorySnapshot.estimated_monthly_savings.is_not(None), ~complete
+    )
     status_rows = db.execute(
         select(OpportunityHistorySnapshot.status, func.count(OpportunityHistorySnapshot.id))
         .where(OpportunityHistorySnapshot.cycle_id == cycle_id)
@@ -419,7 +427,7 @@ def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
         )
         .where(
             OpportunityHistorySnapshot.cycle_id == cycle_id,
-            OpportunityHistorySnapshot.estimated_monthly_savings.is_not(None),
+            known_savings,
         )
         .group_by(OpportunityHistorySnapshot.currency)
     ).all()
@@ -431,7 +439,20 @@ def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
         .where(
             OpportunityHistorySnapshot.cycle_id == cycle_id,
             OpportunityHistorySnapshot.current_monthly_cost.is_not(None),
+            complete,
         )
+        .group_by(OpportunityHistorySnapshot.currency)
+    ).all()
+    coverage_rows = db.execute(
+        select(
+            OpportunityHistorySnapshot.currency,
+            func.count(case((known_savings, 1))).label("known"),
+            func.count(case((partial_savings, 1))).label("partial"),
+            func.count(
+                case((OpportunityHistorySnapshot.estimated_monthly_savings.is_(None), 1))
+            ).label("unknown"),
+        )
+        .where(OpportunityHistorySnapshot.cycle_id == cycle_id)
         .group_by(OpportunityHistorySnapshot.currency)
     ).all()
     providers = int(
@@ -457,6 +478,16 @@ def cycle_stats(db: Session, cycle_id: str) -> dict[str, Any]:
         "by_severity": {str(key): int(value) for key, value in severity_rows},
         "potential_savings": _money_rows(savings_rows),
         "current_cost": _money_rows(cost_rows),
+        "financial_coverage": [
+            {
+                "currency": row.currency,
+                "known": int(row.known),
+                "partial": int(row.partial),
+                "unknown": int(row.unknown),
+                "complete": int(row.partial) == 0 and int(row.unknown) == 0,
+            }
+            for row in coverage_rows
+        ],
         "providers": providers,
         "accounts": accounts,
     }

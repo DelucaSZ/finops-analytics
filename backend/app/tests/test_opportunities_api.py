@@ -395,3 +395,28 @@ def test_listing_executes_count_plus_bounded_page_query(client):
     assert len(result["items"]) == 20
     assert len(statements) == 2
     assert any("limit" in statement and "offset" in statement for statement in statements)
+
+
+def test_list_exposes_pricing_completeness_without_evidence_payload(client):
+    http, engine = client
+    with Session(engine) as db:
+        finding = db.get(Finding, "opp-000")
+        finding.evidence = {
+            "pricing": {
+                "provider": "aws",
+                "status": "partially_priced",
+                "known_subtotal_usd": "12.34",
+            },
+            "technical_private": {"large": "not included in list"},
+        }
+        finding.estimated_monthly_savings = Decimal("12.34")
+        db.commit()
+
+    response = http.get("/opportunities?search=Opportunity%20000&page_size=10")
+    assert response.status_code == 200, response.text
+    items = response.json()["items"]
+    assert len(items) == 1
+    assert items[0]["pricing_status"] == "partially_priced"
+    assert items[0]["estimated_monthly_savings"] == "12.34"
+    assert "evidence" not in items[0]
+    assert "technical_private" not in items[0]

@@ -3,7 +3,7 @@ from __future__ import annotations
 import logging
 from decimal import Decimal
 
-from sqlalchemy import and_, case, func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, aliased
 
 from app.models.account import CloudAccount
@@ -81,6 +81,14 @@ def _latest_success_runs(*, provider: str | None, account_id: str | None):
 
 def _current_observations(*, provider: str | None, account_id: str | None):
     latest_valid = _latest_success_runs(provider=provider, account_id=account_id)
+    pricing_status = OpportunityObservation.evidence["pricing"]["status"].as_string()
+    complete_savings = case(
+        (
+            or_(pricing_status.is_(None), pricing_status == "priced"),
+            OpportunityObservation.estimated_monthly_savings,
+        ),
+        else_=None,
+    )
     current = (
         select(
             OpportunityObservation.opportunity_id.label("opportunity_id"),
@@ -88,6 +96,8 @@ def _current_observations(*, provider: str | None, account_id: str | None):
             OpportunityObservation.severity.label("severity"),
             OpportunityObservation.current_monthly_cost.label("current_monthly_cost"),
             OpportunityObservation.estimated_monthly_savings.label("estimated_monthly_savings"),
+            pricing_status.label("pricing_status"),
+            complete_savings.label("complete_savings"),
             OpportunityObservation.currency.label("currency"),
             OpportunityObservation.confidence.label("confidence"),
             latest_valid.c.provider.label("provider"),
@@ -195,12 +205,46 @@ def _dashboard_summary_direct(
             func.count(
                 func.distinct(case((Finding.status == "rejected", Finding.id), else_=None))
             ).label("rejected"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == "open",
+                            current.c.complete_savings.is_not(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("known_open"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == "open",
+                            current.c.estimated_monthly_savings.is_(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("unknown_open"),
+            func.count(
+                case(
+                    (
+                        and_(
+                            Finding.status == "open",
+                            current.c.estimated_monthly_savings.is_not(None),
+                            current.c.complete_savings.is_(None),
+                        ),
+                        1,
+                    )
+                )
+            ).label("partial_open"),
             func.coalesce(
                 func.sum(
                     case(
                         (
                             Finding.status == "open",
-                            current.c.estimated_monthly_savings,
+                            current.c.complete_savings,
                         ),
                         else_=Decimal("0"),
                     )
@@ -218,7 +262,10 @@ def _dashboard_summary_direct(
         "treated": sum(int(row.treated or 0) for row in summary_rows),
         "rejected": sum(int(row.rejected or 0) for row in summary_rows),
     }
-    financial_rows = [row for row in summary_rows if row.open]
+    financial_rows = [row for row in summary_rows if row.known_open]
+    known_open = sum(int(row.known_open or 0) for row in summary_rows)
+    partial_open = sum(int(row.partial_open or 0) for row in summary_rows)
+    unknown_open = sum(int(row.unknown_open or 0) for row in summary_rows)
 
     # Only grouped currency rows are reduced here, never individual opportunities.
     by_severity = {
@@ -321,6 +368,12 @@ def _dashboard_summary_direct(
             "metric": "estimated_monthly_savings",
             "label": "Economia potencial estimada",
             "period": "month",
+            "coverage": {
+                "known": known_open,
+                "partial": partial_open,
+                "unknown": unknown_open,
+                "complete": partial_open == 0 and unknown_open == 0,
+            },
             "totals": [
                 {
                     "currency": row.currency,
@@ -443,7 +496,7 @@ def _top_current_opportunities(
             CloudAccount.name,
             current.c.collection_run_id,
             current.c.severity,
-            current.c.estimated_monthly_savings,
+            current.c.complete_savings.label("estimated_monthly_savings"),
             current.c.currency,
         )
         .select_from(current)
@@ -451,7 +504,7 @@ def _top_current_opportunities(
         .outerjoin(CloudAccount, _account_name_join(current))
         .where(Finding.status == "open")
         .order_by(
-            current.c.estimated_monthly_savings.desc(),
+            current.c.complete_savings.desc(),
             severity_order.desc(),
             Finding.id,
         )
@@ -487,6 +540,7 @@ def _dashboard_summary_from_persisted_rows(
     lifecycle = {"open": 0, "treated": 0, "rejected": 0}
     severity = {"high": 0, "medium": 0, "low": 0, "other": 0}
     money: dict[str, Decimal] = {}
+    coverage = {"known": 0, "partial": 0, "unknown": 0}
     providers: dict[str, int] = {}
 
     for row in rows:
@@ -495,6 +549,8 @@ def _dashboard_summary_from_persisted_rows(
         lifecycle["rejected"] += int(row.rejected_count or 0)
         for level in severity:
             severity[level] += int((row.severity_counts or {}).get(level, 0))
+        for key in coverage:
+            coverage[key] += int((row.financial or {}).get("coverage", {}).get(key, 0))
         for total in (row.financial or {}).get("totals", []):
             currency = str(total["currency"])
             money[currency] = money.get(currency, Decimal("0")) + Decimal(str(total["amount"]))
@@ -546,6 +602,10 @@ def _dashboard_summary_from_persisted_rows(
             "metric": "estimated_monthly_savings",
             "label": "Economia potencial estimada",
             "period": "month",
+            "coverage": {
+                **coverage,
+                "complete": coverage["partial"] == 0 and coverage["unknown"] == 0,
+            },
             "totals": [
                 {"currency": currency, "amount": amount}
                 for currency, amount in sorted(money.items())
@@ -580,7 +640,11 @@ def dashboard_summary(
     account_id: str | None = None,
 ) -> dict:
     rows = _persisted_summary_rows(db, provider=provider, account_id=account_id)
-    stale = [row for row in rows if row.summary_run_id != row.expected_run_id]
+    stale = [
+        row
+        for row in rows
+        if row.summary_run_id != row.expected_run_id or "coverage" not in (row.financial or {})
+    ]
     if stale:
         try:
             for row in stale:
@@ -605,7 +669,10 @@ def dashboard_summary(
                 account_id=account_id,
             )
 
-    if any(row.summary_run_id != row.expected_run_id for row in rows):
+    if any(
+        row.summary_run_id != row.expected_run_id or "coverage" not in (row.financial or {})
+        for row in rows
+    ):
         return _dashboard_summary_direct(
             db,
             provider=provider,

@@ -290,6 +290,7 @@
       "openBacklogHelp": "Current unarchived OPEN backlog",
       "monthlySavings": "Potential monthly savings",
       "currenciesSeparate": "Currencies remain separate; no exchange rate is inferred",
+      "incompleteCoverage": "Incomplete financial coverage: {known} known, {partial} partial and {unknown} unknown. The total includes only complete estimates.",
       "validScopeHelp": "Accounts with a valid collection available for the current summary",
       "monthSuffix": "/month"
     },
@@ -1192,6 +1193,7 @@
       "afterFilters": "{status} after applying filters",
       "potential": "Potential savings on this page",
       "noConversion": "Currencies kept separate; no FX conversion is applied",
+      "incompleteCoverage": "Incomplete coverage on this page: the subtotal excludes partial or unknown savings.",
       "lastArchive": "Most recent archive",
       "lastDetection": "Last detection on this page",
       "archiveDescription": "Date of entry into history among the loaded items",
@@ -1358,6 +1360,7 @@
     },
     "savings": {
       "notEstimated": "Not estimated",
+      "partialEstimate": "Partial estimate, excluded from total",
       "perMonth": "/month"
     },
     "detail": {
@@ -1517,6 +1520,7 @@
         "afterClose": "Available after cycle closing",
         "potential": "Potential savings",
         "noFx": "Currencies preserved without conversion",
+        "incompleteFinancialCoverage": "Only known amounts are totaled; this cycle also includes partial or unknown estimates.",
         "current": "Current cost at closing",
         "captured": "Value captured in the selected cycle",
         "collections": "Collection coverage",

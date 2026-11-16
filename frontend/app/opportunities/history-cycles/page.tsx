@@ -58,6 +58,7 @@ type Cycle = {
     by_severity?: Record<string, number>;
     potential_savings?: MoneyTotal[];
     current_cost?: MoneyTotal[];
+    financial_coverage?: Array<{ currency: string; known: number; partial: number; unknown: number; complete: boolean }>;
     providers?: number;
     accounts?: number;
   };
@@ -154,6 +155,7 @@ export default function OpportunityHistoryCyclesPage() {
   const cycle = useMemo(() => cycles.find((item) => item.id === cycleId) ?? null, [cycles, cycleId]);
   const savings = historyMoneyRows(cycle?.totals, "potential_savings") as MoneyTotal[];
   const costs = historyMoneyRows(cycle?.totals, "current_cost") as MoneyTotal[];
+  const incompleteFinancialCoverage = cycle?.totals.financial_coverage?.some((item) => !item.complete) ?? false;
 
   async function loadCycles(preferredId = cycleId) {
     setError("");
@@ -364,7 +366,7 @@ export default function OpportunityHistoryCyclesPage() {
                   {savings.map((row) => <span key={row.currency}>{formatMoney(row.amount, row.currency, locale)}{t("detail.perMonth")}</span>)}
                 </span>
               ) : "—"}
-              supportingText={t("summary.noFx")}
+              supportingText={incompleteFinancialCoverage ? t("summary.incompleteFinancialCoverage") : t("summary.noFx")}
             />
             <MetricCard
               label={t("summary.current")}
