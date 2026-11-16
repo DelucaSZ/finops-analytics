@@ -37,8 +37,23 @@ jobs:
       - name: Validate Compose configuration
         run: docker compose -p deepops-stage21 config --quiet
 
-      - name: Build application images
-        run: docker compose -p deepops-stage21 build
+      - name: Build application images (retry only known transient next/font loader failure)
+        shell: bash
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            if docker compose -p deepops-stage21 build 2>&1 | tee /tmp/aven-compose-build.log; then
+              exit 0
+            fi
+            if ! grep -Fq "Cannot read properties of null (reading '1')" /tmp/aven-compose-build.log; then
+              exit 1
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              exit 1
+            fi
+            echo "Known transient next/font upstream response; retry $attempt/3"
+            sleep $((attempt * 4))
+          done
 
       - name: Start isolated stack
         run: docker compose -p deepops-stage21 up -d
