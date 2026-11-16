@@ -5255,3 +5255,30 @@ Auditoria do motor Decimal, períodos, catálogo, quatro serviços, desconto AWS
 Implementada ingestão controlada de arquivos JSON da AWS Price List Bulk API, com descoberta de ServiceCode e RegionCode, validação HTTPS de origem oficial, download incremental com SHA-256 e limites de recursos, parsing `ijson`, staging SQLite temporário, normalização On-Demand USD, preservação de SKU/Rate Code/atributos/vigência e publicação regional no catálogo PostgreSQL da 28.2. Inclui testes com preços sintéticos, verificação de cobertura, registro de execução, última versão válida e comando administrativo dry-run/apply. A publicação padrão é bloqueada quando a cobertura financeira é incompleta.
 
 **Exclusões:** nenhuma carga de produção/live comprovada; sem agendamento, interface AWS Pricing, alteração da Calculadora/Políticas, FX, descontos ou deploy. A Task 28.4 depende do importador e deverá validar cobertura e confiabilidade sobre arquivos públicos reais antes de habilitar sincronização recorrente. [Documento técnico 28.3](pricing/aws/28.3-official-import-engine.md).
+
+
+## Fase 28 — AWS Pricing Regional (situação consolidada em 16/11/2026)
+
+**Nota de atualização:** a descrição histórica da Task 28.3 acima registra o escopo da época, **não** representa a situação atual do sistema. Abaixo, a visão integrada posterior aos merges da Fase 28.
+
+| Task | Entrega | PR | Estado do código |
+| --- | --- | --- | --- |
+| 28.1 | Arquitetura e dependências | [#190](https://github.com/DelucaSZ/finops-analytics/pull/190) | Integrado à main |
+| 28.2 | Catálogo PostgreSQL regional e resolver | [#191](https://github.com/DelucaSZ/finops-analytics/pull/191) | Integrado à main |
+| 28.3 | Importação oficial AWS Bulk API | [#192](https://github.com/DelucaSZ/finops-analytics/pull/192) | Integrado à main |
+| 28.4 | Sincronização, locks, histórico e cobertura | [#193](https://github.com/DelucaSZ/finops-analytics/pull/193) | Integrado à main |
+| 28.5 | Settings Pricing AWS e API administrativa | [#194](https://github.com/DelucaSZ/finops-analytics/pull/194) | Integrado à main |
+| 28.6 | Calculadora EC2/EBS/RDS por região | [#195](https://github.com/DelucaSZ/finops-analytics/pull/195) | Integrado à main |
+| 28.7 | Políticas AWS no catálogo | [#196](https://github.com/DelucaSZ/finops-analytics/pull/196) | Integrado à main |
+| 28.8 | Reconciliação financeira/`NULL`/moeda/ledger | [#197](https://github.com/DelucaSZ/finops-analytics/pull/197) | Integrado à main; homologação integral bloqueada |
+| 28.9 | Readiness, runbook e fechamento | branch `feat/task-28.9-aws-pricing-production-readiness` | Em revisão; NO-GO operacional |
+
+### Critérios de fechamento ainda pendentes
+
+1. Homologar fonte oficial por SKU/RateCode/vigência/moeda em `sa-east-1` e `us-east-1` com catálogo PostgreSQL persistido e consumidores equivalentes.
+2. Validar upgrade/restauração de PostgreSQL 17 com base anterior preenchida e imutabilidade v1/v2 do histórico.
+3. Executar E2E autenticado Phase 28 com dados representativos, idiomas PT-BR/EN-US, três temas e oito larguras de viewport.
+4. Medir concorrência, locks, throughput, memória/disco e consultas reais; validar IAM backend, segurança, recuperação e monitoramento.
+5. Confirmar CI no SHA final e registrar aceite formal sem P0/P1 abertos.
+
+**Status formal:** funcionalidades implementadas e historicamente testadas em CI não equivalem a homologação comercial. A Fase 28 recebe **NO-GO** até concluir os critérios, e qualquer sincronização automática permanece opt-in. Documentos: [readiness](pricing/aws/28.9-production-readiness.md), [runbook](pricing/aws/production-runbook.md), [closure](pricing/aws/phase-28-closure.md) e [evidências](pricing/aws/28.9-evidence-template.md).

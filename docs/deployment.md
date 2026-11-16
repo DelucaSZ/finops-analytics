@@ -92,6 +92,20 @@ The MVP stores application data in the `postgres_data` Docker volume. Configure
 both periodic `pg_dump` backups to encrypted object storage and EBS snapshots.
 Test restoration before relying on either mechanism.
 
+## AWS Pricing regional — gate de ativação (Task 28.9)
+
+O catálogo e os consumidores AWS estão implementados, mas **a homologação de produção da Fase 28 está NO-GO** até comprovação em ambiente isolado de preços oficiais, migrations/restore, UI autenticada, perfis IAM, segurança, concorrência e histórico financeiro. **O processo de deploy genérico descrito acima não é uma aprovação para sincronizar preços.**
+
+Antes da implantação, consultar [28.9 readiness](pricing/aws/28.9-production-readiness.md) e [runbook](pricing/aws/production-runbook.md). Fazer backup do volume/banco e **testar restauração fora de produção**, conferir migração `0040`–`0043`, espaço temporário, latência, AWS IAM **no backend** (`pricing:DescribeServices`, `pricing:ListPriceLists`, `pricing:GetPriceListFileUrl`), health da API/worker e CI do SHA que será implantado.
+
+Manter no `.env` do servidor, até aprovação explícita:
+```dotenv
+AVEN_AWS_PRICING_IMPORT_ENABLED=0
+AVEN_AWS_PRICING_SYNC_ENABLED=0
+```
+
+O operador autorizado pode realizar `dry-run` controlado para `AmazonEC2` em `sa-east-1` e `us-east-1` **em staging**. Publicação exige opt-in `IMPORT_ENABLED=1`; periodicidade exige adicionalmente `SYNC_ENABLED=1`. O pedido manual via UI é enfileirado, não executado no HTTP. Alterar flags no runtime e recriar apenas serviços envolvidos após revisão; jamais versionar segredos nem executar `docker compose down -v`. A operação e recuperação estão descritas no runbook.
+
 ## Production hardening backlog
 
 External exposure baseline (MFA, HTTPS, 80/443-only ingress and validation) is
