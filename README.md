@@ -76,7 +76,7 @@ O catálogo AWS inclui detectores de volumes EBS sem uso, Elastic IPs ociosos, s
 - SKUs indisponíveis geram **estado parcial ou não precificado**, com total definitivo nulo. O licenciamento OCI DB System ainda depende de SKUs/bindings comerciais aprovados e não recebe tarifa fictícia.
 - Interface autenticada em PT-BR/EN-US, temas Light/Dark/System, componentes Aven e layout responsivo.
 
-Os preços AWS exigem acesso da role central do backend ao AWS Price List Query API; disponibilidade regional, desconto contratual real e valores OCI de produção devem ser verificados. Detalhes: [auditoria final da Fase 27](docs/calculator/27.7-final-qa.md).
+Na arquitetura atual da Fase 28, a Calculadora AWS lê o catálogo regional PostgreSQL; a AWS Price List Bulk API é consultada **pelo backend importador/sincronizador**, não por chamada de Pricing live a cada cálculo. Disponibilidade regional, tarifa pública, descontos contratuais reais e valores OCI de produção ainda requerem homologação. Detalhes: [auditoria final da Fase 27](docs/calculator/27.7-final-qa.md).
 
 ### Reservas Amazon RDS (`/rds/reservations`)
 
@@ -117,6 +117,7 @@ O identificador informado é o ID interno da conta, não o AWS Account ID. A API
 | Auditoria | Eventos de autenticação, segurança e operações administrativas |
 | HTTPS | Domínio, certificado automático via Caddy ou certificado próprio, validação e aplicação controlada |
 | Pricing OCI | Catálogo e preços efetivos por vigência, com administração e auditoria |
+| Pricing AWS | Tarifas públicas regionais, busca de SKU, histórico, cobertura e sincronização administrativa controlada |
 | Billing Profiles | Perfis salvos para consulta de custos |
 | Uso e custos | Telemetria de chamadas CloudWatch e estimativas do custo operacional associado |
 | Retenção e histórico | Políticas administrativas de retenção de observações e oportunidades |
@@ -295,17 +296,27 @@ O CI contém verificações adicionais de segurança, migrações e smoke tests.
 | Oportunidades | [Lifecycle](docs/opportunity-lifecycle.md), [Políticas](docs/opportunity-management-policy.md), [Retenção](docs/opportunity-operational-archiving.md) |
 | Dashboard e coletas | [Dashboard](docs/dashboard.md), [Investigação por coleta](docs/collection-investigation.md) |
 | Governança | [Auditoria](docs/audit-events.md), [Usuários](docs/users-and-permissions.md), [Settings](docs/settings.md) |
+| Pricing AWS | [Readiness Fase 28](docs/pricing/aws/28.9-production-readiness.md), [Runbook](docs/pricing/aws/production-runbook.md), [Fechamento](docs/pricing/aws/phase-28-closure.md) |
 | Calculadora Cloud | [QA e limites da Fase 27](docs/calculator/27.7-final-qa.md), [AWS adapters](docs/calculator/27.3-aws-adapters.md), [OCI adapters](docs/calculator/27.4-oci-adapters.md) |
 | Qualidade visual | [Regressão visual](frontend/docs/visual-regression.md) |
 | Internacionalização | [Guia pt-BR/en-US](docs/i18n/25.9-translation-guidelines.md), [relatório QA](docs/i18n/25.9-final-qa-report.md), [matriz](docs/i18n/25.9-test-matrix.md), [limitações](docs/i18n/25.9-known-limitations.md) |
 
 Os documentos de tarefas numeradas registram decisões históricas. Para o comportamento **atual**, prefira código, APIs, testes e guias operacionais mantidos.
 
-### AWS Pricing regional — backend de importação (Task 28.3)
+### AWS Pricing regional — Fase 28 (Tasks 28.1–28.9)
 
-A fundação persistente da Fase 28 suporta preço oficial AWS On-Demand por serviço e região em USD. A Task 28.3 adiciona **importação administrativa controlada**, com descoberta via AWS Pricing Bulk API, arquivo JSON incremental, normalização, auditoria de SKU/Rate Code, validação de cobertura, proteção de histórico e `dry-run`. Ainda **não há execução agendada, tela Pricing AWS, migração dos consumidores ou carga real de produção**; Calculadora e Políticas permanecem no comportamento anterior até tasks dedicadas.
+O **Pricing AWS** está implementado em **Configurações → Pricing AWS** (`/settings/pricing/aws`) como catálogo regional de tarifas públicas AWS On-Demand, em **USD**, com SKU, Rate Code, modalidade, unidade, vigência, proveniência, import batch e histórico. O backend usa a AWS Price List Bulk API para descoberta/download com validação de origem, normalização e publicação transacional em PostgreSQL. O catálogo **não** armazena automaticamente descontos contratuais das contas dos clientes.
 
-Comando seguro de validação: `cd backend && python -m app.commands.aws_pricing_import --service AmazonEC2 --region sa-east-1 --dry-run`. A aplicação exige `AVEN_AWS_PRICING_IMPORT_ENABLED=1` para `--apply`, além do contexto administrativo e IAM do backend. Ver [guia do importador 28.3](docs/pricing/aws/28.3-official-import-engine.md) e [fundação 28.2](docs/pricing/aws/28.2-database-foundation.md).
+- **Consulta e cobertura:** selecionar `sa-east-1` (São Paulo), `us-east-1` (N. Virginia) ou outra região configurada; filtrar serviço/SKU, abrir tarifa/histórico, verificar `required/present/missing`, freshness, último batch e status. Muitos SKUs não garantem cobertura de todos os componentes.
+- **Consumidores:** Calculadora AWS EC2/EBS/RDS e Políticas AWS usam resolutores locais do mesmo catálogo regional para a tarifa-base. A Calculadora aplica depois desconto informado e, opcionalmente, cotação USD→BRL e imposto; as Políticas avaliam recursos por sua região e registram proveniência. Diferentes períodos/quantidades alteram o total sem alterar a tarifa-base equivalente.
+- **Preços ausentes e parciais:** falta de preço é `NULL`/estado desconhecido, não USD 0. RDS com armazenamento/IOPS/backup incompletos, load balancers com LCU/NLCU ausentes e snapshots incrementais não têm custo integral certificado; valores parciais não podem produzir economia integral, ranking ou ledger fictício. Snapshots e observações históricos não devem ser reprecificados durante consulta.
+- **Importação e sync:** publicação manual exige opt-in `AVEN_AWS_PRICING_IMPORT_ENABLED=1` e autorização administrativa. O worker periódico exige também `AVEN_AWS_PRICING_SYNC_ENABLED=1`, que permanece **0 por padrão**. O fluxo de Settings enfileira pedidos; o HTTP `202` não representa catálogo publicado. O IAM `pricing:DescribeServices`, `pricing:ListPriceLists` e `pricing:GetPriceListFileUrl` pertence **ao backend**, nunca às roles cross-account das contas integradas.
+- **Diagnóstico seguro:** em ambiente isolado, executar `cd backend && python -m app.commands.aws_pricing_sync --status`, `python -m app.commands.aws_pricing_sync --coverage --service AmazonEC2 --region sa-east-1` ou `python -m app.commands.aws_pricing_import --service AmazonEC2 --region sa-east-1 --dry-run`. Investigar status, cobertura, versionamento, rejeições, network/IAM, limites de staging e logs sem credenciais antes de considerar publicação. Não editar preços no banco para corrigir falhas.
+
+**Estado de liberação:** as Tasks 28.1–28.8 foram integradas à `main`, porém a Task 28.9 classifica a **homologação comercial e a ativação em produção como NO-GO** até comprovar tarifas oficiais nas duas regiões, restauração/migrations em PostgreSQL preenchido, E2E Phase 28 autenticado, performance/concorrência e aprovação operacional. CI verde e fixtures sintéticas não substituem homologação. **Nenhuma ativação automática acompanha estes documentos.**
+
+Documentos: [readiness e matriz de pendências](docs/pricing/aws/28.9-production-readiness.md), [runbook de operação e recuperação](docs/pricing/aws/production-runbook.md), [fechamento e GO/NO-GO](docs/pricing/aws/phase-28-closure.md), [modelo de evidência](docs/pricing/aws/28.9-evidence-template.md). Histórico técnico: [fundação 28.2](docs/pricing/aws/28.2-database-foundation.md), [importador 28.3](docs/pricing/aws/28.3-official-import-engine.md), [sync 28.4](docs/pricing/aws/28.4-synchronization-versioning-monitoring.md), [UI 28.5](docs/pricing/aws/28.5-settings-ui.md), [Calculadora 28.6](docs/pricing/aws/28.6-calculator-catalog-integration.md), [Políticas 28.7](docs/pricing/aws/28.7-policies-regional-pricing-integration.md), [financeiro 28.8](docs/pricing/aws/28.8-financial-consistency-regression-qa.md).
+
 
 ## Limitações e interpretação dos dados
 
@@ -327,17 +338,3 @@ Comando seguro de validação: `cd backend && python -m app.commands.aws_pricing
 
 A Task 25.9 adiciona verificadores de catálogo e referências, guardrail incremental contra novos textos fixos e smoke Chromium com HTTPS local. No CI do commit `32ed73d6`, os testes frontend passaram 552/552; [CI](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306806), [Compose](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306736) e [Auto Deploy Tests](https://github.com/DelucaSZ/finops-analytics/actions/runs/42879306922) foram aprovados. Veja [matriz](docs/i18n/25.9-test-matrix.md) e [limitações](docs/i18n/25.9-known-limitations.md). A integração automatizada não substitui homologação end-to-end das telas financeiras e administrativas em staging.
 
-### AWS regional Pricing — sincronização (Fase 28.4)
-
-O catálogo AWS agora tem suporte de backend para sincronização regional com **AWS Pricing Bulk API**, histórico operacional e versionamento de tarifas. A sincronização usa as regiões das contas AWS **ativas**, executa verificações por serviço/região, conserva a última versão financeira válida em falhas e oferece consulta de cobertura e de freshness. O importador oficial existente é reutilizado; não há preços hardcoded criados pela Task 28.4.
-
-O agendamento está **desabilitado por padrão** (`AVEN_AWS_PRICING_SYNC_ENABLED=0`); publicação exige opt-in adicional `AVEN_AWS_PRICING_IMPORT_ENABLED=1`. Sem execução massiva ou deploy automático. A UI em Settings será entregue na Task 28.5; Calculadora AWS e Políticas continuam inalteradas até as Tasks 28.6/28.7.
-
-```bash
-cd backend
-python -m app.commands.aws_pricing_sync --status
-python -m app.commands.aws_pricing_sync --coverage --service AmazonEC2 --region sa-east-1
-python -m app.commands.aws_pricing_sync --service AmazonEC2 --region sa-east-1 --dry-run
-```
-
-Configuração completa, migração 0041, requisitos PostgreSQL, operação, riscos e validação: [Task 28.4 — sincronização e monitoramento](docs/pricing/aws/28.4-synchronization-versioning-monitoring.md).
