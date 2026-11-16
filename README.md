@@ -76,7 +76,7 @@ O catálogo AWS inclui detectores de volumes EBS sem uso, Elastic IPs ociosos, s
 - SKUs indisponíveis geram **estado parcial ou não precificado**, com total definitivo nulo. O licenciamento OCI DB System ainda depende de SKUs/bindings comerciais aprovados e não recebe tarifa fictícia.
 - Interface autenticada em PT-BR/EN-US, temas Light/Dark/System, componentes Aven e layout responsivo.
 
-Os preços AWS exigem acesso da role central do backend ao AWS Price List Query API; disponibilidade regional, desconto contratual real e valores OCI de produção devem ser verificados. Detalhes: [auditoria final da Fase 27](docs/calculator/27.7-final-qa.md).
+Na arquitetura atual da Fase 28, a Calculadora AWS lê o catálogo regional PostgreSQL; a AWS Price List Bulk API é consultada **pelo backend importador/sincronizador**, não por chamada de Pricing live a cada cálculo. Disponibilidade regional, tarifa pública, descontos contratuais reais e valores OCI de produção ainda requerem homologação. Detalhes: [auditoria final da Fase 27](docs/calculator/27.7-final-qa.md).
 
 ### Reservas Amazon RDS (`/rds/reservations`)
 
@@ -117,6 +117,7 @@ O identificador informado é o ID interno da conta, não o AWS Account ID. A API
 | Auditoria | Eventos de autenticação, segurança e operações administrativas |
 | HTTPS | Domínio, certificado automático via Caddy ou certificado próprio, validação e aplicação controlada |
 | Pricing OCI | Catálogo e preços efetivos por vigência, com administração e auditoria |
+| Pricing AWS | Tarifas públicas regionais, busca de SKU, histórico, cobertura e sincronização administrativa controlada |
 | Billing Profiles | Perfis salvos para consulta de custos |
 | Uso e custos | Telemetria de chamadas CloudWatch e estimativas do custo operacional associado |
 | Retenção e histórico | Políticas administrativas de retenção de observações e oportunidades |
