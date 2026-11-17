@@ -18,7 +18,6 @@ class AwsPricingNonTargetUnit(ValueError):
     """Known, valid AWS meter outside the supported recurring pricing model."""
 
 
-
 _SOURCE_SERVICES = frozenset({"AmazonEC2", "AmazonRDS", "AWSELB", "AmazonVPC"})
 _ALLOWED_FIELDS = frozenset(
     {
@@ -262,10 +261,12 @@ def normalize_rate(
             )
         mapped = ("MBPS_MONTH", "throughput")
     if not mapped:
-        if (
-            product.service_code == "AmazonEC2"
-            and unit.lower() in {"gb", "requests", "snapshotapiunits", "hours"}
-        ):
+        if product.service_code == "AmazonEC2" and unit.lower() in {
+            "gb",
+            "requests",
+            "snapshotapiunits",
+            "hours",
+        }:
             # Real AWS one-off/API meters, but NOT the modeled EC2 instance
             # hours or recurring EBS/snapshot dimensions. Some are attached
             # to products also carrying valid recurring pricing dimensions.
