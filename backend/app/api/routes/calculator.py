@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.security import require_user
@@ -10,7 +10,11 @@ from app.db.session import get_db
 from app.schemas.calculator import CalculatorEstimateRequest, CalculatorEstimateResponse
 from app.services.aws_calculator import estimate_aws_calculator
 from app.services.aws_calculator_options import available_regions, aws_options
-from app.services.oci_calculator import estimate_oci_calculator, oci_calculator_options
+from app.services.oci_calculator import (
+    OCI_PRICING_REGION,
+    estimate_oci_calculator,
+    oci_calculator_options,
+)
 
 router = APIRouter(prefix="/calculator", tags=["calculator"], dependencies=[Depends(require_user)])
 
@@ -61,4 +65,6 @@ def oci_options(
     region: str = Query(min_length=5, max_length=80),
     db: Session = Depends(get_db),
 ) -> dict:
+    if region != OCI_PRICING_REGION:
+        raise HTTPException(422, "OCI calculator pricing is available only for sa-saopaulo-1")
     return oci_calculator_options(db, service=service, region=region)
