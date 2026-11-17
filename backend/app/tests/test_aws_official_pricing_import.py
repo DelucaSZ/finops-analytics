@@ -695,7 +695,7 @@ def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
 @pytest.mark.parametrize(
     "edition,license_model",
     [
-        ("Standard Edition 2", "License included"),
+        ("Standard Two", "License included"),
         ("Standard Edition 2", "Bring your own license"),
         ("Enterprise Edition", "Bring your own license"),
     ],
