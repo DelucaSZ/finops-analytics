@@ -242,7 +242,8 @@ def normalize_rate(
         and unit.lower() in {"hrs", "hours"}
         and not product.attributes.get("instanceType")
     ):
-        raise AwsPricingValidationError("non-instance RDS hourly offering")
+        # Serverless/non-instance hourly RDS usage is not an instance rate.
+        raise AwsPricingNonTargetUnit("non-target RDS hourly offering")
     mapped = _unit(unit, product.service, usage)
     if (
         mapped is None
@@ -261,16 +262,16 @@ def normalize_rate(
             )
         mapped = ("MBPS_MONTH", "throughput")
     if not mapped:
-        if product.service_code == "AmazonEC2" and unit.lower() in {
-            "gb",
-            "requests",
-            "snapshotapiunits",
-            "hours",
-        }:
-            # Real AWS one-off/API meters, but NOT the modeled EC2 instance
-            # hours or recurring EBS/snapshot dimensions. Some are attached
-            # to products also carrying valid recurring pricing dimensions.
-            # Never misinterpret them as monthly storage/throughput prices.
+        # Known AWS billing meters that do not represent a supported recurring
+        # unit for this service. Financial validation (USD, precision, sign)
+        # happens above, and their values are never published as another unit.
+        non_target_units = {
+            "AmazonEC2": {"gb", "requests", "snapshotapiunits", "hours"},
+            "AmazonRDS": {"gb", "requests", "ios", "i/os", "gibps-mo"},
+            "AWSELB": {"gb", "requests"},
+            "AmazonVPC": {"gb", "requests"},
+        }
+        if unit.lower() in non_target_units.get(product.service_code, set()):
             raise AwsPricingNonTargetUnit("non-target AWS meter " + unit[:40])
         raise AwsPricingValidationError("unsupported billing unit " + unit[:40])
     billing_unit, component = mapped
