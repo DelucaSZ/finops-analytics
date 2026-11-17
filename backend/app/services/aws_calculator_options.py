@@ -49,7 +49,6 @@ def valid_oracle_license(edition: str | None, license_model: str | None) -> bool
     )
 
 
-
 def _coverage_status(states: list[AwsPricingSyncState]) -> str:
     if not states or all(state.last_successful_batch_id is None for state in states):
         return "sync_required"
@@ -113,8 +112,10 @@ def aws_options(
             "status": "unsupported_engine",
             "supported_engines": list(_ENGINES),
         }
-    if service == "rds" and name == "Oracle" and not valid_oracle_license(
-        oracle_edition, oracle_license_model
+    if (
+        service == "rds"
+        and name == "Oracle"
+        and not valid_oracle_license(oracle_edition, oracle_license_model)
     ):
         return {
             "items": [],
