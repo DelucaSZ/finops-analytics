@@ -13,6 +13,12 @@ from typing import Any
 
 from app.services.aws_regional_pricing import AwsPricingValidationError
 
+
+class AwsPricingNonTargetUnit(ValueError):
+    """Known, valid AWS meter outside the supported recurring pricing model."""
+
+
+
 _SOURCE_SERVICES = frozenset({"AmazonEC2", "AmazonRDS", "AWSELB", "AmazonVPC"})
 _ALLOWED_FIELDS = frozenset(
     {
@@ -239,7 +245,28 @@ def normalize_rate(
     ):
         raise AwsPricingValidationError("non-instance RDS hourly offering")
     mapped = _unit(unit, product.service, usage)
+    if (
+        mapped is None
+        and product.service == "ebs"
+        and _volume_type(product.attributes, usage) == "gp3"
+        and "throughput" in usage.lower()
+        and unit.lower() == "gibps-mo"
+    ):
+        # AWS prices gp3 throughput per GiB/s-month. The Aven calculator
+        # consumes a unit price per MiB/s-month (1 GiB = 1024 MiB).
+        # Retain aws_unit unchanged for audit and reject lossy conversions.
+        amount /= Decimal(1024)
+        if amount != amount.quantize(Decimal("0.00000001")):
+            raise AwsPricingValidationError("gp3 throughput conversion exceeds NUMERIC(20,8) precision")
+        mapped = ("MBPS_MONTH", "throughput")
     if not mapped:
+        if (
+            product.service in {"ebs", "snapshot"}
+            and unit.lower() in {"gb", "hours", "requests", "snapshotapiunits"}
+        ):
+            # Real AWS one-off/API meters, but NOT the modeled monthly
+            # storage/throughput components. Do not invent a recurring rate.
+            raise AwsPricingNonTargetUnit("non-target AWS meter " + unit[:40])
         raise AwsPricingValidationError("unsupported billing unit " + unit[:40])
     billing_unit, component = mapped
     if product.service == "ebs":
