@@ -26,9 +26,9 @@ import requests
 from botocore.config import Config
 
 from app.services.aws_pricing_normalization import (
+    AwsPricingNonTargetUnit,
     NormalizedProduct,
     NormalizedRate,
-    AwsPricingNonTargetUnit,
     classify_product,
     coverage_component,
     coverage_summary,
