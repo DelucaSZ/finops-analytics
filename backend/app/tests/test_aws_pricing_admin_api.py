@@ -157,16 +157,13 @@ def test_manual_submission_requires_optin_and_deduplicates(auth_env, monkeypatch
     assert concurrent.json()["detail"]["code"] == "sync_busy"
 
 
-
 def test_sync_does_not_require_reauthentication_but_preserves_admin_csrf(auth_env, monkeypatch):
     http, engine, tokens, ids = auth_env
     monkeypatch.setenv("AVEN_AWS_PRICING_IMPORT_ENABLED", "1")
     with Session(engine) as db:
         account = db.get(AwsAccount, 1)
         account.regions = ["sa-east-1"]
-        session = db.scalar(
-            select(LoginSession).where(LoginSession.user_id == ids["admin"])
-        )
+        session = db.scalar(select(LoginSession).where(LoginSession.user_id == ids["admin"]))
         assert session is not None
         session.reauthenticated_at = datetime.now(UTC) - timedelta(minutes=30)
         db.commit()
