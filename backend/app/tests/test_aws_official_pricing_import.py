@@ -21,7 +21,7 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db.base import Base
 from app.db.migrations import migration_config
-from app.models.aws_pricing import AwsPricingImportBatch, AwsPricingRateDetail
+from app.models.aws_pricing import AwsPricingImportBatch, AwsPricingProduct, AwsPricingRateDetail
 from app.models.pricing import PricingCatalogItem
 from app.services.aws_pricing_bulk import (
     AwsBulkImportError,
@@ -749,7 +749,10 @@ def test_elb_official_lcu_unit_includes_network_nlcu_without_cross_mapping(db, t
     )
     assert detail is not None
     assert detail.billing_unit_aws == "LCU-Hrs"
-    assert detail.product_sku == "NLB-NLCU"
+    product = db.get(AwsPricingProduct, detail.product_id)
+    assert product is not None
+    assert product.product_sku == "NLB-NLCU"
+    assert product.service == "nlb"
 
 
 def test_elb_does_not_infer_nlcu_from_unrelated_meter(tmp_path):
