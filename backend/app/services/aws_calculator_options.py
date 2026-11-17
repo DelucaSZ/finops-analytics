@@ -30,7 +30,9 @@ _ENGINES = {
 # Exact, audited catalog synonyms. Enterprise Edition is BYOL-only;
 # License Included is available only for Oracle Standard Edition 2.
 ORACLE_EDITIONS = {
-    "standard_edition_2": frozenset({"standard edition 2", "standard edition two", "se2"}),
+    "standard_edition_2": frozenset(
+        {"standard edition 2", "standard edition two", "standard two", "se2"}
+    ),
     "enterprise": frozenset({"enterprise", "enterprise edition", "ee"}),
 }
 ORACLE_LICENSES = {
