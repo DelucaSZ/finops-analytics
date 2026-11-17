@@ -200,7 +200,13 @@ def aws_options(
                     or_(
                         edition.is_(None),
                         ~func.lower(edition).in_(
-                            ("enterprise", "enterprise edition", "standard edition 2", "web", "express")
+                            (
+                                "enterprise",
+                                "enterprise edition",
+                                "standard edition 2",
+                                "web",
+                                "express",
+                            )
                         ),
                     ),
                 )
