@@ -689,3 +689,40 @@ def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
     assert result.rates_skipped == 0
     assert result.rates_staged == 0
     assert result.coverage["complete"] is False
+
+
+
+@pytest.mark.parametrize(
+    "edition,license_model",
+    [
+        ("Standard Edition 2", "License included"),
+        ("Standard Edition 2", "Bring your own license"),
+        ("Enterprise Edition", "Bring your own license"),
+    ],
+)
+def test_official_rds_oracle_preserves_edition_and_license(edition, license_model):
+    raw = {
+        "productFamily": "Database Instance",
+        "attributes": {
+            "regionCode": "sa-east-1",
+            "locationType": "AWS Region",
+            "instanceType": "db.m6i.large",
+            "databaseEngine": "Oracle",
+            "databaseEdition": edition,
+            "licenseModel": license_model,
+            "deploymentOption": "Single-AZ",
+            "usagetype": "SAE1-InstanceUsage:db.m6i.large",
+        },
+    }
+    product = classify_product("AmazonRDS", "sa-east-1", "ORACLE-TEST-SKU", raw)
+    assert product is not None
+    assert product.service == "rds"
+    assert product.financial_attributes["databaseEdition"] == edition
+    assert product.financial_attributes["licenseModel"] == license_model
+    assert product.region == "sa-east-1"
+    assert classify_product("AmazonRDS", "us-east-1", "ORACLE-TEST-SKU", raw) is None
+    without_license = {
+        **raw,
+        "attributes": {k: v for k, v in raw["attributes"].items() if k != "licenseModel"},
+    }
+    assert classify_product("AmazonRDS", "sa-east-1", "ORACLE-TEST-SKU", without_license) is None
