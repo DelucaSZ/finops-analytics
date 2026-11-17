@@ -696,9 +696,7 @@ def _official_shape_elb_offer() -> dict:
                 "locationType": "AWS Region",
                 "usagetype": usage,
                 "operation": (
-                    "LoadBalancing:Network"
-                    if "Network" in family
-                    else "LoadBalancing:Application"
+                    "LoadBalancing:Network" if "Network" in family else "LoadBalancing:Application"
                 ),
             },
         }
@@ -765,9 +763,7 @@ def test_elb_official_lcu_unit_includes_network_nlcu_without_cross_mapping(db, t
 
 def test_elb_does_not_infer_nlcu_from_unrelated_meter(tmp_path):
     offer = _official_shape_elb_offer()
-    dimension = next(iter(offer["terms"]["OnDemand"]["NLB-NLCU"].values()))[
-        "priceDimensions"
-    ]
+    dimension = next(iter(offer["terms"]["OnDemand"]["NLB-NLCU"].values()))["priceDimensions"]
     next(iter(dimension.values()))["unit"] = "OtherCapacityUnits"
     path = _fixture(tmp_path, offer)
     staged = stage_offer(
