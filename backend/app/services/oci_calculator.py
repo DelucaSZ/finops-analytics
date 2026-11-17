@@ -46,6 +46,8 @@ STANDARD_SHAPE_LIMITS: dict[str, tuple[int, int]] = {
     "VM.Standard.E5.Flex": (94, 1024),
 }
 DB_SHAPE = "VM.BaseDB.x86"
+# The currently loaded OCI BRL catalog is contracted only for São Paulo.
+OCI_PRICING_REGION = "sa-saopaulo-1"
 OCI_EXCLUSIONS = (
     "excludes_network_egress",
     "excludes_load_balancers",
@@ -341,6 +343,8 @@ def estimate_oci_calculator(
     if request.provider != "oci":
         raise ValueError("OCI calculator cannot estimate another provider")
     at = (request.pricing_reference_date or datetime.now(UTC)).astimezone(UTC)
+    if request.region != OCI_PRICING_REGION:
+        return _invalid(request, at, "oci_sao_paulo_pricing_only", "unsupported_configuration")
     catalog = CalculatorCatalogAdapter(db)
     if request.resource_configuration.service == "compute":
         return _compute(request, at, catalog)
