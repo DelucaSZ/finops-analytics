@@ -257,7 +257,9 @@ def normalize_rate(
         # Retain aws_unit unchanged for audit and reject lossy conversions.
         amount /= Decimal(1024)
         if amount != amount.quantize(Decimal("0.00000001")):
-            raise AwsPricingValidationError("gp3 throughput conversion exceeds NUMERIC(20,8) precision")
+            raise AwsPricingValidationError(
+                "gp3 throughput conversion exceeds NUMERIC(20,8) precision"
+            )
         mapped = ("MBPS_MONTH", "throughput")
     if not mapped:
         if (
