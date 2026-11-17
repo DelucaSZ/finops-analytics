@@ -438,7 +438,8 @@ export default function CalculatorPage() {
                     <div className={styles.fieldGrid}>
                       {choice(t("edition"), form.rdsEdition,
                         ["standard_edition_2", "enterprise"].map((v) => ({
-                          value: v, label: tx("oracleEditions." + v),
+                          value: v, label: v === "standard_edition_2"
+                            ? t("oracleEditions.standardEdition2") : t("oracleEditions.enterprise"),
                         })), (v) => {
                           invalidate();
                           setForm((old) => ({
