@@ -215,7 +215,11 @@ def _record_failure(
             batch.products_seen = stats.products_seen
             batch.rates_seen = stats.rates_seen
             batch.rates_rejected = stats.rates_rejected
-            batch.diagnostics = {"reason": reason[:300], "rejects": stats.rejects, "skips": stats.skips}
+            batch.diagnostics = {
+                "reason": reason[:300],
+                "rejects": stats.rejects,
+                "skips": stats.skips,
+            }
             state = repository.get_sync_state(service_code=service, region_code=region)
             if state is None or state.last_successful_batch_id is None:
                 repository.set_sync_state(
