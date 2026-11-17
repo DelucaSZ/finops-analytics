@@ -691,7 +691,6 @@ def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
     assert result.coverage["complete"] is False
 
 
-
 @pytest.mark.parametrize(
     "edition,license_model",
     [
