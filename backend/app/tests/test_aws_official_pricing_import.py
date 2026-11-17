@@ -490,6 +490,9 @@ def test_official_ec2_gp3_gibps_normalizes_and_publishes_complete_catalog(db, tm
         "non-target AWS meter SnapshotAPIUnits": 1,
     }
     assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
+    # The read-only count starts a SQLAlchemy transaction. Publication requires
+    # an idle session and starts its own atomic transaction.
+    db.rollback()
 
     published = import_aws_prices(
         service_code="AmazonEC2",
