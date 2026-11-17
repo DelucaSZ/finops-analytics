@@ -1,12 +1,14 @@
 """Task 28.5 administrative pricing contracts: offline, deterministic and fail-closed."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
 import pytest
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.account import AwsAccount
+from app.models.auth import LoginSession
 from app.services.aws_regional_pricing import AwsRegionalPricingRepository
 from app.tests.test_security import auth_env as auth_env
 from app.tests.test_security import headers
@@ -153,3 +155,40 @@ def test_manual_submission_requires_optin_and_deduplicates(auth_env, monkeypatch
     )
     assert concurrent.status_code == 409
     assert concurrent.json()["detail"]["code"] == "sync_busy"
+
+
+def test_sync_does_not_require_reauthentication_but_preserves_admin_csrf(auth_env, monkeypatch):
+    http, engine, tokens, ids = auth_env
+    monkeypatch.setenv("AVEN_AWS_PRICING_IMPORT_ENABLED", "1")
+    with Session(engine) as db:
+        account = db.get(AwsAccount, 1)
+        account.regions = ["sa-east-1"]
+        session = db.scalar(select(LoginSession).where(LoginSession.user_id == ids["admin"]))
+        assert session is not None
+        session.reauthenticated_at = datetime.now(UTC) - timedelta(minutes=30)
+        db.commit()
+
+    unauthenticated = http.post(
+        BASE + "/sync",
+        json={"service_code": "AmazonEC2", "region_code": "sa-east-1"},
+    )
+    assert unauthenticated.status_code in {401, 403}
+
+    admin_headers = headers(tokens)
+    no_csrf = dict(admin_headers)
+    no_csrf.pop("X-CSRF-Token")
+    denied = http.post(
+        BASE + "/sync",
+        headers=no_csrf,
+        json={"service_code": "AmazonEC2", "region_code": "sa-east-1"},
+    )
+    assert denied.status_code == 403
+
+    queued = http.post(
+        BASE + "/sync",
+        headers=admin_headers,
+        json={"service_code": "AmazonEC2", "region_code": "sa-east-1", "dry_run": True},
+    )
+    assert queued.status_code == 202, queued.text
+    assert queued.json()["status"] == "queued"
+    assert queued.json()["dry_run"] is True

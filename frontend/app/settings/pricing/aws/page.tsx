@@ -256,8 +256,7 @@ export default function AwsPricingPage() {
 
   async function submitSync(dryRun = false) {
     if (!region || !service || !meta?.import_enabled) return;
-    if (!window.confirm(dryRun ? t("confirmDryRun") : t("confirmSync"))) return;
-    setSubmitting(true);
+     setSubmitting(true);
     setActionError("");
     try {
       const result = await api<SyncRequest>("/pricing/aws/sync", {
@@ -267,7 +266,7 @@ export default function AwsPricingPage() {
       setRequest(result);
       setReload((value) => value + 1);
     } catch (err) {
-      setActionError(textError(err, t("errors.submit"), t("errors.reauth"), t("errors.busy")));
+      setActionError(textError(err, t("errors.submit"), t("errors.forbidden"), t("errors.busy")));
     } finally {
       setSubmitting(false);
     }

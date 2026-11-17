@@ -58,7 +58,7 @@ docker compose exec -T api python -m app.commands.aws_pricing_sync --service Ama
 docker compose exec -T api python -m app.commands.aws_pricing_sync --service AmazonEC2 --region us-east-1 --apply
 ```
 
-Avançar para `AmazonRDS`, `AWSELB` e `AmazonVPC` apenas após validação por unidade; EBS/snapshots podem compartilhar `AmazonEC2`. Não chamar `--all --apply` como carga inicial sem janela e limites previamente aprovados. Operação UI: Settings → Pricing AWS → região/serviço → status/cobertura → submissão admin com reautenticação; `202` só indica enfileiramento, consultar `sync/requests` e `sync/runs`/status até publicação e validação.
+Avançar para `AmazonRDS`, `AWSELB` e `AmazonVPC` apenas após validação por unidade; EBS/snapshots podem compartilhar `AmazonEC2`. Não chamar `--all --apply` como carga inicial sem janela e limites previamente aprovados. Operação UI: Settings → Pricing AWS → região/serviço → status/cobertura → submissão por administrador autenticado, com CSRF, opt-in de importação e auditoria (sem reautenticação adicional a cada pedido); `202` só indica enfileiramento, consultar `sync/requests` e `sync/runs`/status até publicação e validação.
 
 ## 6. Reconciliação financeira e liberação de consumidores
 

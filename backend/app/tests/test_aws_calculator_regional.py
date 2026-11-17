@@ -499,3 +499,79 @@ def test_ec2_missing_optional_importer_attributes_do_not_hide_valid_price(db):
     )
     assert options["total"] == 1
     assert options["items"][0]["pricing_status"] == "priced"
+
+
+def test_windows_t3a_uses_only_license_included_operation(db):
+    base = {
+        "instanceType": "t3a.medium",
+        "operatingSystem": "Windows",
+        "tenancy": "Shared",
+        "preInstalledSw": "NA",
+        "capacitystatus": "Used",
+        "productFamily": "Compute Instance",
+        "usagetype": "SAE1-BoxUsage:t3a.medium",
+    }
+    publish(
+        db,
+        sku="WINDOWS-STANDARD",
+        amount="0.12000000",
+        attrs={**base, "operation": "RunInstances:0002", "licenseModel": "License Included"},
+        family="Compute Instance",
+    )
+    publish(
+        db,
+        sku="WINDOWS-SQL-STANDARD",
+        amount="0.28000000",
+        attrs={**base, "operation": "RunInstances:0006", "licenseModel": "License Included"},
+        family="Compute Instance",
+    )
+    publish(
+        db,
+        sku="WINDOWS-BYOL",
+        amount="0.07000000",
+        attrs={**base, "operation": "RunInstances:0002", "licenseModel": "Bring your own license"},
+        family="Compute Instance",
+    )
+    ebs(db)
+    db.commit()
+    request = CalculatorEstimateRequest.model_validate(
+        {
+            "provider": "aws",
+            "region": "sa-east-1",
+            "pricing_reference_date": AT,
+            "resource_configuration": {
+                "service": "ec2",
+                "instance_type": "t3a.medium",
+                "operating_system": "windows",
+                "root_volume_gb": "100",
+            },
+        }
+    )
+    result = estimate_aws_calculator(request, db=db)
+    assert result.pricing_status == "priced"
+    assert result.pricing_components[0].product_sku == "WINDOWS-STANDARD"
+    assert result.pricing_components[0].unit_price == Decimal("0.12000000")
+    assert result.pricing_components[0].discount_eligible is False
+    assert result.monthly_final_cost == Decimal("97.60")
+    options = aws_options(
+        db,
+        service="ec2",
+        region="sa-east-1",
+        search="t3a",
+        engine=None,
+        offset=0,
+        limit=10,
+    )
+    assert options["total"] == 1
+    assert options["items"][0]["operating_system"] == "windows"
+    assert options["items"][0]["pricing_status"] == "priced"
+
+
+def test_windows_missing_does_not_reuse_linux_price(db):
+    compute(db, os_name="Linux")
+    ebs(db)
+    db.commit()
+    result = estimate(db, os_name="windows")
+    assert result.pricing_status == "partially_priced"
+    assert "compute" in result.missing_pricing_components
+    assert result.monthly_final_cost is None

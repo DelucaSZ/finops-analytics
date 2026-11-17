@@ -46,6 +46,16 @@ test("AWS pricing translations and page behavior cover both locales", async () =
   assert.match(page, /\/pricing\/aws\/rates/);
   assert.match(page, /\/pricing\/aws\/sync\/coverage/);
   assert.match(page, /\/pricing\/aws\/sync\/requests/);
-  assert.match(page, /window\.confirm/);
+  assert.doesNotMatch(page, /window\.confirm/);
   assert.doesNotMatch(page, /pricing\.us-east-1\.amazonaws\.com/);
+});
+
+
+test("calculator displays identical generic pricing warnings once", async () => {
+  const page = await readFile(
+    new URL("../app/calculator/page.tsx", import.meta.url), "utf8",
+  );
+  assert.match(page, /new Set\(estimate\.warnings\.map/);
+  assert.match(page, /warningMessages\.map/);
+  assert.doesNotMatch(page, /estimate\.warnings\.map\(\(warning, i\)/);
 });

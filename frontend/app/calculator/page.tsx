@@ -370,6 +370,12 @@ export default function CalculatorPage() {
 
   const showWaiting = !estimate && !calculating && !estimateError;
   const displayStatus = estimate ? tx("status." + estimate.pricing_status) : null;
+  // Several distinct backend limitations currently share one localized generic
+  // message. Display each readable warning once, not once per backend code.
+  const warningMessages = estimate ? Array.from(new Set(estimate.warnings.map((warning) => {
+    const key = "warnings." + warning.replace(/_([a-z])/g, (_, letter: string) => letter.toUpperCase());
+    return (t.has as (key: string) => boolean)(key) ? tx(key) : t("genericWarning");
+  }))) : [];
 
   return (
     <PageContainer width="full" className={styles.page}>
@@ -639,10 +645,8 @@ export default function CalculatorPage() {
                      </li>)}
                    </ul>
                 </Alert>}
-                {estimate.warnings.length > 0 && <div className={styles.warnings}>
-                  {estimate.warnings.map((warning, i) => <p key={warning + i} className={styles.hint}>
-                    {(t.has as (key: string) => boolean)("warnings." + warning) ? tx("warnings." + warning) : t("genericWarning")}
-                  </p>)}
+                {warningMessages.length > 0 && <div className={styles.warnings}>
+                  {warningMessages.map((message) => <p key={message} className={styles.hint}>{message}</p>)}
                 </div>}
               </>}
             </CardContent>

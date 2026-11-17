@@ -117,6 +117,9 @@ def _ec2(request, at, resolver):
         )
         return components, warnings
     os_name = {"linux": "Linux", "windows": "Windows"}[cfg.operating_system.lower()]
+    # AWS CUR/Price List operation IDs distinguish plain Windows licensing
+    # from Linux, Windows+SQL Server and other billed software variants.
+    operation = "RunInstances:0002" if os_name == "Windows" else "RunInstances"
     lookup = _quote(
         resolver,
         request,
@@ -127,6 +130,7 @@ def _ec2(request, at, resolver):
             "instanceType": cfg.instance_type,
             "operatingSystem": os_name,
             "tenancy": "Shared",
+            "operation": operation,
         },
         lambda a: (
             a.get("instanceType") == cfg.instance_type
@@ -134,7 +138,9 @@ def _ec2(request, at, resolver):
             and a.get("tenancy") == "Shared"
             and a.get("preInstalledSw", "NA") in ("NA", "None")
             and a.get("capacitystatus", "Used") == "Used"
-            and a.get("operation", "").startswith("RunInstances")
+            and a.get("operation") == operation
+            and a.get("licenseModel", "License Included").lower()
+            in ("license included", "no license required")
         ),
         "INSTANCE_HOUR",
         "Hrs",

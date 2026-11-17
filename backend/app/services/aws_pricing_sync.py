@@ -270,6 +270,7 @@ class AwsPricingSynchronizer:
                 "rates_staged": result.rates_staged if result else 0,
                 "rates_unsupported": result.rates_unsupported if result else 0,
                 "rates_rejected": run.rates_rejected,
+                "reject_reasons": result.diagnostics.get("rejects", {}) if result else {},
                 "rates_skipped": result.rates_skipped if result else 0,
                 "skip_reasons": result.diagnostics.get("skips", {}) if result else {},
                 "download_seconds": result.diagnostics.get("download_seconds") if result else 0,
