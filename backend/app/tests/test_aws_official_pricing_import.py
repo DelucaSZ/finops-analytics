@@ -420,13 +420,19 @@ def _complete_ec2_offer_with_gp3() -> dict:
         }
         if os_name:
             attributes.update(
-                instanceType="m6i.large", operatingSystem=os_name, tenancy="Shared",
-                preInstalledSw="NA", operation="RunInstances", capacitystatus="Used",
+                instanceType="m6i.large",
+                operatingSystem=os_name,
+                tenancy="Shared",
+                preInstalledSw="NA",
+                operation="RunInstances",
+                capacitystatus="Used",
             )
         if volume:
             attributes["volumeApiName"] = volume
         offer["products"][sku] = {
-            "sku": sku, "productFamily": family, "attributes": attributes,
+            "sku": sku,
+            "productFamily": family,
+            "attributes": attributes,
         }
         rate_code = f"{sku}.JRTCKXETXF.6YS6EN2CT7"
         offer["terms"]["OnDemand"][sku] = {
@@ -435,8 +441,10 @@ def _complete_ec2_offer_with_gp3() -> dict:
                 "effectiveDate": AT,
                 "priceDimensions": {
                     rate_code: {
-                        "rateCode": rate_code, "unit": unit,
-                        "beginRange": "0", "endRange": "Inf",
+                        "rateCode": rate_code,
+                        "unit": unit,
+                        "beginRange": "0",
+                        "endRange": "Inf",
                         "pricePerUnit": {
                             "USD": "46.0800000000" if unit == "GiBps-mo" else "0.0800000000"
                         },
@@ -448,12 +456,16 @@ def _complete_ec2_offer_with_gp3() -> dict:
     # storage prices and must be tracked without blocking valid publication.
     gp2 = offer["terms"]["OnDemand"]["SKU-EC2-02"]["SKU-EC2-02.JRTCKXETXF"]["priceDimensions"]
     gp2["SKU-EC2-02.JRTCKXETXF.OPTIONAL"] = {
-        "unit": "GB", "beginRange": "0", "endRange": "Inf",
+        "unit": "GB",
+        "beginRange": "0",
+        "endRange": "Inf",
         "pricePerUnit": {"USD": "0.10"},
     }
     snapshots = offer["terms"]["OnDemand"]["SKU-EC2-10"]["SKU-EC2-10.JRTCKXETXF"]["priceDimensions"]
     snapshots["SKU-EC2-10.JRTCKXETXF.OPTIONAL"] = {
-        "unit": "SnapshotAPIUnits", "beginRange": "0", "endRange": "Inf",
+        "unit": "SnapshotAPIUnits",
+        "beginRange": "0",
+        "endRange": "Inf",
         "pricePerUnit": {"USD": "0.10"},
     }
     return offer
@@ -462,8 +474,11 @@ def _complete_ec2_offer_with_gp3() -> dict:
 def test_official_ec2_gp3_gibps_normalizes_and_publishes_complete_catalog(db, tmp_path):
     path = _fixture(tmp_path, _complete_ec2_offer_with_gp3())
     preview = import_aws_prices(
-        service_code="AmazonEC2", region_code="sa-east-1", db=db,
-        fixture_path=path, dry_run=True,
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=True,
     )
     assert preview.status == "validated"
     assert preview.coverage["missing"] == []
@@ -477,14 +492,15 @@ def test_official_ec2_gp3_gibps_normalizes_and_publishes_complete_catalog(db, tm
     assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
 
     published = import_aws_prices(
-        service_code="AmazonEC2", region_code="sa-east-1", db=db,
-        fixture_path=path, dry_run=False,
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=False,
     )
     assert published.status == "published"
     assert published.published_rates == 11
-    item = db.scalar(
-        select(PricingCatalogItem).where(PricingCatalogItem.unit == "MBPS_MONTH")
-    )
+    item = db.scalar(select(PricingCatalogItem).where(PricingCatalogItem.unit == "MBPS_MONTH"))
     assert item is not None
     assert item.price == Decimal("0.045")
     assert item.currency == "USD"
@@ -501,16 +517,18 @@ def test_gp3_gibps_to_mibps_requires_exact_eight_decimal_price(db, tmp_path):
     next(iter(dims.values()))["pricePerUnit"]["USD"] = "1.0000000000"
     path = _fixture(tmp_path, offer)
     result = import_aws_prices(
-        service_code="AmazonEC2", region_code="sa-east-1", db=db,
-        fixture_path=path, dry_run=False,
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=False,
     )
     assert result.status == "partial"
     assert result.published_rates == 0
     assert result.rates_rejected == 1
     assert result.coverage["missing"] == ["ebs_gp3_throughput"]
     assert (
-        "gp3 throughput conversion exceeds NUMERIC(20,8) precision"
-        in result.diagnostics["rejects"]
+        "gp3 throughput conversion exceeds NUMERIC(20,8) precision" in result.diagnostics["rejects"]
     )
     assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
 
@@ -519,13 +537,18 @@ def test_unexpected_ec2_meter_remains_a_financial_rejection(db, tmp_path):
     offer = _complete_ec2_offer_with_gp3()
     dims = offer["terms"]["OnDemand"]["SKU-EC2-02"]["SKU-EC2-02.JRTCKXETXF"]["priceDimensions"]
     dims["SKU-EC2-02.JRTCKXETXF.UNKNOWN"] = {
-        "unit": "UnlistedUnit", "beginRange": "0", "endRange": "Inf",
+        "unit": "UnlistedUnit",
+        "beginRange": "0",
+        "endRange": "Inf",
         "pricePerUnit": {"USD": "1.00000000"},
     }
     path = _fixture(tmp_path, offer)
     result = import_aws_prices(
-        service_code="AmazonEC2", region_code="sa-east-1", db=db,
-        fixture_path=path, dry_run=True,
+        service_code="AmazonEC2",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=True,
     )
     assert result.status == "partial"
     assert result.rates_rejected == 1
