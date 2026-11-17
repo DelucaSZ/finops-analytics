@@ -119,6 +119,21 @@ def classify_product(
     family = _token(product.get("productFamily"))
     usage = attr.get("usagetype", "")
     group = (attr.get("group", "") + " " + attr.get("groupDescription", "")).lower()
+    # AWS's VPC Public IPv4 offer can omit productFamily while providing
+    # the authoritative group VPCPublicIPv4Address. Only use that actual
+    # source field as the family for an explicitly regional, supported
+    # IdleAddress/InUseAddress meter; never supply a fabricated family for
+    # other VPC offerings.
+    if (
+        service_code == "AmazonVPC"
+        and not family
+        and attr.get("group") == "VPCPublicIPv4Address"
+        and attr.get("regionCode") == region
+        and re.fullmatch(
+            r"[A-Z0-9]+-PublicIPv4:(?:IdleAddress|InUseAddress)", usage, re.I
+        )
+    ):
+        family = attr["group"]
     service = ""
     if service_code == "AmazonEC2":
         if family == "Compute Instance" and attr.get("instanceType"):
