@@ -164,9 +164,7 @@ def classify_product(
         # the load balancer type in the product family/operation. Reserved
         # LCUs, trust-store hours and other ancillary meters are distinct
         # charges and must not masquerade as the base hourly/LCU rate.
-        if not re.fullmatch(
-            r"(?:[A-Z0-9]+-)?(?:LoadBalancerUsage|LCUUsage)", usage
-        ):
+        if not re.fullmatch(r"(?:[A-Z0-9]+-)?(?:LoadBalancerUsage|LCUUsage)", usage):
             return None
         lookup = (usage + " " + family + " " + group).lower()
         if "network" in lookup or "nlb" in lookup or "nlcuusage" in lookup:
@@ -215,17 +213,9 @@ def _unit(aws_unit: str, service: str, usage: str) -> tuple[str, str] | None:
     if service in {"alb", "nlb", "clb"}:
         if key in {"hrs", "hours"}:
             return ("LB_HOUR", "hour")
-        if (
-            key == "lcu-hrs"
-            and service == "alb"
-            and usage.endswith("LCUUsage")
-        ):
+        if key == "lcu-hrs" and service == "alb" and usage.endswith("LCUUsage"):
             return ("LCU_HOUR", "lcu")
-        if (
-            key in {"lcu-hrs", "nlcu-hrs"}
-            and service == "nlb"
-            and usage.endswith("LCUUsage")
-        ):
+        if key in {"lcu-hrs", "nlcu-hrs"} and service == "nlb" and usage.endswith("LCUUsage"):
             # AWS's official Network LB file labels NLCU capacity as
             # "LCU-Hrs" (not "NLCU-Hrs"). Service classification, not
             # a different billing-unit string, determines the meaning.
