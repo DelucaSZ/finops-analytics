@@ -37,9 +37,9 @@ async function chooseRegion(page,provider) {
     await page.locator('main option[value="sa-east-1"]').first().waitFor({state:"attached"});
     await selectValue(page,"sa-east-1");
   } else {
-    const region=page.locator('main input[maxlength="80"]').first();
-    await region.waitFor({state:"visible",timeout:12000});
-    await region.fill("sa-saopaulo-1");
+    // OCI prices are fixed to São Paulo; no user-editable region control.
+    assert.equal(await page.locator('main input[maxlength="80"]').count(),0,
+      "OCI must not render a region input");
   }
 }
 async function checkDropdown(page,width,height) {
@@ -149,6 +149,8 @@ async function priceCase(deps,{locale,provider,service,convert=false,scenario}) 
     assert.equal(estimate.length,1,"calculator did not send exactly one estimate request");
     assert.equal(estimate[0].payload.provider,provider);
     assert.equal(estimate[0].payload.resource_configuration.service,service);
+    if(provider==="oci") assert.equal(estimate[0].payload.region,"sa-saopaulo-1",
+      "OCI estimates must use São Paulo implicitly");
     // Guard against fixture values that differ from the actual backend contracts.
     if(service==="rds") assert.equal(estimate[0].payload.resource_configuration.deployment,"single_az");
     if(service==="db_system") {
