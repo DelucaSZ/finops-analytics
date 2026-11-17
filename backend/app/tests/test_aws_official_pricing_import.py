@@ -695,7 +695,11 @@ def _official_shape_elb_offer() -> dict:
                 "regionCode": "us-east-1",
                 "locationType": "AWS Region",
                 "usagetype": usage,
-                "operation": "LoadBalancing:Network" if "Network" in family else "LoadBalancing:Application",
+                "operation": (
+                    "LoadBalancing:Network"
+                    if "Network" in family
+                    else "LoadBalancing:Application"
+                ),
             },
         }
         term_code = sku + ".JRTCKXETXF"
@@ -729,13 +733,17 @@ def test_elb_official_lcu_unit_includes_network_nlcu_without_cross_mapping(db, t
     assert staged.rates_rejected == 0
     assert staged.coverage["complete"] is True
     assert staged.coverage["missing"] == []
-    assert all(staged.coverage["counts"][component] == 1 for component in (
-        "alb_hour", "alb_lcu", "nlb_hour", "nlb_nlcu"
-    ))
+    assert all(
+        staged.coverage["counts"][component] == 1
+        for component in ("alb_hour", "alb_lcu", "nlb_hour", "nlb_nlcu")
+    )
 
     published = import_aws_prices(
-        service_code="AWSELB", region_code="us-east-1",
-        db=db, fixture_path=path, dry_run=False,
+        service_code="AWSELB",
+        region_code="us-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=False,
     )
     assert published.status == "published"
     assert published.published_rates == 4
