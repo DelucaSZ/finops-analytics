@@ -671,7 +671,7 @@ def test_known_unmodeled_meters_are_skipped_with_audit(
     assert result.rates_rejected == 0
     assert result.rates_staged == 0
     assert result.coverage["complete"] is False
-    assert not result.skips == {}
+    assert result.skips != {}
 
 
 def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
