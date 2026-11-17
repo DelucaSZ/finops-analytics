@@ -501,7 +501,6 @@ def test_ec2_missing_optional_importer_attributes_do_not_hide_valid_price(db):
     assert options["items"][0]["pricing_status"] == "priced"
 
 
-
 def test_windows_t3a_uses_only_license_included_operation(db):
     base = {
         "instanceType": "t3a.medium",
@@ -555,8 +554,13 @@ def test_windows_t3a_uses_only_license_included_operation(db):
     assert result.pricing_components[0].discount_eligible is False
     assert result.monthly_final_cost == Decimal("97.60")
     options = aws_options(
-        db, service="ec2", region="sa-east-1", search="t3a",
-        engine=None, offset=0, limit=10,
+        db,
+        service="ec2",
+        region="sa-east-1",
+        search="t3a",
+        engine=None,
+        offset=0,
+        limit=10,
     )
     assert options["total"] == 1
     assert options["items"][0]["operating_system"] == "windows"
