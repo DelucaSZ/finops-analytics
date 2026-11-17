@@ -60,6 +60,7 @@ class AwsImportResult:
     coverage: dict[str, Any]
     diagnostics: dict[str, Any]
     elapsed_seconds: float
+    rates_skipped: int = 0
 
 
 def _result(
@@ -94,6 +95,7 @@ def _result(
         coverage=stats.coverage,
         diagnostics=diagnostics or {},
         elapsed_seconds=round(elapsed_seconds, 3),
+        rates_skipped=stats.rates_skipped,
     )
 
 
@@ -213,7 +215,7 @@ def _record_failure(
             batch.products_seen = stats.products_seen
             batch.rates_seen = stats.rates_seen
             batch.rates_rejected = stats.rates_rejected
-            batch.diagnostics = {"reason": reason[:300], "rejects": stats.rejects}
+            batch.diagnostics = {"reason": reason[:300], "rejects": stats.rejects, "skips": stats.skips}
             state = repository.get_sync_state(service_code=service, region_code=region)
             if state is None or state.last_successful_batch_id is None:
                 repository.set_sync_state(
@@ -305,6 +307,8 @@ def import_aws_prices(
             "format": stats.format_version,
             "publication_date": stats.publication_date,
             "rejects": stats.rejects,
+            "skips": stats.skips,
+            "rates_skipped": stats.rates_skipped,
             "examples": stats.examples,
             "coverage_complete": complete,
             "official_arn": reference.arn if reference else None,
