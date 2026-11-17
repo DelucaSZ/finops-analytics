@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import case, func, or_, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -111,8 +111,23 @@ def aws_options(
                     product.product_attributes["capacitystatus"].as_string().is_(None),
                     product.product_attributes["capacitystatus"].as_string() == "Used",
                 ),
-                product.product_attributes["operation"].as_string().startswith("RunInstances"),
+                or_(
+                    and_(
+                        variant == "Linux",
+                        product.product_attributes["operation"].as_string() == "RunInstances",
+                    ),
+                    and_(
+                        variant == "Windows",
+                        product.product_attributes["operation"].as_string() == "RunInstances:0002",
+                    ),
+                ),
                 variant.in_(("Linux", "Windows")),
+                or_(
+                    product.product_attributes["licenseModel"].as_string().is_(None),
+                    func.lower(product.product_attributes["licenseModel"].as_string()).in_(
+                        ("license included", "no license required")
+                    ),
+                ),
             )
         )
     else:
