@@ -21,7 +21,7 @@ from sqlalchemy.pool import StaticPool
 import app.models  # noqa: F401
 from app.db.base import Base
 from app.db.migrations import migration_config
-from app.models.aws_pricing import AwsPricingImportBatch, AwsPricingRateDetail
+from app.models.aws_pricing import AwsPricingImportBatch, AwsPricingProduct, AwsPricingRateDetail
 from app.models.pricing import PricingCatalogItem
 from app.services.aws_pricing_bulk import (
     AwsBulkImportError,
@@ -671,6 +671,213 @@ def test_known_unmodeled_meters_are_skipped_with_audit(
     assert result.rates_staged == 0
     assert result.coverage["complete"] is False
     assert result.skips != {}
+
+
+def _official_shape_elb_offer() -> dict:
+    offer = _offer(service="AWSELB", region="us-east-1")
+    offer["products"] = {}
+    offer["terms"]["OnDemand"] = {}
+    rows = [
+        ("ALB-HOURS", "Load Balancer-Application", "USE1-LoadBalancerUsage", "Hrs", "0.0225"),
+        ("ALB-LCU", "Load Balancer-Application", "USE1-LCUUsage", "LCU-Hrs", "0.0080"),
+        ("NLB-HOURS", "Load Balancer-Network", "USE1-LoadBalancerUsage", "Hrs", "0.0225"),
+        ("NLB-NLCU", "Load Balancer-Network", "USE1-LCUUsage", "LCU-Hrs", "0.0060"),
+        # These are real AWS meter families, but do not represent base
+        # hourly/LCU pricing and must not produce a fake base price.
+        ("ALB-TRUST", "Load Balancer-Application", "USE1-TS-LoadBalancerUsage", "Hrs", "0.001"),
+        ("NLB-RESERVED", "Load Balancer-Network", "USE1-ReservedLCUUsage", "LCU-Hrs", "0.002"),
+    ]
+    for sku, family, usage, unit, amount in rows:
+        offer["products"][sku] = {
+            "sku": sku,
+            "productFamily": family,
+            "attributes": {
+                "regionCode": "us-east-1",
+                "locationType": "AWS Region",
+                "usagetype": usage,
+                "operation": (
+                    "LoadBalancing:Network" if "Network" in family else "LoadBalancing:Application"
+                ),
+            },
+        }
+        term_code = sku + ".JRTCKXETXF"
+        rate_code = term_code + ".6YS6EN2CT7"
+        offer["terms"]["OnDemand"][sku] = {
+            term_code: {
+                "offerTermCode": "JRTCKXETXF",
+                "effectiveDate": AT,
+                "priceDimensions": {
+                    rate_code: {
+                        "rateCode": rate_code,
+                        "unit": unit,
+                        "beginRange": "0",
+                        "endRange": "Inf",
+                        "pricePerUnit": {"USD": amount},
+                    },
+                },
+            },
+        }
+    return offer
+
+
+def test_elb_official_lcu_unit_includes_network_nlcu_without_cross_mapping(db, tmp_path):
+    path = _fixture(tmp_path, _official_shape_elb_offer())
+    staged = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AWSELB", region="us-east-1"
+    )
+    assert staged.products_seen == 6
+    assert staged.products_matched == 4
+    assert staged.rates_staged == 4
+    assert staged.rates_rejected == 0
+    assert staged.coverage["complete"] is True
+    assert staged.coverage["missing"] == []
+    assert all(
+        staged.coverage["counts"][component] == 1
+        for component in ("alb_hour", "alb_lcu", "nlb_hour", "nlb_nlcu")
+    )
+
+    published = import_aws_prices(
+        service_code="AWSELB",
+        region_code="us-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=False,
+    )
+    assert published.status == "published"
+    assert published.published_rates == 4
+    rates = list(db.scalars(select(PricingCatalogItem)))
+    assert len(rates) == 4
+    assert {item.unit for item in rates} == {"LB_HOUR", "LCU_HOUR", "NLCU_HOUR"}
+    nlcu = next(item for item in rates if item.unit == "NLCU_HOUR")
+    assert nlcu.price == Decimal("0.0060")
+    detail = db.scalar(
+        select(AwsPricingRateDetail).where(AwsPricingRateDetail.pricing_item_id == nlcu.id)
+    )
+    assert detail is not None
+    assert detail.billing_unit_aws == "LCU-Hrs"
+    product = db.get(AwsPricingProduct, detail.product_id)
+    assert product is not None
+    assert product.product_sku == "NLB-NLCU"
+    assert product.service == "nlb"
+
+
+def test_elb_does_not_infer_nlcu_from_unrelated_meter(tmp_path):
+    offer = _official_shape_elb_offer()
+    dimension = next(iter(offer["terms"]["OnDemand"]["NLB-NLCU"].values()))["priceDimensions"]
+    next(iter(dimension.values()))["unit"] = "OtherCapacityUnits"
+    path = _fixture(tmp_path, offer)
+    staged = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AWSELB", region="us-east-1"
+    )
+    assert staged.rates_rejected == 1
+    assert staged.coverage["complete"] is False
+    assert staged.coverage["missing"] == ["nlb_nlcu"]
+
+
+def _real_shape_vpc_public_ipv4_offer() -> dict:
+    offer = _offer(service="AmazonVPC", region="sa-east-1")
+    original = offer["products"].pop("SKU-VPC-1")
+    original_term = offer["terms"]["OnDemand"].pop("SKU-VPC-1")
+    for suffix, usage in (
+        ("IDLE", "SAE1-PublicIPv4:IdleAddress"),
+        ("INUSE", "SAE1-PublicIPv4:InUseAddress"),
+    ):
+        sku = "SKU-VPC-" + suffix
+        product = {
+            "sku": sku,
+            # AWS uses the group attribute for public IPv4 products; its
+            # official offer can omit productFamily.
+            "attributes": {
+                **original["attributes"],
+                "group": "VPCPublicIPv4Address",
+                "usagetype": usage,
+            },
+        }
+        offer["products"][sku] = product
+        term_code = sku + ".JRTCKXETXF"
+        rate_code = term_code + ".6YS6EN2CT7"
+        dimension = next(iter(next(iter(original_term.values()))["priceDimensions"].values()))
+        offer["terms"]["OnDemand"][sku] = {
+            term_code: {
+                "offerTermCode": "JRTCKXETXF",
+                "effectiveDate": AT,
+                "priceDimensions": {
+                    rate_code: {
+                        **dimension,
+                        "rateCode": rate_code,
+                        "description": "Public IPv4 " + suffix.lower(),
+                    },
+                },
+            },
+        }
+    return offer
+
+
+def test_official_vpc_public_ipv4_without_product_family_validates_and_publishes(db, tmp_path):
+    path = _fixture(tmp_path, _real_shape_vpc_public_ipv4_offer())
+    preview = import_aws_prices(
+        service_code="AmazonVPC",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=True,
+    )
+    assert preview.status == "validated"
+    assert preview.products_seen == 2
+    assert preview.products_matched == 2
+    assert preview.rates_seen == 2
+    assert preview.rates_staged == 2
+    assert preview.rates_rejected == 0
+    assert preview.rates_skipped == 0
+    assert preview.coverage["complete"] is True
+    assert preview.coverage["counts"] == {"ipv4_hour": 2}
+    assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
+    db.rollback()
+
+    applied = import_aws_prices(
+        service_code="AmazonVPC",
+        region_code="sa-east-1",
+        db=db,
+        fixture_path=path,
+        dry_run=False,
+    )
+    assert applied.status == "published"
+    assert applied.published_rates == 2
+    products = list(db.scalars(select(AwsPricingProduct)))
+    assert {p.product_sku for p in products} == {"SKU-VPC-IDLE", "SKU-VPC-INUSE"}
+    assert all(p.product_family == "VPCPublicIPv4Address" for p in products)
+    assert all(p.product_attributes["group"] == "VPCPublicIPv4Address" for p in products)
+    items = list(db.scalars(select(PricingCatalogItem)))
+    assert len(items) == 2
+    assert all(item.unit == "IP_HOUR" for item in items)
+    assert all(item.price == Decimal("0.00500000") for item in items)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    ["unknown_group", "other_region", "other_meter", "no_region"],
+)
+def test_vpc_missing_family_exception_is_not_generic(tmp_path, mutation):
+    offer = _real_shape_vpc_public_ipv4_offer()
+    product = offer["products"]["SKU-VPC-IDLE"]
+    if mutation == "unknown_group":
+        product["attributes"]["group"] = "OtherVPCService"
+    elif mutation == "other_region":
+        product["attributes"]["regionCode"] = "us-east-1"
+    elif mutation == "other_meter":
+        product["attributes"]["usagetype"] = "SAE1-VpcEndpoint-Hours"
+    elif mutation == "no_region":
+        product["attributes"].pop("regionCode")
+    offer["products"].pop("SKU-VPC-INUSE")
+    offer["terms"]["OnDemand"].pop("SKU-VPC-INUSE")
+    path = _fixture(tmp_path, offer)
+    staged = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AmazonVPC", region="sa-east-1"
+    )
+    assert staged.products_seen == 1
+    assert staged.products_matched == 0
+    assert staged.rates_staged == 0
+    assert staged.coverage["missing"] == ["ipv4_hour"]
 
 
 def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):

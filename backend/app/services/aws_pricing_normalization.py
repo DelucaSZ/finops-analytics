@@ -119,6 +119,19 @@ def classify_product(
     family = _token(product.get("productFamily"))
     usage = attr.get("usagetype", "")
     group = (attr.get("group", "") + " " + attr.get("groupDescription", "")).lower()
+    # AWS's VPC Public IPv4 offer can omit productFamily while providing
+    # the authoritative group VPCPublicIPv4Address. Only use that actual
+    # source field as the family for an explicitly regional, supported
+    # IdleAddress/InUseAddress meter; never supply a fabricated family for
+    # other VPC offerings.
+    if (
+        service_code == "AmazonVPC"
+        and not family
+        and attr.get("group") == "VPCPublicIPv4Address"
+        and attr.get("regionCode") == region
+        and re.fullmatch(r"[A-Z0-9]+-PublicIPv4:(?:IdleAddress|InUseAddress)", usage, re.I)
+    ):
+        family = attr["group"]
     service = ""
     if service_code == "AmazonEC2":
         if family == "Compute Instance" and attr.get("instanceType"):
@@ -160,6 +173,12 @@ def classify_product(
         if re.search(r"PublicIPv4|InUseAddress|IdleAddress", usage, re.I):
             service = "ipv4"
     elif service_code == "AWSELB":
+        # AWS uses the same LCUUsage meter for ALB and NLB, but identifies
+        # the load balancer type in the product family/operation. Reserved
+        # LCUs, trust-store hours and other ancillary meters are distinct
+        # charges and must not masquerade as the base hourly/LCU rate.
+        if not re.fullmatch(r"(?:[A-Z0-9]+-)?(?:LoadBalancerUsage|LCUUsage)", usage):
+            return None
         lookup = (usage + " " + family + " " + group).lower()
         if "network" in lookup or "nlb" in lookup or "nlcuusage" in lookup:
             service = "nlb"
@@ -207,9 +226,12 @@ def _unit(aws_unit: str, service: str, usage: str) -> tuple[str, str] | None:
     if service in {"alb", "nlb", "clb"}:
         if key in {"hrs", "hours"}:
             return ("LB_HOUR", "hour")
-        if key == "lcu-hrs" and service == "alb":
+        if key == "lcu-hrs" and service == "alb" and usage.endswith("LCUUsage"):
             return ("LCU_HOUR", "lcu")
-        if key == "nlcu-hrs" and service == "nlb":
+        if key in {"lcu-hrs", "nlcu-hrs"} and service == "nlb" and usage.endswith("LCUUsage"):
+            # AWS's official Network LB file labels NLCU capacity as
+            # "LCU-Hrs" (not "NLCU-Hrs"). Service classification, not
+            # a different billing-unit string, determines the meaning.
             return ("NLCU_HOUR", "nlcu")
     if service == "ipv4" and key in {"hrs", "hours"}:
         return ("IP_HOUR", "ipv4")
