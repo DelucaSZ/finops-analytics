@@ -16,6 +16,11 @@ from app.schemas.calculator import (
     CalculatorEstimateRequest,
     CalculatorEstimateResponse,
 )
+from app.services.aws_calculator_options import (
+    ORACLE_EDITIONS,
+    ORACLE_LICENSES,
+    valid_oracle_license,
+)
 from app.services.aws_calculator_pricing import AwsPublicPriceResolver, missing_aws_lookup
 from app.services.aws_calculator_regional import AwsLocalCalculatorResolver
 from app.services.calculator_engine import (
@@ -261,9 +266,10 @@ def _rds(request, at, resolver):
                 request, at, "instance", "INSTANCE_HOUR", "required_rds_engine_class_deployment"
             )
         ], warnings
-    engine = _OSS_ENGINES.get(cfg.engine.lower())
+    oracle = cfg.engine.lower() == "oracle"
+    engine = "Oracle" if oracle else _OSS_ENGINES.get(cfg.engine.lower())
     deployment = {"single_az": "Single-AZ", "multi_az": "Multi-AZ"}.get(cfg.deployment.lower())
-    if not engine or not deployment or cfg.license_model not in (None, "no_license_required"):
+    if not engine or not deployment:
         return [
             _missing(
                 request,
@@ -273,16 +279,69 @@ def _rds(request, at, resolver):
                 "rds_engine_deployment_or_license_not_supported",
             )
         ], warnings
-    if cfg.database_edition not in (None, ""):
-        return [
-            _missing(
-                request,
-                at,
-                "instance",
-                "INSTANCE_HOUR",
-                "rds_database_edition_not_supported_for_oss",
+    if oracle:
+        if not cfg.database_edition or not cfg.license_model:
+            return [
+                _missing(
+                    request, at, "instance", "INSTANCE_HOUR", "required_oracle_edition_and_license"
+                )
+            ], warnings
+        if not valid_oracle_license(cfg.database_edition, cfg.license_model):
+            return [
+                _missing(
+                    request,
+                    at,
+                    "instance",
+                    "INSTANCE_HOUR",
+                    "unsupported_oracle_edition_license_combination",
+                )
+            ], warnings
+        if cfg.license_model == "byol":
+            warnings.append("byol_requires_owned_eligible_oracle_licenses")
+    else:
+        if cfg.license_model not in (None, "no_license_required"):
+            return [
+                _missing(
+                    request,
+                    at,
+                    "instance",
+                    "INSTANCE_HOUR",
+                    "rds_engine_deployment_or_license_not_supported",
+                )
+            ], warnings
+        if cfg.database_edition not in (None, ""):
+            return [
+                _missing(
+                    request,
+                    at,
+                    "instance",
+                    "INSTANCE_HOUR",
+                    "rds_database_edition_not_supported_for_oss",
+                )
+            ], warnings
+
+    def matches_instance(a):
+        if not (
+            a.get("instanceType") == cfg.instance_class
+            and a.get("databaseEngine") == engine
+            and a.get("deploymentOption") == deployment
+            and a.get("deploymentModel") not in ("Custom", "Multi-AZ DB cluster")
+        ):
+            return False
+        if oracle:
+            return (
+                a.get("databaseEdition", "").strip().lower()
+                in ORACLE_EDITIONS[cfg.database_edition]
+                and a.get("licenseModel", "").strip().lower()
+                in ORACLE_LICENSES[cfg.license_model]
             )
-        ], warnings
+        return (
+            a.get("licenseModel", "No license required").lower()
+            in ("no license required", "license included")
+            and a.get("databaseEdition", "Standard").lower()
+            not in ("enterprise", "enterprise edition", "standard edition 2", "web", "express")
+        )
+
     lookup = _quote(
         resolver,
         request,
@@ -294,16 +353,7 @@ def _rds(request, at, resolver):
             "databaseEngine": engine,
             "deploymentOption": deployment,
         },
-        lambda a: (
-            a.get("instanceType") == cfg.instance_class
-            and a.get("databaseEngine") == engine
-            and a.get("deploymentOption") == deployment
-            and a.get("deploymentModel") not in ("Custom", "Multi-AZ DB cluster")
-            and a.get("licenseModel", "No license required").lower()
-            in ("no license required", "license included")
-            and a.get("databaseEdition", "Standard").lower()
-            not in ("enterprise", "standard edition 2", "web", "express")
-        ),
+        matches_instance,
         "INSTANCE_HOUR",
         "Hrs",
     )
