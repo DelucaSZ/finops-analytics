@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import settings
-from app.core.security import require_admin, require_recent_admin
+from app.core.security import require_admin
 from app.db.session import get_db
 from app.models.aws_pricing import (
     AwsPricingProduct,
@@ -395,7 +395,7 @@ def sync_request_detail(request_id: str, db: Session = Depends(get_db)) -> dict:
 def submit_sync(
     payload: SyncSubmission,
     db: Session = Depends(get_db),
-    actor: User = Depends(require_recent_admin),
+    actor: User = Depends(require_admin),
 ) -> dict:
     _validate(payload.service_code, payload.region_code)
     if os.environ.get("AVEN_AWS_PRICING_IMPORT_ENABLED") != "1":
