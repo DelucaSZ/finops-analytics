@@ -673,6 +673,100 @@ def test_known_unmodeled_meters_are_skipped_with_audit(
     assert result.skips != {}
 
 
+def _official_shape_elb_offer() -> dict:
+    offer = _offer(service="AWSELB", region="us-east-1")
+    offer["products"] = {}
+    offer["terms"]["OnDemand"] = {}
+    rows = [
+        ("ALB-HOURS", "Load Balancer-Application", "USE1-LoadBalancerUsage", "Hrs", "0.0225"),
+        ("ALB-LCU", "Load Balancer-Application", "USE1-LCUUsage", "LCU-Hrs", "0.0080"),
+        ("NLB-HOURS", "Load Balancer-Network", "USE1-LoadBalancerUsage", "Hrs", "0.0225"),
+        ("NLB-NLCU", "Load Balancer-Network", "USE1-LCUUsage", "LCU-Hrs", "0.0060"),
+        # These are real AWS meter families, but do not represent base
+        # hourly/LCU pricing and must not produce a fake base price.
+        ("ALB-TRUST", "Load Balancer-Application", "USE1-TS-LoadBalancerUsage", "Hrs", "0.001"),
+        ("NLB-RESERVED", "Load Balancer-Network", "USE1-ReservedLCUUsage", "LCU-Hrs", "0.002"),
+    ]
+    for sku, family, usage, unit, amount in rows:
+        offer["products"][sku] = {
+            "sku": sku,
+            "productFamily": family,
+            "attributes": {
+                "regionCode": "us-east-1",
+                "locationType": "AWS Region",
+                "usagetype": usage,
+                "operation": "LoadBalancing:Network" if "Network" in family else "LoadBalancing:Application",
+            },
+        }
+        term_code = sku + ".JRTCKXETXF"
+        rate_code = term_code + ".6YS6EN2CT7"
+        offer["terms"]["OnDemand"][sku] = {
+            term_code: {
+                "offerTermCode": "JRTCKXETXF",
+                "effectiveDate": AT,
+                "priceDimensions": {
+                    rate_code: {
+                        "rateCode": rate_code,
+                        "unit": unit,
+                        "beginRange": "0",
+                        "endRange": "Inf",
+                        "pricePerUnit": {"USD": amount},
+                    },
+                },
+            },
+        }
+    return offer
+
+
+def test_elb_official_lcu_unit_includes_network_nlcu_without_cross_mapping(db, tmp_path):
+    path = _fixture(tmp_path, _official_shape_elb_offer())
+    staged = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AWSELB", region="us-east-1"
+    )
+    assert staged.products_seen == 6
+    assert staged.products_matched == 4
+    assert staged.rates_staged == 4
+    assert staged.rates_rejected == 0
+    assert staged.coverage["complete"] is True
+    assert staged.coverage["missing"] == []
+    assert all(staged.coverage["counts"][component] == 1 for component in (
+        "alb_hour", "alb_lcu", "nlb_hour", "nlb_nlcu"
+    ))
+
+    published = import_aws_prices(
+        service_code="AWSELB", region_code="us-east-1",
+        db=db, fixture_path=path, dry_run=False,
+    )
+    assert published.status == "published"
+    assert published.published_rates == 4
+    rates = list(db.scalars(select(PricingCatalogItem)))
+    assert len(rates) == 4
+    assert {item.unit for item in rates} == {"LB_HOUR", "LCU_HOUR", "NLCU_HOUR"}
+    nlcu = next(item for item in rates if item.unit == "NLCU_HOUR")
+    assert nlcu.price == Decimal("0.0060")
+    detail = db.scalar(
+        select(AwsPricingRateDetail).where(AwsPricingRateDetail.pricing_item_id == nlcu.id)
+    )
+    assert detail is not None
+    assert detail.billing_unit_aws == "LCU-Hrs"
+    assert detail.product_sku == "NLB-NLCU"
+
+
+def test_elb_does_not_infer_nlcu_from_unrelated_meter(tmp_path):
+    offer = _official_shape_elb_offer()
+    dimension = next(iter(offer["terms"]["OnDemand"]["NLB-NLCU"].values()))[
+        "priceDimensions"
+    ]
+    next(iter(dimension.values()))["unit"] = "OtherCapacityUnits"
+    path = _fixture(tmp_path, offer)
+    staged = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AWSELB", region="us-east-1"
+    )
+    assert staged.rates_rejected == 1
+    assert staged.coverage["complete"] is False
+    assert staged.coverage["missing"] == ["nlb_nlcu"]
+
+
 def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
     offer = _offer(service="AWSELB")
     product = offer["products"]["SKU-VPC-1"]
