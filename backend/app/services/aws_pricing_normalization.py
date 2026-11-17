@@ -261,11 +261,13 @@ def normalize_rate(
         mapped = ("MBPS_MONTH", "throughput")
     if not mapped:
         if (
-            product.service in {"ebs", "snapshot"}
-            and unit.lower() in {"gb", "hours", "requests", "snapshotapiunits"}
+            product.service_code == "AmazonEC2"
+            and unit.lower() in {"gb", "requests", "snapshotapiunits", "hours"}
         ):
-            # Real AWS one-off/API meters, but NOT the modeled monthly
-            # storage/throughput components. Do not invent a recurring rate.
+            # Real AWS one-off/API meters, but NOT the modeled EC2 instance
+            # hours or recurring EBS/snapshot dimensions. Some are attached
+            # to products also carrying valid recurring pricing dimensions.
+            # Never misinterpret them as monthly storage/throughput prices.
             raise AwsPricingNonTargetUnit("non-target AWS meter " + unit[:40])
         raise AwsPricingValidationError("unsupported billing unit " + unit[:40])
     billing_unit, component = mapped
