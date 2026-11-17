@@ -275,7 +275,7 @@ def test_non_usd_and_unknown_unit_are_rejected(db, tmp_path):
     path = _fixture(tmp_path, offer)
     assert _import(db, path, dry_run=True).rates_rejected == 1
     row["pricePerUnit"] = {"USD": "0.2"}
-    row["unit"] = "Requests"
+    row["unit"] = "UnknownMeterUnit"
     path = _fixture(tmp_path, offer)
     assert _import(db, path, dry_run=True).rates_rejected == 1
 
