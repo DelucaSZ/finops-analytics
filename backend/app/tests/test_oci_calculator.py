@@ -532,7 +532,6 @@ def test_db_options_never_mark_malformed_bindings_as_fully_priced(db, defect):
     assert result.period_final_cost is None
 
 
-
 def test_oci_calculator_rejects_other_regions_without_reusing_sao_paulo_prices(db):
     result = quote(db, region="us-ashburn-1")
     assert result.pricing_status == "unsupported_configuration"
