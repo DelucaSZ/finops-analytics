@@ -129,9 +129,7 @@ def classify_product(
         and not family
         and attr.get("group") == "VPCPublicIPv4Address"
         and attr.get("regionCode") == region
-        and re.fullmatch(
-            r"[A-Z0-9]+-PublicIPv4:(?:IdleAddress|InUseAddress)", usage, re.I
-        )
+        and re.fullmatch(r"[A-Z0-9]+-PublicIPv4:(?:IdleAddress|InUseAddress)", usage, re.I)
     ):
         family = attr["group"]
     service = ""
