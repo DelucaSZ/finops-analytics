@@ -641,7 +641,6 @@ def test_postgresql_official_format_import_uses_0040_migration(tmp_path):
         control.dispose()
 
 
-
 @pytest.mark.parametrize(
     "service,family,usage,group,unit",
     [
@@ -659,9 +658,9 @@ def test_known_unmodeled_meters_are_skipped_with_audit(
     product["productFamily"] = family
     product["attributes"]["usagetype"] = usage
     product["attributes"]["group"] = group
-    dimension = next(
-        iter(next(iter(offer["terms"]["OnDemand"].values())).values())
-    )["priceDimensions"]
+    dimension = next(iter(next(iter(offer["terms"]["OnDemand"].values())).values()))[
+        "priceDimensions"
+    ]
     next(iter(dimension.values()))["unit"] = unit
     path = _fixture(tmp_path, offer)
     result = stage_offer(path, tmp_path / "staged.sqlite", service_code=service, region="sa-east-1")
@@ -680,9 +679,7 @@ def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
     product["productFamily"] = "Load Balancer"
     product["attributes"]["group"] = "Application Load Balancer"
     product["attributes"]["usagetype"] = "USE1-LoadBalancerUsage"
-    dim = next(iter(next(iter(offer["terms"]["OnDemand"].values())).values()))[
-        "priceDimensions"
-    ]
+    dim = next(iter(next(iter(offer["terms"]["OnDemand"].values())).values()))["priceDimensions"]
     next(iter(dim.values()))["unit"] = "UnsupportedMeterUnit"
     path = _fixture(tmp_path, offer)
     result = stage_offer(
