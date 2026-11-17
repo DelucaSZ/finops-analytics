@@ -36,6 +36,8 @@ def options(
     region: str = Query(min_length=5, max_length=40),
     search: str = Query(min_length=2, max_length=40),
     engine: str | None = Query(default=None, max_length=40),
+    oracle_edition: Literal["standard_edition_2", "enterprise"] = "standard_edition_2",
+    oracle_license_model: Literal["license_included", "byol"] = "license_included",
     limit: int = Query(default=50, ge=1, le=100),
     offset: int = Query(default=0, ge=0, le=1000000),
     db: Session = Depends(get_db),
@@ -46,6 +48,8 @@ def options(
         region=region,
         search=search,
         engine=engine,
+        oracle_edition=oracle_edition,
+        oracle_license_model=oracle_license_model,
         limit=limit,
         offset=offset,
     )
