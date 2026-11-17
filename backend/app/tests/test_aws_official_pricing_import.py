@@ -639,3 +639,56 @@ def test_postgresql_official_format_import_uses_0040_migration(tmp_path):
         with control.begin() as connection:
             connection.execute(text(f'DROP SCHEMA "{schema}" CASCADE'))
         control.dispose()
+
+
+
+@pytest.mark.parametrize(
+    "service,family,usage,group,unit",
+    [
+        ("AWSELB", "Load Balancer", "USE1-LoadBalancerUsage", "Application Load Balancer", "GB"),
+        ("AmazonRDS", "Database Storage", "USE1-RDS:BackupStorage", "", "GB"),
+        ("AmazonRDS", "Database Storage", "USE1-RDS:BackupStorage", "", "Hrs"),
+        ("AmazonVPC", "IP Address", "SAE1-PublicIPv4:InUseAddress", "PublicIPv4", "Requests"),
+    ],
+)
+def test_known_unmodeled_meters_are_skipped_with_audit(
+    tmp_path, service, family, usage, group, unit
+):
+    offer = _offer(service=service)
+    product = offer["products"]["SKU-VPC-1"]
+    product["productFamily"] = family
+    product["attributes"]["usagetype"] = usage
+    product["attributes"]["group"] = group
+    dimension = next(
+        iter(next(iter(offer["terms"]["OnDemand"].values())).values())
+    )["priceDimensions"]
+    next(iter(dimension.values()))["unit"] = unit
+    path = _fixture(tmp_path, offer)
+    result = stage_offer(path, tmp_path / "staged.sqlite", service_code=service, region="sa-east-1")
+    assert result.products_matched == 1
+    assert result.rates_seen == 1
+    assert result.rates_skipped == 1
+    assert result.rates_rejected == 0
+    assert result.rates_staged == 0
+    assert result.coverage["complete"] is False
+    assert not result.skips == {}
+
+
+def test_unknown_elb_meter_remains_a_financial_rejection(tmp_path):
+    offer = _offer(service="AWSELB")
+    product = offer["products"]["SKU-VPC-1"]
+    product["productFamily"] = "Load Balancer"
+    product["attributes"]["group"] = "Application Load Balancer"
+    product["attributes"]["usagetype"] = "USE1-LoadBalancerUsage"
+    dim = next(iter(next(iter(offer["terms"]["OnDemand"].values())).values()))[
+        "priceDimensions"
+    ]
+    next(iter(dim.values()))["unit"] = "UnsupportedMeterUnit"
+    path = _fixture(tmp_path, offer)
+    result = stage_offer(
+        path, tmp_path / "staged.sqlite", service_code="AWSELB", region="sa-east-1"
+    )
+    assert result.rates_rejected == 1
+    assert result.rates_skipped == 0
+    assert result.rates_staged == 0
+    assert result.coverage["complete"] is False
