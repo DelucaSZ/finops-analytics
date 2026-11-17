@@ -508,7 +508,10 @@ def test_gp3_gibps_to_mibps_requires_exact_eight_decimal_price(db, tmp_path):
     assert result.published_rates == 0
     assert result.rates_rejected == 1
     assert result.coverage["missing"] == ["ebs_gp3_throughput"]
-    assert "gp3 throughput conversion exceeds NUMERIC(20,8) precision" in result.diagnostics["rejects"]
+    assert (
+        "gp3 throughput conversion exceeds NUMERIC(20,8) precision"
+        in result.diagnostics["rejects"]
+    )
     assert db.scalar(select(func.count()).select_from(PricingCatalogItem)) == 0
 
 
