@@ -69,8 +69,8 @@ O catálogo AWS inclui detectores de volumes EBS sem uso, Elastic IPs ociosos, s
 ### Calculadora Cloud (`/calculator`)
 
 - Simulação de custos **AWS EC2 e RDS** e **OCI Compute VM e Base Database Service (DB System)**, sem provisionamento de recursos nem registro de custos realizados.
-- AWS EC2 Linux/Windows Shared On-Demand com EBS gp2/gp3, IOPS e throughput gp3; AWS RDS PostgreSQL/MySQL/MariaDB em Single-AZ ou Multi-AZ DB instance com storage gp2/gp3 suportado.
-- OCI Compute Flex E3/E4/E5 com OCPU, RAM, licenciamento Windows, Boot/Block Volumes e VPU; OCI DB System em VM.BaseDB.x86/ECPU mediante vínculos de preço homologados.
+- AWS EC2 Linux/Windows Shared On-Demand com EBS gp2/gp3, IOPS e throughput gp3; AWS RDS PostgreSQL/MySQL/MariaDB e **Oracle** em Single-AZ ou Multi-AZ DB instance com storage gp2/gp3 suportado. Oracle requer edição e licença explícitas (SE2: License Included ou BYOL; Enterprise: somente BYOL), sem misturar tarifas ou contabilizar licenças do cliente como gratuitas.
+- OCI Compute Flex E3/E4/E5 com OCPU, RAM, licenciamento Windows, Boot/Block Volumes e VPU; OCI DB System em VM.BaseDB.x86/ECPU mediante vínculos de preço homologados. **A Calculadora OCI fixa a região `sa-saopaulo-1`**, sem campo preenchível, pois o catálogo em BRL cobre apenas São Paulo; a API rejeita estimativas com outra região.
 - Quantidade e períodos mensais, horas, dias, semanas e intervalos de datas/horas; resumo e detalhamento de componentes com proveniência, moeda e vigência.
 - Desconto percentual **somente em componentes elegíveis AWS**, conversão manual opcional USD/BRL e imposto configurável (13% padrão ao converter). OCI usa **preços finais em BRL**, sem ajustes.
 - SKUs indisponíveis geram **estado parcial ou não precificado**, com total definitivo nulo. O licenciamento OCI DB System ainda depende de SKUs/bindings comerciais aprovados e não recebe tarifa fictícia.

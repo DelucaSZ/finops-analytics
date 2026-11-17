@@ -575,3 +575,143 @@ def test_windows_missing_does_not_reuse_linux_price(db):
     assert result.pricing_status == "partially_priced"
     assert "compute" in result.missing_pricing_components
     assert result.monthly_final_cost is None
+
+
+@pytest.mark.parametrize(
+    "edition,license_model,aws_edition,aws_license",
+    [
+        ("standard_edition_2", "license_included", "Standard Two", "License included"),
+        ("standard_edition_2", "byol", "Standard Edition 2", "Bring your own license"),
+        ("enterprise", "byol", "Enterprise Edition", "Bring your own license"),
+    ],
+)
+def test_oracle_rds_edition_license_do_not_mix_prices(
+    db, edition, license_model, aws_edition, aws_license
+):
+    variants = [
+        ("ORACLE-SE2-LI", "Standard Two", "License included", "0.82"),
+        ("ORACLE-SE2-BYOL", "Standard Edition 2", "Bring your own license", "0.33"),
+        ("ORACLE-EE-BYOL", "Enterprise Edition", "Bring your own license", "0.54"),
+    ]
+    for sku, edition_label, license_label, price in variants:
+        publish(
+            db,
+            sku=sku,
+            amount=price,
+            attrs={
+                "instanceType": "db.m6i.large",
+                "databaseEngine": "Oracle",
+                "databaseEdition": edition_label,
+                "licenseModel": license_label,
+                "deploymentOption": "Single-AZ",
+                "productFamily": "Database Instance",
+            },
+            family="Database Instance",
+            service="rds",
+            service_code="AmazonRDS",
+        )
+    rds_storage(db)
+    db.commit()
+    req = CalculatorEstimateRequest.model_validate(
+        {
+            "provider": "aws",
+            "region": "sa-east-1",
+            "pricing_reference_date": AT,
+            "resource_configuration": {
+                "service": "rds",
+                "instance_class": "db.m6i.large",
+                "engine": "oracle",
+                "deployment": "single_az",
+                "database_edition": edition,
+                "license_model": license_model,
+                "storage_type": "gp3",
+                "allocated_storage_gb": "100",
+            },
+        }
+    )
+    result = estimate_aws_calculator(req, db=db)
+    assert result.pricing_status == "priced"
+    assert len(result.pricing_components) == 2
+    expected = {
+        "standard_edition_2:license_included": ("ORACLE-SE2-LI", Decimal("0.82")),
+        "standard_edition_2:byol": ("ORACLE-SE2-BYOL", Decimal("0.33")),
+        "enterprise:byol": ("ORACLE-EE-BYOL", Decimal("0.54")),
+    }[f"{edition}:{license_model}"]
+    assert result.pricing_components[0].product_sku == expected[0]
+    assert result.pricing_components[0].unit_price == expected[1]
+    assert ("byol_requires_owned_eligible_oracle_licenses" in result.warnings) == (
+        license_model == "byol"
+    )
+    choices = aws_options(
+        db,
+        service="rds",
+        region="sa-east-1",
+        search="m6i",
+        engine="oracle",
+        oracle_edition=edition,
+        oracle_license_model=license_model,
+        offset=0,
+        limit=20,
+    )
+    assert choices["total"] == 1
+    assert choices["items"][0]["pricing_status"] == "priced"
+
+
+def test_oracle_rds_rejects_enterprise_license_included_or_unspecified_licensing(db):
+    publish(
+        db,
+        sku="ORACLE-SE2-LI",
+        amount="0.82",
+        attrs={
+            "instanceType": "db.m6i.large",
+            "databaseEngine": "Oracle",
+            "databaseEdition": "Standard Edition 2",
+            "licenseModel": "License included",
+            "deploymentOption": "Single-AZ",
+            "productFamily": "Database Instance",
+        },
+        family="Database Instance",
+        service="rds",
+        service_code="AmazonRDS",
+    )
+    db.commit()
+
+    def estimate_oracle(edition, license_model):
+        return estimate_aws_calculator(
+            CalculatorEstimateRequest.model_validate(
+                {
+                    "provider": "aws",
+                    "region": "sa-east-1",
+                    "pricing_reference_date": AT,
+                    "resource_configuration": {
+                        "service": "rds",
+                        "instance_class": "db.m6i.large",
+                        "engine": "oracle",
+                        "deployment": "single_az",
+                        "database_edition": edition,
+                        "license_model": license_model,
+                    },
+                }
+            ),
+            db=db,
+        )
+
+    invalid = estimate_oracle("enterprise", "license_included")
+    assert invalid.monthly_final_cost is None
+    assert "instance" in invalid.missing_pricing_components
+    missing = estimate_oracle(None, None)
+    assert missing.monthly_final_cost is None
+    assert "instance" in missing.missing_pricing_components
+    options = aws_options(
+        db,
+        service="rds",
+        region="sa-east-1",
+        search="m6i",
+        engine="oracle",
+        oracle_edition="enterprise",
+        oracle_license_model="license_included",
+        offset=0,
+        limit=20,
+    )
+    assert options["items"] == []
+    assert options["status"] == "invalid_oracle_license_selection"

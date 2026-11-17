@@ -17,12 +17,14 @@ import styles from "./calculator.module.css";
 
 type TextForm = Record<string, string>;
 type Status = "initial" | "loading" | "ready" | "error";
-const engineOptions = ["postgres", "mysql", "mariadb"];
+const engineOptions = ["postgres", "mysql", "mariadb", "oracle"];
+const OCI_REGION = "sa-saopaulo-1";
 const services: Record<Provider, Service[]> = { aws: ["ec2", "rds"], oci: ["compute", "db_system"] };
 
 function initialFields(): TextForm {
   return {
     region: "", search: "", instance: "", os: "", engine: "postgres", deployment: "",
+    rdsEdition: "standard_edition_2", rdsLicense: "license_included",
     volumeType: "gp3", capacity: "100", iops: "3000", throughput: "125",
     shape: "", ocpus: "1", memory: "8", bootSize: "100", bootVpu: "10",
     dbChoice: "", dbEdition: "standard", dbLicense: "license_included", cpuCount: "4", dbStorage: "500",
@@ -91,7 +93,7 @@ export default function CalculatorPage() {
     setForm({
       ...initialFields(),
       quantity: form.quantity, amount: form.amount, startAt: form.startAt, endAt: form.endAt,
-      region: nextProvider === provider ? form.region : "",
+      region: nextProvider === "oci" ? OCI_REGION : nextProvider === provider ? form.region : "",
       ...(nextProvider === "aws" && provider === "aws"
         ? { discount: form.discount, fx: form.fx, tax: form.tax }
         : {}),
@@ -142,7 +144,7 @@ export default function CalculatorPage() {
     return () => controller.abort();
   }, [provider]);
 
-  const region = form.region.trim();
+  const region = provider === "oci" ? OCI_REGION : form.region.trim();
   const search = form.search.trim();
   const activeAwsRegionStatus = awsServiceStatus[service]?.[region] ?? awsRegionStatus[region];
   useEffect(() => {
@@ -155,7 +157,10 @@ export default function CalculatorPage() {
     setMetadataStatus("loading");
     setMetadataError("");
     const timer = window.setTimeout(() => {
-      fetchAwsOptions(service, region, search, form.engine, awsOptionsOffset, controller.signal).then((data) => {
+      fetchAwsOptions(
+        service, region, search, form.engine, awsOptionsOffset, controller.signal,
+        form.rdsEdition, form.rdsLicense,
+      ).then((data) => {
         if (controller.signal.aborted) return;
         setAwsOptions((previous) => awsOptionsOffset === 0 ? data : {
           ...data,
@@ -170,7 +175,7 @@ export default function CalculatorPage() {
       });
     }, 350);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [provider, service, region, search, form.engine, awsOptionsOffset]);
+  }, [provider, service, region, search, form.engine, form.rdsEdition, form.rdsLicense, awsOptionsOffset]);
 
   useEffect(() => {
     if (provider !== "oci" || region.length < 5 || (service !== "compute" && service !== "db_system")) return;
@@ -250,9 +255,19 @@ export default function CalculatorPage() {
     } else if (provider === "aws" && service === "rds") {
       if (!awsRegions.includes(region) || !rdsCombinations.some((o) => o.instance_class === form.instance && o.deployment === form.deployment)) return null;
       if (!engineOptions.includes(form.engine) || !positiveNumber(form.capacity) || !["gp2", "gp3"].includes(form.volumeType)) return null;
+      const isOracle = form.engine === "oracle";
+      if (isOracle && (
+        !["standard_edition_2", "enterprise"].includes(form.rdsEdition)
+        || !["license_included", "byol"].includes(form.rdsLicense)
+        || (form.rdsEdition === "enterprise" && form.rdsLicense !== "byol")
+      )) return null;
       config = {
         service: "rds", instance_class: form.instance, engine: form.engine, deployment: form.deployment,
         storage_type: form.volumeType as "gp2" | "gp3", allocated_storage_gb: decimalValue(form.capacity),
+        ...(isOracle ? {
+          database_edition: form.rdsEdition as "standard_edition_2" | "enterprise",
+          license_model: form.rdsLicense as "license_included" | "byol",
+        } : {}),
       };
     } else if (provider === "oci" && service === "compute") {
       if (!selectedShape || !ociCompute?.operating_systems.includes(form.os)) return null;
@@ -392,11 +407,10 @@ export default function CalculatorPage() {
                 {choice(t("service"), service, services[provider].map((v) => ({ value: v, label: tx("services." + v) })),
                   (v) => reset(provider, v as Service))}
               </div>
-              {provider === "aws"
-                ? choice(t("region"), form.region, awsRegions.map((value) => ({ value, label: value })),
-                    changeRegion, metadataStatus === "loading" && awsRegions.length === 0, t("awsRegionsHint"))
-                : <Input label={t("region")} value={form.region} onChange={(event) => changeRegion(event.target.value)}
-                    placeholder={t("ociRegionPlaceholder")} helperText={t("ociRegionHint")} maxLength={80} />}
+              {provider === "aws" && choice(
+                t("region"), form.region, awsRegions.map((value) => ({ value, label: value })),
+                changeRegion, metadataStatus === "loading" && awsRegions.length === 0, t("awsRegionsHint"),
+              )}
               {metadataStatus === "error" && <Alert variant="warning" title={t("metadataError")} description={tx("errors." + metadataError)} />}
               {provider === "aws" && !awsRegions.length && metadataStatus === "loading" && <p className={styles.hint}>{t("loadingOptions")}</p>}
               {provider === "aws" && !awsRegions.length && metadataStatus === "ready" && <Alert variant="warning" description={t("noAwsRegions")} />}
@@ -411,7 +425,41 @@ export default function CalculatorPage() {
               {provider === "aws" && (
                 <>
                   {service === "rds" && choice(t("engine"), form.engine, engineOptions.map((v) => ({ value: v, label: tx("engines." + v) })),
-                    (v) => { invalidate(); setForm((old) => ({ ...old, engine: v, instance: "", deployment: "" })); setAwsOptions(null); setAwsOptionsOffset(0); })}
+                    (v) => {
+                      invalidate();
+                      setForm((old) => ({
+                        ...old, engine: v, instance: "", deployment: "",
+                        rdsEdition: "standard_edition_2", rdsLicense: "license_included",
+                      }));
+                      setAwsOptions(null);
+                      setAwsOptionsOffset(0);
+                    })}
+                  {service === "rds" && form.engine === "oracle" && <>
+                    <div className={styles.fieldGrid}>
+                      {choice(t("edition"), form.rdsEdition,
+                        ["standard_edition_2", "enterprise"].map((v) => ({
+                          value: v, label: v === "standard_edition_2"
+                            ? t("oracleEditions.standardEdition2") : t("oracleEditions.enterprise"),
+                        })), (v) => {
+                          invalidate();
+                          setForm((old) => ({
+                            ...old, rdsEdition: v,
+                            rdsLicense: v === "enterprise" ? "byol" : old.rdsLicense,
+                            instance: "", deployment: "",
+                          }));
+                          setAwsOptions(null); setAwsOptionsOffset(0);
+                        })}
+                      {choice(t("license"), form.rdsLicense,
+                        (form.rdsEdition === "enterprise" ? ["byol"] : ["license_included", "byol"])
+                          .map((v) => ({ value: v, label: tx("licenses." + v) })),
+                        (v) => {
+                          invalidate();
+                          setForm((old) => ({ ...old, rdsLicense: v, instance: "", deployment: "" }));
+                          setAwsOptions(null); setAwsOptionsOffset(0);
+                        })}
+                    </div>
+                    {form.rdsLicense === "byol" && <p className={styles.hint}>{t("oracleByolHint")}</p>}
+                  </>}
                   <Input label={t("searchClass")} value={form.search} onChange={(e) => {
                     invalidate(); setForm((old) => ({ ...old, search: e.target.value, instance: "", os: "", deployment: "" })); setAwsOptions(null); setAwsOptionsOffset(0);
                   }} placeholder={t("searchPlaceholder")} helperText={t("searchHint")} />

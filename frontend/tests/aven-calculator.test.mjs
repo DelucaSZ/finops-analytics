@@ -88,3 +88,29 @@ test("all new UI strings have PT-BR / EN-US catalog parity", () => {
   const strings = [...page.matchAll(/\bt\("([a-zA-Z][a-zA-Z0-9]*)"/g)].map((match) => match[1]);
   for (const key of strings) assert.ok(key in pt.calculator, "Missing PT-BR key: " + key);
 });
+
+
+
+test("AWS RDS Oracle exposes edition and license without leaking BYOL into SE2 included prices", () => {
+  assert.ok(pt.calculator.engines.oracle);
+  assert.ok(en.calculator.engines.oracle);
+  assert.ok(pt.calculator.oracleEditions.standardEdition2);
+  assert.ok(en.calculator.oracleEditions.enterprise);
+  assert.match(page, /"postgres", "mysql", "mariadb", "oracle"/);
+  assert.match(page, /form\.engine === "oracle"/);
+  assert.match(page, /form\.rdsEdition === "enterprise"/);
+  assert.match(page, /rdsLicense: v === "enterprise" \? "byol"/);
+  assert.match(page, /database_edition: form\.rdsEdition/);
+  assert.match(page, /license_model: form\.rdsLicense/);
+  assert.match(client, /oracle_edition/);
+  assert.match(client, /oracle_license_model/);
+});
+
+
+test("OCI estimates always use São Paulo and never prompt for a region", () => {
+  assert.match(page, /const OCI_REGION = "sa-saopaulo-1"/);
+  assert.match(page, /provider === "oci" \? OCI_REGION : form\.region\.trim\(\)/);
+  assert.match(page, /region: nextProvider === "oci" \? OCI_REGION/);
+  assert.doesNotMatch(page, /value=\{form\.region\} onChange=\{\(event\) => changeRegion/);
+  assert.match(page, /provider === "aws" && choice\(/);
+});

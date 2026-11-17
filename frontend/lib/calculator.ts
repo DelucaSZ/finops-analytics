@@ -30,7 +30,7 @@ export interface AwsFinancial {
 
 export type ResourceConfiguration =
   | { service: "ec2"; instance_type: string; operating_system: string; purchase_option: "on_demand"; tenancy: "shared"; root_volume_gb?: string; ebs_volume_type?: "gp2" | "gp3"; ebs_volume_count?: number; ebs_iops?: number; ebs_throughput_mbps?: number }
-  | { service: "rds"; instance_class: string; engine: string; deployment: string; storage_type: "gp2" | "gp3"; allocated_storage_gb: string }
+  | { service: "rds"; instance_class: string; engine: string; deployment: string; storage_type: "gp2" | "gp3"; allocated_storage_gb: string; database_edition?: "standard_edition_2" | "enterprise"; license_model?: "license_included" | "byol" }
   | { service: "compute"; shape: string; ocpus: string; memory_gb: string; operating_system: "linux" | "windows"; boot_volume: { size_gb: string; vpus_per_gb: string; count: 1 }; block_volumes: Array<{ size_gb: string; vpus_per_gb: string; count: number }> }
   | { service: "db_system"; deployment_model: "base_database"; shape: string; edition: string; license_model: string; cpu_unit: "ECPU"; cpu_count: string; storage_gb: string };
 
@@ -152,9 +152,16 @@ export function fetchAwsRegions(signal?: AbortSignal) {
 export function fetchAwsOptions(
   service: "ec2" | "rds", region: string, search: string, engine: string,
   offset = 0, signal?: AbortSignal,
+  oracleEdition = "standard_edition_2", oracleLicenseModel = "license_included",
 ) {
   const params = new URLSearchParams({ service, region, search, limit: "100", offset: String(offset) });
-  if (service === "rds") params.set("engine", engine);
+  if (service === "rds") {
+    params.set("engine", engine);
+    if (engine === "oracle") {
+      params.set("oracle_edition", oracleEdition);
+      params.set("oracle_license_model", oracleLicenseModel);
+    }
+  }
   return api<AwsOptionsResponse>(`/calculator/aws/options?${params.toString()}`, { signal });
 }
 export function fetchOciOptions(service: "compute", region: string, signal?: AbortSignal): Promise<OciComputeOptions>;

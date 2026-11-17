@@ -143,9 +143,15 @@ def classify_product(
             and attr.get("instanceType")
             and attr.get("databaseEngine")
         ):
-            if attr.get("databaseEngine") not in {"PostgreSQL", "MySQL", "MariaDB"}:
+            if attr.get("databaseEngine") not in {"PostgreSQL", "MySQL", "MariaDB", "Oracle"}:
                 return None
             if not attr.get("deploymentOption"):
+                return None
+            # Oracle rate identity includes commercial edition and licensing.
+            # Do not ingest a DB instance without either differentiator.
+            if attr["databaseEngine"] == "Oracle" and (
+                not attr.get("databaseEdition") or not attr.get("licenseModel")
+            ):
                 return None
             service = "rds"
         elif attr.get("usagetype") and re.search(r"Storage|IOPS|Throughput", family + usage, re.I):

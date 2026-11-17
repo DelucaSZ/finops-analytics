@@ -530,3 +530,26 @@ def test_db_options_never_mark_malformed_bindings_as_fully_priced(db, defect):
     assert result.pricing_status == "pricing_configuration_error"
     assert result.monthly_final_cost is None
     assert result.period_final_cost is None
+
+
+def test_oci_calculator_rejects_other_regions_without_reusing_sao_paulo_prices(db):
+    result = quote(db, region="us-ashburn-1")
+    assert result.pricing_status == "unsupported_configuration"
+    assert result.monthly_final_cost is None
+    assert "configuration" in result.missing_pricing_components
+    assert "oci_sao_paulo_pricing_only" in result.warnings
+    assert result.pricing_components == []
+
+
+def test_oci_options_endpoint_is_sao_paulo_only(auth_env):
+    http, _, tokens, _ = auth_env
+    valid = http.get(
+        "/api/v1/calculator/oci/options?service=compute&region=sa-saopaulo-1",
+        headers=headers(tokens),
+    )
+    assert valid.status_code == 200
+    invalid = http.get(
+        "/api/v1/calculator/oci/options?service=compute&region=us-ashburn-1",
+        headers=headers(tokens),
+    )
+    assert invalid.status_code == 422
