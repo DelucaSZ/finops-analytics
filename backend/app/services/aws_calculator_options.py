@@ -20,7 +20,32 @@ from app.models.aws_pricing import (
 from app.models.pricing import PricingCatalogItem
 from app.services.aws_pricing_sync import discover_regions
 
-_ENGINES = {"postgres": "PostgreSQL", "mysql": "MySQL", "mariadb": "MariaDB"}
+_ENGINES = {
+    "postgres": "PostgreSQL",
+    "mysql": "MySQL",
+    "mariadb": "MariaDB",
+    "oracle": "Oracle",
+}
+
+# Exact, audited catalog synonyms. Enterprise Edition is BYOL-only;
+# License Included is available only for Oracle Standard Edition 2.
+ORACLE_EDITIONS = {
+    "standard_edition_2": frozenset({"standard edition 2", "standard edition two", "se2"}),
+    "enterprise": frozenset({"enterprise", "enterprise edition", "ee"}),
+}
+ORACLE_LICENSES = {
+    "license_included": frozenset({"license included", "license-included"}),
+    "byol": frozenset({"bring your own license", "bring-your-own-license", "byol"}),
+}
+
+
+def valid_oracle_license(edition: str | None, license_model: str | None) -> bool:
+    return (
+        edition in ORACLE_EDITIONS
+        and license_model in ORACLE_LICENSES
+        and (edition != "enterprise" or license_model == "byol")
+    )
+
 
 
 def _coverage_status(states: list[AwsPricingSyncState]) -> str:
@@ -67,6 +92,8 @@ def aws_options(
     service: str,
     search: str,
     engine: str | None,
+    oracle_edition: str = "standard_edition_2",
+    oracle_license_model: str = "license_included",
     offset: int,
     limit: int,
 ) -> dict:
@@ -82,6 +109,17 @@ def aws_options(
             "limit": limit,
             "offset": offset,
             "status": "unsupported_engine",
+            "supported_engines": list(_ENGINES),
+        }
+    if service == "rds" and name == "Oracle" and not valid_oracle_license(
+        oracle_edition, oracle_license_model
+    ):
+        return {
+            "items": [],
+            "total": 0,
+            "limit": limit,
+            "offset": offset,
+            "status": "invalid_oracle_license_selection",
             "supported_engines": list(_ENGINES),
         }
     product = AwsPricingProduct
@@ -139,18 +177,32 @@ def aws_options(
                 product.product_attributes["databaseEngine"].as_string() == name,
                 variant.in_(("Single-AZ", "Multi-AZ")),
                 or_(model.is_(None), ~model.in_(("Custom", "Multi-AZ DB cluster"))),
-                or_(
-                    license_model.is_(None),
-                    func.lower(license_model).in_(("no license required", "license included")),
-                ),
-                or_(
-                    edition.is_(None),
-                    ~func.lower(edition).in_(
-                        ("enterprise", "standard edition 2", "web", "express")
-                    ),
-                ),
             )
         )
+        if name == "Oracle":
+            # Filter edition + license *before* grouping instance/deployment.
+            # Otherwise a BYOL price could falsely mark License Included as priced.
+            q.extend(
+                (
+                    func.lower(edition).in_(ORACLE_EDITIONS[oracle_edition]),
+                    func.lower(license_model).in_(ORACLE_LICENSES[oracle_license_model]),
+                )
+            )
+        else:
+            q.extend(
+                (
+                    or_(
+                        license_model.is_(None),
+                        func.lower(license_model).in_(("no license required", "license included")),
+                    ),
+                    or_(
+                        edition.is_(None),
+                        ~func.lower(edition).in_(
+                            ("enterprise", "enterprise edition", "standard edition 2", "web", "express")
+                        ),
+                    ),
+                )
+            )
 
     now = datetime.now(UTC)
     price_exists = (
