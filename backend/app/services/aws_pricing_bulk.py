@@ -28,6 +28,7 @@ from botocore.config import Config
 from app.services.aws_pricing_normalization import (
     NormalizedProduct,
     NormalizedRate,
+    AwsPricingNonTargetUnit,
     classify_product,
     coverage_component,
     coverage_summary,
@@ -68,7 +69,9 @@ class StageStats:
     rates_staged: int = 0
     rates_rejected: int = 0
     rates_unsupported: int = 0
+    rates_skipped: int = 0
     rejects: dict[str, int] = field(default_factory=dict)
+    skips: dict[str, int] = field(default_factory=dict)
     examples: list[str] = field(default_factory=list)
     components: dict[str, int] = field(default_factory=dict)
     coverage: dict[str, Any] = field(default_factory=dict)
@@ -79,6 +82,11 @@ class StageStats:
         self.rejects[key] = self.rejects.get(key, 0) + 1
         if len(self.examples) < 20:
             self.examples.append(key)
+
+    def skip_non_target(self, reason: str) -> None:
+        self.rates_skipped += 1
+        key = reason[:120]
+        self.skips[key] = self.skips.get(key, 0) + 1
 
 
 def _validate_service_region(service_code: str, region: str) -> None:
@@ -368,6 +376,9 @@ def stage_offer(
                                 payload["effective_at"] = _effective(rate.effective_at)
                                 if len(product.sku + ":" + rate.rate_code) > 160:
                                     raise AwsPricingValidationError("composite SKU exceeds 160")
+                            except AwsPricingNonTargetUnit as exc:
+                                stats.skip_non_target(str(exc))
+                                continue
                             except (AwsPricingValidationError, ValueError, TypeError) as exc:
                                 stats.reject(str(exc))
                                 continue
