@@ -581,7 +581,7 @@ def test_windows_missing_does_not_reuse_linux_price(db):
 @pytest.mark.parametrize(
     "edition,license_model,aws_edition,aws_license",
     [
-        ("standard_edition_2", "license_included", "Standard Edition 2", "License included"),
+        ("standard_edition_2", "license_included", "Standard Two", "License included"),
         ("standard_edition_2", "byol", "Standard Edition 2", "Bring your own license"),
         ("enterprise", "byol", "Enterprise Edition", "Bring your own license"),
     ],
@@ -590,7 +590,7 @@ def test_oracle_rds_edition_license_do_not_mix_prices(
     db, edition, license_model, aws_edition, aws_license
 ):
     variants = [
-        ("ORACLE-SE2-LI", "Standard Edition 2", "License included", "0.82"),
+        ("ORACLE-SE2-LI", "Standard Two", "License included", "0.82"),
         ("ORACLE-SE2-BYOL", "Standard Edition 2", "Bring your own license", "0.33"),
         ("ORACLE-EE-BYOL", "Enterprise Edition", "Bring your own license", "0.54"),
     ]
