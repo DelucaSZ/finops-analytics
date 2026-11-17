@@ -332,14 +332,17 @@ def _rds(request, at, resolver):
             return (
                 a.get("databaseEdition", "").strip().lower()
                 in ORACLE_EDITIONS[cfg.database_edition]
-                and a.get("licenseModel", "").strip().lower()
-                in ORACLE_LICENSES[cfg.license_model]
+                and a.get("licenseModel", "").strip().lower() in ORACLE_LICENSES[cfg.license_model]
             )
-        return (
-            a.get("licenseModel", "No license required").lower()
-            in ("no license required", "license included")
-            and a.get("databaseEdition", "Standard").lower()
-            not in ("enterprise", "enterprise edition", "standard edition 2", "web", "express")
+        return a.get("licenseModel", "No license required").lower() in (
+            "no license required",
+            "license included",
+        ) and a.get("databaseEdition", "Standard").lower() not in (
+            "enterprise",
+            "enterprise edition",
+            "standard edition 2",
+            "web",
+            "express",
         )
 
     lookup = _quote(
