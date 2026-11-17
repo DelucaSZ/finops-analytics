@@ -577,7 +577,6 @@ def test_windows_missing_does_not_reuse_linux_price(db):
     assert result.monthly_final_cost is None
 
 
-
 @pytest.mark.parametrize(
     "edition,license_model,aws_edition,aws_license",
     [
@@ -676,6 +675,7 @@ def test_oracle_rds_rejects_enterprise_license_included_or_unspecified_licensing
         service_code="AmazonRDS",
     )
     db.commit()
+
     def estimate_oracle(edition, license_model):
         return estimate_aws_calculator(
             CalculatorEstimateRequest.model_validate(
@@ -695,6 +695,7 @@ def test_oracle_rds_rejects_enterprise_license_included_or_unspecified_licensing
             ),
             db=db,
         )
+
     invalid = estimate_oracle("enterprise", "license_included")
     assert invalid.monthly_final_cost is None
     assert "instance" in invalid.missing_pricing_components
@@ -702,9 +703,15 @@ def test_oracle_rds_rejects_enterprise_license_included_or_unspecified_licensing
     assert missing.monthly_final_cost is None
     assert "instance" in missing.missing_pricing_components
     options = aws_options(
-        db, service="rds", region="sa-east-1", search="m6i", engine="oracle",
-        oracle_edition="enterprise", oracle_license_model="license_included",
-        offset=0, limit=20,
+        db,
+        service="rds",
+        region="sa-east-1",
+        search="m6i",
+        engine="oracle",
+        oracle_edition="enterprise",
+        oracle_license_model="license_included",
+        offset=0,
+        limit=20,
     )
     assert options["items"] == []
     assert options["status"] == "invalid_oracle_license_selection"
